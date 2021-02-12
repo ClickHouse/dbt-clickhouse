@@ -13,6 +13,8 @@ jobs:
     services:
       clickhouse:
         image: yandex/clickhouse-server 
+        ports:
+          - 9000:9000
 
     steps:
     - name: Checkout

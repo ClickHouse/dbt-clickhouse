@@ -1,6 +1,6 @@
 target:
   type: clickhouse
-  host: clickhouse
+  host: localhost
   port: 9000
   schema: "test_{{ var('_dbt_random_suffix') }}"
 
