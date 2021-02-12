@@ -1,0 +1,32 @@
+name: "build"
+
+on:
+  pull_request:
+  push:
+    branches: master
+
+jobs:
+  build:
+    name: Python 3.8 | Ubuntu
+    runs-on: ubuntu-latest
+
+    services:
+      clickhouse:
+        image: yandex/clickhouse-server 
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Setup Python 3.8
+      uses: actions/setup-python@v1
+      with:
+        python-version: 3.8
+
+    - name: Install requirements
+      run: |
+        pip install -r dev_requirements.txt
+
+    - name: Run tests
+      run: |
+        PYTHONPATH="${PYTHONPATH}:dbt" pytest test/integration/clickhouse.dbtspec
