@@ -166,3 +166,9 @@
 
   {{ return(load_result('get_columns_in_query').table.columns | map(attribute='name') | list) }}
 {% endmacro %}
+
+{% macro clickhouse__alter_column_type(relation, column_name, new_column_type) -%}
+  {% call statement('alter_column_type') %}
+    alter table {{ relation }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
+  {% endcall %}
+{% endmacro %}
