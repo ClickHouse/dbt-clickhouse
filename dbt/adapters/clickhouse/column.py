@@ -102,3 +102,7 @@ class ClickhouseColumn(Column):
 
     def literal(self, value):
         return f'to{self.dtype}({value})'
+
+    def can_expand_to(self: Self, other_column: Self) -> bool:
+        return self.is_string() and other_column.is_string()
+

@@ -55,7 +55,9 @@
     {{ order_cols(label="order by") }}
     {{ partition_cols(label="partitioned by") }}
   {%- endif %}
-  as {{ sql }}
+  as (
+    {{ sql }}
+  );
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
