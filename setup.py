@@ -60,7 +60,7 @@ setup(
     },
     install_requires=[
         f'dbt-core=={dbt_version}',
-        'clickhouse-driver>=0.18.0',
+        'clickhouse-driver>=0.1.4',
     ],
     python_requires=">=3.6",
     platforms='any',
