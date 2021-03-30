@@ -1,4 +1,4 @@
-dbt-core==0.18.0
+dbt-core==0.18.2
 clickhouse-driver==0.1.4
 pytest==6.0.2
 pytest-dbt-adapter==0.3.0
