@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/silentsokolov/dbt-clickhouse/master/etc/dbt-logo-full.svg" alt="dbt logo" width="300"/>
 </p>
 
-![build](https://github.com/silentsokolov/dbt-clickhouse/workflows/build/badge.svg?branch=master)
+[![build](https://github.com/silentsokolov/dbt-clickhouse/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/silentsokolov/dbt-clickhouse/actions/workflows/build.yml)
 
 # dbt-clickhouse
 
