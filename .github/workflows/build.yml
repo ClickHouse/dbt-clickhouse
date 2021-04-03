@@ -7,12 +7,32 @@ on:
 
 jobs:
   build:
-    name: Python 3.8 | Ubuntu
+    name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: 3.8
+            clickhouse-version: "20.11"
+          - python-version: 3.9
+            clickhouse-version: "20.11"
+          - python-version: 3.8
+            clickhouse-version: "20.12"
+          - python-version: 3.9
+            clickhouse-version: "20.12"
+          - python-version: 3.8
+            clickhouse-version: "21"
+          - python-version: 3.9
+            clickhouse-version: "21"
+          - python-version: 3.8
+            clickhouse-version: "21.1"
+          - python-version: 3.9
+            clickhouse-version: "21.1"
 
     services:
       clickhouse:
-        image: yandex/clickhouse-server 
+        image: yandex/clickhouse-server:${{ matrix.clickhouse-version}}
         ports:
           - 9000:9000
 
@@ -20,10 +40,10 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Setup Python 3.8
+    - name: Setup Python ${{ matrix.python-version }}
       uses: actions/setup-python@v1
       with:
-        python-version: 3.8
+        python-version: ${{ matrix.python-version }}
 
     - name: Install requirements
       run: |
