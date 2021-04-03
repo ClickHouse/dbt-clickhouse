@@ -23,7 +23,7 @@
     )
     {{ engine_clause(label='engine') }}
     {{ order_cols(label='order by') }}
-    {{ partition_cols(label='partitioned by') }}
+    {{ partition_cols(label='partition by') }}
   {% endset %}
 
   {% call statement('_') -%}
