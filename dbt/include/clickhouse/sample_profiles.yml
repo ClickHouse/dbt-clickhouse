@@ -1,0 +1,21 @@
+default:
+  outputs:
+
+    dev:
+      type: clickhouse
+      schema: [database name]
+      host: [host]
+
+      port: [port]
+      user: [user]
+      password: [password]
+
+    prod:
+      type: clickhouse
+      schema: [database name]
+      host: [host]
+
+      port: [port]
+      user: [user]
+
+  target: dev
