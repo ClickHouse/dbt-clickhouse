@@ -39,6 +39,13 @@
   {%- endif %}
 {%- endmacro -%}
 
+{% macro on_cluster_clause(label) %}
+  {%- set on_cluster = config.get('on_cluster', validator=validation.any[basestring]) -%}
+  {%- if on_cluster is not none %}
+    {{ label }} {{ on_cluster }}
+  {%- endif %}
+{%- endmacro -%}
+
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
 
@@ -51,6 +58,7 @@
     {{ partition_cols(label="partition by") }}
   {%- else %}
     create table {{ relation.include(database=False) }}
+    {{ on_cluster_clause(label="on cluster") }}
     {{ engine_clause(label="engine") }}
     {{ order_cols(label="order by") }}
     {{ partition_cols(label="partition by") }}
@@ -65,7 +73,8 @@
 
   {{ sql_header if sql_header is not none }}
 
-  create view {{ relation.include(database=False) }} as (
+  create view {{ relation.include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
+  as (
     {{ sql }}
   );
 {%- endmacro %}
@@ -79,13 +88,13 @@
 
 {% macro clickhouse__create_schema(relation) -%}
   {%- call statement('create_schema') -%}
-    create database if not exists {{ relation.without_identifier().include(database=False) }}
+    create database if not exists {{ relation.without_identifier().include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
 
 {% macro clickhouse__drop_schema(relation) -%}
   {%- call statement('drop_schema') -%}
-    drop database if exists {{ relation.without_identifier().include(database=False) }}
+    drop database if exists {{ relation.without_identifier().include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall -%}
 {% endmacro %}
 
@@ -121,16 +130,16 @@
 
 {% macro clickhouse__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
-    drop {{ relation.type }} if exists {{ relation }}
+    drop {{ relation.type }} if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall %}
 {% endmacro %}
 
 {% macro clickhouse__rename_relation(from_relation, to_relation) -%}
   {% call statement('drop_relation') %}
-    drop {{ to_relation.type }} if exists {{ to_relation }}
+    drop {{ to_relation.type }} if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
   {% call statement('rename_relation') %}
-    rename table {{ from_relation }} to {{ to_relation }}
+    rename {{ from_relation.type }} {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
 
@@ -169,6 +178,6 @@
 
 {% macro clickhouse__alter_column_type(relation, column_name, new_column_type) -%}
   {% call statement('alter_column_type') %}
-    alter table {{ relation }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
+    alter table {{ relation }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
