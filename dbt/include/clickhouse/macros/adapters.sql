@@ -139,7 +139,7 @@
     drop {{ to_relation.type }} if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
   {% call statement('rename_relation') %}
-    rename {{ from_relation.type }} {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
+    rename table {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
 
