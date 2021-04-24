@@ -94,7 +94,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             )
             connection.handle = handle
             connection.state = 'open'
-        except errors.DatabaseError as e:
+        except errors.ServerException as e:
             logger.debug(
                 'Got an error when attempting to open a clickhouse connection: \'{}\'',
                 str(e),
