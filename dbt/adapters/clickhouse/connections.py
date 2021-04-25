@@ -237,7 +237,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         data: List[Any] = []
         column_names: List[str] = []
         try:
-            column_names = [col[0] for col in cursor.columns_with_types()]
+            column_names = [col[0] for col in cursor.columns_with_types]
         except AttributeError:
             column_names = [col for col in cursor.keys()]
 
