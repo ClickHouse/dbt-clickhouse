@@ -1,9 +1,15 @@
-{% macro engine_clause(label) %}
+{% macro engine_clause(label, relation) %}
   {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
-  {%- if engine is not none %}
-    {{ label }} = {{ engine }}
+  {%- set zk_path = config.get('zk_path', validator=validation.any[basestring]) -%}
+  {%- set cluster_path = zk_path + relation.schema + '/' + relation.name -%}
+  {%- if 'Replicated' in engine %}
+    {{ label }} = {{ engine }}('{{ cluster_path }}', '{replica}-{shard}')
   {%- else %}
-    {{ label }} = MergeTree()
+      {%- if engine is not none %}
+        {{ label }} = MergeTree()
+      {%- else %}
+        {{ label }} = {{ engine }}()
+      {%- endif %}
   {%- endif %}
 {%- endmacro -%}
 
@@ -59,13 +65,13 @@
   {%- else %}
     create table {{ relation.include(database=False) }}
     {{ on_cluster_clause(label="on cluster") }}
-    {{ engine_clause(label="engine") }}
+    {{ engine_clause(label="engine", relation=relation) }}
     {{ order_cols(label="order by") }}
     {{ partition_cols(label="partition by") }}
   {%- endif %}
   as (
     {{ sql }}
-  );
+  )
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
@@ -76,7 +82,7 @@
   create view {{ relation.include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
   as (
     {{ sql }}
-  );
+  )
 {%- endmacro %}
 
 {% macro clickhouse__list_schemas(database) %}
@@ -130,14 +136,11 @@
 
 {% macro clickhouse__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
-    drop {{ relation.type }} if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop table if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall %}
 {% endmacro %}
 
 {% macro clickhouse__rename_relation(from_relation, to_relation) -%}
-  {% call statement('drop_relation') %}
-    drop {{ to_relation.type }} if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
-  {% endcall %}
   {% call statement('rename_relation') %}
     rename table {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
