@@ -194,9 +194,12 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 sql=log_sql,
             )
             pre = time.time()
-
             cursor = connection.handle
-            cursor = cursor.execute(sql, bindings)
+            credentials = cls.get_credentials(connection.credentials)
+            if credentials.protocol=='http':
+                cursor = cursor.execute(sql, bindings)
+            else:
+                cursor.execute(sql, bindings)
             logger.debug(
                 "SQL status: {status} in {elapsed:0.2f} seconds",
                 status=self.get_response(cursor),
