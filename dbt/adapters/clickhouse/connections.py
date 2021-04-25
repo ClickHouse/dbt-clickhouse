@@ -1,5 +1,5 @@
-from typing import Optional, Any, Tuple
-
+from typing import List, Optional, Any, Tuple, Dict, Union, Iterable
+import abc
 import agate
 import time
 import uuid
@@ -10,12 +10,13 @@ from dataclasses import dataclass
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, exc
+from clickhouse_sqlalchemy import make_session, exceptions
 from sqlalchemy.engine.url import URL
 from requests import Session
 
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
-from dbt.contracts.connection import Connection
+from dbt.contracts.connection import Connection, AdapterResponse
 from dbt.logger import GLOBAL_LOGGER as logger
 
 
@@ -26,7 +27,7 @@ class ClickhouseCredentials(Credentials):
     user: Optional[str] = 'default'
     database: Optional[str]
     password: str = ''
-    protocol: str = 'native'
+    protocol: str = 'http'
 
     @property
     def type(self):
@@ -54,7 +55,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         try:
             yield
 
-        except exc.DatabaseError as e:
+        except exceptions.DatabaseException as e:
             logger.debug('Clickhouse error: {}', str(e))
 
             try:
@@ -83,30 +84,31 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
         credentials = cls.get_credentials(connection.credentials)
 
-        url = URL(
-            drivername=f'clickhouse+{credentials.protocol}',
-            host=credentials.host,
-            port=credentials.port,
-            database='default',
-            username=credentials.user,
-            password=credentials.password,
-            query={'session_id': str(uuid.uuid4())}
-        )
-
-        try:
-            handle = create_engine(url, connect_args={'http_session': Session()}).connect()
-            connection.handle = handle
-            connection.state = 'open'
-        except exc.DatabaseError as e:
-            logger.debug(
-                'Got an error when attempting to open a clickhouse connection: \'{}\'',
-                str(e),
+        if credentials.protocol=='http':
+            url = URL(
+                drivername=f'clickhouse+{credentials.protocol}',
+                host=credentials.host,
+                port=credentials.port,
+                database='default',
+                username=credentials.user,
+                password=credentials.password,
+                query={'session_id': str(uuid.uuid4())}
             )
 
-            connection.handle = None
-            connection.state = 'fail'
+            try:
+                handle = create_engine(url, connect_args={'http_session': Session()}).connect()
+                connection.handle = make_session(handle)
+                connection.state = 'open'
+            except exc.DatabaseError as e:
+                logger.debug(
+                    'Got an error when attempting to open a clickhouse connection: \'{}\'',
+                    str(e),
+                )
 
-            raise dbt.exceptions.FailedToConnectException(str(e))
+                connection.handle = None
+                connection.state = 'fail'
+
+                raise dbt.exceptions.FailedToConnectException(str(e))
 
         return connection
 
@@ -129,88 +131,93 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         print(data)
         return dbt.clients.agate_helper.table_from_data_flat(data, column_names)
 
-    def execute(
-        self, sql: str, auto_begin: bool = False, fetch: bool = False
-    ) -> Tuple[str, agate.Table]:
-        sql = self._add_query_comment(sql)
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        with self.exception_handler(sql):
-            logger.debug(
-                'On {connection_name}: {sql}',
-                connection_name=conn.name,
-                sql=f'{sql}...',
-            )
-
-            pre = time.time()
-
-            response = client.execute(sql)
-            columns = response._metadata.keys
-
-            status = self.get_status(client)
-
-            logger.debug(
-                'SQL status: {status} in {elapsed:0.2f} seconds',
-                status=status,
-                elapsed=(time.time() - pre),
-            )
-
-            if fetch:
-                table = self.get_table_from_response(response, columns)
-            else:
-                table = dbt.clients.agate_helper.empty_table()
-            return status, table
-
     def add_query(
-        self,
-        sql: str,
-        auto_begin: bool = True,
-        bindings: Optional[Any] = None,
-        abridge_sql_log: bool = False,
+            self,
+            sql: str,
+            auto_begin: bool = True,
+            bindings: Optional[Any] = None,
+            abridge_sql_log: bool = False
     ) -> Tuple[Connection, Any]:
-        sql = self._add_query_comment(sql)
-        conn = self.get_thread_connection()
-        credentials = cls.get_credentials(connection.credentials)
-        client = conn.handle
+        connection = self.get_thread_connection()
+        if auto_begin and connection.transaction_open is False:
+            self.begin()
+
+        logger.debug('Using {} connection "{}".'
+                     .format(self.TYPE, connection.name))
 
         with self.exception_handler(sql):
+            if abridge_sql_log:
+                log_sql = '{}...'.format(sql[:512])
+            else:
+                log_sql = sql
+
             logger.debug(
                 'On {connection_name}: {sql}',
-                connection_name=conn.name,
-                sql=f'{sql}...',
+                connection_name=connection.name,
+                sql=log_sql,
             )
-
-            # TODO: Convert to allow clickhouse type
-            format_bindings = []
-            for row in bindings.rows:
-                format_row = []
-                for v in row.values():
-                    if isinstance(v, Decimal):
-                        v = int(v)
-                    format_row.append(v)
-                format_bindings.append(format_row)
-
             pre = time.time()
 
-            if credentials.protocol != 'native':
-                format_bindings = []
-                for row in bindings.rows:
-                    d = dict(row)
-                    d['id'] = int(d['id'])
-                    format_bindings.append(d)
-                ptr = ','.join([f'%({k})s' for k in bindings.column_names])
-                sql += f' ({ptr})'
-
-            client.execute(sql, format_bindings)
-
-            status = self.get_status(client)
-
+            cursor = connection.handle
+            cursor = cursor.execute(sql, bindings)
             logger.debug(
-                'SQL status: {status} in {elapsed:0.2f} seconds',
-                status=status,
-                elapsed=(time.time() - pre),
+                "SQL status: {status} in {elapsed:0.2f} seconds",
+                status=self.get_response(cursor),
+                elapsed=(time.time() - pre)
             )
+
+            return connection, cursor
+
+
+    @abc.abstractclassmethod
+    def get_response(cls, cursor: Any) -> Union[AdapterResponse, str]:
+        """Get the status of the cursor."""
+        raise dbt.exceptions.NotImplementedException(
+            '`get_response` is not implemented for this adapter!'
+        )
+
+    @classmethod
+    def process_results(
+            cls,
+            column_names: Iterable[str],
+            rows: Iterable[Any]
+    ) -> List[Dict[str, Any]]:
+        unique_col_names = dict()
+        for idx in range(len(column_names)):
+            col_name = column_names[idx]
+            if col_name in unique_col_names:
+                unique_col_names[col_name] += 1
+                column_names[idx] = f'{col_name}_{unique_col_names[col_name]}'
+            else:
+                unique_col_names[column_names[idx]] = 1
+        return [dict(zip(column_names, row)) for row in rows]
+
+    @classmethod
+    def get_result_from_cursor(cls, cursor: Any) -> agate.Table:
+        data: List[Any] = []
+        column_names: List[str] = []
+
+        if cursor.keys() is not None:
+            column_names = [col for col in cursor.keys()]
+            rows = cursor.fetchall()
+            data = cls.process_results(column_names, rows)
+
+        return dbt.clients.agate_helper.table_from_data_flat(
+            data,
+            column_names
+        )
+
+    def execute(
+            self, sql: str, auto_begin: bool = False, fetch: bool = False
+    ) -> Tuple[Union[AdapterResponse, str], agate.Table]:
+        sql = self._add_query_comment(sql)
+        _, cursor = self.add_query(sql, auto_begin)
+        response = self.get_response(cursor)
+        if fetch:
+            table = self.get_result_from_cursor(cursor)
+        else:
+            table = dbt.clients.agate_helper.empty_table()
+        return response, table
 
     @classmethod
     def get_credentials(cls, credentials):
