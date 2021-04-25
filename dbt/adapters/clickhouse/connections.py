@@ -29,7 +29,7 @@ class ClickhouseCredentials(Credentials):
     user: Optional[str] = 'default'
     database: Optional[str]
     password: str = ''
-    protocol: str = 'http'
+    protocol: str = 'native'
 
     @property
     def type(self):
