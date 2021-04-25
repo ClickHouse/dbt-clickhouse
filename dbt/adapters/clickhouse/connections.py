@@ -233,15 +233,13 @@ class ClickhouseConnectionManager(SQLConnectionManager):
     def get_result_from_cursor(cls, cursor: Any) -> agate.Table:
         data: List[Any] = []
         column_names: List[str] = []
+        try:
+            column_names = [col[0] for col in cursor.columns_with_types]
+        except AttributeError:
+            column_names = [col for col in cursor.keys()]
 
-        if cursor.keys() is not None:
-            credentials = cls.get_credentials()
-            if credentials.protocol == 'http':
-                column_names = [col for col in cursor.keys()]
-                rows = cursor.fetchall()
-            else:
-                column_names = [col[0] for col in cursor.columns_with_types]
-                rows = cursor.fetchall()
+        if column_names is not None:
+            rows = cursor.fetchall()
             data = cls.process_results(column_names, rows)
 
         return dbt.clients.agate_helper.table_from_data_flat(
