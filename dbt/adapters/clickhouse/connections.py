@@ -195,7 +195,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             )
             pre = time.time()
             cursor = connection.handle
-            credentials = cls.get_credentials(connection.credentials)
+            credentials = self.get_credentials(connection.credentials)
             if credentials.protocol=='http':
                 cursor = cursor.execute(sql, bindings)
             else:
