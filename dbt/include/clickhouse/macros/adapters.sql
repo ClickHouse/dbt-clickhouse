@@ -1,7 +1,8 @@
-{% macro engine_clause(label, relation) %}
+{% macro engine_clause(label, target) %}
   {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
   {%- set zk_path = config.get('zk_path', validator=validation.any[basestring]) -%}
-  {%- set cluster_path = zk_path + relation.schema + '/' + relation.name -%}
+  {%- set schema_name = config.get('schema', validator=validation.any[basestring]) -%}
+  {%- set cluster_path = zk_path + schema_name + '/' + target -%}
   {%- if 'Replicated' in engine %}
     {{ label }} = {{ engine }}('{{ cluster_path }}', '{replica}-{shard}')
   {%- else %}
@@ -65,7 +66,7 @@
   {%- else %}
     create table {{ relation.include(database=False) }}
     {{ on_cluster_clause(label="on cluster") }}
-    {{ engine_clause(label="engine", relation=relation) }}
+    {{ engine_clause(label="engine", target=relation.name) }}
     {{ order_cols(label="order by") }}
     {{ partition_cols(label="partition by") }}
   {%- endif %}
