@@ -61,6 +61,7 @@ setup(
     install_requires=[
         f'dbt-core=={dbt_version}',
         'clickhouse-driver>=0.1.4',
+        'clickhouse_sqlalchemy==0.1.6'
     ],
     python_requires=">=3.6",
     platforms='any',
