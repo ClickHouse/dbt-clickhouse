@@ -130,7 +130,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                     password=credentials.password,
                     host=credentials.host,
                     port=credentials.port,
-                    database=credentials.schema,
+                    database='default',
                     client_name=f'dbt-{dbt_version}'
                 )
                 connection.handle = conn.cursor()
