@@ -2,7 +2,7 @@
   {% set cols_sql = get_seed_column_quoted_csv(model, agate_table.column_names) %}
 
   {% set sql %}
-      insert into {{ this.render() }} ({{ cols_sql }}) values
+      insert into {{ this.render() }} ({{ cols_sql }}) VALUES
   {% endset %}
 
   {% do adapter.add_query(sql, bindings=agate_table, abridge_sql_log=True) %}

@@ -2,19 +2,21 @@ from typing import Optional, Any, Tuple
 
 import agate
 import time
+import uuid
 import dbt.exceptions
 
 from decimal import Decimal
 from dataclasses import dataclass
 from contextlib import contextmanager
 
-from clickhouse_driver import Client, errors
+from sqlalchemy import create_engine, exc
+from sqlalchemy.engine.url import URL
+from requests import Session
 
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
 from dbt.logger import GLOBAL_LOGGER as logger
-from dbt.version import __version__ as dbt_version
 
 
 @dataclass
@@ -24,6 +26,7 @@ class ClickhouseCredentials(Credentials):
     user: Optional[str] = 'default'
     database: Optional[str]
     password: str = ''
+    protocol: str = 'native'
 
     @property
     def type(self):
@@ -51,13 +54,13 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         try:
             yield
 
-        except errors.ServerException as e:
+        except exc.DatabaseError as e:
             logger.debug('Clickhouse error: {}', str(e))
 
             try:
                 # attempt to release the connection
                 self.release()
-            except errors.Error:
+            except exc.SQLAlchemyError:
                 logger.debug('Failed to release connection!')
                 pass
 
@@ -79,22 +82,22 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             return connection
 
         credentials = cls.get_credentials(connection.credentials)
-        kwargs = {}
+
+        url = URL(
+            drivername=f'clickhouse+{credentials.protocol}',
+            host=credentials.host,
+            port=credentials.port,
+            database='default',
+            username=credentials.user,
+            password=credentials.password,
+            query={'session_id': str(uuid.uuid4())}
+        )
 
         try:
-            handle = Client(
-                host=credentials.host,
-                port=credentials.port,
-                database='default',
-                user=credentials.user,
-                password=credentials.password,
-                client_name=f'dbt-{dbt_version}',
-                connect_timeout=10,
-                **kwargs,
-            )
+            handle = create_engine(url, connect_args={'http_session': Session()}).connect()
             connection.handle = handle
             connection.state = 'open'
-        except errors.ServerException as e:
+        except exc.DatabaseError as e:
             logger.debug(
                 'Got an error when attempting to open a clickhouse connection: \'{}\'',
                 str(e),
@@ -112,18 +115,18 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
         logger.debug('Cancelling query \'{}\'', connection_name)
 
-        connection.handle.disconnect()
+        connection.handle.close()
 
         logger.debug('Cancel query \'{}\'', connection_name)
 
     @classmethod
     def get_table_from_response(cls, response, columns) -> agate.Table:
-        column_names = [x[0] for x in columns]
+        column_names = columns
 
         data = []
         for row in response:
             data.append(dict(zip(column_names, row)))
-
+        print(data)
         return dbt.clients.agate_helper.table_from_data_flat(data, column_names)
 
     def execute(
@@ -142,7 +145,8 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
             pre = time.time()
 
-            response, columns = client.execute(sql, with_column_types=True)
+            response = client.execute(sql)
+            columns = response._metadata.keys
 
             status = self.get_status(client)
 
@@ -167,6 +171,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
     ) -> Tuple[Connection, Any]:
         sql = self._add_query_comment(sql)
         conn = self.get_thread_connection()
+        credentials = cls.get_credentials(connection.credentials)
         client = conn.handle
 
         with self.exception_handler(sql):
@@ -187,6 +192,15 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 format_bindings.append(format_row)
 
             pre = time.time()
+
+            if credentials.protocol != 'native':
+                format_bindings = []
+                for row in bindings.rows:
+                    d = dict(row)
+                    d['id'] = int(d['id'])
+                    format_bindings.append(d)
+                ptr = ','.join([f'%({k})s' for k in bindings.column_names])
+                sql += f' ({ptr})'
 
             client.execute(sql, format_bindings)
 
