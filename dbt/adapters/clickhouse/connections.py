@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, exc
+from clickhouse_driver import connect, errors
 from clickhouse_sqlalchemy import make_session, exceptions
 from sqlalchemy.engine.url import URL
 from requests import Session
@@ -18,6 +19,7 @@ from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection, AdapterResponse
 from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.version import __version__ as dbt_version
 
 
 @dataclass
@@ -67,6 +69,18 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
             raise dbt.exceptions.DatabaseException(str(e).strip()) from e
 
+        except errors.ServerException as e:
+            logger.debug('Clickhouse error: {}', str(e))
+
+            try:
+                # attempt to release the connection
+                self.release()
+            except errors.Error:
+                logger.debug('Failed to release connection!')
+                pass
+
+            raise dbt.exceptions.DatabaseException(str(e).strip()) from e
+
         except Exception as e:
             logger.debug('Error running SQL: {}', sql)
             logger.debug('Rolling back transaction.')
@@ -109,6 +123,29 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 connection.state = 'fail'
 
                 raise dbt.exceptions.FailedToConnectException(str(e))
+        else:
+            try:
+                conn = connect(
+                    user=credentials.user,
+                    password=credentials.password,
+                    host=credentials.host,
+                    port=credentials.port,
+                    database=credentials.schema,
+                    client_name=f'dbt-{dbt_version}'
+                )
+                connection.handle = conn.cursor()
+                connection.state = 'open'
+            except errors.ServerException as e:
+                logger.debug(
+                    'Got an error when attempting to open a clickhouse connection: \'{}\'',
+                    str(e),
+                )
+
+                connection.handle = None
+                connection.state = 'fail'
+
+                raise dbt.exceptions.FailedToConnectException(str(e))
+
 
         return connection
 
