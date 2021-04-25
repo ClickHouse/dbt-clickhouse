@@ -235,8 +235,13 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         column_names: List[str] = []
 
         if cursor.keys() is not None:
-            column_names = [col for col in cursor.keys()]
-            rows = cursor.fetchall()
+            credentials = cls.get_credentials()
+            if credentials.protocol == 'http':
+                column_names = [col for col in cursor.keys()]
+                rows = cursor.fetchall()
+            else:
+                column_names = [col[0] for col in cursor.columns_with_types]
+                rows = cursor.fetchall()
             data = cls.process_results(column_names, rows)
 
         return dbt.clients.agate_helper.table_from_data_flat(
