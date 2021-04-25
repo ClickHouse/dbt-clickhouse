@@ -1,7 +1,13 @@
 ## [Unreleased]
 
+### Add
+- Add support the `ON CLUSTER` clause for main cases
+
 ### Change
 - Engine now require brackets `()`
+
+### Fix
+- Fix a missing sample profile
 
 ## [0.19.0.2] - 2021-04-03
 
