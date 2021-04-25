@@ -43,6 +43,7 @@ So we use a simple model `schema.table`, where `schema` is the Clickhouse's data
 | engine         | The table engine (type of table) to use when creating tables                                                                                         | Optional (default: `MergeTree()`) |
 | order_cols     | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                        | Optional (default: `tuple()`)     |
 | partition_cols | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns. | Optional                          |
+| on_cluster | In a cluster setup, it is possible to run such queries in a distributed manner with the ON CLUSTER clause. (Not work with Snapshots) | Optional                          |
 
 ### Example Profile
 
