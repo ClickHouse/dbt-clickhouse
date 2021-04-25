@@ -3,6 +3,9 @@
 ### Add
 - Add support the `ON CLUSTER` clause for main cases
 
+### Change
+- Engine now require brackets `()`
+
 ### Fix
 - Fix a missing sample profile
 

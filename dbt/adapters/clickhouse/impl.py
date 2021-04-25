@@ -27,7 +27,7 @@ LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
 @dataclass
 class ClickhouseConfig(AdapterConfig):
-    engine: str = 'MergeTree'
+    engine: str = 'MergeTree()'
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None
 

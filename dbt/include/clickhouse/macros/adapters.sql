@@ -1,7 +1,7 @@
 {% macro engine_clause(label) %}
   {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
   {%- if engine is not none %}
-    {{ label }} = {{ engine }}()
+    {{ label }} = {{ engine }}
   {%- else %}
     {{ label }} = MergeTree()
   {%- endif %}
