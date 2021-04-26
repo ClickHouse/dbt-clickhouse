@@ -21,7 +21,7 @@
           {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ type }} {%- if not loop.last -%}, {%- endif -%}
       {%- endfor -%}
     )
-    {{ engine_clause(label='engine', target=this.render()) }}
+    {{ engine_clause(label='engine', target=this.name) }}
     {{ order_cols(label='order by') }}
     {{ partition_cols(label='partition by') }}
   {% endset %}
