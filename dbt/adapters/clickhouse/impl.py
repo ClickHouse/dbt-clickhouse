@@ -10,7 +10,7 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt.clients.agate_helper import table_from_rows
 from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.base.impl import catch_as_completed
-from dbt.adapters.base import AdapterConfig
+from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.sql import SQLAdapter
 from dbt.adapters.clickhouse import (
     ClickhouseConnectionManager,
@@ -68,6 +68,11 @@ class ClickhouseAdapter(SQLAdapter):
         raise dbt.exceptions.NotImplementedException(
             '`convert_time_type` is not implemented for this adapter!'
         )
+
+    @available.parse(lambda *a, **k: {})
+    def get_clickhouse_cluster_name(self):
+        conn = self.connections.get_if_exists()
+        return conn.credentials.cluster
 
     def quote(self, identifier):
         return f'{identifier}'

@@ -40,7 +40,7 @@
 {%- endmacro -%}
 
 {% macro on_cluster_clause(label) %}
-  {%- set on_cluster = config.get('on_cluster', validator=validation.any[basestring]) -%}
+  {% set on_cluster = adapter.get_clickhouse_cluster_name() %}
   {%- if on_cluster is not none %}
     {{ label }} {{ on_cluster }}
   {%- endif %}

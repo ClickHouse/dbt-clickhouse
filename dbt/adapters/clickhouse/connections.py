@@ -24,6 +24,7 @@ class ClickhouseCredentials(Credentials):
     user: Optional[str] = 'default'
     database: Optional[str]
     password: str = ''
+    cluster: Optional[str] = None
 
     @property
     def type(self):
@@ -34,6 +35,7 @@ class ClickhouseCredentials(Credentials):
             raise dbt.exceptions.RuntimeException(
                 f'    schema: {self.schema} \n'
                 f'    database: {self.database} \n'
+                f'    cluster: {self.cluster} \n'
                 f'On Clickhouse, database must be omitted or have the same value as'
                 f' schema.'
             )
