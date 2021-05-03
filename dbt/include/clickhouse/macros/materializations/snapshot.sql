@@ -179,7 +179,7 @@
     from {{ target }}
     where dbt_scd_id not in (
       select {{ source }}.dbt_scd_id from {{ source }} 
-    );
+    )
   {% endcall %}
 
   {% call statement('insert_changed_date') %}

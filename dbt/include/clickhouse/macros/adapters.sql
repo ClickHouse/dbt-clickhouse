@@ -65,7 +65,7 @@
   {%- endif %}
   as (
     {{ sql }}
-  );
+  )
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
@@ -76,7 +76,7 @@
   create view {{ relation.include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
   as (
     {{ sql }}
-  );
+  )
 {%- endmacro %}
 
 {% macro clickhouse__list_schemas(database) %}
@@ -130,13 +130,13 @@
 
 {% macro clickhouse__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
-    drop {{ relation.type }} if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop table if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall %}
 {% endmacro %}
 
 {% macro clickhouse__rename_relation(from_relation, to_relation) -%}
   {% call statement('drop_relation') %}
-    drop {{ to_relation.type }} if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop table if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
   {% call statement('rename_relation') %}
     rename table {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}

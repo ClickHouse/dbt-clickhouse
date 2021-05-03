@@ -8,7 +8,7 @@
   where ({{ unique_key }}) in (
     select ({{ unique_key }})
     from {{ tmp_relation }}
-  );
+  )
   {%- endif %}
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
