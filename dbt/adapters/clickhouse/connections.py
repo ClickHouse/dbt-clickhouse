@@ -19,10 +19,11 @@ from dbt.version import __version__ as dbt_version
 
 @dataclass
 class ClickhouseCredentials(Credentials):
-    host: str
+    host: str = 'localhost'
     port: Optional[int] = None
     user: Optional[str] = 'default'
-    database: Optional[str]
+    database: Optional[str] = None
+    schema: Optional[str] = 'default'
     password: str = ''
     cluster: Optional[str] = None
 
