@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.19.1] - 2021-05-07
+
 ### Add
 - Add support the `ON CLUSTER` clause for main cases
 
@@ -23,7 +25,8 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.0.2...HEAD
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.1...HEAD
+[0.19.0.2]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0.2...v0.19.1
 [0.19.0.2]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0.1...v0.19.0.2
 [0.19.0.1]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0...v0.19.0.1
 [0.19.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/eb3020a...v0.19.0
