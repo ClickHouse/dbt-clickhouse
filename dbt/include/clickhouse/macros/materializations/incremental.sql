@@ -3,15 +3,21 @@
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
   {%- if unique_key is not none -%}
-  alter table {{ target_relation }}
-  delete
-  where ({{ unique_key }}) in (
-    select ({{ unique_key }})
-    from {{ tmp_relation }}
-  )
+  {% set query %}  
+    alter table {{ target_relation }}
+    delete
+    where ({{ unique_key }}) in (
+      select ({{ unique_key }})
+      from {{ tmp_relation }}
+    )
+  {% endset %}
+  {% do run_query(query) %}
   {%- endif %}
 
-  insert into {{ target_relation }} ({{ dest_cols_csv }})
-    select {{ dest_cols_csv }}
-    from {{ tmp_relation }};
+  {% set query %}  
+    insert into {{ target_relation }} ({{ dest_cols_csv }})
+      select {{ dest_cols_csv }}
+      from {{ tmp_relation }};
+  {% endset %}
+  {% do run_query(query) %}
 {%- endmacro %}
