@@ -14,10 +14,7 @@
   {% do run_query(query) %}
   {%- endif %}
 
-  {% set query %}  
-    insert into {{ target_relation }} ({{ dest_cols_csv }})
-      select {{ dest_cols_csv }}
-      from {{ tmp_relation }};
-  {% endset %}
-  {% do run_query(query) %}
+  insert into {{ target_relation }} ({{ dest_cols_csv }})
+    select {{ dest_cols_csv }}
+    from {{ tmp_relation }};
 {%- endmacro %}
