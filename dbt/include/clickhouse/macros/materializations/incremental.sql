@@ -2,17 +2,6 @@
   {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
-  {%- if unique_key is not none -%}
-  {% set query %}  
-    alter table {{ target_relation }}
-    delete
-    where ({{ unique_key }}) in (
-      select ({{ unique_key }})
-      from {{ tmp_relation }}
-    )
-  {% endset %}
---   {% do run_query(query) %}
-  {%- endif %}
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
     select {{ dest_cols_csv }}
