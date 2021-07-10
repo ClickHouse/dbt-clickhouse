@@ -11,7 +11,7 @@
       from {{ tmp_relation }}
     )
   {% endset %}
-  {% do run_query(query) %}
+--   {% do run_query(query) %}
   {%- endif %}
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
