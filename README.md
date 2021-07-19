@@ -60,4 +60,6 @@ your_profile_name:
       user: [user]
       password: [abc123]
       cluster: [cluster name]
+      verify: [verify] # default False
+      secure: [secure] # default False
 ```
