@@ -26,6 +26,9 @@ class ClickhouseCredentials(Credentials):
     schema: Optional[str] = 'default'
     password: str = ''
     cluster: Optional[str] = None
+    secure: bool = False
+    verify: bool = False
+
 
     @property
     def type(self):
@@ -43,7 +46,7 @@ class ClickhouseCredentials(Credentials):
         self.database = None
 
     def _connection_keys(self):
-        return ('host', 'port', 'user', 'schema')
+        return ('host', 'port', 'user', 'schema', 'secure', 'verify')
 
 
 class ClickhouseConnectionManager(SQLConnectionManager):
@@ -93,6 +96,8 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 password=credentials.password,
                 client_name=f'dbt-{dbt_version}',
                 connect_timeout=10,
+                secure=credentials.secure,
+                verify=credentials.verify,
                 **kwargs,
             )
             connection.handle = handle
