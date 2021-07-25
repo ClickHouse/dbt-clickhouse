@@ -3,8 +3,7 @@
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
   {%- if unique_key is not none -%}
-  delete
-  from {{ target_relation }}
+  alter table {{ target_relation }} {{ on_cluster_clause(label="on cluster") }} delete
   where ({{ unique_key }}) in (
     select ({{ unique_key }})
     from {{ tmp_relation }}
