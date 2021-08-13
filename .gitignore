@@ -93,3 +93,6 @@ target/
 
 # vscode
 .vscode/
+
+# self
+dbt-tut

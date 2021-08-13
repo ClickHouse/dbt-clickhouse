@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+## [0.19.1.1] - 2021-05-07
+
+### Add
+- Add verify and secure to connection configuration
+
+### Fix
+- Fix the delete expression #12
+
 ## [0.19.1] - 2021-05-07
 
 ### Add
@@ -25,8 +33,9 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.1...HEAD
-[0.19.0.2]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0.2...v0.19.1
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.1.1...HEAD
+[0.19.1.1]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.1...v0.19.1.1
+[0.19.1]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0.2...v0.19.1
 [0.19.0.2]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0.1...v0.19.0.2
 [0.19.0.1]: https://github.com/silentsokolov/flask-thumbnails/compare/v0.19.0...v0.19.0.1
 [0.19.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/eb3020a...v0.19.0
