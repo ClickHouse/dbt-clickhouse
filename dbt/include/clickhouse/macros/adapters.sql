@@ -42,7 +42,7 @@
 {% macro on_cluster_clause(label) %}
   {% set on_cluster = adapter.get_clickhouse_cluster_name() %}
   {%- if on_cluster is not none %}
-    {{ label }} '{{ on_cluster }}'
+    {{ label }} '{{ on_cluster }}' {# -- this one for quoting cluster name; had some issues with names like something-somenthing #}
   {%- endif %}
 {%- endmacro -%}
 
@@ -241,37 +241,4 @@
   {% call statement('alter_column_type') %}
     alter table {{ relation }} {{ on_cluster_clause(label="on cluster") }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
   {% endcall %}
-{% endmacro %}
-
-{% macro clickhouse__alter_relation_add_remove_columns(relation, add_columns, remove_columns) %}
-  
-  {% if add_columns is none %}
-    {% set add_columns = [] %}
-  {% endif %}
-  {% if remove_columns is none %}
-    {% set remove_columns = [] %}
-  {% endif %}
-  
-  {% set add_sql -%}
-     alter {{ relation.type }} {{ relation }}
-       
-        {% for column in add_columns %}
-            add column {{ column.name }} {{ column.data_type }}{{ ',' if not loop.last }}
-        {% endfor %}
-  {% endset %}
-
-  {% do run_query(add_sql) %}
-
-  {%if remove_columns | length > 0 %}
-    {% set drop_sql -%}
-        alter {{ relation.type }} {{ relation }}
-          {% for column in remove_columns %}
-              drop column {{ column.name }}{{ ',' if not loop.last }}
-          {% endfor %}
-  
-    {%- endset -%}
-
-    {% do run_query(drop_sql) %}
-  {% endif %}
-
 {% endmacro %}
