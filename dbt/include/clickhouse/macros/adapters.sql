@@ -46,6 +46,25 @@
   {%- endif %}
 {%- endmacro -%}
 
+{% macro clickhouse__create_distributed_table(relation, local_relation) %}
+  {%- set cluster = adapter.get_clickhouse_cluster_name() -%}
+  {%- set columns = adapter.get_col_types(local_relation) -%}
+  {%- set coltypes = columns | map(attribute='coltype') | join(', ') -%}
+  {%- set sharding = config.get('sharding_key') -%}
+
+  {% if sharding is none %}
+    create table {{ relation.name }} {{ on_cluster_clause(label="on cluster") }} (
+    {{ coltypes }}
+    )
+    engine = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}')
+  {% else %}
+    create table {{ relation.name }} {{ on_cluster_clause(label="on cluster") }} (
+    {{ coltypes }}
+    )
+    engine = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}', {{ sharding }})
+  {% endif %}
+{% endmacro %}
+
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
 
@@ -66,6 +85,22 @@
   as (
     {{ sql }}
   )
+{%- endmacro %}
+
+{% macro clickhouse__create_empty_table(relation, view_relation) -%}
+  {%- set sql_header = config.get('sql_header', none) -%}
+  {%- set columns = adapter.get_col_types(view_relation) -%}
+  {%- set coltypes = columns | map(attribute='coltype') | join(', ') -%}
+
+  {{ sql_header if sql_header is not none }}
+
+  create table {{ relation.name }} {{ on_cluster_clause(label="on cluster") }} (
+    {{ coltypes }}
+  )
+  {{ engine_clause(label="engine") }}
+  {{ order_cols(label="order by") }}
+  {{ partition_cols(label="partition by") }}
+
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
@@ -128,6 +163,22 @@
   {% do return(load_result('get_columns_in_relation').table) %}
 {% endmacro %}
 
+{% macro clickhouse__get_col_types(relation) %}
+  {% call statement('get_col_types', fetch_result=True) %}
+    select
+      name || ' ' || type AS coltype
+    from system.columns
+    where
+      table = '{{ relation.identifier }}'
+    {% if relation.schema %}
+      and database = '{{ relation.schema }}'
+    {% endif %}
+    order by position
+  {% endcall %}
+  {% do return(load_result('get_col_types').table) %}
+{% endmacro %}
+
+
 {% macro clickhouse__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
     drop table if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
@@ -156,6 +207,16 @@
   {% do return(tmp_relation) %}
 {% endmacro %}
 
+{% macro clickhouse__make_local_relation(base_relation) %}
+  {% set local_relation = clickhouse__make_temp_relation(base_relation, '__dbt_local') -%}
+  {% do return(local_relation) %}
+{% endmacro %}
+
+{% macro clickhouse__make_view_relation(base_relation) %}
+  {% set view_relation = clickhouse__make_temp_relation(base_relation, '__dbt_view') -%}
+  {% do return(view_relation) %}
+{% endmacro %}
+
 
 {% macro clickhouse__generate_database_name(custom_database_name=none, node=none) -%}
   {% do return(None) %}
@@ -178,6 +239,39 @@
 
 {% macro clickhouse__alter_column_type(relation, column_name, new_column_type) -%}
   {% call statement('alter_column_type') %}
-    alter table {{ relation }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }} {{ on_cluster_clause(label="on cluster") }}
+    alter table {{ relation }} {{ on_cluster_clause(label="on cluster") }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
   {% endcall %}
+{% endmacro %}
+
+{% macro clickhouse__alter_relation_add_remove_columns(relation, add_columns, remove_columns) %}
+  
+  {% if add_columns is none %}
+    {% set add_columns = [] %}
+  {% endif %}
+  {% if remove_columns is none %}
+    {% set remove_columns = [] %}
+  {% endif %}
+  
+  {% set add_sql -%}
+     alter {{ relation.type }} {{ relation }}
+       
+        {% for column in add_columns %}
+            add column {{ column.name }} {{ column.data_type }}{{ ',' if not loop.last }}
+        {% endfor %}
+  {% endset %}
+
+  {% do run_query(add_sql) %}
+
+  {%if remove_columns | length > 0 %}
+    {% set drop_sql -%}
+        alter {{ relation.type }} {{ relation }}
+          {% for column in remove_columns %}
+              drop column {{ column.name }}{{ ',' if not loop.last }}
+          {% endfor %}
+  
+    {%- endset -%}
+
+    {% do run_query(drop_sql) %}
+  {% endif %}
+
 {% endmacro %}
