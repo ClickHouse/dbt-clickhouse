@@ -16,18 +16,16 @@
     {% set unique_key = config.get('unique_key') %}
     {% set existing_relation = load_relation(this) %}
     {% set target_relation = this.incorporate(type='table') %}
-    {% set tmp_relation = make_temp_relation(target_relation) %}
-    {% set local_relation = make_local_relation(target_relation) %}
-    {% set view_relation = make_view_relation(target_relation) %}
+    {% set tmp_relation = clickhouse__make_temp_relation(target_relation) %}
+    {% set local_relation = clickhouse__make_local_relation(target_relation) %}
+    {% set view_relation = clickhouse__make_view_relation(target_relation) %}
     {%- set full_refresh_mode = (should_full_refresh()) -%}
     
     {# -- Main stuff is almost exactly the same, as in base adapter incremental materialization #}
 
-    {{ do adapter.drop_relation(preexisting_intermediate_relation) }}
-
     {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
-    {% set trigger_full_refresh = (full_refresh_mode or existing_relation.is_view) %}
+    {% set trigger_full_refresh = (full_rquery,efresh_mode or existing_relation.is_view) %}
 
     {# -- So here is the flow: we make view out of sql. Database spends almost nothing to create that. #}
     {# -- But after that we have this view in system.columns and system.tables #}
@@ -37,11 +35,11 @@
         {% do adapter.drop_relation(target_relation) %}
         {% do adapter.drop_relation(view_relation) %}
         {% do run_query(create_view_as(view_relation, sql)) %}
-        {% do run_query(create_empty_table(local_relation, view_relation)) %}
+        {% do run_query(clickhouse__create_empty_table(local_relation, view_relation)) %}
 
         {# -- Don't forget to drop helper view #}
         {% do adapter.drop_relation(view_relation) %}
-        {% do run_query(create_distributed_table(target_relation, local_relation)) %}
+        {% do run_query(clickhouse__create_distributed_table(target_relation, local_relation)) %}
         {% do run_query(create_table_as(True, tmp_relation, sql)) %}
     {% else %}
         {% do run_query(create_table_as(True, tmp_relation, sql)) %}
@@ -51,7 +49,7 @@
     {# -- Even if it is first time running or full-refresh, we are using incremental upsert, because we cannot use "create table as" #}
 
     {% call statement("main") %}
-        {{ incremental_upsert(tmp_identifier, target_relation, unique_key = unique_key) }}
+        {{ incremental_upsert(tmp_relation, target_relation, unique_key = unique_key) }}
     {% endcall %}
 
     {% do persist_docs(target_relation, model) %}

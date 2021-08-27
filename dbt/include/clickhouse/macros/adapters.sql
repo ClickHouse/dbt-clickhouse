@@ -42,13 +42,13 @@
 {% macro on_cluster_clause(label) %}
   {% set on_cluster = adapter.get_clickhouse_cluster_name() %}
   {%- if on_cluster is not none %}
-    {{ label }} {{ on_cluster }}
+    {{ label }} '{{ on_cluster }}'
   {%- endif %}
 {%- endmacro -%}
 
 {% macro clickhouse__create_distributed_table(relation, local_relation) %}
   {%- set cluster = adapter.get_clickhouse_cluster_name() -%}
-  {%- set columns = adapter.get_col_types(local_relation) -%}
+  {%- set columns = clickhouse__get_col_types(local_relation) -%}
   {%- set coltypes = columns | map(attribute='coltype') | join(', ') -%}
   {%- set sharding = config.get('sharding_key') -%}
 
@@ -89,7 +89,7 @@
 
 {% macro clickhouse__create_empty_table(relation, view_relation) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
-  {%- set columns = adapter.get_col_types(view_relation) -%}
+  {%- set columns = clickhouse__get_col_types(view_relation) -%}
   {%- set coltypes = columns | map(attribute='coltype') | join(', ') -%}
 
   {{ sql_header if sql_header is not none }}
