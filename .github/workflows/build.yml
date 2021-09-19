@@ -15,19 +15,19 @@ jobs:
         include:
           - python-version: 3.8
             clickhouse-version: "20.11"
-          - python-version: 3.9
+          - python-version: 3.9.6
             clickhouse-version: "20.11"
           - python-version: 3.8
             clickhouse-version: "20.12"
-          - python-version: 3.9
+          - python-version: 3.9.6
             clickhouse-version: "20.12"
           - python-version: 3.8
             clickhouse-version: "21"
-          - python-version: 3.9
+          - python-version: 3.9.6
             clickhouse-version: "21"
           - python-version: 3.8
             clickhouse-version: "21.1"
-          - python-version: 3.9
+          - python-version: 3.9.6
             clickhouse-version: "21.1"
 
     services:
