@@ -86,7 +86,7 @@
     %}
 
     {% call statement('main') %}
-        select 1
+        select 1;
     {% endcall %}
 
   {% endif %}
@@ -161,7 +161,7 @@
     where snapshotted_data.dbt_valid_to is null
     and (
       {{ strategy.row_changed }}
-    )
+    );
 {%- endmacro %}
 
 {% macro clickhouse__snapshot_merge_sql_one(target, source, insert_cols, upsert) -%}
@@ -179,7 +179,7 @@
     from {{ target }}
     where dbt_scd_id not in (
       select {{ source }}.dbt_scd_id from {{ source }} 
-    )
+    );
   {% endcall %}
 
   {% call statement('insert_changed_date') %}

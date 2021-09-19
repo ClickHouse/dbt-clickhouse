@@ -6,7 +6,7 @@
   alter table {{ target_relation }} {{ on_cluster_clause(label="on cluster") }} delete
   where ({{ unique_key }}) in (
     select ({{ unique_key }})
-    from {{ tmp_relation }}
+    from {{ tmp_relation }};
   )
   {%- endif %}
 
