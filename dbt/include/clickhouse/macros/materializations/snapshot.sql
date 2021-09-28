@@ -151,9 +151,9 @@
   insertions as (
     select
       'insert' as dbt_change_type,
-      insertions_source_data.*
-    from insertions_source_data
-    left outer join snapshotted_data on snapshotted_data.dbt_unique_key = insertions_source_data.dbt_unique_key
+      source_data.*
+    from insertions_source_data as source_data
+    left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
     where snapshotted_data.dbt_unique_key is null
       or (
       snapshotted_data.dbt_unique_key is not null
@@ -165,10 +165,10 @@
   updates as (
     select
       'update' as dbt_change_type,
-      updates_source_data.*,
+      source_data.*,
       snapshotted_data.dbt_scd_id
-    from updates_source_data
-    join snapshotted_data on snapshotted_data.dbt_unique_key = updates_source_data.dbt_unique_key
+    from updates_source_data as source_data
+    join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
     where (
       {{ strategy.row_changed }}
     )
@@ -178,14 +178,14 @@
   deletes as (
     select
       'delete' as dbt_change_type,
-      deletes_source_data.*,
+      source_data.*,
       {{ snapshot_get_time() }} as dbt_valid_from,
       {{ snapshot_get_time() }} as dbt_updated_at,
       {{ snapshot_get_time() }} as dbt_valid_to,
       snapshotted_data.dbt_scd_id
     from snapshotted_data
-    left join deletes_source_data on snapshotted_data.dbt_unique_key = deletes_source_data.dbt_unique_key
-    where deletes_source_data.dbt_unique_key is null
+    left join deletes_source_data as source_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+    where source_data.dbt_unique_key is null
   )
   {%- endif %}
 
