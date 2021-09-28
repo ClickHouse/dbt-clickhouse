@@ -10,6 +10,7 @@
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
 
   {% set tmp_identifier = model['name'] + '__dbt_tmp' %}
+  {% set old_identifier = model['name'] + '__dbt_old' %}
   {% set backup_identifier = model['name'] + "__dbt_backup" %}
 
   -- the intermediate_ and backup_ relations should not already exist in the database; get_relation
@@ -48,6 +49,7 @@
       {% set need_swap = true %}
       {% do to_drop.append(backup_relation) %}
   {% else %}
+    {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
     {% do run_query(create_table_as(True, tmp_relation, sql)) %}
     {% do adapter.expand_target_column_types(
              from_relation=tmp_relation,
@@ -55,10 +57,19 @@
     {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
 
     {%- if unique_key is not none -%}
-      {% set delete_sql = clickhouse__incremental_delete(tmp_relation, target_relation, unique_key=unique_key) %}
+      {% do adapter.drop_relation(old_relation) %}
+      {% do adapter.rename_relation(target_relation, old_relation) %} 
+
+      {% set create_sql = clickhouse__incremental_create(old_relation, target_relation) %}
       {% call statement('main') %}
-        {{ delete_sql }}
+        {{ create_sql }}
       {% endcall %}
+
+      {% set currect_insert_sql = clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=unique_key) %}
+      {% call statement('main') %}
+        {{ currect_insert_sql }}
+      {% endcall %}
+      {% do to_drop.append(old_relation) %}
     {%- endif %}
     
     {% set build_sql = clickhouse__incremental_insert(tmp_relation, target_relation, unique_key=unique_key) %}
@@ -95,9 +106,18 @@
 
 {%- endmaterialization %}
 
-{% macro clickhouse__incremental_delete(tmp_relation, target_relation, unique_key=none) %}
-  alter table {{ target_relation }} {{ on_cluster_clause(label="on cluster") }} delete
-  where ({{ unique_key }}) in (
+{% macro clickhouse__incremental_create(old_relation, target_relation) %}
+  create table {{ target_relation }} as {{ old_relation }}
+{%- endmacro %}
+
+{% macro clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=none) %}
+  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+
+  insert into {{ target_relation }} ({{ dest_cols_csv }})
+  select {{ dest_cols_csv }}
+  from {{ old_relation }}
+  where ({{ unique_key }}) not in (
     select ({{ unique_key }})
     from {{ tmp_relation }}
   )
