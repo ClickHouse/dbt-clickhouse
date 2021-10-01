@@ -11,8 +11,4 @@ sequences:
   test_dbt_snapshot_strategy_timestamp: snapshot_strategy_timestamp
   test_dbt_snapshot_strategy_check_cols: snapshot_strategy_check_cols
   test_dbt_data_test: data_test
-  # Version 0.20.0 validates schema a TestResultData
-  # https://github.com/dbt-labs/dbt/blob/e3cb050bbc8faa763f325c89247d9da4d0984724/core/dbt/task/test.py#L34
-  # But ClickHouse does not have a boolean type (instead of uint8)
-  # The test works, but we are skipping it
-  # test_dbt_schema_test: schema_test
+  test_dbt_schema_test: schema_test
