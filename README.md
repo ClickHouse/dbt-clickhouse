@@ -26,6 +26,7 @@ pip install dbt-clickhouse
 - [x] Seeds
 - [x] Sources
 - [x] Docs generate
+- [x] Tests
 - [x] Snapshots (experimental)
 - [ ] Ephemeral materialization
 
