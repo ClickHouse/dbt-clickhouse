@@ -40,7 +40,7 @@ class ClickhouseColumn(Column):
 
         if dtype.lower().startswith('fixedstring'):
             match_sized = self._fix_size_regex.search(dtype)
-            char_size = int(match_sized.group(2))
+            char_size = int(match_sized.group(1))
 
         if dtype.lower().startswith('decimal'):
             match_dec = self._decimal_regex.search(dtype)
