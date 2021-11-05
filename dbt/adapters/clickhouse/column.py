@@ -52,10 +52,6 @@ class ClickhouseColumn(Column):
     def __repr__(self) -> str:
         return f'<ClickhouseColumn {self.name} ({self.data_type}, is nullable: {self.is_nullable})>'
 
-    @property
-    def quoted(self) -> str:
-        return self.column
-
     def is_string(self) -> bool:
         return self.dtype.lower() in [
             'string',
