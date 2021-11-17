@@ -1,4 +1,4 @@
-{%- materialization view, default -%}
+{%- materialization view -%}
 
   {% set target_relation = this.incorporate(type='view') %}
 
