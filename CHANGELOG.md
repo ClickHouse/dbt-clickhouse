@@ -1,5 +1,17 @@
 ## [Unreleased]
 
+## [0.20.2] - 2021-10-16
+
+### Add
+- Support 0.20.1 dbt
+
+### Change
+- Rewrite logic incremental materializations #12
+
+### Fix
+- Fix dbt tests with ClickHouse #18 (thx @artamoshin)
+- Fix relationships test #19
+
 ## [0.20.1] - 2021-08-15
 
 ### Add
@@ -43,7 +55,8 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.1...HEAD
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.2...HEAD
+[0.20.2]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.1.1...v0.20.0
 [0.19.1.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.1...v0.19.1.1
