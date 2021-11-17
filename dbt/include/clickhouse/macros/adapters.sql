@@ -53,12 +53,12 @@
   {%- set sharding = config.get('sharding_key') -%}
 
   {% if sharding is none %}
-    create table {{ relation.name }} {{ on_cluster_clause(label="on cluster") }} (
+    create table {{ relation }} {{ on_cluster_clause(label="on cluster") }} (
     {{ coltypes }}
     )
     engine = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}')
   {% else %}
-    create table {{ relation.name }} {{ on_cluster_clause(label="on cluster") }} (
+    create table {{ relation }} {{ on_cluster_clause(label="on cluster") }} (
     {{ coltypes }}
     )
     engine = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}', {{ sharding }})
@@ -76,7 +76,7 @@
     {{ order_cols(label="order by") }}
     {{ partition_cols(label="partition by") }}
   {%- else %}
-    create table {{ relation.include(database=False) }}
+    create table {{ relation.include(database=True) }}
     {{ on_cluster_clause(label="on cluster") }}
     {{ engine_clause(label="engine") }}
     {{ order_cols(label="order by") }}
@@ -94,7 +94,7 @@
 
   {{ sql_header if sql_header is not none }}
 
-  create table {{ relation.name }} {{ on_cluster_clause(label="on cluster") }} (
+  create table {{ relation }} {{ on_cluster_clause(label="on cluster") }} (
     {{ coltypes }}
   )
   {{ engine_clause(label="engine") }}
@@ -166,7 +166,7 @@
 {% macro clickhouse__get_col_types(relation) %}
   {% call statement('get_col_types', fetch_result=True) %}
     select
-      name || ' ' || type AS coltype
+     '"' || name || '" ' || type AS coltype
     from system.columns
     where
       table = '{{ relation.identifier }}'
@@ -202,8 +202,9 @@
 
 {% macro clickhouse__make_temp_relation(base_relation, suffix) %}
   {% set tmp_identifier = base_relation.identifier ~ suffix %}
+  {% set tmp_schema = base_relation.schema %}
   {% set tmp_relation = base_relation.incorporate(
-                              path={"identifier": tmp_identifier, "schema": None}) -%}
+                              path={"identifier": tmp_identifier, "schema": tmp_schema}) -%}
   {% do return(tmp_relation) %}
 {% endmacro %}
 
