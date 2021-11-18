@@ -34,6 +34,10 @@ class ClickhouseCredentials(Credentials):
     def type(self):
         return 'clickhouse'
 
+    @property
+    def unique_field(self):
+        return self.host
+
     def __post_init__(self):
         if self.database is not None and self.database != self.schema:
             raise dbt.exceptions.RuntimeException(
