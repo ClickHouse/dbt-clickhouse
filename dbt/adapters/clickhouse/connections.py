@@ -190,10 +190,9 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
             # TODO: Convert to allow clickhouse type
             format_bindings = []
-            rows = getattr(bindings, 'rows', bindings)
-            for row in rows:
+            for row in bindings.rows:
                 format_row = []
-                for v in row:
+                for v in row.values():
                     if isinstance(v, Decimal):
                         v = int(v)
                     format_row.append(v)
