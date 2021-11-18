@@ -52,6 +52,17 @@ class ClickhouseColumn(Column):
     def __repr__(self) -> str:
         return f'<ClickhouseColumn {self.name} ({self.data_type}, is nullable: {self.is_nullable})>'
 
+    @property
+    def data_type(self) -> str:
+        if self.is_string():
+            return ClickhouseColumn.string_type(self.string_size())
+        elif self.is_numeric():
+            return ClickhouseColumn.numeric_type(
+                self.dtype, self.numeric_precision, self.numeric_scale
+            )
+        else:
+            return self.dtype
+
     def is_string(self) -> bool:
         return self.dtype.lower() in [
             'string',
@@ -99,6 +110,9 @@ class ClickhouseColumn(Column):
     def literal(self, value):
         return f'to{self.dtype}({value})'
 
-    def can_expand_to(self: Self, other_column: Self) -> bool:
-        return self.is_string() and other_column.is_string()
+    def can_expand_to(self, other_column: 'Column') -> bool:
+        if not self.is_string() or not other_column.is_string():
+            return False
+
+        return other_column.string_size() > self.string_size()
 

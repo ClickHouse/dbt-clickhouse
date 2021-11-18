@@ -51,10 +51,12 @@
   {% else %}
     {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
     {% do run_query(create_table_as(True, tmp_relation, sql)) %}
-    {% do adapter.expand_target_column_types(
+    {% if on_schema_change != 'ignore' %}
+      {% do adapter.expand_target_column_types(
              from_relation=tmp_relation,
              to_relation=target_relation) %}
-    {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+      {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+    {% endif %}
 
     {%- if unique_key is not none -%}
       {% do adapter.drop_relation(old_relation) %}
