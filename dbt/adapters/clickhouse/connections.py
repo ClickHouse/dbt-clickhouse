@@ -193,7 +193,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             rows = getattr(bindings, 'rows', bindings)
             for row in rows:
                 format_row = []
-                for v in row.values():
+                for v in row:
                     if isinstance(v, Decimal):
                         v = int(v)
                     format_row.append(v)
