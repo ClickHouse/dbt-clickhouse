@@ -1,5 +1,15 @@
 ## [Unreleased]
 
+## [0.21.0] - 2021-11-18
+
+### Add
+- Support 0.21.0 dbt
+
+### Fix
+- Fix FixString column #20
+- Default behavior for a quoted #21
+- Fix string expand #22
+
 ## [0.20.2] - 2021-10-16
 
 ### Add
@@ -55,7 +65,8 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.2...HEAD
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.0...HEAD
+[0.21.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.0...v0.20.1
 [0.20.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.19.1.1...v0.20.0
