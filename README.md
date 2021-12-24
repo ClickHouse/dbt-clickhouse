@@ -63,4 +63,9 @@ your_profile_name:
       cluster: [cluster name]
       verify: [verify] # default False
       secure: [secure] # default False
+      connect_timeout: [10] # default 10
+      send_receive_timeout: [300] # default 300
+      sync_request_timeout: [5] # default 5
+      compress_block_size: [1048576] # default 1048576
+      compression: ['lz4'] # default '' (disable)
 ```
