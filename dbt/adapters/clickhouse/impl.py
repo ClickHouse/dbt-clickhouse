@@ -1,5 +1,7 @@
 from typing import Optional, List, Union, Set, Callable
 
+import io
+import csv
 import agate
 import dbt.exceptions
 from dataclasses import dataclass
@@ -228,6 +230,18 @@ class ClickhouseAdapter(SQLAdapter):
         if where_clause is not None:
             clause += f' where {where_clause}'
         return clause
+
+    @available
+    def get_csv_data(self, table):
+        csv_funcs = [c.csvify for c in table._column_types]
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+
+        for row in table.rows:
+            writer.writerow(tuple(csv_funcs[i](d) for i, d in enumerate(row)))
+
+        return buf.getvalue()
 
 
 def _expect_row_value(key: str, row: agate.Row):

@@ -4,7 +4,6 @@ import agate
 import time
 import dbt.exceptions
 
-from decimal import Decimal
 from dataclasses import dataclass
 from contextlib import contextmanager
 
@@ -109,7 +108,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 send_receive_timeout=credentials.send_receive_timeout,
                 sync_request_timeout=credentials.sync_request_timeout,
                 compress_block_size=credentials.compress_block_size,
-                compression=False if credentials.compression == '' else credentials.compression
+                compression=False if credentials.compression == '' else credentials.compression,
                 **kwargs,
             )
             connection.handle = handle
@@ -196,19 +195,8 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 sql=f'{sql}...',
             )
 
-            # TODO: Convert to allow clickhouse type
-            format_bindings = []
-            for row in bindings.rows:
-                format_row = []
-                for v in row.values():
-                    if isinstance(v, Decimal):
-                        v = int(v)
-                    format_row.append(v)
-                format_bindings.append(format_row)
-
             pre = time.time()
-
-            client.execute(sql, format_bindings)
+            client.execute(sql)
 
             status = self.get_status(client)
 
