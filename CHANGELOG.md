@@ -1,5 +1,14 @@
 ## [Unreleased]
 
+## [0.21.1] - 2022-01-01
+
+### Add
+- Support 0.21.1 dbt
+- Extended settings for clickhouse-driver #27
+
+### Fix
+- Fix types in CSV seed #24
+
 ## [0.21.0] - 2021-11-18
 
 ### Add
@@ -65,7 +74,8 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.0...HEAD
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.1...HEAD
+[0.21.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.1...v0.20.2
 [0.20.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.0...v0.20.1
