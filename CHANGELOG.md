@@ -1,5 +1,10 @@
 ## [Unreleased]
 
+## [1.0.0] - 2022-01-02
+
+### Add
+- Support 1.0.0 dbt
+
 ## [0.21.1] - 2022-01-01
 
 ### Add
@@ -74,7 +79,8 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.1...HEAD
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v1.0.0...HEAD
+[0.21.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.1...v1.0.0
 [0.21.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.0...v0.21.1
 [0.21.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.2...v0.21.0
 [0.20.2]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.20.1...v0.20.2

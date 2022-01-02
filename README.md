@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/silentsokolov/dbt-clickhouse/master/etc/dbt-logo-full.svg" alt="dbt logo" width="300"/>
+  <img src="https://raw.githubusercontent.com/silentsokolov/dbt-clickhouse/master/etc/chdbt.png" alt="clickhouse dbt logo" width="300"/>
 </p>
 
 [![build](https://github.com/silentsokolov/dbt-clickhouse/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/silentsokolov/dbt-clickhouse/actions/workflows/build.yml)
