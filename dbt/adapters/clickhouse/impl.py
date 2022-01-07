@@ -74,7 +74,7 @@ class ClickhouseAdapter(SQLAdapter):
     @available.parse(lambda *a, **k: {})
     def get_clickhouse_cluster_name(self):
         conn = self.connections.get_if_exists()
-        return conn.credentials.cluster
+        return '"{}"'.format(conn.credentials.cluster)
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(
