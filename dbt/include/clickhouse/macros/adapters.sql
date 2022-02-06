@@ -24,6 +24,7 @@
 
 {% macro order_cols(label) %}
   {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
+  {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
   {%- if cols is not none %}
     {%- if cols is string -%}
       {%- set cols = [cols] -%}
@@ -34,6 +35,7 @@
       {%- if not loop.last -%},{%- endif -%}
     {%- endfor -%}
     )
+  {%- elif engine.startswith('Distributed') %}
   {%- else %}
     {{ label }} (tuple())
   {%- endif %}
