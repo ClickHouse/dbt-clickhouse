@@ -8,5 +8,5 @@
     from (
       {{ main_sql }}
       {{ "limit " ~ limit if limit != none }}
-    ) dbt_internal_test
+    ) as dbt_internal_test
 {%- endmacro %}
