@@ -15,11 +15,9 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
 from dbt.utils import executor
 
-from dbt.adapters.clickhouse import (
-    ClickhouseColumn,
-    ClickhouseConnectionManager,
-    ClickhouseRelation,
-)
+from dbt.adapters.clickhouse.column import ClickhouseColumn
+from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
+from dbt.adapters.clickhouse.relation import ClickhouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_RELATIONS_MACRO_NAME = 'list_relations_without_caching'
