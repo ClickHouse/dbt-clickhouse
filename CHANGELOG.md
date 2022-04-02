@@ -1,7 +1,9 @@
 ## [Unreleased]
 
+## [1.0.4] - 2022-04-02
+
 ### Add
-- Support 1.0.1 dbt
+- Support 1.0.4 dbt
 
 ### Fix
 - New logger
@@ -95,7 +97,8 @@
 
 Init relaase
 
-[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/silentsokolov/dbt-clickhouse/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/silentsokolov/dbt-clickhouse/compare/v1.0.1...v1.0.4
 [1.0.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.1...v1.0.0
 [0.21.1]: https://github.com/silentsokolov/dbt-clickhouse/compare/v0.21.0...v0.21.1

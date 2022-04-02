@@ -112,7 +112,7 @@ class ClickhouseAdapter(SQLAdapter):
         return super().get_relation(database, schema, identifier)
 
     def parse_clickhouse_columns(
-        self, relation: Relation, raw_rows: List[agate.Row]
+        self, relation: ClickhouseRelation, raw_rows: List[agate.Row]
     ) -> List[ClickhouseColumn]:
         rows = [dict(zip(row._keys, row._values)) for row in raw_rows]
 
@@ -124,7 +124,7 @@ class ClickhouseAdapter(SQLAdapter):
             for column in rows
         ]
 
-    def get_columns_in_relation(self, relation: Relation) -> List[ClickhouseColumn]:
+    def get_columns_in_relation(self, relation: ClickhouseRelation) -> List[ClickhouseColumn]:
         rows: List[agate.Row] = super().get_columns_in_relation(relation)
 
         return self.parse_clickhouse_columns(relation, rows)
