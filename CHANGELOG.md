@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### Add
+- Support 1.0.1 dbt
+
+### Fix
+- New logger
+
 ## [1.0.1] - 2022-02-09
 
 ### Add

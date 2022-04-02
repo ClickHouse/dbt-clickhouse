@@ -1,7 +1,6 @@
-import dbt.exceptions
-
 from dataclasses import dataclass
 
+import dbt.exceptions
 from dbt.adapters.base.relation import BaseRelation, Policy
 
 

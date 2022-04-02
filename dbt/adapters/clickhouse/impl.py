@@ -1,26 +1,25 @@
-from typing import Optional, List, Union, Set, Callable
-
-import io
 import csv
+import io
+from concurrent.futures import Future
+from dataclasses import dataclass
+from typing import Callable, List, Optional, Set, Union
+
 import agate
 import dbt.exceptions
-from dataclasses import dataclass
-from concurrent.futures import Future
-
-from dbt.contracts.relation import RelationType
-from dbt.contracts.graph.manifest import Manifest
-from dbt.clients.agate_helper import table_from_rows
-from dbt.adapters.base.relation import InformationSchema
-from dbt.adapters.base.impl import catch_as_completed
 from dbt.adapters.base import AdapterConfig, available
+from dbt.adapters.base.impl import catch_as_completed
+from dbt.adapters.base.relation import InformationSchema
 from dbt.adapters.sql import SQLAdapter
-from dbt.adapters.clickhouse import (
-    ClickhouseConnectionManager,
-    ClickhouseRelation,
-    ClickhouseColumn,
-)
+from dbt.clients.agate_helper import table_from_rows
+from dbt.contracts.graph.manifest import Manifest
+from dbt.contracts.relation import RelationType
 from dbt.utils import executor
 
+from dbt.adapters.clickhouse import (
+    ClickhouseColumn,
+    ClickhouseConnectionManager,
+    ClickhouseRelation,
+)
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_RELATIONS_MACRO_NAME = 'list_relations_without_caching'
@@ -78,9 +77,7 @@ class ClickhouseAdapter(SQLAdapter):
             return '"{}"'.format(conn.credentials.cluster)
 
     def check_schema_exists(self, database, schema):
-        results = self.execute_macro(
-            LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database}
-        )
+        results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
 
         exists = True if schema in [row[0] for row in results] else False
         return exists
@@ -138,8 +135,7 @@ class ClickhouseAdapter(SQLAdapter):
         schema_map = self._get_catalog_schemas(manifest)
         if len(schema_map) > 1:
             dbt.exceptions.raise_compiler_error(
-                f'Expected only one database in get_catalog, found '
-                f'{list(schema_map)}'
+                f'Expected only one database in get_catalog, found ' f'{list(schema_map)}'
             )
 
         with executor(self.config) as tpe:
@@ -167,16 +163,13 @@ class ClickhouseAdapter(SQLAdapter):
     ) -> agate.Table:
         if len(schemas) != 1:
             dbt.exceptions.raise_compiler_error(
-                f'Expected only one schema in clickhouse _get_one_catalog, found '
-                f'{schemas}'
+                f'Expected only one schema in clickhouse _get_one_catalog, found ' f'{schemas}'
             )
 
         return super()._get_one_catalog(information_schema, schemas, manifest)
 
     @classmethod
-    def _catalog_filter_table(
-        cls, table: agate.Table, manifest: Manifest
-    ) -> agate.Table:
+    def _catalog_filter_table(cls, table: agate.Table, manifest: Manifest) -> agate.Table:
         table = table_from_rows(
             table.rows,
             table.column_names,
@@ -201,9 +194,7 @@ class ClickhouseAdapter(SQLAdapter):
         alias_b = 'tb'
         columns_csv_a = ', '.join([f'{alias_a}.{name}' for name in names])
         columns_csv_b = ', '.join([f'{alias_b}.{name}' for name in names])
-        join_condition = ' AND '.join(
-            [f'{alias_a}.{name} = {alias_b}.{name}' for name in names]
-        )
+        join_condition = ' AND '.join([f'{alias_a}.{name} = {alias_b}.{name}' for name in names])
         first_column = names[0]
 
         # Clickhouse doesn't have an EXCEPT operator

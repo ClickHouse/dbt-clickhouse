@@ -1,19 +1,18 @@
-from typing import Optional, Any, Tuple
+import time
+from contextlib import contextmanager
+from dataclasses import dataclass
+from typing import Any, Optional, Tuple
 
 import agate
-import time
 import dbt.exceptions
-
-from dataclasses import dataclass
-from contextlib import contextmanager
-
 from clickhouse_driver import Client, errors
-
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
-from dbt.logger import GLOBAL_LOGGER as logger
+from dbt.events import AdapterLogger
 from dbt.version import __version__ as dbt_version
+
+logger = AdapterLogger('clickhouse')
 
 
 @dataclass
@@ -154,9 +153,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
         with self.exception_handler(sql):
             logger.debug(
-                'On {connection_name}: {sql}',
-                connection_name=conn.name,
-                sql=f'{sql}...',
+                'On {connection_name}: {sql}'.format(connection_name=conn.name, sql=f'{sql}...'),
             )
 
             pre = time.time()
@@ -166,9 +163,9 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             status = self.get_status(client)
 
             logger.debug(
-                'SQL status: {status} in {elapsed:0.2f} seconds',
-                status=status,
-                elapsed=(time.time() - pre),
+                'SQL status: {status} in {elapsed:0.2f} seconds'.format(
+                    status=status, elapsed=(time.time() - pre)
+                ),
             )
 
             if fetch:
@@ -190,9 +187,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
         with self.exception_handler(sql):
             logger.debug(
-                'On {connection_name}: {sql}',
-                connection_name=conn.name,
-                sql=f'{sql}...',
+                'On {connection_name}: {sql}'.format(connection_name=conn.name, sql=f'{sql}...')
             )
 
             pre = time.time()
@@ -201,10 +196,12 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             status = self.get_status(client)
 
             logger.debug(
-                'SQL status: {status} in {elapsed:0.2f} seconds',
-                status=status,
-                elapsed=(time.time() - pre),
+                'SQL status: {status} in {elapsed:0.2f} seconds'.format(
+                    status=status, elapsed=(time.time() - pre)
+                )
             )
+
+            return conn, None
 
     @classmethod
     def get_credentials(cls, credentials):

@@ -168,7 +168,7 @@
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
 
   {% call statement('create_upsert_relation') %}
-    create table if not exists {{ upsert }} as {{ target }};
+    create table if not exists {{ upsert }} as {{ target }}
   {% endcall %}
 
   {% call statement('insert_unchanged_date') %}
@@ -192,10 +192,10 @@
   {% endcall %}
 
   {% call statement('drop_target_relation') %}
-    drop table if exists {{ target }};
+    drop table if exists {{ target }}
   {% endcall %}
 
   {% call statement('rename_upsert_relation') %}
-    rename table {{ upsert }} to {{ target }};
+    rename table {{ upsert }} to {{ target }}
   {% endcall %}
 {% endmacro %}

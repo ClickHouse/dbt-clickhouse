@@ -1,8 +1,6 @@
-from typing import TypeVar, Any
-
 import re
-
 from dataclasses import dataclass
+from typing import Any, TypeVar
 
 from dbt.adapters.base.column import Column
 from dbt.exceptions import RuntimeException
@@ -40,12 +38,17 @@ class ClickhouseColumn(Column):
 
         if dtype.lower().startswith('fixedstring'):
             match_sized = self._fix_size_regex.search(dtype)
-            char_size = int(match_sized.group(1))
+            char_size = 0
+            if match_sized:
+                char_size = int(match_sized.group(1))
 
         if dtype.lower().startswith('decimal'):
             match_dec = self._decimal_regex.search(dtype)
-            numeric_precision = int(match_dec.group(1))
-            numeric_scale = int(match_dec.group(2))
+            numeric_precision = 0
+            numeric_scale = 0
+            if match_dec:
+                numeric_precision = int(match_dec.group(1))
+                numeric_scale = int(match_dec.group(2))
 
         super().__init__(column, dtype, char_size, numeric_precision, numeric_scale)
 
@@ -55,12 +58,18 @@ class ClickhouseColumn(Column):
     @property
     def data_type(self) -> str:
         if self.is_string():
-            return ClickhouseColumn.string_type(self.string_size())
+            data_t = self.string_type(self.string_size())
+            if self.is_nullable:
+                return "Nullable({})".format(data_t)
+            return data_t
         elif self.is_numeric():
-            return ClickhouseColumn.numeric_type(
-                self.dtype, self.numeric_precision, self.numeric_scale
-            )
+            data_t = self.numeric_type(self.dtype, self.numeric_precision, self.numeric_scale)
+            if self.is_nullable:
+                return "Nullable({})".format(data_t)
+            return data_t
         else:
+            if self.is_nullable:
+                return "Nullable({})".format(self.dtype)
             return self.dtype
 
     def is_string(self) -> bool:
@@ -80,9 +89,7 @@ class ClickhouseColumn(Column):
         ]
 
     def is_integer(self) -> bool:
-        return self.dtype.lower().startswith('int') or self.dtype.lower().startswith(
-            'uint'
-        )
+        return self.dtype.lower().startswith('int') or self.dtype.lower().startswith('uint')
 
     def is_numeric(self) -> bool:
         return self.dtype.lower().startswith('decimal')
@@ -115,4 +122,3 @@ class ClickhouseColumn(Column):
             return False
 
         return other_column.string_size() > self.string_size()
-
