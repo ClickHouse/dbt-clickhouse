@@ -35,7 +35,7 @@
       {%- if not loop.last -%},{%- endif -%}
     {%- endfor -%}
     )
-  {%- elif engine and engine.startswith('Distributed') -%}
+  {%- elif engine and engine.startswith(('Distributed', 'Join')) -%}
   {%- else %}
     {{ label }} (tuple())
   {%- endif %}
