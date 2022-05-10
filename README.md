@@ -69,3 +69,13 @@ your_profile_name:
       compress_block_size: [1048576] # default 1048576
       compression: ['lz4'] # default '' (disable)
 ```
+
+### Running Tests
+
+In order to run the tests you will need to create `test.env` file under root (remember not to commit this file!) and define the following env variables inside:
+1. HOST_ENV_VAR_NAME - if you're running locally set it to `localhost`
+2. USER_ENV_VAR_NAME - your ClickHouse username
+3. PASSWORD_ENV_VAR_NAME - your ClickHouse password
+
+Tests running command: 
+`pytest tests/integration`
