@@ -22,22 +22,39 @@
   {%- endif %}
 {%- endmacro -%}
 
+{% macro primary_key_clause(label) %}
+  {%- set primary_key = config.get('primary_key', validator=validation.any[basestring]) -%}
+
+  {%- if primary_key is not none %}
+    {{ label }} {{ primary_key }}
+  {%- endif %}
+{%- endmacro -%}
+
 {% macro order_cols(label) %}
   {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
   {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
-  {%- if cols is not none %}
-    {%- if cols is string -%}
-      {%- set cols = [cols] -%}
-    {%- endif -%}
-    {{ label }} (
-    {%- for item in cols -%}
-      {{ item }}
-      {%- if not loop.last -%},{%- endif -%}
-    {%- endfor -%}
-    )
-  {%- elif engine and engine.startswith(('Distributed', 'Join')) -%}
-  {%- else %}
-    {{ label }} (tuple())
+  {%- set supported = [
+    'HDFS',
+    'MaterializedPostgreSQL',
+    'S3',
+    'EmbeddedRocksDB',
+    'Hive'
+  ] -%}
+
+  {%- if engine is none or engine.endswith('MergeTree') or engine in supported %}
+    {%- if cols is not none %}
+      {%- if cols is string -%}
+        {%- set cols = [cols] -%}
+      {%- endif -%}
+      {{ label }} (
+      {%- for item in cols -%}
+        {{ item }}
+        {%- if not loop.last -%},{%- endif -%}
+      {%- endfor -%}
+      )
+    {%- else %}
+      {{ label }} (tuple())
+    {%- endif %}
   {%- endif %}
 {%- endmacro -%}
 
@@ -63,6 +80,7 @@
     {{ on_cluster_clause(label="on cluster") }}
     {{ engine_clause(label="engine") }}
     {{ order_cols(label="order by") }}
+    {{ primary_key_clause(label="primary key") }}
     {{ partition_cols(label="partition by") }}
   {%- endif %}
   as (
