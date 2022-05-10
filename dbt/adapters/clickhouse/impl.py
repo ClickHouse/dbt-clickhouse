@@ -233,6 +233,23 @@ class ClickhouseAdapter(SQLAdapter):
 
         return buf.getvalue()
 
+    def run_sql_for_tests(self, sql, fetch, conn):
+        cursor = conn.handle
+        try:
+            result = cursor.execute(sql)
+            if fetch == "one" and len(result) > 0:
+                return result[0]
+            elif fetch == "all":
+                return result
+            else:
+                return
+        except BaseException as e:
+            print(sql)
+            print(e)
+            raise
+        finally:
+            conn.state = 'close'
+
 
 def _expect_row_value(key: str, row: agate.Row):
     if key not in row.keys():

@@ -51,4 +51,4 @@ jobs:
 
     - name: Run tests
       run: |
-        PYTHONPATH="${PYTHONPATH}:dbt" pytest test/integration/clickhouse.dbtspec
+        PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
