@@ -3,6 +3,7 @@ import io
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Set, Union
+import logging
 
 import agate
 import dbt.exceptions
@@ -14,6 +15,7 @@ from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
 from dbt.utils import executor
+from dbt.events import AdapterLogger
 
 from dbt.adapters.clickhouse.column import ClickhouseColumn
 from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
@@ -36,6 +38,7 @@ class ClickhouseAdapter(SQLAdapter):
     Column = ClickhouseColumn
     ConnectionManager = ClickhouseConnectionManager
     AdapterSpecificConfigs = ClickhouseConfig
+    logger = AdapterLogger("dbt_clickhouse_tests")
 
     @classmethod
     def date_function(cls):
@@ -244,8 +247,8 @@ class ClickhouseAdapter(SQLAdapter):
             else:
                 return
         except BaseException as e:
-            print(sql)
-            print(e)
+            self.logger.error(sql)
+            self.logger.error(e)
             raise
         finally:
             conn.state = 'close'

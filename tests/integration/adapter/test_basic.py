@@ -9,17 +9,17 @@ class TestBaseSimpleMaterializations(BaseSimpleMaterializations):
     pass
 
 
-class TestEmptyClickHouseAdapter(BaseEmpty):
+class TestEmpty(BaseEmpty):
     pass
 
 
-class TestIncrementalClickHouseAdapter(BaseIncremental):
+class TestIncremental(BaseIncremental):
     pass
 
 
-class TestSnapshotTimestampMyAdapter(BaseSnapshotTimestamp):
+class TestSnapshotTimestamp(BaseSnapshotTimestamp):
     pass
 
 
-class TestSnapshotCheckColsMyAdapter(BaseSnapshotCheckCols):
+class TestSnapshotCheckCols(BaseSnapshotCheckCols):
     pass
