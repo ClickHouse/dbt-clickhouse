@@ -41,7 +41,7 @@
     'Hive'
   ] -%}
 
-  {%- if engine is none or engine.endswith('MergeTree') or engine in supported %}
+  {%- if engine is none or engine.endswith(('MergeTree', 'MergeTree()')) or engine in supported %}
     {%- if cols is not none %}
       {%- if cols is string -%}
         {%- set cols = [cols] -%}
