@@ -14,6 +14,7 @@ from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
 from dbt.utils import executor
+from dbt.events import AdapterLogger
 
 from dbt.adapters.clickhouse.column import ClickhouseColumn
 from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
@@ -36,6 +37,7 @@ class ClickhouseAdapter(SQLAdapter):
     Column = ClickhouseColumn
     ConnectionManager = ClickhouseConnectionManager
     AdapterSpecificConfigs = ClickhouseConfig
+    logger = AdapterLogger("dbt_clickhouse_tests")
 
     @classmethod
     def date_function(cls):
@@ -232,6 +234,23 @@ class ClickhouseAdapter(SQLAdapter):
             writer.writerow(tuple(csv_funcs[i](d) for i, d in enumerate(row)))
 
         return buf.getvalue()
+
+    def run_sql_for_tests(self, sql, fetch, conn):
+        cursor = conn.handle
+        try:
+            result = cursor.execute(sql)
+            if fetch == "one" and len(result) > 0:
+                return result[0]
+            elif fetch == "all":
+                return result
+            else:
+                return
+        except BaseException as e:
+            self.logger.error(sql)
+            self.logger.error(e)
+            raise
+        finally:
+            conn.state = 'close'
 
 
 def _expect_row_value(key: str, row: agate.Row):

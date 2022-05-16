@@ -69,3 +69,16 @@ your_profile_name:
       compress_block_size: [1048576] # default 1048576
       compression: ['lz4'] # default '' (disable)
 ```
+
+### Running Tests
+
+Tests running command: 
+`pytest tests/integration`
+
+You can customize a few test params through environment variables. In order to provide custom params you'll need to create `test.env` file under root (remember not to commit this file!) and define the following env variables inside:
+1. HOST_ENV_VAR_NAME - Default=`localhost`
+2. USER_ENV_VAR_NAME - your ClickHouse username. Default=`default`
+3. PASSWORD_ENV_VAR_NAME - your ClickHouse password. Default=''
+4. PORT_ENV_VAR_NAME - ClickHouse client port. Default=9000
+5. RUN_DOCKER_ENV_VAR_NAME - Identify whether to run clickhouse-server docker image (see tests/docker-compose.yml). Default=False. Set it to True if you'd like to raise a docker image (assuming docker-compose is installed in your machine) during tests that launches a clickhouse-server. Note: If you decide to run  a docker image you should set PORT_ENV_VAR_NAME to 10900 too.
+
