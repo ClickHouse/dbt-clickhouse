@@ -3,7 +3,6 @@ import io
 from concurrent.futures import Future
 from dataclasses import dataclass
 from typing import Callable, List, Optional, Set, Union
-import logging
 
 import agate
 import dbt.exceptions
