@@ -4,7 +4,7 @@ from dbt.tests.adapter.basic.test_empty import BaseEmpty
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCols
-from dbt.tests.adapter.basic.files import model_base, schema_base_yml
+from dbt.tests.adapter.basic.files import model_base, schema_base_yml, model_incremental
 from dbt.tests.util import run_dbt, check_relation_types, relation_from_name
 
 
@@ -57,3 +57,16 @@ class TestMergeTreeTabelMaterializations(BaseSimpleMaterializations):
         relation = relation_from_name(project.adapter, "table_model")
         result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
         assert result[0] == 10
+
+
+class TestInsertsOnlyIncrementalMaterializations(BaseIncremental):
+    @pytest.fixture(scope="class")
+    def models(self):
+        config_materialized_incremental = """
+          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='incremental', unique_key='id') }}
+        """
+        incremental_sql = config_materialized_incremental + model_incremental
+        return {
+            "incremental.sql": incremental_sql,
+            "schema.yml": schema_base_yml,
+        }
