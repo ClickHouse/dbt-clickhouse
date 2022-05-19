@@ -107,6 +107,22 @@
 
 {% endmaterialization %}
 
+{% macro clickhouse__post_snapshot(staging_relation) %}
+    {{ drop_relation_if_exists(staging_relation) }}
+{% endmacro %}
+
+{% macro build_snapshot_staging_table(strategy, sql, target_relation) %}
+    {% set tmp_relation = make_temp_relation(target_relation) %}
+
+    {% set select = snapshot_staging_table(strategy, sql, target_relation) %}
+
+    {% call statement('build_snapshot_staging_relation') %}
+        {{ create_table_as(False, tmp_relation, select) }}
+    {% endcall %}
+
+    {% do return(tmp_relation) %}
+{% endmacro %}
+
 {% macro snapshot_staging_table(strategy, source_sql, target_relation) -%}
     select
       'insert' as dbt_change_type,
