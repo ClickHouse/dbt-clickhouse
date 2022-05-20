@@ -124,59 +124,50 @@
 {% endmacro %}
 
 {% macro snapshot_staging_table(strategy, source_sql, target_relation) -%}
+    with
+        snapshot_query as ({{ source_sql }}),
+
+        snapshotted_data as (
+           select * EXCEPT(dbt_valid_to, dbt_change_type),
+           {{ strategy.unique_key }} as dbt_unique_key
+           from {{ target_relation }}
+           where dbt_valid_to is null
+        ),
+
+        insertions_source_data as (
+           select
+            *,
+            {{ strategy.scd_id }} as dbt_scd_id,
+            {{ strategy.updated_at }} as dbt_updated_at,
+            {{ strategy.updated_at }} as dbt_valid_from,
+            {{ strategy.unique_key }} as dbt_unique_key,
+           nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to
+           from snapshot_query
+       )
+
     select
       'insert' as dbt_change_type,
       source_data.*
-    from (
-      select
-        *,
-        {{ strategy.unique_key }} as dbt_unique_key,
-        {{ strategy.updated_at }} as dbt_updated_at,
-        {{ strategy.updated_at }} as dbt_valid_from,
-        nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to,
-        {{ strategy.scd_id }} as dbt_scd_id
-      from (
-        {{ source_sql }}
-      ) as snapshot_query
-    ) as source_data
-    left outer join (
-      select *,
-        {{ strategy.unique_key }} as dbt_unique_key
-      from {{ target_relation }}
-    ) as snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+    from insertions_source_data as source_data
+    left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
     where snapshotted_data.dbt_unique_key is null
-      or (snapshotted_data.dbt_unique_key is not null
-      and snapshotted_data.dbt_valid_to is null
-      and (
-        {{ strategy.row_changed }}
-      )
-    )
+           or (
+                snapshotted_data.dbt_unique_key is not null
+            and (
+                {{ strategy.row_changed }}
+            )
+        )
 
     union all
 
     select
-      'update' as dbt_change_type,
-      source_data.*,
-      snapshotted_data.dbt_scd_id
-    from (
-      select
-        *,
-        {{ strategy.unique_key }} as dbt_unique_key,
-        {{ strategy.updated_at }} as dbt_updated_at,
-        {{ strategy.updated_at }} as dbt_valid_from,
-        {{ strategy.updated_at }} as dbt_valid_to
-      from (
-        {{ source_sql }}
-      ) as snapshot_query
-    ) as source_data
-    join (
-      select *,
-        {{ strategy.unique_key }} as dbt_unique_key
-      from {{ target_relation }}
-    ) as snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-    where snapshotted_data.dbt_valid_to is null
-    and (
-      {{ strategy.row_changed }}
+        'update' as dbt_change_type,
+        snapshotted_data.*,
+        source_data.{{ strategy.updated_at }} as dbt_valid_to
+    from snapshotted_data
+    join snapshot_query as source_data on source_data.{{ strategy.unique_key }} = snapshotted_data.dbt_unique_key
+    where (
+        {{ strategy.row_changed }}
     )
 {%- endmacro %}
 
