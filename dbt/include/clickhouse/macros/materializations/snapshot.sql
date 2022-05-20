@@ -151,21 +151,25 @@
             {{ strategy.updated_at }} as dbt_updated_at,
             {{ strategy.unique_key }} as dbt_unique_key
            from snapshot_query
-       )
+       ),
 
-    select
-      'insert' as dbt_change_type,
-      source_data.*
-    from insertions_source_data as source_data
-    left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-    where snapshotted_data.dbt_unique_key is null
+    insertions as (
+        select
+        'insert' as dbt_change_type,
+        source_data.*
+        from insertions_source_data as source_data
+        left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+        where snapshotted_data.dbt_unique_key is null
            or (
                 snapshotted_data.dbt_unique_key is not null
             and (
                 {{ strategy.row_changed }}
             )
         )
+    )
 
+
+    select * from insertions
     union all
 
     select
