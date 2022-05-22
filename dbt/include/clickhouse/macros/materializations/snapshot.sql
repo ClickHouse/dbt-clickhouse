@@ -136,12 +136,12 @@
 
         insertions_source_data as (
            select
-            *,
-            {{ strategy.scd_id }} as dbt_scd_id,
-            {{ strategy.updated_at }} as dbt_updated_at,
-            {{ strategy.updated_at }} as dbt_valid_from,
-            {{ strategy.unique_key }} as dbt_unique_key,
-           nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to
+                *,
+                {{ strategy.scd_id }} as dbt_scd_id,
+                {{ strategy.updated_at }} as dbt_updated_at,
+                {{ strategy.updated_at }} as dbt_valid_from,
+                {{ strategy.unique_key }} as dbt_unique_key,
+               nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to
            from snapshot_query
        ),
 
@@ -153,20 +153,20 @@
            from snapshot_query
        ),
 
-    insertions as (
-        select
-        'insert' as dbt_change_type,
-        source_data.*
-        from insertions_source_data as source_data
-        left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-        where snapshotted_data.dbt_unique_key is null
-           or (
-                snapshotted_data.dbt_unique_key is not null
-            and (
-                {{ strategy.row_changed }}
+        insertions as (
+            select
+            'insert' as dbt_change_type,
+            insertions_source_data.*
+            from insertions_source_data as source_data
+            left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
+            where snapshotted_data.dbt_unique_key is null
+               or (
+                    snapshotted_data.dbt_unique_key is not null
+                and (
+                    {{ strategy.row_changed }}
+                )
             )
         )
-    )
 
 
     select * from insertions
