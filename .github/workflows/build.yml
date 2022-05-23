@@ -26,9 +26,9 @@ jobs:
           - python-version: '3.9.6'
             clickhouse-version: "21"
           - python-version: '3.8'
-            clickhouse-version: "21.1"
+            clickhouse-version: "22.5"
           - python-version: '3.9.6'
-            clickhouse-version: "21.1"
+            clickhouse-version: "22.5"
 
     services:
       clickhouse:
