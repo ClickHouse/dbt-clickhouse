@@ -134,6 +134,17 @@
            where dbt_valid_to is null
         ),
 
+        insertions_source_data as (
+           select
+                *,
+                {{ strategy.scd_id }} as dbt_scd_id,
+                {{ strategy.updated_at }} as dbt_updated_at,
+                {{ strategy.updated_at }} as dbt_valid_from,
+                {{ strategy.unique_key }} as dbt_unique_key,
+               nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to
+           from snapshot_query
+       ),
+
         updated_source_data as (
            select
             *,
@@ -146,16 +157,7 @@
             select
             'insert' as dbt_change_type,
             source_data.*
-            from (
-                select
-                    *,
-                    {{ strategy.scd_id }} as dbt_scd_id,
-                    {{ strategy.updated_at }} as dbt_updated_at,
-                    {{ strategy.updated_at }} as dbt_valid_from,
-                    {{ strategy.unique_key }} as dbt_unique_key,
-                   nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to
-                from snapshot_query
-            ) as source_data
+            from insertions_source_data as source_data
             left outer join snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
             where snapshotted_data.dbt_unique_key is null
                or (

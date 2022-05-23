@@ -14,21 +14,13 @@ jobs:
       matrix:
         include:
           - python-version: '3.8'
-            clickhouse-version: "20.11"
-          - python-version: '3.9.6'
-            clickhouse-version: "20.11"
-          - python-version: '3.8'
-            clickhouse-version: "20.12"
-          - python-version: '3.9.6'
-            clickhouse-version: "20.12"
-          - python-version: '3.8'
             clickhouse-version: "21"
           - python-version: '3.9.6'
             clickhouse-version: "21"
           - python-version: '3.8'
-            clickhouse-version: "22.5"
+            clickhouse-version: "21.3"
           - python-version: '3.9.6'
-            clickhouse-version: "22.5"
+            clickhouse-version: "21.3"
 
     services:
       clickhouse:
