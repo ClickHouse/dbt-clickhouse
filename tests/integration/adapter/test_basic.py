@@ -7,8 +7,6 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_singular_tests import BaseSingularTests
 from dbt.tests.adapter.basic.test_generic_tests import BaseGenericTests
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
-from dbt.tests.adapter.basic.test_ephemeral import BaseEphemeral
-from dbt.tests.adapter.basic.test_singular_tests_ephemeral import BaseSingularTestsEphemeral
 from dbt.tests.adapter.basic.files import model_base, schema_base_yml
 from dbt.tests.util import run_dbt, check_relation_types, relation_from_name
 

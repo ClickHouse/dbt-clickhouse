@@ -107,62 +107,21 @@
 
 {% endmaterialization %}
 
-{% macro snapshot_staging_table(strategy, source_sql, target_relation) -%}
-    select
-      'insert' as dbt_change_type,
-      source_data.*
-    from (
-      select
-        *,
-        {{ strategy.unique_key }} as dbt_unique_key,
-        {{ strategy.updated_at }} as dbt_updated_at,
-        {{ strategy.updated_at }} as dbt_valid_from,
-        nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to,
-        {{ strategy.scd_id }} as dbt_scd_id
-      from (
-        {{ source_sql }}
-      ) as snapshot_query
-    ) as source_data
-    left outer join (
-      select *,
-        {{ strategy.unique_key }} as dbt_unique_key
-      from {{ target_relation }}
-    ) as snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-    where snapshotted_data.dbt_unique_key is null
-      or (snapshotted_data.dbt_unique_key is not null
-      and snapshotted_data.dbt_valid_to is null
-      and (
-        {{ strategy.row_changed }}
-      )
-    )
+{% macro clickhouse__post_snapshot(staging_relation) %}
+    {{ drop_relation_if_exists(staging_relation) }}
+{% endmacro %}
 
-    union all
+{% macro build_snapshot_staging_table(strategy, sql, target_relation) %}
+    {% set tmp_relation = make_temp_relation(target_relation) %}
 
-    select
-      'update' as dbt_change_type,
-      source_data.*,
-      snapshotted_data.dbt_scd_id
-    from (
-      select
-        *,
-        {{ strategy.unique_key }} as dbt_unique_key,
-        {{ strategy.updated_at }} as dbt_updated_at,
-        {{ strategy.updated_at }} as dbt_valid_from,
-        {{ strategy.updated_at }} as dbt_valid_to
-      from (
-        {{ source_sql }}
-      ) as snapshot_query
-    ) as source_data
-    join (
-      select *,
-        {{ strategy.unique_key }} as dbt_unique_key
-      from {{ target_relation }}
-    ) as snapshotted_data on snapshotted_data.dbt_unique_key = source_data.dbt_unique_key
-    where snapshotted_data.dbt_valid_to is null
-    and (
-      {{ strategy.row_changed }}
-    )
-{%- endmacro %}
+    {% set select = snapshot_staging_table(strategy, sql, target_relation) %}
+
+    {% call statement('build_snapshot_staging_relation') %}
+        {{ create_table_as(False, tmp_relation, select) }}
+    {% endcall %}
+
+    {% do return(tmp_relation) %}
+{% endmacro %}
 
 {% macro clickhouse__snapshot_merge_sql_one(target, source, insert_cols, upsert) -%}
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
@@ -182,13 +141,33 @@
     )
   {% endcall %}
 
-  {% call statement('insert_changed_date') %}
+ {% call statement('insert_updated_and_deleted') %}
+    insert into {{ upsert }} ({{ insert_cols_csv }})
+    with updates_and_deletes as (
+      select
+        dbt_scd_id,
+        dbt_valid_to
+      from {{ source }}
+      where dbt_change_type IN ('update', 'delete')
+    )
+    select {% for column in insert_cols %}
+      {%- if column != 'dbt_valid_to' -%}
+        target.{{ column }} as {{ column }}
+      {%- else -%}
+        updates_and_deletes.dbt_valid_to as dbt_valid_to
+      {%- endif %} {%- if not loop.last %}, {%- endif %}
+    {%- endfor %}
+    from {{ target }} target
+    join updates_and_deletes on target.dbt_scd_id = updates_and_deletes.dbt_scd_id;
+  {% endcall %}
+
+  {% call statement('insert_new') %}
     insert into {{ upsert }} ({{ insert_cols_csv }})
     select {% for column in insert_cols -%}
       {{ column }} {%- if not loop.last %}, {%- endif %}
     {%- endfor %}
     from {{ source }}
-    where {{ source }}.dbt_change_type IN ('insert', 'update', 'delete');
+    where {{ source }}.dbt_change_type IN ('insert');
   {% endcall %}
 
   {% call statement('drop_target_relation') %}
