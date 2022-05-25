@@ -39,11 +39,12 @@ So we use a simple model `schema.table`, where `schema` is the Clickhouse's data
 
 ### Model Configuration
 
-| Option         | Description                                                                                                                                          | Required?                         |
-|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| engine         | The table engine (type of table) to use when creating tables                                                                                         | Optional (default: `MergeTree()`) |
-| order_by     | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                        | Optional (default: `tuple()`)     |
-| partition_by | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns. | Optional                          |
+| Option       | Description                                                                                                                                                                                                                                                                                           | Required?                         |
+|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
+| engine       | The table engine (type of table) to use when creating tables                                                                                                                                                                                                                                          | Optional (default: `MergeTree()`) |
+| order_by     | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                                                                         | Optional (default: `tuple()`)     |
+| partition_by | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                                                                  | Optional                          |
+| inserts_only | This property is relevant only for incremental materialization. If set to True, incremental updates will be inserted directly to the target table without creating intermediate table. This option has the potential of significantly improve performance and avoid memory limitations on big updates | Optional                          |
 
 ### Example Profile
 

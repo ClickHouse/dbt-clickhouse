@@ -1,6 +1,7 @@
 {% materialization incremental, adapter='clickhouse' -%}
 
   {% set unique_key = config.get('unique_key') %}
+  {% set inserts_only = config.get('inserts_only') %}
 
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
@@ -49,33 +50,38 @@
       {% set need_swap = true %}
       {% do to_drop.append(backup_relation) %}
   {% else %}
-    {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
-    {% do run_query(create_table_as(True, tmp_relation, sql)) %}
-    {% if on_schema_change != 'ignore' %}
-      {% do adapter.expand_target_column_types(
-             from_relation=tmp_relation,
-             to_relation=target_relation) %}
-      {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+    {%- if inserts_only or unique_key is none -%}
+        -- Run incremental insert without updates - updated rows will be added too to the table and will create
+        -- duplicate entries in the table. It is the user's responsibility to avoid updates.
+        {% set build_sql = clickhouse__incremental_insert(target_relation, sql) %}
+    {% else %}
+        {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
+        -- Create a table with only updated rows.
+        {% do run_query(create_table_as(False, tmp_relation, sql)) %}
+        {% if on_schema_change != 'ignore' %}
+            -- Update schema types if necessary.
+            {% do adapter.expand_target_column_types(
+                 from_relation=tmp_relation,
+                 to_relation=target_relation) %}
+            {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
+        {% endif %}
+
+        {% do adapter.rename_relation(target_relation, old_relation) %}
+        -- Create a new target table.
+        {% set create_sql = clickhouse__incremental_create(old_relation, target_relation) %}
+        {% call statement('main') %}
+            {{ create_sql }}
+        {% endcall %}
+        -- Insert all untouched rows to the target table.
+        {% set currect_insert_sql = clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=unique_key) %}
+        {% call statement('main') %}
+            {{ currect_insert_sql }}
+        {% endcall %}
+        -- Insert all incremental updates to the target table.
+        {% set build_sql = clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
+        {% do to_drop.append(old_relation) %}
+        {% do to_drop.append(tmp_relation) %}
     {% endif %}
-
-    {%- if unique_key is not none -%}
-      {% do adapter.drop_relation(old_relation) %}
-      {% do adapter.rename_relation(target_relation, old_relation) %} 
-
-      {% set create_sql = clickhouse__incremental_create(old_relation, target_relation) %}
-      {% call statement('main') %}
-        {{ create_sql }}
-      {% endcall %}
-
-      {% set currect_insert_sql = clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=unique_key) %}
-      {% call statement('main') %}
-        {{ currect_insert_sql }}
-      {% endcall %}
-      {% do to_drop.append(old_relation) %}
-    {%- endif %}
-    
-    {% set build_sql = clickhouse__incremental_insert(tmp_relation, target_relation, unique_key=unique_key) %}
-    
   {% endif %}
 
   {% call statement('main') %}
@@ -125,13 +131,21 @@
   )
 {%- endmacro %}
 
-{% macro clickhouse__incremental_insert(tmp_relation, target_relation, unique_key=none) %}
+{% macro clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
   {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
   select {{ dest_cols_csv }}
   from {{ tmp_relation }}
+{%- endmacro %}
+
+{% macro clickhouse__incremental_insert(target_relation, sql) %}
+  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+
+  insert into {{ target_relation }} ({{ dest_cols_csv }})
+  {{ sql }}
 {%- endmacro %}
 
 {% macro incremental_validate_on_schema_change(on_schema_change, default='ignore') %}
@@ -152,34 +166,34 @@
 {% endmacro %}
 
 {% macro process_schema_changes(on_schema_change, source_relation, target_relation) %}
-    
+
     {% if on_schema_change != 'ignore' %}
-    
+
       {% set schema_changes_dict = check_for_schema_changes(source_relation, target_relation) %}
-      
+
       {% if schema_changes_dict['schema_changed'] %}
-    
+
         {% if on_schema_change == 'fail' %}
-        
+
           {% set fail_msg %}
               The source and target schemas on this incremental model are out of sync!
-              They can be reconciled in several ways: 
+              They can be reconciled in several ways:
                 - set the `on_schema_change` config to either append_new_columns or sync_all_columns, depending on your situation.
                 - Re-run the incremental model with `full_refresh: True` to update the target schema.
                 - update the schema manually and re-run the process.
           {% endset %}
-          
+
           {% do exceptions.raise_compiler_error(fail_msg) %}
-        
+
         {# -- unless we ignore, run the sync operation per the config #}
         {% else %}
-          
+
           {% do sync_column_schemas(on_schema_change, target_relation, schema_changes_dict) %}
-        
+
         {% endif %}
-      
+
       {% endif %}
-    
+
     {% endif %}
 
 {% endmacro %}
