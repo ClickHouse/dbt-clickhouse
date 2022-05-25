@@ -4,6 +4,9 @@ from dbt.tests.adapter.basic.test_empty import BaseEmpty
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCols
+from dbt.tests.adapter.basic.test_singular_tests import BaseSingularTests
+from dbt.tests.adapter.basic.test_generic_tests import BaseGenericTests
+from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.adapter.basic.files import model_base, schema_base_yml, model_incremental
 from dbt.tests.util import run_dbt, check_relation_types, relation_from_name
 
@@ -25,6 +28,18 @@ class TestSnapshotTimestamp(BaseSnapshotTimestamp):
 
 
 class TestSnapshotCheckCols(BaseSnapshotCheckCols):
+    pass
+
+
+class TestSingularTests(BaseSingularTests):
+    pass
+
+
+class TestGenericTests(BaseGenericTests):
+    pass
+
+
+class TestBaseAdapterMethod(BaseAdapterMethod):
     pass
 
 
