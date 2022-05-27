@@ -5,7 +5,8 @@ from typing import Any, Optional, Tuple
 
 import agate
 import dbt.exceptions
-from clickhouse_driver import Client, errors
+import clickhouse_connect
+from clickhouse_connect.driver.exceptions import DatabaseError, Error
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
@@ -62,14 +63,13 @@ class ClickhouseConnectionManager(SQLConnectionManager):
     def exception_handler(self, sql):
         try:
             yield
-
-        except errors.ServerException as e:
+        except DatabaseError as e:
             logger.debug('Clickhouse error: {}', str(e))
 
             try:
                 # attempt to release the connection
                 self.release()
-            except errors.Error:
+            except Error:
                 logger.debug('Failed to release connection!')
                 pass
 
@@ -94,25 +94,23 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         kwargs = {}
 
         try:
-            handle = Client(
+            handle = clickhouse_connect.get_client(
                 host=credentials.host,
                 port=credentials.port,
                 database='default',
-                user=credentials.user,
+                username=credentials.user,
                 password=credentials.password,
-                client_name=f'dbt-{dbt_version}',
-                secure=credentials.secure,
-                verify=credentials.verify,
+                interface='https' if credentials.secure else 'http',
+                compress=False if credentials.compression == '' else bool(credentials.compression),
                 connect_timeout=credentials.connect_timeout,
                 send_receive_timeout=credentials.send_receive_timeout,
+                verify=True,
                 sync_request_timeout=credentials.sync_request_timeout,
-                compress_block_size=credentials.compress_block_size,
-                compression=False if credentials.compression == '' else credentials.compression,
                 **kwargs,
             )
             connection.handle = handle
             connection.state = 'open'
-        except errors.ServerException as e:
+        except DatabaseError as e:
             logger.debug(
                 'Got an error when attempting to open a clickhouse connection: \'{}\'',
                 str(e),
@@ -135,9 +133,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         logger.debug('Cancel query \'{}\'', connection_name)
 
     @classmethod
-    def get_table_from_response(cls, response, columns) -> agate.Table:
-        column_names = [x[0] for x in columns]
-
+    def get_table_from_response(cls, response, column_names) -> agate.Table:
         data = []
         for row in response:
             data.append(dict(zip(column_names, row)))
@@ -158,7 +154,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
             pre = time.time()
 
-            response, columns = client.execute(sql, with_column_types=True)
+            query_result = client.query(sql)
 
             status = self.get_status(client)
 
@@ -169,7 +165,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             )
 
             if fetch:
-                table = self.get_table_from_response(response, columns)
+                table = self.get_table_from_response(query_result.result_set, query_result.column_names)
             else:
                 table = dbt.clients.agate_helper.empty_table()
             return status, table
@@ -191,7 +187,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             )
 
             pre = time.time()
-            client.execute(sql)
+            client.query(sql)
 
             status = self.get_status(client)
 
