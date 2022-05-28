@@ -48,7 +48,7 @@ def dbt_profile_target():
         'host': os.environ.get('HOST_ENV_VAR_NAME', 'localhost'),
         'user': os.environ.get('USER_ENV_VAR_NAME', 'default'),
         'password': os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
-        'port': int(os.environ.get('PORT_ENV_VAR_NAME', 9000)),  # docker client port
+        'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
         'secure': False
     }
 

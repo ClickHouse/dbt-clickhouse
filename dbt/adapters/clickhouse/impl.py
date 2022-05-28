@@ -181,7 +181,7 @@ class ClickhouseAdapter(SQLAdapter):
         self,
         relation_a: ClickhouseRelation,
         relation_b: ClickhouseRelation,
-        column_names: Optional[List[str]] = None,
+        column_names: Optional[List[str]] = None
     ) -> str:
         names: List[str]
         if column_names is None:
@@ -235,22 +235,24 @@ class ClickhouseAdapter(SQLAdapter):
 
         return buf.getvalue()
 
+    @available
+    def insert_table_data(self, table_name, table):
+        self.connections.insert_table_data(table_name, table)
+
     def run_sql_for_tests(self, sql, fetch, conn):
-        cursor = conn.handle
+        client = conn.handle
         try:
-            result = cursor.execute(sql)
+            if fetch:
+                result = client.query(sql).result_set
+            else:
+                result = client.command(sql)
             if fetch == "one" and len(result) > 0:
                 return result[0]
-            elif fetch == "all":
+            if fetch == "all":
                 return result
-            else:
-                return
         except BaseException as e:
             self.logger.error(sql)
             self.logger.error(e)
-            raise
-        finally:
-            conn.state = 'close'
 
 
 def _expect_row_value(key: str, row: agate.Row):

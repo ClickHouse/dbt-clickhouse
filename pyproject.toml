@@ -9,3 +9,7 @@ line_length = 100
 profile = "black"
 use_parentheses = true
 skip = '.eggs/,.mypy_cache/,.venv/,venv/,env/'
+
+[tool.pytest.ini_options]
+log_cli = true
+log_cli_level = "INFO"
