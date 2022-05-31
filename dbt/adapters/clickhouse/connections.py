@@ -108,6 +108,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 send_receive_timeout=credentials.send_receive_timeout,
                 verify=True,
                 sync_request_timeout=credentials.sync_request_timeout,
+                query_limit=0,
                 **kwargs,
             )
             connection.handle = handle
