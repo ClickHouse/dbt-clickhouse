@@ -25,7 +25,7 @@ package_name = 'dbt-clickhouse'
 package_version = _dbt_clickhouse_version()
 description = '''The Clickhouse plugin for dbt (data build tool)'''
 
-dbt_version = '1.0.4'
+dbt_version = '1.1.0'
 
 if not package_version.startswith(dbt_version):
     raise ValueError(
@@ -40,9 +40,9 @@ setup(
     description=description,
     long_description=long_description,
     long_description_content_type='text/markdown',
-    author='Dmitriy Sokolov',
-    author_email='silentsokolov@gmail.com',
-    url='https://github.com/silentsokolov/dbt-clickhouse',
+    author='ClickHouse Inc.',
+    author_email='guy@clickhouse.com',
+    url='https://github.com/ClickHouse/dbt-clickhouse',
     license='MIT',
     packages=find_namespace_packages(include=['dbt', 'dbt.*']),
     package_data={
