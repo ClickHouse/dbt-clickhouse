@@ -8,7 +8,10 @@
 
 This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https://clickhouse.tech/).
 
-We have not tested extensively against older versions of Clickhouse. The plugin uses syntax that requires version 20.11 or newer.
+We do not support older versions of Clickhouse. The plugin uses syntax that requires version 21 or newer.
+
+### Original Author
+ClickHouse wants to thank @silentsokolov for creating this connector and for their valuable contributions.  
 
 ### Installation
 
@@ -72,6 +75,10 @@ your_profile_name:
 
 ### Running Tests
 
+This adapter passes all of dbt basic tests as presented in dbt's official docs: https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter.
+
+Note: The only feature that is not supported and not tested is Ephemeral materialization.
+
 Tests running command: 
 `pytest tests/integration`
 
@@ -82,3 +89,7 @@ You can customize a few test params through environment variables. In order to p
 4. PORT_ENV_VAR_NAME - ClickHouse client port. Default=9000
 5. RUN_DOCKER_ENV_VAR_NAME - Identify whether to run clickhouse-server docker image (see tests/docker-compose.yml). Default=False. Set it to True if you'd like to raise a docker image (assuming docker-compose is installed in your machine) during tests that launches a clickhouse-server. Note: If you decide to run  a docker image you should set PORT_ENV_VAR_NAME to 10900 too.
 
+## Update 05/31/2022
+* Incremental changes of an incremental model are loaded into a MergeTree table instead of in-memory temporary table. This removed memory limitations - Clickhouse recommends that in-memory table engines should not exceed 100 million rows.
+* Incremental model supports 'inserts_only' mode where incremental changes are loaded directly to the target table instead of creating a temporary table for the changes and running another insert-into command. This mode is relevant only for immutable data, and can accelerate dramatically the performance of the incremental materialization.
+* Fix update and delete in snapshots. 
