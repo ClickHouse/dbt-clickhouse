@@ -190,7 +190,7 @@
     select * from (
         {{ select_sql }}
     ) as __dbt_sbq
-    limit 0
+    limit 1
   {% endcall %}
 
   {{ return(load_result('get_columns_in_query').table.columns | map(attribute='name') | list) }}

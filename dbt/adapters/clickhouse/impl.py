@@ -253,6 +253,9 @@ class ClickhouseAdapter(SQLAdapter):
         except BaseException as e:
             self.logger.error(sql)
             self.logger.error(e)
+            raise
+        finally:
+            conn.state = 'close'
 
 
 def _expect_row_value(key: str, row: agate.Row):
