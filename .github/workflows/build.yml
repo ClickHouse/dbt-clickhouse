@@ -24,9 +24,10 @@ jobs:
 
     services:
       clickhouse:
-        image: yandex/clickhouse-server:${{ matrix.clickhouse-version}}
+        image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
         ports:
           - 9000:9000
+          - 8123:8123
 
     steps:
     - name: Checkout

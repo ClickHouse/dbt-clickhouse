@@ -6,6 +6,8 @@ from typing import Any, Optional, Tuple
 import agate
 import dbt.exceptions
 import clickhouse_connect
+
+from clickhouse_connect.driver.client import Client as ChClient
 from clickhouse_connect.driver.exceptions import DatabaseError, Error
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
@@ -106,6 +108,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 send_receive_timeout=credentials.send_receive_timeout,
                 verify=True,
                 sync_request_timeout=credentials.sync_request_timeout,
+                query_limit=0,
                 **kwargs,
             )
             connection.handle = handle
@@ -154,7 +157,10 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
             pre = time.time()
 
-            query_result = client.query(sql)
+            if fetch:
+                query_result = client.query(sql)
+            else:
+                query_result = client.command(sql)
 
             status = self.get_status(client)
 
@@ -169,6 +175,11 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             else:
                 table = dbt.clients.agate_helper.empty_table()
             return status, table
+
+    def insert_table_data(self, table_name, table: agate.Table):
+        client:  ChClient = self.get_thread_connection().handle
+        with self.exception_handler(f'INSERT INTO {table_name}'):
+            client.insert(table_name, table.rows, table.column_names)
 
     def add_query(
         self,
