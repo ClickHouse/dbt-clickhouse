@@ -15,7 +15,7 @@ check-flake8:
 
 check-mypy:
 	@echo "--> Running mypy checks"
-	@mypy .
+	@mypy --exclude dbt/adapters/clickhouse/__init__.py .
 
 check-yamllint:
 	@echo "--> Running yamllint checks"
