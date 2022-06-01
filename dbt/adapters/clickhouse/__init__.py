@@ -5,7 +5,7 @@ from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager  # n
 from dbt.adapters.clickhouse.connections import ClickhouseCredentials
 from dbt.adapters.clickhouse.impl import ClickhouseAdapter
 from dbt.adapters.clickhouse.relation import ClickhouseRelation  # noqa
-from dbt.include import clickhouse
+from dbt.include import clickhouse  # noqa
 
 Plugin = AdapterPlugin(
     adapter=ClickhouseAdapter,

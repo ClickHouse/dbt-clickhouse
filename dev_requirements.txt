@@ -3,3 +3,8 @@ clickhouse-driver==0.2.2
 pytest==7.0.0
 pytest-dotenv
 dbt-tests-adapter==1.1
+black==22.3.0
+isort==5.10.1
+mypy==0.960
+yamllint==1.26.3
+flake8==4.0.1
