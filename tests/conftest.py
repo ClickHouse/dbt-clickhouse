@@ -1,11 +1,12 @@
-import sys
-from pathlib import Path
-from subprocess import Popen, PIPE
-import pytest
-from time import sleep
 import os
-import requests
+import sys
 import timeit
+from pathlib import Path
+from subprocess import PIPE, Popen
+from time import sleep
+
+import pytest
+import requests
 
 # Import the standard integration fixtures as a plugin
 # Note: fixtures with session scope need to be local
@@ -50,7 +51,7 @@ def dbt_profile_target():
         'user': os.environ.get('USER_ENV_VAR_NAME', 'default'),
         'password': os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
         'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
-        'secure': False
+        'secure': False,
     }
 
 
