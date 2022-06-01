@@ -8,3 +8,4 @@ isort==5.10.1
 mypy==0.960
 yamllint==1.26.3
 flake8==4.0.1
+types-requests==2.27.29
