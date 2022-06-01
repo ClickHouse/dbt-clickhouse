@@ -1,16 +1,17 @@
+import os
 import sys
+import timeit
 from pathlib import Path
-from subprocess import Popen, PIPE
+from subprocess import PIPE, Popen
+from time import sleep
 
 import pytest
-from time import sleep
-import os
 import requests
-import timeit
 
 # Import the standard integration fixtures as a plugin
 # Note: fixtures with session scope need to be local
 pytest_plugins = ["dbt.tests.fixtures.project"]
+
 
 # This fixture is for customizing tests that need overrides in adapter
 # repos. Example in dbt.tests.adapter.basic.test_base.
@@ -38,6 +39,7 @@ def test_config():
         except Exception as e:
             raise Exception('Failed to run docker-compose while cleaning up: {}', str(e))
 
+
 # The profile dictionary, used to write out profiles.yml
 # dbt will supply a unique schema per test, so we do not specify 'schema' here
 @pytest.fixture(scope="class")
@@ -49,7 +51,7 @@ def dbt_profile_target():
         'user': os.environ.get('USER_ENV_VAR_NAME', 'default'),
         'password': os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
         'port': int(os.environ.get('PORT_ENV_VAR_NAME', 9000)),  # docker client port
-        'secure': False
+        'secure': False,
     }
 
 
