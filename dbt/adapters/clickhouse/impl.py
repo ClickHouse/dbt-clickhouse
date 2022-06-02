@@ -13,8 +13,8 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
-from dbt.utils import executor
 from dbt.events import AdapterLogger
+from dbt.utils import executor
 
 from dbt.adapters.clickhouse.column import ClickhouseColumn
 from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
@@ -107,7 +107,7 @@ class ClickhouseAdapter(SQLAdapter):
 
         return relations
 
-    def get_relation(self, database: str, schema: str, identifier: str):
+    def get_relation(self, database: Optional[str], schema: str, identifier: str):
         if not self.Relation.include_policy.database:
             database = None
 

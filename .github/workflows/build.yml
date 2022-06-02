@@ -1,6 +1,7 @@
+---
 name: "build"
 
-on:
+on:  # yamllint disable-line rule:truthy
   pull_request:
   push:
     branches: master
@@ -29,18 +30,18 @@ jobs:
           - 9000:9000
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Setup Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v2
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Install requirements
-      run: |
-        pip install -r dev_requirements.txt
+      - name: Install requirements
+        run: |
+          pip install -r dev_requirements.txt
 
-    - name: Run tests
-      run: |
-        PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
+      - name: Run tests
+        run: |
+          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration

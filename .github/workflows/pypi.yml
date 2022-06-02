@@ -1,6 +1,7 @@
+---
 name: "PyPI Release"
 
-on:
+on:  # yamllint disable-line rule:truthy
   push:
     tags:
       - 'v*'
@@ -11,22 +12,22 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v2
 
-    - name: Setup Python
-      uses: actions/setup-python@v1
-      with:
-        python-version: 3.8
+      - name: Setup Python
+        uses: actions/setup-python@v1
+        with:
+          python-version: 3.8
 
-    - name: Upgrade Setuptools
-      run: pip install --upgrade setuptools wheel
+      - name: Upgrade Setuptools
+        run: pip install --upgrade setuptools wheel
 
-    - name: Build Distribution
-      run: python setup.py sdist bdist_wheel --universal
+      - name: Build Distribution
+        run: python setup.py sdist bdist_wheel --universal
 
-    - name: Publish to PyPI
-      uses: pypa/gh-action-pypi-publish@master
-      with:
-        user: __token__
-        password: ${{ secrets.pypi_password }}
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          user: __token__
+          password: ${{ secrets.pypi_password }}
