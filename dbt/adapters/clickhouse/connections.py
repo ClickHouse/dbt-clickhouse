@@ -4,11 +4,10 @@ from dataclasses import dataclass
 from typing import Any, Optional, Tuple
 
 import agate
-import dbt.exceptions
 import clickhouse_connect
-
 from clickhouse_connect.driver.client import Client as ChClient
 from clickhouse_connect.driver.exceptions import DatabaseError, Error
+import dbt.exceptions
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
@@ -20,6 +19,10 @@ logger = AdapterLogger('clickhouse')
 
 @dataclass
 class ClickhouseCredentials(Credentials):
+    """
+    ClickHouse connectio credentials data class.
+    """
+    # pylint: disable=too-many-instance-attributes
     host: str = 'localhost'
     port: Optional[int] = None
     user: Optional[str] = 'default'
@@ -55,36 +58,37 @@ class ClickhouseCredentials(Credentials):
         self.database = None
 
     def _connection_keys(self):
-        return ('host', 'port', 'user', 'schema', 'secure', 'verify')
+        return 'host', 'port', 'user', 'schema', 'secure', 'verify'
 
 
 class ClickhouseConnectionManager(SQLConnectionManager):
+    """
+    ClickHouse Connector connection manager.
+    """
     TYPE = 'clickhouse'
 
     @contextmanager
     def exception_handler(self, sql):
         try:
             yield
-        except DatabaseError as e:
-            logger.debug('Clickhouse error: {}', str(e))
-
+        except DatabaseError as err:
+            logger.debug('Clickhouse error: {}', str(err))
             try:
                 # attempt to release the connection
                 self.release()
             except Error:
                 logger.debug('Failed to release connection!')
-                pass
 
-            raise dbt.exceptions.DatabaseException(str(e).strip()) from e
+            raise dbt.exceptions.DatabaseException(str(err).strip()) from err
 
-        except Exception as e:
+        except Exception as exp:
             logger.debug('Error running SQL: {}', sql)
             logger.debug('Rolling back transaction.')
             self.release()
-            if isinstance(e, dbt.exceptions.RuntimeException):
+            if isinstance(exp, dbt.exceptions.RuntimeException):
                 raise
 
-            raise dbt.exceptions.RuntimeException(e) from e
+            raise dbt.exceptions.RuntimeException(exp) from exp
 
     @classmethod
     def open(cls, connection):
@@ -113,16 +117,16 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             )
             connection.handle = handle
             connection.state = 'open'
-        except DatabaseError as e:
+        except DatabaseError as err:
             logger.debug(
                 'Got an error when attempting to open a clickhouse connection: \'{}\'',
-                str(e),
+                str(err),
             )
 
             connection.handle = None
             connection.state = 'fail'
 
-            raise dbt.exceptions.FailedToConnectException(str(e))
+            raise dbt.exceptions.FailedToConnectException(str(err))
 
         return connection
 
@@ -137,6 +141,11 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
     @classmethod
     def get_table_from_response(cls, response, column_names) -> agate.Table:
+        """
+        Build agate tabel from response.
+        :param response: ClickHouse query result
+        :param column_names: Table column names
+        """
         data = []
         for row in response:
             data.append(dict(zip(column_names, row)))
@@ -151,9 +160,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         client = conn.handle
 
         with self.exception_handler(sql):
-            logger.debug(
-                'On {connection_name}: {sql}'.format(connection_name=conn.name, sql=f'{sql}...'),
-            )
+            logger.debug(f'On {conn.name}: {sql}...')
 
             pre = time.time()
 
@@ -164,19 +171,22 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
             status = self.get_status(client)
 
-            logger.debug(
-                'SQL status: {status} in {elapsed:0.2f} seconds'.format(
-                    status=status, elapsed=(time.time() - pre)
-                ),
-            )
+            logger.debug(f'SQL status: {status} in {(time.time() - pre):.2f} seconds')
 
             if fetch:
-                table = self.get_table_from_response(query_result.result_set, query_result.column_names)
+                table = self.get_table_from_response(
+                    query_result.result_set, query_result.column_names
+                )
             else:
                 table = dbt.clients.agate_helper.empty_table()
             return status, table
 
     def insert_table_data(self, table_name, table: agate.Table):
+        """
+        Insert data into ClickHouse table
+        :param table_name: Target table name
+        :param table: Data to be inserted
+        """
         client:  ChClient = self.get_thread_connection().handle
         with self.exception_handler(f'INSERT INTO {table_name}'):
             client.insert(table_name, table.rows, table.column_names)
@@ -193,33 +203,33 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         client = conn.handle
 
         with self.exception_handler(sql):
-            logger.debug(
-                'On {connection_name}: {sql}'.format(connection_name=conn.name, sql=f'{sql}...')
-            )
+            logger.debug(f'On {conn.name}: {sql}...')
 
             pre = time.time()
             client.query(sql)
 
             status = self.get_status(client)
 
-            logger.debug(
-                'SQL status: {status} in {elapsed:0.2f} seconds'.format(
-                    status=status, elapsed=(time.time() - pre)
-                )
-            )
+            logger.debug(f'SQL status: {status} in {(time.time() - pre):0.2f} seconds')
 
             return conn, None
 
     @classmethod
     def get_credentials(cls, credentials):
+        """
+        Returns ClickHouse credentials
+        """
         return credentials
 
     @classmethod
-    def get_status(cls, cursor):
+    def get_status(cls, _):
+        """
+        Returns connection status
+        """
         return 'OK'
 
     @classmethod
-    def get_response(cls, cursor):
+    def get_response(cls, _):
         return 'OK'
 
     def begin(self):
