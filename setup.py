@@ -54,9 +54,9 @@ setup(
     },
     install_requires=[
         f'dbt-core=={dbt_version}',
-        'clickhouse-driver>=0.2.2',
+        'clickhouse-connect>=0.0.14',
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     platforms='any',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
@@ -64,7 +64,6 @@ setup(
         'Operating System :: Microsoft :: Windows',
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
-        'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],

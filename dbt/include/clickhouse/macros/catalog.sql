@@ -20,7 +20,7 @@
       {%- if not loop.last %} or {% endif -%}
     {%- endfor -%}
     )
-    order by columns.database, columns.table, columns.position;
+    order by columns.database, columns.table, columns.position
   {%- endcall -%}
   {{ return(load_result('catalog').table) }}
 {%- endmacro %}

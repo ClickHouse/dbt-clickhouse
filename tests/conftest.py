@@ -27,7 +27,7 @@ def test_config():
             up_result = run_cmd(['docker-compose', '-f', compose_file, 'up', '-d'])
             if up_result[0]:
                 raise Exception(f'Failed to start docker: {up_result[2]}')
-            url = "http://{}:{}".format(os.environ.get('HOST_ENV_VAR_NAME'), 10723)
+            url = "http://{}:{}".format(os.environ.get('HOST_ENV_VAR_NAME', 'localhost'), 10723)
             wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
             raise Exception('Failed to run docker-compose: {}', str(e))
@@ -50,7 +50,7 @@ def dbt_profile_target():
         'host': os.environ.get('HOST_ENV_VAR_NAME', 'localhost'),
         'user': os.environ.get('USER_ENV_VAR_NAME', 'default'),
         'password': os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
-        'port': int(os.environ.get('PORT_ENV_VAR_NAME', 9000)),  # docker client port
+        'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
         'secure': False,
     }
 
