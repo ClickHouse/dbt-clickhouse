@@ -41,7 +41,7 @@
     'Hive'
   ] -%}
 
-  {%- if engine is none or any(engine_type in engine for engine_type in ['MergeTree', 'MergeTree()']) or engine in supported %}
+  {%- if engine is none or 'MergeTree' in engine or engine in supported %}
     {%- if cols is not none %}
       {%- if cols is string -%}
         {%- set cols = [cols] -%}
