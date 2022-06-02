@@ -12,7 +12,6 @@ from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
 from dbt.events import AdapterLogger
-from dbt.version import __version__ as dbt_version
 
 logger = AdapterLogger('clickhouse')
 
