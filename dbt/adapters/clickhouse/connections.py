@@ -112,8 +112,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 compress=False if credentials.compression == '' else bool(credentials.compression),
                 connect_timeout=credentials.connect_timeout,
                 send_receive_timeout=credentials.send_receive_timeout,
-                verify=True,
-                sync_request_timeout=credentials.sync_request_timeout,
+                verify=credentials.verify,
                 query_limit=0,
                 **kwargs,
             )
