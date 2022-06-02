@@ -181,7 +181,7 @@ class ClickhouseAdapter(SQLAdapter):
         self,
         relation_a: ClickhouseRelation,
         relation_b: ClickhouseRelation,
-        column_names: Optional[List[str]] = None
+        column_names: Optional[List[str]] = None,
     ) -> str:
         names: List[str]
         if column_names is None:

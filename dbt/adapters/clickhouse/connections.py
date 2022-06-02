@@ -22,6 +22,7 @@ class ClickhouseCredentials(Credentials):
     """
     ClickHouse connectio credentials data class.
     """
+
     # pylint: disable=too-many-instance-attributes
     host: str = 'localhost'
     port: Optional[int] = None
@@ -65,6 +66,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
     """
     ClickHouse Connector connection manager.
     """
+
     TYPE = 'clickhouse'
 
     @contextmanager
@@ -187,7 +189,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         :param table_name: Target table name
         :param table: Data to be inserted
         """
-        client:  ChClient = self.get_thread_connection().handle
+        client: ChClient = self.get_thread_connection().handle
         with self.exception_handler(f'INSERT INTO {table_name}'):
             client.insert(table_name, table.rows, table.column_names)
 
