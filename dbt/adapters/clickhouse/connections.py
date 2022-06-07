@@ -31,7 +31,7 @@ class ClickhouseCredentials(Credentials):
     password: str = ''
     cluster: Optional[str] = None
     secure: bool = False
-    verify: bool = False
+    verify: bool = True
     connect_timeout: int = 10
     send_receive_timeout: int = 300
     sync_request_timeout: int = 5

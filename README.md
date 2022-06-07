@@ -27,7 +27,7 @@ pip install dbt-clickhouse
 - [x] Sources
 - [x] Docs generate
 - [x] Tests
-- [x] Snapshots (experimental)
+- [x] Snapshots
 - [ ] Ephemeral materialization
 
 # Usage Notes
@@ -39,12 +39,12 @@ So we use a simple model `schema.table`, where `schema` is the Clickhouse's data
 
 ### Model Configuration
 
-| Option       | Description                                                                                                                                                                                                                                                                                           | Required?                         |
-|--------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| engine       | The table engine (type of table) to use when creating tables                                                                                                                                                                                                                                          | Optional (default: `MergeTree()`) |
-| order_by     | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                                                                         | Optional (default: `tuple()`)     |
-| partition_by | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                                                                  | Optional                          |
-| inserts_only | This property is relevant only for incremental materialization. If set to True, incremental updates will be inserted directly to the target table without creating intermediate table. This option has the potential of significantly improve performance and avoid memory limitations on big updates | Optional                          |
+| Option       | Description                                                                                                                                                                                                                                                                                            | Required?                         |
+|--------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
+| engine       | The table engine (type of table) to use when creating tables                                                                                                                                                                                                                                           | Optional (default: `MergeTree()`) |
+| order_by     | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                                                                          | Optional (default: `tuple()`)     |
+| partition_by | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                                                                   | Optional                          |
+| inserts_only | This property is relevant only for incremental materialization. If set to True, incremental updates will be inserted directly to the target table without creating intermediate table. This option has the potential of significantly improve performance and avoid memory limitations on big updates. | Optional                          |
 
 ### Example Profile
 
@@ -55,19 +55,17 @@ your_profile_name:
     dev:
       type: clickhouse
       schema: [database name]
-      host: [db.clickhouse.com]
 
       # optional
       port: [port]  # default 9000
-      user: [user]
-      password: [abc123]
-      cluster: [cluster name]
-      verify: [verify] # default False
+      user: [user] # default 'default'
+      host: [db.clickhouse.com] # default localhost
+      password: [password] # default ''
+      verify: [verify] # default True
       secure: [secure] # default False
-      connect_timeout: [10] # default 10
-      send_receive_timeout: [300] # default 300
-      sync_request_timeout: [5] # default 5
-      compression: ['lz4'] # default '' (disable)
+      connect_timeout: 10 # default 10 seconds.
+      send_receive_timeout: 300 # default 300 seconds.
+      compression: False # default False (disable)
 ```
 
 ### Running Tests
