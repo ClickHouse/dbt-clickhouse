@@ -57,15 +57,13 @@ your_profile_name:
       schema: [database name]
 
       # optional
-      port: [port]  # default 9000
+      port: [port]  # default 8123
       user: [user] # default 'default'
       host: [db.clickhouse.com] # default localhost
       password: [password] # default ''
       verify: [verify] # default True
       secure: [secure] # default False
-      connect_timeout: 10 # default 10 seconds.
-      send_receive_timeout: 300 # default 300 seconds.
-      compression: False # default False (disable)
+      connect_timeout: [10] # default 10 seconds.
 ```
 
 ### Running Tests
@@ -81,7 +79,7 @@ You can customize a few test params through environment variables. In order to p
 1. HOST_ENV_VAR_NAME - Default=`localhost`
 2. USER_ENV_VAR_NAME - your ClickHouse username. Default=`default`
 3. PASSWORD_ENV_VAR_NAME - your ClickHouse password. Default=''
-4. PORT_ENV_VAR_NAME - ClickHouse client port. Default=9000
+4. PORT_ENV_VAR_NAME - ClickHouse client port. Default=8123
 5. RUN_DOCKER_ENV_VAR_NAME - Identify whether to run clickhouse-server docker image (see tests/docker-compose.yml). Default=False. Set it to True if you'd like to raise a docker image (assuming docker-compose is installed in your machine) during tests that launches a clickhouse-server. Note: If you decide to run  a docker image you should set PORT_ENV_VAR_NAME to 10900 too.
 
 ### Original Author
