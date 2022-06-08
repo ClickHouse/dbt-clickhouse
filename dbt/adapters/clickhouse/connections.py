@@ -1,4 +1,5 @@
 import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple
@@ -98,7 +99,6 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             return connection
 
         credentials = cls.get_credentials(connection.credentials)
-        kwargs = {}
 
         try:
             handle = clickhouse_connect.get_client(
@@ -113,7 +113,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 send_receive_timeout=credentials.send_receive_timeout,
                 verify=credentials.verify,
                 query_limit=0,
-                **kwargs,
+                session_id='dbt::' + str(uuid.uuid4()),
             )
             connection.handle = handle
             connection.state = 'open'
