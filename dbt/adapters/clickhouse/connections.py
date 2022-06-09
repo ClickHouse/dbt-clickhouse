@@ -7,7 +7,6 @@ from typing import Any, Optional, Tuple
 import agate
 import clickhouse_connect
 import dbt.exceptions
-from clickhouse_connect.driver.client import Client as ChClient
 from clickhouse_connect.driver.exceptions import DatabaseError, Error
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
