@@ -181,16 +181,6 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 table = dbt.clients.agate_helper.empty_table()
             return status, table
 
-    def insert_table_data(self, table_name, table: agate.Table):
-        """
-        Insert data into ClickHouse table
-        :param table_name: Target table name
-        :param table: Data to be inserted
-        """
-        client: ChClient = self.get_thread_connection().handle
-        with self.exception_handler(f'INSERT INTO {table_name}'):
-            client.insert(table_name, table.rows, table.column_names)
-
     def add_query(
         self,
         sql: str,

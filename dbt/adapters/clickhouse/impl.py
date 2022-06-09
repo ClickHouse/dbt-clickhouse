@@ -235,10 +235,6 @@ class ClickhouseAdapter(SQLAdapter):
 
         return buf.getvalue()
 
-    @available
-    def insert_table_data(self, table_name, table):
-        self.connections.insert_table_data(table_name, table)
-
     def run_sql_for_tests(self, sql, fetch, conn):
         client = conn.handle
         try:
