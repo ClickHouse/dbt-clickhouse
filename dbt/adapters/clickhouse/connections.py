@@ -1,4 +1,5 @@
 import time
+import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Optional, Tuple
@@ -6,7 +7,6 @@ from typing import Any, Optional, Tuple
 import agate
 import clickhouse_connect
 import dbt.exceptions
-from clickhouse_connect.driver.client import Client as ChClient
 from clickhouse_connect.driver.exceptions import DatabaseError, Error
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
@@ -98,7 +98,6 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             return connection
 
         credentials = cls.get_credentials(connection.credentials)
-        kwargs = {}
 
         try:
             handle = clickhouse_connect.get_client(
@@ -113,7 +112,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 send_receive_timeout=credentials.send_receive_timeout,
                 verify=credentials.verify,
                 query_limit=0,
-                **kwargs,
+                session_id='dbt::' + str(uuid.uuid4()),
             )
             connection.handle = handle
             connection.state = 'open'
@@ -181,16 +180,6 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 table = dbt.clients.agate_helper.empty_table()
             return status, table
 
-    def insert_table_data(self, table_name, table: agate.Table):
-        """
-        Insert data into ClickHouse table
-        :param table_name: Target table name
-        :param table: Data to be inserted
-        """
-        client: ChClient = self.get_thread_connection().handle
-        with self.exception_handler(f'INSERT INTO {table_name}'):
-            client.insert(table_name, table.rows, table.column_names)
-
     def add_query(
         self,
         sql: str,
@@ -206,7 +195,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             logger.debug(f'On {conn.name}: {sql}...')
 
             pre = time.time()
-            client.query(sql)
+            client.command(sql)
 
             status = self.get_status(client)
 
