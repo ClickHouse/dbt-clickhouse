@@ -206,7 +206,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             logger.debug(f'On {conn.name}: {sql}...')
 
             pre = time.time()
-            client.query(sql)
+            client.command(sql)
 
             status = self.get_status(client)
 
