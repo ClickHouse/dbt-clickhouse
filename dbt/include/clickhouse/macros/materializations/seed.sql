@@ -4,6 +4,7 @@
 
   {% set sql -%}
       insert into {{ this.render() }} ({{ cols_sql }}) format CSV
+      {{ data_sql }}
   {%- endset %}
 
   {% do adapter.add_query(sql, bindings=agate_table, abridge_sql_log=True) %}
