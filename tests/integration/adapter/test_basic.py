@@ -10,7 +10,7 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.util import check_relation_types, relation_from_name, run_dbt
 
-## CSV content with boolean column type.
+# CSV content with boolean column type.
 seeds_boolean_csv = """
 key,value
 abc,true
@@ -19,7 +19,7 @@ hij,true
 klm,false
 """.lstrip()
 
-## CSV content with empty fields.
+# CSV content with empty fields.
 seeds_empty_csv = """
 key,val1,val2
 abc,1,1
