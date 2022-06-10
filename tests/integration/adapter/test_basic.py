@@ -111,10 +111,7 @@ class TestInsertsOnlyIncrementalMaterializations(BaseIncremental):
 class TestCSVSeed:
     @pytest.fixture(scope="class")
     def seeds(self):
-        return {
-            "boolean.csv": seeds_boolean_csv,
-            "empty.csv": seeds_empty_csv
-        }
+        return {"boolean.csv": seeds_boolean_csv, "empty.csv": seeds_empty_csv}
 
     def test_seed(self, project):
         # seed command

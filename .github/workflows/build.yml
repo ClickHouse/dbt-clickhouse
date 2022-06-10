@@ -17,7 +17,7 @@ jobs:
           - '3.8'
           - '3.9'
         clickhouse-version:
-          - '21.8'
+          - '21.12'
           - '22.3'
           - latest
 
