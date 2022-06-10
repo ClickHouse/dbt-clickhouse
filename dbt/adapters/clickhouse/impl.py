@@ -54,7 +54,7 @@ class ClickhouseAdapter(SQLAdapter):
 
     @classmethod
     def convert_boolean_type(cls, agate_table: agate.Table, col_idx: int) -> str:
-        return 'UInt8'
+        return 'Bool'
 
     @classmethod
     def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
@@ -228,7 +228,7 @@ class ClickhouseAdapter(SQLAdapter):
         csv_funcs = [c.csvify for c in table._column_types]
 
         buf = io.StringIO()
-        writer = csv.writer(buf)
+        writer = csv.writer(buf, lineterminator="\n")
 
         for row in table.rows:
             writer.writerow(tuple(csv_funcs[i](d) for i, d in enumerate(row)))

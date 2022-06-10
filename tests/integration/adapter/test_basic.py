@@ -10,6 +10,27 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.util import check_relation_types, relation_from_name, run_dbt
 
+# CSV content with boolean column type.
+seeds_boolean_csv = """
+key,value
+abc,true
+def,false
+hij,true
+klm,false
+""".lstrip()
+
+# CSV content with empty fields.
+seeds_empty_csv = """
+key,val1,val2
+abc,1,1
+abc,1,0
+def,1,0
+hij,1,1
+hij,1,
+klm,1,0
+klm,1,
+""".lstrip()
+
 
 class TestBaseSimpleMaterializations(BaseSimpleMaterializations):
     pass
@@ -85,3 +106,14 @@ class TestInsertsOnlyIncrementalMaterializations(BaseIncremental):
             "incremental.sql": incremental_sql,
             "schema.yml": schema_base_yml,
         }
+
+
+class TestCSVSeed:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"boolean.csv": seeds_boolean_csv, "empty.csv": seeds_empty_csv}
+
+    def test_seed(self, project):
+        # seed command
+        results = run_dbt(["seed"])
+        assert len(results) == 2

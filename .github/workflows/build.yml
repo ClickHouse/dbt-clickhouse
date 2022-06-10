@@ -13,15 +13,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - python-version: '3.8'
-            clickhouse-version: "21"
-          - python-version: '3.9.6'
-            clickhouse-version: "21"
-          - python-version: '3.8'
-            clickhouse-version: "21.3"
-          - python-version: '3.9.6'
-            clickhouse-version: "21.3"
+        python-version:
+          - '3.8'
+          - '3.9'
+        clickhouse-version:
+          - '22.1'
+          - '22.3'
+          - latest
 
     services:
       clickhouse:

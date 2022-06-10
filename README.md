@@ -8,7 +8,7 @@
 
 This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https://clickhouse.tech/).
 
-We do not support older versions of Clickhouse. The plugin uses syntax that requires version 21 or newer.
+We do not test over older versions of Clickhouse. The plugin uses syntax that requires version 22.1 or newer.
 
 ### Installation
 
