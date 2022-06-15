@@ -103,7 +103,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             handle = clickhouse_connect.get_client(
                 host=credentials.host,
                 port=credentials.port,
-                database='default',
+                database=credentials.schema,
                 username=credentials.user,
                 password=credentials.password,
                 interface='https' if credentials.secure else 'http',
