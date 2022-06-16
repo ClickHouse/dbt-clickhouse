@@ -37,7 +37,9 @@ class ClickhouseCredentials(Credentials):
     sync_request_timeout: int = 5
     compress_block_size: int = 1048576
     compression: str = ''
-    use_default_schema: bool = False  # This is used in tests to make sure we connect always to the default database.
+    use_default_schema: bool = (
+        False  # This is used in tests to make sure we connect always to the default database.
+    )
 
     @property
     def type(self):
