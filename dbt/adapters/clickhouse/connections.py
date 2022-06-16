@@ -19,7 +19,7 @@ logger = AdapterLogger('clickhouse')
 @dataclass
 class ClickhouseCredentials(Credentials):
     """
-    ClickHouse connectio credentials data class.
+    ClickHouse connection credentials data class.
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -37,6 +37,9 @@ class ClickhouseCredentials(Credentials):
     sync_request_timeout: int = 5
     compress_block_size: int = 1048576
     compression: str = ''
+    use_default_schema: bool = (
+        False  # This is used in tests to make sure we connect always to the default database.
+    )
 
     @property
     def type(self):
@@ -103,7 +106,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             handle = clickhouse_connect.get_client(
                 host=credentials.host,
                 port=credentials.port,
-                database='default',
+                database='default' if credentials.use_default_schema else credentials.schema,
                 username=credentials.user,
                 password=credentials.password,
                 interface='https' if credentials.secure else 'http',
