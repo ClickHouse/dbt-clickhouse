@@ -104,7 +104,9 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         credentials = cls.get_credentials(connection.credentials)
 
         try:
-            custom_settings = dict() if credentials.custom_settings is None else credentials.custom_settings
+            custom_settings = (
+                dict() if credentials.custom_settings is None else credentials.custom_settings
+            )
             handle = clickhouse_connect.get_client(
                 host=credentials.host,
                 port=credentials.port,
@@ -118,7 +120,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 verify=credentials.verify,
                 query_limit=0,
                 session_id='dbt::' + str(uuid.uuid4()),
-                **custom_settings
+                **custom_settings,
             )
             connection.handle = handle
             connection.state = 'open'
