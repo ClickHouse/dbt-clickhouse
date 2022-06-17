@@ -57,7 +57,9 @@
     {% else %}
         {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
         -- Create a table with only updated rows.
-        {% do run_query(create_table_as(False, tmp_relation, sql)) %}
+        {% call statement('creat_temp_table_statement') %}
+            {{ create_table_as(False, tmp_relation, sql) }}
+        {% endcall %}
         {% if on_schema_change != 'ignore' %}
             -- Update schema types if necessary.
             {% do adapter.expand_target_column_types(
