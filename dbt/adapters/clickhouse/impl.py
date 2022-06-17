@@ -253,6 +253,14 @@ class ClickhouseAdapter(SQLAdapter):
         finally:
             conn.state = 'close'
 
+    @available
+    def get_model_settings(self, model):
+        settings = model['config'].get('settings', dict())
+        res = []
+        for key in settings:
+            res.append(f' {key}={settings[key]}')
+        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
 
 def _expect_row_value(key: str, row: agate.Row):
     if key not in row.keys():

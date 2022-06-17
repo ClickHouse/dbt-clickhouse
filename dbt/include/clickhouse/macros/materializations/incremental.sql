@@ -116,6 +116,7 @@
 
 {% macro clickhouse__incremental_create(old_relation, target_relation) %}
   create table {{ target_relation }} as {{ old_relation }}
+
 {%- endmacro %}
 
 {% macro clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=none) %}
@@ -129,6 +130,7 @@
     select ({{ unique_key }})
     from {{ tmp_relation }}
   )
+  {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
 {% macro clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
@@ -138,6 +140,7 @@
   insert into {{ target_relation }} ({{ dest_cols_csv }})
   select {{ dest_cols_csv }}
   from {{ tmp_relation }}
+  {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
 {% macro clickhouse__incremental_insert(target_relation, sql) %}
@@ -146,6 +149,7 @@
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
   {{ sql }}
+  {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
 {% macro incremental_validate_on_schema_change(on_schema_change, default='ignore') %}
