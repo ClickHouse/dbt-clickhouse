@@ -2,7 +2,7 @@ import time
 import uuid
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import agate
 import clickhouse_connect
@@ -40,6 +40,7 @@ class ClickhouseCredentials(Credentials):
     use_default_schema: bool = (
         False  # This is used in tests to make sure we connect always to the default database.
     )
+    custom_settings: Optional[Dict[str, Any]] = None
 
     @property
     def type(self):
@@ -103,6 +104,9 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         credentials = cls.get_credentials(connection.credentials)
 
         try:
+            custom_settings = (
+                dict() if credentials.custom_settings is None else credentials.custom_settings
+            )
             handle = clickhouse_connect.get_client(
                 host=credentials.host,
                 port=credentials.port,
@@ -116,6 +120,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 verify=credentials.verify,
                 query_limit=0,
                 session_id='dbt::' + str(uuid.uuid4()),
+                **custom_settings,
             )
             connection.handle = handle
             connection.state = 'open'

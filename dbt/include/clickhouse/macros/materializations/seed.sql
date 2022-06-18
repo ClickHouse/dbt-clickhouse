@@ -3,8 +3,10 @@
   {% set data_sql = adapter.get_csv_data(agate_table) %}
 
   {% set sql -%}
-      insert into {{ this.render() }} ({{ cols_sql }}) format CSV
-      {{ data_sql }}
+    insert into {{ this.render() }} ({{ cols_sql }})
+    {{ adapter.get_model_settings(model) }}
+    format CSV
+    {{ data_sql }}
   {%- endset %}
 
   {% do adapter.add_query(sql, bindings=agate_table, abridge_sql_log=True) %}

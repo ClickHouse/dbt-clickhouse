@@ -86,6 +86,7 @@
   as (
     {{ sql }}
   )
+  {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
