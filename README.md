@@ -44,7 +44,9 @@ So we use a simple model `schema.table`, where `schema` is the Clickhouse's data
 | engine       | The table engine (type of table) to use when creating tables                                                                                                                                                                                                                                           | Optional (default: `MergeTree()`) |
 | order_by     | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                                                                          | Optional (default: `tuple()`)     |
 | partition_by | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                                                                   | Optional                          |
+| unique_key   | A tuple of column names that uniquely identify rows. For more details on uniqueness constraints, see here.                                                                                                                                                                                             | Optional                          |
 | inserts_only | This property is relevant only for incremental materialization. If set to True, incremental updates will be inserted directly to the target table without creating intermediate table. This option has the potential of significantly improve performance and avoid memory limitations on big updates. | Optional                          |
+| settings     | A dictionary with custom settings for INSERT INTO and CREATE AS SELECT queries.                                                                                                                                                                                                                        | Optional                          |
 
 ### Example Profile
 
@@ -64,6 +66,7 @@ your_profile_name:
       verify: [verify] # default True
       secure: [secure] # default False
       connect_timeout: [10] # default 10 seconds.
+      custom_settings: {} # Custom seetings for the connection - default is empty.
 ```
 
 ### Running Tests
