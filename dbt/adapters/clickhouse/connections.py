@@ -159,7 +159,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 )
             except clickhouse_connect.driver.exceptions.DatabaseError as exp:
                 db_err = exp
-        elif clickhouse_driver and credentials.driver == 'native':
+        elif clickhouse_driver and driver == 'native':
             try:
                 client = clickhouse_driver.Client(
                     host=credentials.host,
