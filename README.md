@@ -59,6 +59,7 @@ your_profile_name:
       schema: [database name]
 
       # optional
+      driver: [http] # http or native.  If not set will autodetermine base one port
       port: [port]  # default 8123
       user: [user] # default 'default'
       host: [db.clickhouse.com] # default localhost
