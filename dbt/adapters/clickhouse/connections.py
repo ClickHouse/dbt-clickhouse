@@ -157,8 +157,8 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                     session_id='dbt::' + str(uuid.uuid4()),
                     **custom_settings,
                 )
-            except clickhouse_connect.driver.exceptions.DatabaseError as db_err:
-                pass
+            except clickhouse_connect.driver.exceptions.DatabaseError as exp:
+                db_err = exp
         elif clickhouse_driver and credentials.driver == 'native':
             try:
                 client = clickhouse_driver.Client(
@@ -178,8 +178,8 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                     **custom_settings,
                 )
                 connection.handle = ChNativeAdapter(client)
-            except clickhouse_driver.errors as db_err:
-                pass
+            except clickhouse_driver.errors as exp:
+                db_err = exp
         else:
             raise dbt.exceptions.FailedToConnectException(
                 f'Library for ClickHouse driver type {driver} not found'
