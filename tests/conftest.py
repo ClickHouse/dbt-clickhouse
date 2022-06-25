@@ -44,6 +44,11 @@ def test_config():
 # dbt will supply a unique schema per test, so we do not specify 'schema' here
 @pytest.fixture(scope="class")
 def dbt_profile_target():
+    port = int(os.environ.get('PORT_ENV_VAR_NAME', 8123))
+    if port in (10900, 9000):
+        driver = 'native'
+    else:
+        driver = 'http'
     return {
         'type': 'clickhouse',
         'threads': 1,
@@ -52,6 +57,7 @@ def dbt_profile_target():
         'password': os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
         'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
         'secure': False,
+        'driver': driver,
         'use_default_schema': True,  # In tests we always use default schema (a.k.a default database)
     }
 
