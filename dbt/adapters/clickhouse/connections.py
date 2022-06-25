@@ -6,7 +6,6 @@ from typing import Any, Dict, Optional, Tuple
 
 import agate
 import dbt.exceptions
-
 from dbt.adapters.base import Credentials
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
@@ -21,6 +20,7 @@ except ImportError:
 try:
     import clickhouse_driver
     import clickhouse_driver.errors
+
     from dbt.adapters.clickhouse.nativeadapter import ChNativeAdapter
 except ImportError:
     clickhouse_driver = None
