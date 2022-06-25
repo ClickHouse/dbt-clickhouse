@@ -76,9 +76,22 @@ class ClickhouseCredentials(Credentials):
         self.database = None
 
     def _connection_keys(self):
-        return ('driver', 'host', 'port', 'user', 'schema', 'secure', 'verify',
-                'connect_timeout', 'send_receive_timeout', 'sync_request_timeout',
-                'compress_block_size', 'compression', 'use_default_schema', 'custom_settings')
+        return (
+            'driver',
+            'host',
+            'port',
+            'user',
+            'schema',
+            'secure',
+            'verify',
+            'connect_timeout',
+            'send_receive_timeout',
+            'sync_request_timeout',
+            'compress_block_size',
+            'compression',
+            'use_default_schema',
+            'custom_settings',
+        )
 
 
 class ClickhouseConnectionManager(SQLConnectionManager):
@@ -94,8 +107,10 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             yield
         except Exception as exp:
             self.release()
-            if ((clickhouse_connect and isinstance(exp, clickhouse_connect.driver.exceptions.DatabaseError)) or
-                    (clickhouse_driver and isinstance(exp, clickhouse_driver.errors.Error))):
+            if (
+                clickhouse_connect
+                and isinstance(exp, clickhouse_connect.driver.exceptions.DatabaseError)
+            ) or (clickhouse_driver and isinstance(exp, clickhouse_driver.errors.Error)):
                 logger.debug('Clickhouse error: {}', str(exp))
                 raise dbt.exceptions.DatabaseException(str(exp).strip()) from exp
             logger.debug('Error running SQL: {}', sql)
@@ -131,40 +146,48 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                     username=credentials.user,
                     password=credentials.password,
                     interface='https' if credentials.secure else 'http',
-                    compress=False if credentials.compression == '' else bool(credentials.compression),
+                    compress=False
+                    if credentials.compression == ''
+                    else bool(credentials.compression),
                     connect_timeout=credentials.connect_timeout,
                     send_receive_timeout=credentials.send_receive_timeout,
                     http_user_agent=f'cc-dbt-{dbt_version}',
                     verify=credentials.verify,
                     query_limit=0,
                     session_id='dbt::' + str(uuid.uuid4()),
-                    **custom_settings)
+                    **custom_settings,
+                )
             except clickhouse_connect.driver.exceptions.DatabaseError as db_err:
                 pass
         elif clickhouse_driver and credentials.driver == 'native':
             try:
                 client = clickhouse_driver.Client(
-                    host = credentials.host,
-                    port = credentials.port,
-                    database = 'default',
-                    user = credentials.user,
-                    password = credentials.password,
-                    client_name = f'dbt-{dbt_version}',
-                    secure = credentials.secure,
-                    verify = credentials.verify,
-                    connect_timeout = credentials.connect_timeout,
-                    send_receive_timeout = credentials.send_receive_timeout,
-                    sync_request_timeout = credentials.sync_request_timeout,
-                    compress_block_size = credentials.compress_block_size,
-                    compression = False if credentials.compression == '' else credentials.compression,
-                    **custom_settings)
+                    host=credentials.host,
+                    port=credentials.port,
+                    database='default',
+                    user=credentials.user,
+                    password=credentials.password,
+                    client_name=f'dbt-{dbt_version}',
+                    secure=credentials.secure,
+                    verify=credentials.verify,
+                    connect_timeout=credentials.connect_timeout,
+                    send_receive_timeout=credentials.send_receive_timeout,
+                    sync_request_timeout=credentials.sync_request_timeout,
+                    compress_block_size=credentials.compress_block_size,
+                    compression=False if credentials.compression == '' else credentials.compression,
+                    **custom_settings,
+                )
                 connection.handle = ChNativeAdapter(client)
             except clickhouse_driver.errors as db_err:
                 pass
         else:
-            raise dbt.exceptions.FailedToConnectException(f'Library for ClickHouse driver type {driver} not found')
+            raise dbt.exceptions.FailedToConnectException(
+                f'Library for ClickHouse driver type {driver} not found'
+            )
         if db_err:
-            logger.debug('Got an error when attempting to open a clickhouse connection: \'{}\'', str(db_err))
+            logger.debug(
+                'Got an error when attempting to open a clickhouse connection: \'{}\'', str(db_err)
+            )
             raise dbt.exceptions.FailedToConnectException(str(db_err))
         connection.state = 'open'
         return connection
@@ -189,7 +212,7 @@ class ClickhouseConnectionManager(SQLConnectionManager):
         return dbt.clients.agate_helper.table_from_data_flat(data, column_names)
 
     def execute(
-            self, sql: str, auto_begin: bool = False, fetch: bool = False
+        self, sql: str, auto_begin: bool = False, fetch: bool = False
     ) -> Tuple[str, agate.Table]:
         sql = self._add_query_comment(sql)
         conn = self.get_thread_connection()
@@ -218,11 +241,11 @@ class ClickhouseConnectionManager(SQLConnectionManager):
             return status, table
 
     def add_query(
-            self,
-            sql: str,
-            auto_begin: bool = True,
-            bindings: Optional[Any] = None,
-            abridge_sql_log: bool = False,
+        self,
+        sql: str,
+        auto_begin: bool = True,
+        bindings: Optional[Any] = None,
+        abridge_sql_log: bool = False,
     ) -> Tuple[Connection, Any]:
         sql = self._add_query_comment(sql)
         conn = self.get_thread_connection()
