@@ -1,5 +1,6 @@
 dbt-core==1.1.0
 clickhouse-connect>=0.1.4
+clickhouse-driver>=0.2.3
 pytest==7.0.0
 pytest-dotenv==0.5.2
 dbt-tests-adapter==1.1
