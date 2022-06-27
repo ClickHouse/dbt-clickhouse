@@ -51,9 +51,6 @@ class ClickhouseCredentials(Credentials):
     sync_request_timeout: int = 5
     compress_block_size: int = 1048576
     compression: str = ''
-    use_default_schema: bool = (
-        False  # This is used in tests to make sure we connect always to the default database.
-    )
     custom_settings: Optional[Dict[str, Any]] = None
 
     @property
@@ -89,7 +86,6 @@ class ClickhouseCredentials(Credentials):
             'sync_request_timeout',
             'compress_block_size',
             'compression',
-            'use_default_schema',
             'custom_settings',
         )
 
@@ -132,63 +128,22 @@ class ClickhouseConnectionManager(SQLConnectionManager):
                 driver = 'http'
             elif clickhouse_driver and port in (9000, 9440):
                 driver = 'native'
-            else:
-                driver = 'unspecified'
-        custom_settings = credentials.custom_settings or {}
-        connection.state = 'fail'
-        db_err = None
+        client = None
         if clickhouse_connect and driver == 'http':
-            try:
-                connection.handle = clickhouse_connect.get_client(
-                    host=credentials.host,
-                    port=credentials.port,
-                    database='default' if credentials.use_default_schema else credentials.schema,
-                    username=credentials.user,
-                    password=credentials.password,
-                    interface='https' if credentials.secure else 'http',
-                    compress=False
-                    if credentials.compression == ''
-                    else bool(credentials.compression),
-                    connect_timeout=credentials.connect_timeout,
-                    send_receive_timeout=credentials.send_receive_timeout,
-                    http_user_agent=f'cc-dbt-{dbt_version}',
-                    verify=credentials.verify,
-                    query_limit=0,
-                    session_id='dbt::' + str(uuid.uuid4()),
-                    **custom_settings,
-                )
-            except clickhouse_connect.driver.exceptions.DatabaseError as exp:
-                db_err = exp
+            client, db_err = _connect_http(credentials)
         elif clickhouse_driver and driver == 'native':
-            try:
-                client = clickhouse_driver.Client(
-                    host=credentials.host,
-                    port=credentials.port,
-                    database='default',
-                    user=credentials.user,
-                    password=credentials.password,
-                    client_name=f'dbt-{dbt_version}',
-                    secure=credentials.secure,
-                    verify=credentials.verify,
-                    connect_timeout=credentials.connect_timeout,
-                    send_receive_timeout=credentials.send_receive_timeout,
-                    sync_request_timeout=credentials.sync_request_timeout,
-                    compress_block_size=credentials.compress_block_size,
-                    compression=False if credentials.compression == '' else credentials.compression,
-                    **custom_settings,
-                )
-                connection.handle = ChNativeAdapter(client)
-            except clickhouse_driver.errors as exp:
-                db_err = exp
+            client, db_err = _connect_native(credentials)
         else:
-            raise dbt.exceptions.FailedToConnectException(
-                f'Library for ClickHouse driver type {driver} not found'
-            )
+            db_err = f'Library for ClickHouse driver type {driver} not found'
         if db_err:
+            connection.state = 'fail'
             logger.debug(
                 'Got an error when attempting to open a clickhouse connection: \'{}\'', str(db_err)
             )
+            if client:
+                client.close()
             raise dbt.exceptions.FailedToConnectException(str(db_err))
+        connection.handle = client
         connection.state = 'open'
         return connection
 
@@ -286,3 +241,61 @@ class ClickhouseConnectionManager(SQLConnectionManager):
 
     def commit(self):
         pass
+
+
+def _connect_http(credentials):
+    try:
+        client = clickhouse_connect.get_client(
+            host=credentials.host,
+            port=credentials.port,
+            username=credentials.user,
+            password=credentials.password,
+            interface='https' if credentials.secure else 'http',
+            compress=False if credentials.compression == '' else bool(credentials.compression),
+            connect_timeout=credentials.connect_timeout,
+            send_receive_timeout=credentials.send_receive_timeout,
+            client_name=f'cc-dbt-{dbt_version}',
+            verify=credentials.verify,
+            query_limit=0,
+            session_id='dbt::' + str(uuid.uuid4()),
+            **(credentials.custom_settings or {}),
+        )
+        return client, _ensure_database(client, credentials.schema)
+    except clickhouse_connect.driver.exceptions.DatabaseError as exp:
+        return None, exp
+
+
+def _connect_native(credentials):
+    try:
+        client = clickhouse_driver.Client(
+            host=credentials.host,
+            port=credentials.port,
+            user=credentials.user,
+            password=credentials.password,
+            client_name=f'dbt-{dbt_version}',
+            secure=credentials.secure,
+            verify=credentials.verify,
+            connect_timeout=credentials.connect_timeout,
+            send_receive_timeout=credentials.send_receive_timeout,
+            sync_request_timeout=credentials.sync_request_timeout,
+            compress_block_size=credentials.compress_block_size,
+            compression=False if credentials.compression == '' else credentials.compression,
+            **(credentials.custom_settings or {}),
+        )
+        client = ChNativeAdapter(client)
+        return client, _ensure_database(client, credentials.schema)
+    except clickhouse_driver.errors.Error as exp:
+        return None, exp
+
+
+def _ensure_database(client, database):
+    if database:
+        check_db = f'EXISTS DATABASE {database}'
+        db_exists = client.command(check_db)
+        if not db_exists:
+            client.command(f'CREATE DATABASE {database}')
+            db_exists = client.command(check_db)
+            if not db_exists:
+                return f'Unable to create DBT database {database}'
+        client.database = database
+    return None

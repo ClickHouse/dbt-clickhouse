@@ -5,14 +5,24 @@ class ChNativeAdapter:
     def __init__(self, client: clickhouse_driver.Client):
         self.client = client
 
-    def query(self, sql):
-        return NativeAdapterResult(self.client.execute(sql, with_column_types=True))
+    def query(self, sql, **kwargs):
+        return NativeAdapterResult(self.client.execute(sql, with_column_types=True, **kwargs))
 
-    def command(self, sql):
-        self.client.execute(sql)
+    def command(self, sql, **kwargs):
+        result = self.client.execute(sql, **kwargs)
+        if len(result) and len(result[0]):
+            return result[0][0]
 
     def close(self):
         self.client.disconnect()
+
+    @property
+    def database(self):
+        return self.client.connection.database
+
+    @database.setter
+    def database(self, database):
+        self.client.connection.database = database
 
 
 class NativeAdapterResult:

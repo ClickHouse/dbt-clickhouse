@@ -58,7 +58,6 @@ def dbt_profile_target():
         'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
         'secure': False,
         'driver': driver,
-        'use_default_schema': True,  # In tests we always use default schema (a.k.a default database)
     }
 
 
