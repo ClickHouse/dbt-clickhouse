@@ -8,7 +8,7 @@ import agate
 import dbt.exceptions
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import catch_as_completed
-from dbt.adapters.base.relation import InformationSchema, BaseRelation
+from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
