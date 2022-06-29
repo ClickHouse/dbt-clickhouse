@@ -76,6 +76,12 @@ class ClickhouseAdapter(SQLAdapter):
         if conn.credentials.cluster:
             return '"{}"'.format(conn.credentials.cluster)
 
+    @available
+    def is_before_version(self, version: str) -> bool:
+        conn = self.connections.get_if_exists()
+        server_version = conn.handle.server_version
+        return compare_versions(version, server_version) > 0
+
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
 
@@ -288,6 +294,21 @@ def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
         return (table_database, table_schema.lower()) in schemas
 
     return test
+
+
+def compare_versions(v1: str, v2: str) -> int:
+    v1_parts = v1.split('.')
+    v2_parts = v2.split('.')
+    for part1, part2 in zip(v1_parts, v2_parts):
+        try:
+            if int(part1) != int(part2):
+                return 1 if int(part1) > int(part2) else -1
+        except ValueError:
+            raise dbt.exceptions.RuntimeException(
+                "Version must consist of only numbers separated by '.'"
+            )
+    # Versions are equal - return False
+    return 0
 
 
 COLUMNS_EQUAL_SQL = '''

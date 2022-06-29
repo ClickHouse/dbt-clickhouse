@@ -53,7 +53,7 @@
     {%- if inserts_only or unique_key is none -%}
         -- Run incremental insert without updates - updated rows will be added too to the table and will create
         -- duplicate entries in the table. It is the user's responsibility to avoid updates.
-        {% set build_sql = clickhouse__incremental_insert(target_relation, sql) %}
+        {% set build_sql = clickhouse__insert_into(target_relation, sql) %}
     {% else %}
         {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
         -- Create a table with only updated rows.
@@ -142,15 +142,6 @@
   insert into {{ target_relation }} ({{ dest_cols_csv }})
   select {{ dest_cols_csv }}
   from {{ tmp_relation }}
-  {{ adapter.get_model_settings(model) }}
-{%- endmacro %}
-
-{% macro clickhouse__incremental_insert(target_relation, sql) %}
-  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
-  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
-
-  insert into {{ target_relation }} ({{ dest_cols_csv }})
-  {{ sql }}
   {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 

@@ -283,7 +283,11 @@ def _connect_native(credentials):
             **(credentials.custom_settings or {}),
         )
         client = ChNativeAdapter(client)
-        return client, _ensure_database(client, credentials.schema)
+        db_err = _ensure_database(client, credentials.schema)
+        if not db_err:
+            server_info = client.client.connection.server_info
+            client.server_version = f'{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}'
+        return client, db_err
     except clickhouse_driver.errors.Error as exp:
         return None, exp
 
