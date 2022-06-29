@@ -85,7 +85,9 @@ class ClickhouseAdapter(SQLAdapter):
             server_version = conn.handle.server_version
         elif isinstance(conn.handle, ChNativeAdapter):
             server_info = conn.handle.client.connection.server_info
-            server_version = '.'.join([server_info.version_major, server_info.version_minor, server_info.version_patch])
+            server_version = '.'.join(
+                [server_info.version_major, server_info.version_minor, server_info.version_patch]
+            )
         else:
             raise ValueError('Unknown driver')
         return compare_versions(version, server_version) > 0
@@ -312,7 +314,9 @@ def compare_versions(v1: str, v2: str) -> int:
             if int(part1) != int(part2):
                 return 1 if int(part1) > int(part2) else -1
         except ValueError:
-            raise dbt.exceptions.RuntimeException("Version must consist of only numbers separated by '.'")
+            raise dbt.exceptions.RuntimeException(
+                "Version must consist of only numbers separated by '.'"
+            )
     # Versions are equal - return False
     return 0
 
