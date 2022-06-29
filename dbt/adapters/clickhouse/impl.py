@@ -81,15 +81,7 @@ class ClickhouseAdapter(SQLAdapter):
     @available
     def is_before_version(self, version: str) -> bool:
         conn = self.connections.get_if_exists()
-        if isinstance(conn.handle, HttpClient):
-            server_version = conn.handle.server_version
-        elif isinstance(conn.handle, ChNativeAdapter):
-            server_info = conn.handle.client.connection.server_info
-            server_version = '.'.join(
-                [server_info.version_major, server_info.version_minor, server_info.version_patch]
-            )
-        else:
-            raise ValueError('Unknown driver')
+        server_version = conn.handle.server_version
         return compare_versions(version, server_version) > 0
 
     def check_schema_exists(self, database, schema):
