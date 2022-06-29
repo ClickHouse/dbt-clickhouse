@@ -81,21 +81,14 @@ class ClickhouseAdapter(SQLAdapter):
     @available
     def is_before_version(self, version: str) -> bool:
         conn = self.connections.get_if_exists()
-        ref_version = version.split('.')
         if isinstance(conn.handle, HttpClient):
-            server_version = conn.handle.server_version.split('.')
+            server_version = conn.handle.server_version
         elif isinstance(conn.handle, ChNativeAdapter):
             server_info = conn.handle.client.connection.server_info
-            server_version = [server_info.version_major, server_info.version_minor, server_info.version_patch]
+            server_version = '.'.join([server_info.version_major, server_info.version_minor, server_info.version_patch])
         else:
             raise ValueError('Unknown driver')
-        for ref, server in zip(ref_version, server_version):
-            if int(ref) != int(server):
-                return int(ref) > int(server)
-        # Versions are equal - return False
-        return False
-
-
+        return compare_versions(version, server_version) > 0
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
@@ -309,6 +302,19 @@ def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
         return (table_database, table_schema.lower()) in schemas
 
     return test
+
+
+def compare_versions(v1: str, v2: str) -> int:
+    v1_parts = v1.split('.')
+    v2_parts = v2.split('.')
+    for part1, part2 in zip(v1_parts, v2_parts):
+        try:
+            if int(part1) != int(part2):
+                return 1 if int(part1) > int(part2) else -1
+        except ValueError:
+            raise dbt.exceptions.RuntimeException("Version must consist of only numbers separated by '.'")
+    # Versions are equal - return False
+    return 0
 
 
 COLUMNS_EQUAL_SQL = '''
