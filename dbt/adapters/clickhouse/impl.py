@@ -6,7 +6,6 @@ from typing import Callable, List, Optional, Set, Union
 
 import agate
 import dbt.exceptions
-from clickhouse_connect.driver import HttpClient
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import catch_as_completed
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -19,7 +18,6 @@ from dbt.utils import executor
 
 from dbt.adapters.clickhouse.column import ClickhouseColumn
 from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
-from dbt.adapters.clickhouse.nativeadapter import ChNativeAdapter
 from dbt.adapters.clickhouse.relation import ClickhouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
