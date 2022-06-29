@@ -67,12 +67,11 @@
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set create_table = create_table_or_empty(temporary, relation, sql) %}
-    {%- set ch_version = adapter.get_clickhouse_version() -%}
-    {% if ch_version < '22.7' -%}
+    {% if adapter.is_before_version('22.7.1') -%}
         {{ create_table }}
         {{ adapter.get_model_settings(model) }}
     {%- else %}
-        {% call statement('creat_table_empty') %}
+        {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
         {{ clickhouse__insert_into(relation.include(database=False), sql) }}
@@ -96,8 +95,7 @@
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
-        {%- set ch_version = adapter.get_clickhouse_version() -%}
-        {% if ch_version > '22.6' -%}
+        {% if not adapter.is_before_version('22.7.1') -%}
             empty
         {%- endif %}
     {%- endif %}
@@ -122,13 +120,6 @@
     select name from system.databases
   {% endcall %}
   {{ return(load_result('list_schemas').table) }}
-{% endmacro %}
-
-{% macro clickhouse__get_version() %}
-  {% call statement('clickhouse_version', fetch_result=True, auto_begin=False) %}
-    select version() as version;
-  {% endcall %}
-  {{ return(load_result('clickhouse_version')) }}
 {% endmacro %}
 
 {% macro clickhouse__create_schema(relation) -%}

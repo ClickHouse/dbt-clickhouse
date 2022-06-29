@@ -79,13 +79,23 @@ class ClickhouseAdapter(SQLAdapter):
             return '"{}"'.format(conn.credentials.cluster)
 
     @available
-    def get_clickhouse_version(self):
+    def is_before_version(self, version: str) -> bool:
         conn = self.connections.get_if_exists()
+        ref_version = version.split('.')
         if isinstance(conn.handle, HttpClient):
-            return conn.handle.server_version
+            server_version = conn.handle.server_version.split('.')
         elif isinstance(conn.handle, ChNativeAdapter):
             server_info = conn.handle.client.connection.server_info
-            return f'{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}'
+            server_version = [server_info.version_major, server_info.version_minor, server_info.version_patch]
+        else:
+            raise ValueError('Unknown driver')
+        for ref, server in zip(ref_version, server_version):
+            if int(ref) != int(server):
+                return int(ref) > int(server)
+        # Versions are equal - return False
+        return False
+
+
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
