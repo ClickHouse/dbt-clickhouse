@@ -6,6 +6,7 @@ from typing import Callable, List, Optional, Set, Union
 
 import agate
 import dbt.exceptions
+from clickhouse_connect.driver import HttpClient
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import catch_as_completed
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -18,6 +19,7 @@ from dbt.utils import executor
 
 from dbt.adapters.clickhouse.column import ClickhouseColumn
 from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
+from dbt.adapters.clickhouse.nativeadapter import ChNativeAdapter
 from dbt.adapters.clickhouse.relation import ClickhouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
@@ -79,7 +81,11 @@ class ClickhouseAdapter(SQLAdapter):
     @available
     def get_clickhouse_version(self):
         conn = self.connections.get_if_exists()
-        return conn.handle.server_version
+        if isinstance(conn.handle, HttpClient):
+            return conn.handle.server_version
+        elif isinstance(conn.handle, ChNativeAdapter):
+            server_info = conn.handle.client.connection.server_info
+            return f'{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}'
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
