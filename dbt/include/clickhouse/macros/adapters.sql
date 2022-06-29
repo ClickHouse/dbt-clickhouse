@@ -66,27 +66,44 @@
 {%- endmacro -%}
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
+    {% set create_table = create_table_or_empty(temporary, relation, sql) %}
+    {%- set ch_version = adapter.get_clickhouse_version() -%}
+    {% if ch_version < '22.7.1' -%}
+        {{ create_table }}
+        {{ adapter.get_model_settings(model) }}
+    {%- else %}
+        {% call statement('creat_table_empty') %}
+            {{ create_table }}
+        {% endcall %}
+        {{ clickhouse__insert_into(relation.include(database=False), sql) }}
+    {%- endif %}
+{%- endmacro %}
 
-  {{ sql_header if sql_header is not none }}
+{% macro create_table_or_empty(temporary, relation, sql) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
 
-  {% if temporary -%}
-    create temporary table {{ relation.name }}
-    engine = Memory
-    {{ order_cols(label="order by") }}
-    {{ partition_cols(label="partition by") }}
-  {%- else %}
-    create table {{ relation.include(database=False) }}
-    {{ on_cluster_clause(label="on cluster") }}
-    {{ engine_clause(label="engine") }}
-    {{ order_cols(label="order by") }}
-    {{ primary_key_clause(label="primary key") }}
-    {{ partition_cols(label="partition by") }}
-  {%- endif %}
-  as (
-    {{ sql }}
-  )
-  {{ adapter.get_model_settings(model) }}
+    {{ sql_header if sql_header is not none }}
+
+    {% if temporary -%}
+        create temporary table {{ relation.name }}
+        engine = Memory
+        {{ order_cols(label="order by") }}
+        {{ partition_cols(label="partition by") }}
+    {%- else %}
+        create table {{ relation.include(database=False) }}
+        {{ on_cluster_clause(label="on cluster") }}
+        {{ engine_clause(label="engine") }}
+        {{ order_cols(label="order by") }}
+        {{ primary_key_clause(label="primary key") }}
+        {{ partition_cols(label="partition by") }}
+        {%- set ch_version = adapter.get_clickhouse_version() -%}
+        {% if ch_version > '22.7.1' -%}
+            empty
+        {%- endif %}
+    {%- endif %}
+    as (
+        {{ sql }}
+    );
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
@@ -105,6 +122,13 @@
     select name from system.databases
   {% endcall %}
   {{ return(load_result('list_schemas').table) }}
+{% endmacro %}
+
+{% macro clickhouse__get_version() %}
+  {% call statement('clickhouse_version', fetch_result=True, auto_begin=False) %}
+    select version() as version;
+  {% endcall %}
+  {{ return(load_result('clickhouse_version')) }}
 {% endmacro %}
 
 {% macro clickhouse__create_schema(relation) -%}
@@ -202,3 +226,12 @@
     alter table {{ relation }} {{ on_cluster_clause(label="on cluster") }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
   {% endcall %}
 {% endmacro %}
+
+{% macro clickhouse__insert_into(target_relation, sql) %}
+  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+
+  insert into {{ target_relation }} ({{ dest_cols_csv }})
+  {{ sql }}
+  {{ adapter.get_model_settings(model) }}
+{%- endmacro %}

@@ -76,6 +76,11 @@ class ClickhouseAdapter(SQLAdapter):
         if conn.credentials.cluster:
             return '"{}"'.format(conn.credentials.cluster)
 
+    @available
+    def get_clickhouse_version(self):
+        conn = self.connections.get_if_exists()
+        return conn.handle.server_version
+
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
 

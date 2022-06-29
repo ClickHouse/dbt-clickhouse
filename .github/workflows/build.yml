@@ -19,6 +19,7 @@ jobs:
         clickhouse-version:
           - '22.1'
           - '22.3'
+          - '22.6'
           - latest
 
     services:
