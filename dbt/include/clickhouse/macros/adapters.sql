@@ -68,7 +68,7 @@
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set create_table = create_table_or_empty(temporary, relation, sql) %}
     {%- set ch_version = adapter.get_clickhouse_version() -%}
-    {% if ch_version < '22.7.1' -%}
+    {% if ch_version < '22.7' -%}
         {{ create_table }}
         {{ adapter.get_model_settings(model) }}
     {%- else %}
@@ -97,7 +97,7 @@
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {%- set ch_version = adapter.get_clickhouse_version() -%}
-        {% if ch_version > '22.7.1' -%}
+        {% if ch_version > '22.6' -%}
             empty
         {%- endif %}
     {%- endif %}
