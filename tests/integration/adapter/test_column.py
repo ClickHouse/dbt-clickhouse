@@ -35,9 +35,16 @@ def verify_column(name: str, dtype: str, is_string: bool, is_numeric: bool, is_f
         -> ClickhouseColumn:
     data_type = 'String' if is_string else dtype
     col = ClickhouseColumn(column=name, dtype=dtype)
+    verify_column_types(col, is_string, is_numeric, is_float, is_int)
+    assert repr(col) == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
+    nullable_col = ClickhouseColumn(column=name, dtype=f'Nullable({dtype})')
+    verify_column_types(nullable_col, is_string, is_numeric, is_float, is_int)
+    assert repr(nullable_col) == f'<ClickhouseColumn {name} (Nullable({data_type}), is nullable: True)>'
+    return col
+
+
+def verify_column_types(col: ClickhouseColumn, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool):
     assert col.is_string() == is_string
     assert col.is_numeric() == is_numeric
     assert col.is_float() == is_float
     assert col.is_integer() == is_int
-    assert repr(col) == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
-    return col
