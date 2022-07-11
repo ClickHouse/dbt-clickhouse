@@ -55,6 +55,11 @@ class TestColumn:
         assert (
             repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
         )
+        col = ClickhouseColumn(column='name', dtype='LowCardinality(Nullable(FixedString(16)))')
+        verify_column_types(col, True, False, False, False)
+        assert (
+                repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
+        )
 
 
 def verify_column(
