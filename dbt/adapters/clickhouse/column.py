@@ -24,8 +24,7 @@ class ClickhouseColumn(Column):
     def __init__(
         self,
         column: str,
-        dtype: str,
-        is_nullable: bool = False,
+        dtype: str
     ) -> None:
         char_size = None
         numeric_precision = None
@@ -38,7 +37,6 @@ class ClickhouseColumn(Column):
 
         if dtype.lower().startswith('fixedstring'):
             match_sized = self._fix_size_regex.search(dtype)
-            char_size = 0
             if match_sized:
                 char_size = int(match_sized.group(1))
 
@@ -86,7 +84,7 @@ class ClickhouseColumn(Column):
             'tinyblob',
             'char',
             'mediumtext',
-        ]
+        ] or self.dtype.lower().startswith('fixedstring')
 
     def is_integer(self) -> bool:
         return self.dtype.lower().startswith('int') or self.dtype.lower().startswith('uint')
@@ -101,7 +99,7 @@ class ClickhouseColumn(Column):
         if not self.is_string():
             raise RuntimeException('Called string_size() on non-string field!')
 
-        if self.dtype.lower() != 'fixedstring' or self.char_size is None:
+        if not self.dtype.lower().startswith('fixedstring') or self.char_size is None:
             return 256
         else:
             return int(self.char_size)
