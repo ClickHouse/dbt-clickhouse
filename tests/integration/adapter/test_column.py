@@ -52,14 +52,10 @@ class TestColumn:
     def test_low_cardinality_nullable_type(self):
         col = ClickhouseColumn(column='name', dtype='LowCardinality(Nullable(String))')
         verify_column_types(col, True, False, False, False)
-        assert (
-            repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
-        )
+        assert repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
         col = ClickhouseColumn(column='name', dtype='LowCardinality(Nullable(FixedString(16)))')
         verify_column_types(col, True, False, False, False)
-        assert (
-                repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
-        )
+        assert repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
 
 
 def verify_column(
