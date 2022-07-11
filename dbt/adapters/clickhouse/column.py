@@ -32,7 +32,7 @@ class ClickhouseColumn(Column):
 
         match_brackets = self._brackets_regex.search(dtype)
         if match_brackets:
-            self.is_nullable = True
+            self.is_nullable = match_brackets.group(1) == 'Nullable'
             dtype = match_brackets.group(2)
 
         if dtype.lower().startswith('fixedstring'):
