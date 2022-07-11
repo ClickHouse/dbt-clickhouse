@@ -44,11 +44,15 @@ class TestColumn:
         # Test Array of Nullable FixedStrings type
         col = ClickhouseColumn(column='name', dtype='Array(Nullable(FixedString(16)))')
         verify_column_types(col, False, False, False, False)
-        assert repr(col) == '<ClickhouseColumn name (Array(Nullable(FixedString(16))), is nullable: False)>'
+        assert (
+            repr(col)
+            == '<ClickhouseColumn name (Array(Nullable(FixedString(16))), is nullable: False)>'
+        )
 
 
-def verify_column(name: str, dtype: str, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool)\
-        -> ClickhouseColumn:
+def verify_column(
+    name: str, dtype: str, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool
+) -> ClickhouseColumn:
     data_type = 'String' if is_string else dtype
     col = ClickhouseColumn(column=name, dtype=dtype)
     verify_column_types(col, is_string, is_numeric, is_float, is_int)
@@ -57,16 +61,24 @@ def verify_column(name: str, dtype: str, is_string: bool, is_numeric: bool, is_f
     # Test Nullable dtype.
     nullable_col = ClickhouseColumn(column=name, dtype=f'Nullable({dtype})')
     verify_column_types(nullable_col, is_string, is_numeric, is_float, is_int)
-    assert repr(nullable_col) == f'<ClickhouseColumn {name} (Nullable({data_type}), is nullable: True)>'
+    assert (
+        repr(nullable_col)
+        == f'<ClickhouseColumn {name} (Nullable({data_type}), is nullable: True)>'
+    )
 
     # Test low cardinality dtype
     low_cardinality_col = ClickhouseColumn(column=name, dtype=f'LowCardinality({dtype})')
     verify_column_types(low_cardinality_col, is_string, is_numeric, is_float, is_int)
-    assert repr(low_cardinality_col) == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
+    assert (
+        repr(low_cardinality_col)
+        == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
+    )
     return col
 
 
-def verify_column_types(col: ClickhouseColumn, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool):
+def verify_column_types(
+    col: ClickhouseColumn, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool
+):
     assert col.is_string() == is_string
     assert col.is_numeric() == is_numeric
     assert col.is_float() == is_float

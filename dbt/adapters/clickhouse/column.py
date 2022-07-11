@@ -21,11 +21,7 @@ class ClickhouseColumn(Column):
     _fix_size_regex = re.compile(r'FixedString\((.*?)\)')
     _decimal_regex = re.compile(r'Decimal\((\d+), (\d+)\)')
 
-    def __init__(
-        self,
-        column: str,
-        dtype: str
-    ) -> None:
+    def __init__(self, column: str, dtype: str) -> None:
         char_size = None
         numeric_precision = None
         numeric_scale = None
