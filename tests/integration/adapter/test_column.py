@@ -49,6 +49,13 @@ class TestColumn:
             == '<ClickhouseColumn name (Array(Nullable(FixedString(16))), is nullable: False)>'
         )
 
+    def test_low_cardinality_nullable_type(self):
+        col = ClickhouseColumn(column='name', dtype='LowCardinality(Nullable(String))')
+        verify_column_types(col, True, False, False, False)
+        assert (
+            repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
+        )
+
 
 def verify_column(
     name: str, dtype: str, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool
@@ -70,8 +77,7 @@ def verify_column(
     low_cardinality_col = ClickhouseColumn(column=name, dtype=f'LowCardinality({dtype})')
     verify_column_types(low_cardinality_col, is_string, is_numeric, is_float, is_int)
     assert (
-        repr(low_cardinality_col)
-        == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
+        repr(low_cardinality_col) == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
     )
     return col
 
