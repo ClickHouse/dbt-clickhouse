@@ -30,6 +30,22 @@ class TestColumn:
         verify_column('name', "DateTime('Asia/Istanbul')", False, False, False, False)
         verify_column('name', "UUID", False, False, False, False)
 
+    def test_array_type(self):
+        # Test Array of Strings type
+        col = ClickhouseColumn(column='name', dtype='Array(String)')
+        verify_column_types(col, False, False, False, False)
+        assert repr(col) == '<ClickhouseColumn name (Array(String), is nullable: False)>'
+
+        # Test Array of Nullable Strings type
+        col = ClickhouseColumn(column='name', dtype='Array(Nullable(String))')
+        verify_column_types(col, False, False, False, False)
+        assert repr(col) == '<ClickhouseColumn name (Array(Nullable(String)), is nullable: False)>'
+
+        # Test Array of Nullable FixedStrings type
+        col = ClickhouseColumn(column='name', dtype='Array(Nullable(FixedString(16)))')
+        verify_column_types(col, False, False, False, False)
+        assert repr(col) == '<ClickhouseColumn name (Array(Nullable(FixedString(16))), is nullable: False)>'
+
 
 def verify_column(name: str, dtype: str, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool)\
         -> ClickhouseColumn:
