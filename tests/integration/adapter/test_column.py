@@ -57,6 +57,14 @@ class TestColumn:
         verify_column_types(col, True, False, False, False)
         assert repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
 
+    def test_map_type(self):
+        col = ClickhouseColumn(column='name', dtype='Map(String, UInt64)')
+        verify_column_types(col, False, False, False, False)
+        assert repr(col) == '<ClickhouseColumn name (Map(String, UInt64), is nullable: False)>'
+        col = ClickhouseColumn(column='name', dtype='Map(String, Decimal(6, 6))')
+        verify_column_types(col, False, False, False, False)
+        assert repr(col) == '<ClickhouseColumn name (Map(String, Decimal(6, 6)), is nullable: False)>'
+
 
 def verify_column(
     name: str, dtype: str, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool
