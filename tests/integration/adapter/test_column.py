@@ -63,7 +63,9 @@ class TestColumn:
         assert repr(col) == '<ClickhouseColumn name (Map(String, UInt64), is nullable: False)>'
         col = ClickhouseColumn(column='name', dtype='Map(String, Decimal(6, 6))')
         verify_column_types(col, False, False, False, False)
-        assert repr(col) == '<ClickhouseColumn name (Map(String, Decimal(6, 6)), is nullable: False)>'
+        assert (
+            repr(col) == '<ClickhouseColumn name (Map(String, Decimal(6, 6)), is nullable: False)>'
+        )
 
 
 def verify_column(
