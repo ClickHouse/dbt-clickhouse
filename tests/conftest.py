@@ -58,6 +58,7 @@ def dbt_profile_target():
         'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
         'secure': False,
         'driver': driver,
+        'custom_settings': {'distributed_ddl_task_timeout': 300},
     }
 
 
