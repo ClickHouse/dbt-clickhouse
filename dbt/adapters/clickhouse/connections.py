@@ -280,7 +280,7 @@ def _connect_native(credentials):
             sync_request_timeout=credentials.sync_request_timeout,
             compress_block_size=credentials.compress_block_size,
             compression=False if credentials.compression == '' else credentials.compression,
-            **(credentials.custom_settings or {}),
+            settings=credentials.custom_settings,
         )
         client = ChNativeAdapter(client)
         db_err = _ensure_database(client, credentials.schema)
