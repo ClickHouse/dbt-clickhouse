@@ -256,7 +256,7 @@ def _connect_http(credentials):
             send_receive_timeout=credentials.send_receive_timeout,
             client_name=f'cc-dbt-{dbt_version}',
             verify=credentials.verify,
-            query_limit=0,
+            query_limit=5000,
             session_id='dbt::' + str(uuid.uuid4()),
             **(credentials.custom_settings or {}),
         )
