@@ -7,7 +7,7 @@
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(target_relation) %}
 
-  {% set is_atomic = is_engine_atomic(this) %}
+  {% set is_atomic = engine_exchange_support(this) %}
 
   {%- set full_refresh_mode = (should_full_refresh()) -%}
 

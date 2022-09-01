@@ -1,11 +1,11 @@
-{%- materialization view, default -%}
+{%- materialization view, adapter='clickhouse' -%}
 
   {%- set identifier = model['alias'] -%}
   {%- set tmp_identifier = model['name'] + '__dbt_tmp' -%}
   {%- set backup_identifier = model['name'] + '__dbt_backup' -%}
 
   {%- set old_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) -%}
-  {%- set is_atomic = is_engine_atomic(old_relation) -%}
+  {%- set is_atomic = engine_exchange_support(old_relation) -%}
 
   {%- set target_relation = api.Relation.create(identifier=identifier, schema=schema, database=database,
                                                 type='view') -%}

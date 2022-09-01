@@ -170,7 +170,7 @@
     where {{ source }}.dbt_change_type IN ('insert');
   {% endcall %}
 
-  {% if is_engine_atomic(target) %}
+  {% if engine_exchange_support(target) %}
 
     {% do exchange_tables_atomic(upsert, target) %}
 
