@@ -17,7 +17,7 @@ pytest_plugins = ["dbt.tests.fixtures.project"]
 # repos. Example in dbt.tests.adapter.basic.test_base.
 @pytest.fixture(scope="session")
 def test_config():
-    run_docker = os.environ.get('RUN_DOCKER_ENV_VAR_NAME', False)
+    run_docker = os.environ.get('RUN_DOCKER_ENV_VAR_NAME', '').lower() in ('1', 'true', 'yes')
     if run_docker:
         # Run docker compose with clickhouse-server image.
         compose_file = f'{Path(__file__).parent}/docker-compose.yml'

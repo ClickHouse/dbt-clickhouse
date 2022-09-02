@@ -68,7 +68,8 @@ class TestMergeTreeTabelMaterializations(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_table = """
-          {{ config(order_by='(some_date, id, name)', engine='MergeTree()', materialized='table') }}
+          {{ config(order_by='(some_date, id, name)', engine='MergeTree()', materialized='table',
+                     settings={'allow_nullable_key': 1}) }}
         """
         base_table_sql = config_materialized_table + model_base
         return {
