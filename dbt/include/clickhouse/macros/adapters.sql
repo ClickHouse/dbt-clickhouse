@@ -225,7 +225,6 @@
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
   {{ sql }}
-  {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
 
