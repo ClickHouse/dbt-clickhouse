@@ -69,7 +69,6 @@
     {% set create_table = create_table_or_empty(temporary, relation, sql) %}
     {% if adapter.is_before_version('22.7.1') -%}
         {{ create_table }}
-        {{ adapter.get_model_settings(model) }}
     {%- else %}
         {% call statement('create_table_empty') %}
             {{ create_table }}
@@ -88,6 +87,7 @@
         engine = Memory
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
+        {{ adapter.get_model_settings(model) }}
     {%- else %}
         create table {{ relation.include(database=False) }}
         {{ on_cluster_clause(label="on cluster") }}
@@ -95,13 +95,14 @@
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
+        {{ adapter.get_model_settings(model) }}
         {% if not adapter.is_before_version('22.7.1') -%}
             empty
         {%- endif %}
     {%- endif %}
     as (
         {{ sql }}
-    );
+    )
 {%- endmacro %}
 
 {% macro clickhouse__create_view_as(relation, sql) -%}
@@ -224,7 +225,6 @@
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
   {{ sql }}
-  {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
 
