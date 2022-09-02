@@ -170,11 +170,24 @@
     where {{ source }}.dbt_change_type IN ('insert');
   {% endcall %}
 
-  {% call statement('drop_target_relation') %}
-    drop table if exists {{ target }}
-  {% endcall %}
+  {% if engine_exchange_support(target) %}
 
-  {% call statement('rename_upsert_relation') %}
-    rename table {{ upsert }} to {{ target }}
-  {% endcall %}
+    {% do exchange_tables_atomic(upsert, target) %}
+
+    {% call statement('drop_exchanged_relation') %}
+      drop table if exists {{ upsert }};
+    {% endcall %}
+
+  {% else %}
+
+    {% call statement('drop_target_relation') %}
+      drop table if exists {{ target }};
+    {% endcall %}
+
+    {% call statement('rename_upsert_relation') %}
+      rename table {{ upsert }} to {{ target }};
+    {% endcall %}
+
+  {% endif %}
+
 {% endmacro %}

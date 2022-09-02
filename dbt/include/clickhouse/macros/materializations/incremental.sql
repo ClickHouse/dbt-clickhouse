@@ -1,4 +1,4 @@
-{% materialization incremental, adapter='clickhouse' -%}
+{% materialization incremental, adapter='clickhouse' %}
 
   {% set unique_key = config.get('unique_key') %}
   {% set inserts_only = config.get('inserts_only') %}
@@ -6,6 +6,9 @@
   {% set target_relation = this.incorporate(type='table') %}
   {% set existing_relation = load_relation(this) %}
   {% set tmp_relation = make_temp_relation(target_relation) %}
+
+  {% set is_atomic = engine_exchange_support(this) %}
+
   {%- set full_refresh_mode = (should_full_refresh()) -%}
 
   {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
@@ -48,7 +51,6 @@
 
       {% set build_sql = create_table_as(False, intermediate_relation, sql) %}
       {% set need_swap = true %}
-      {% do to_drop.append(backup_relation) %}
   {% else %}
     {%- if inserts_only or unique_key is none -%}
         -- Run incremental insert without updates - updated rows will be added too to the table and will create
@@ -68,31 +70,59 @@
             {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
         {% endif %}
 
-        {% do adapter.rename_relation(target_relation, old_relation) %}
-        -- Create a new target table.
-        {% set create_sql = clickhouse__incremental_create(old_relation, target_relation) %}
-        {% call statement('main') %}
-            {{ create_sql }}
-        {% endcall %}
-        -- Insert all untouched rows to the target table.
-        {% set currect_insert_sql = clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=unique_key) %}
-        {% call statement('main') %}
-            {{ currect_insert_sql }}
-        {% endcall %}
-        -- Insert all incremental updates to the target table.
-        {% set build_sql = clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
+        {% if is_atomic %}
+          -- Create a new target table from existing (old_relation will be new table here, then EXCHANGE'd with target_relation) 
+          {% set create_sql = clickhouse__incremental_create(target_relation, old_relation) %}
+          {% call statement('main') %}
+              {{ create_sql }}
+          {% endcall %}
+          -- Insert all current rows from target table to the new table (old_relation)
+          {% set currect_insert_sql = clickhouse__incremental_cur_insert(target_relation, tmp_relation, old_relation, unique_key=unique_key) %}
+          {% call statement('main') %}
+              {{ currect_insert_sql }}
+          {% endcall %}
+          -- Insert all incremental updates from tmp table to the new table (old_relation)
+          {% set build_sql_insert = clickhouse__incremental_insert_from_table(tmp_relation, old_relation) %}
+          {% call statement('main') %}
+            {{ build_sql_insert }}
+          {% endcall %}
+          -- Exchange tables
+          {% do exchange_tables_atomic(old_relation, target_relation) %}
+        {% else %}
+          {% do adapter.rename_relation(target_relation, old_relation) %}
+          -- Create a new target table.
+          {% set create_sql = clickhouse__incremental_create(old_relation, target_relation) %}
+          {% call statement('main') %}
+              {{ create_sql }}
+          {% endcall %}
+          -- Insert all untouched rows to the target table.
+          {% set currect_insert_sql = clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=unique_key) %}
+          {% call statement('main') %}
+              {{ currect_insert_sql }}
+          {% endcall %}
+          -- Insert all incremental updates to the target table.
+          {% set build_sql = clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
+        {% endif %}
         {% do to_drop.append(old_relation) %}
         {% do to_drop.append(tmp_relation) %}
     {% endif %}
   {% endif %}
 
-  {% call statement('main') %}
-      {{ build_sql }}
-  {% endcall %}
+  {% if build_sql %}
+    {% call statement('main') %}
+        {{ build_sql }}
+    {% endcall %}
+  {% endif %}
 
   {% if need_swap %} 
-      {% do adapter.rename_relation(target_relation, backup_relation) %} 
-      {% do adapter.rename_relation(intermediate_relation, target_relation) %} 
+      {% if is_atomic %}
+        {% do adapter.rename_relation(intermediate_relation, backup_relation) %} 
+        {% do exchange_tables_atomic(backup_relation, target_relation) %}
+      {% else %}
+        {% do adapter.rename_relation(target_relation, backup_relation) %} 
+        {% do adapter.rename_relation(intermediate_relation, target_relation) %}
+      {% endif %}
+      {% do to_drop.append(backup_relation) %}
   {% endif %}
 
   {% do persist_docs(target_relation, model) %}
