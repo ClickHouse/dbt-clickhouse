@@ -22,7 +22,8 @@ class ClickhouseIncludePolicy(Policy):
 class ClickhouseRelation(BaseRelation):
     quote_policy: ClickhouseQuotePolicy = ClickhouseQuotePolicy()
     include_policy: ClickhouseIncludePolicy = ClickhouseIncludePolicy()
-    quote_character: str = ""
+    quote_character: str = ''
+    db_engine: str = ''
 
     def __post_init__(self):
         if self.database != self.schema and self.database:
@@ -37,3 +38,7 @@ class ClickhouseRelation(BaseRelation):
                 'include, but only one can be set'
             )
         return super().render()
+
+    @property
+    def can_exchange(self):
+        return self.db_engine in ('Atomic', 'Replicated')

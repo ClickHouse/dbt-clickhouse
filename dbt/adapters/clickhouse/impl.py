@@ -21,7 +21,6 @@ from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
 from dbt.adapters.clickhouse.relation import ClickhouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
-LIST_RELATIONS_MACRO_NAME = 'list_relations_without_caching'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
 
@@ -98,22 +97,18 @@ class ClickhouseAdapter(SQLAdapter):
         self, schema_relation: ClickhouseRelation
     ) -> List[ClickhouseRelation]:
         kwargs = {'schema_relation': schema_relation}
-        results = self.execute_macro(LIST_RELATIONS_MACRO_NAME, kwargs=kwargs)
+        results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
 
         relations = []
         for row in results:
-            if len(row) != 4:
-                raise dbt.exceptions.RuntimeException(
-                    f'Invalid value from \'show table extended ...\', '
-                    f'got {len(row)} values, expected 4'
-                )
-            _database, name, schema, type_info = row
+            name, schema, type_info, db_engine = row
             rel_type = RelationType.View if 'view' in type_info else RelationType.Table
             relation = self.Relation.create(
                 database=None,
                 schema=schema,
                 identifier=name,
                 type=rel_type,
+                db_engine=db_engine
             )
             relations.append(relation)
 

@@ -1,24 +1,37 @@
 import os
 import sys
 import timeit
+import pytest
+import requests
+
 from pathlib import Path
 from subprocess import PIPE, Popen
 from time import sleep
+from clickhouse_connect import get_client
 
-import pytest
-import requests
 
 # Import the standard integration fixtures as a plugin
 # Note: fixtures with session scope need to be local
 pytest_plugins = ["dbt.tests.fixtures.project"]
 
 
+# Ensure that test users exist in environment
+@pytest.fixture(scope="session", autouse=True)
+def ch_test_users():
+    test_users = [os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{x}') for x in range(1, 4)]
+    yield test_users
+
+
 # This fixture is for customizing tests that need overrides in adapter
 # repos. Example in dbt.tests.adapter.basic.test_base.
-@pytest.fixture(scope="session")
-def test_config():
-    run_docker = os.environ.get('RUN_DOCKER_ENV_VAR_NAME', '').lower() in ('1', 'true', 'yes')
+@pytest.fixture(scope="session", autouse=True)
+def test_config(ch_test_users):
+    run_docker = os.environ.get('RUN_DOCKER_ENV_VAR_NAME', '').lower() in ('1', 'true', 'yes', 'y')
+    test_port = int(os.environ.get('PORT_ENV_VAR_NAME', 8123))
+    test_host = os.environ.get('HOST_ENV_VAR_NAME', 'localhost')
+    client_port = 8123 if test_port in (9000, 9440, 10900) else test_port
     if run_docker:
+        client_port = 10723
         # Run docker compose with clickhouse-server image.
         compose_file = f'{Path(__file__).parent}/docker-compose.yml'
         try:
@@ -27,10 +40,18 @@ def test_config():
             up_result = run_cmd(['docker-compose', '-f', compose_file, 'up', '-d'])
             if up_result[0]:
                 raise Exception(f'Failed to start docker: {up_result[2]}')
-            url = "http://{}:{}".format(os.environ.get('HOST_ENV_VAR_NAME', 'localhost'), 10723)
+            url = "http://{}:{}".format(test_host, 10723)
             wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
             raise Exception('Failed to run docker-compose: {}', str(e))
+    test_client = get_client(
+        host=test_host,
+        port=test_port,
+        username=os.environ.get('USER_ENV_VAR_NAME', 'default'),
+        password=os.environ.get('PASSWORD_ENV_VAR_NAME', ''))
+    for user in ch_test_users:
+        test_client.command('CREATE USER IF NOT EXISTS %s IDENTIFIED WITH plaintext_password BY %s',
+                            (user, 'password'))
     yield {}
     if run_docker:
         try:
@@ -38,6 +59,9 @@ def test_config():
             run_cmd(['docker-compose', '-f', compose_file, 'down', '-v'])
         except Exception as e:
             raise Exception('Failed to run docker-compose while cleaning up: {}', str(e))
+    else:
+        for user in ch_test_users:
+            test_client.command('DROP USER %s', (user,))
 
 
 # The profile dictionary, used to write out profiles.yml
