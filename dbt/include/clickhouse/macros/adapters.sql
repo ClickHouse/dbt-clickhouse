@@ -84,7 +84,7 @@
 
     {% if temporary -%}
         create temporary table {{ relation.name }}
-        engine = Memory
+        engine Memory
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
@@ -252,8 +252,8 @@
 {% endmacro %}
 
 
-{% macro exchange_tables_atomic(intermediate_relation, target_relation) %}
+{% macro exchange_tables_atomic(old_relation, target_relation) %}
   {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE TABLES {{ intermediate_relation }} AND {{ target_relation }}
+    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }}
   {% endcall %}
 {% endmacro %}

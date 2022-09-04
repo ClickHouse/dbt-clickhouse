@@ -1,7 +1,7 @@
 {%- materialization view, adapter='clickhouse' -%}
 
-  {%- set target_relation = this.incorporate(type='view') -%}
   {%- set existing_relation = load_cached_relation(this) -%}
+  {%- set target_relation = this.incorporate(type='view') -%}
   {%- set backup_relation = none -%}
   {%- set preexisting_backup_relation = none -%}
   {%- set preexisting_intermediate_relation = none -%}
