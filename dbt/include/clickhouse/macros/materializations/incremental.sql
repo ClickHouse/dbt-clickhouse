@@ -72,7 +72,6 @@
     -- table.
     {%- set dest_columns = adapter.get_columns_in_relation(existing_table) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
-
     {% call statement('insert_existing_data') %}
         insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
         select {{ dest_cols_csv }}
@@ -97,14 +96,13 @@
 
   {% if need_swap %}
       {% if existing_relation.can_exchange %}
+        {% do exchange_tables_atomic(intermediate_relation, target_relation) %}
         {% do adapter.rename_relation(intermediate_relation, backup_relation) %}
-        {% do exchange_tables_atomic(backup_relation, target_relation) %}
-        {% do to_drop.append(intermediate_relation) %}
       {% else %}
         {% do adapter.rename_relation(target_relation, backup_relation) %} 
         {% do adapter.rename_relation(intermediate_relation, target_relation) %}
-        {% do to_drop.append(backup_relation) %}
       {% endif %}
+      {% do to_drop.append(backup_relation) %}
   {% endif %}
 
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode) %}

@@ -83,25 +83,26 @@ class ClickhouseAdapter(SQLAdapter):
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
-
         exists = True if schema in [row[0] for row in results] else False
         return exists
 
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
         conn = self.connections.get_if_exists()
-        if conn:
+        if conn and conn.handle.database == relation.identifier:
             conn.handle.database = None
 
     def list_relations_without_caching(
         self, schema_relation: ClickhouseRelation
     ) -> List[ClickhouseRelation]:
         kwargs = {'schema_relation': schema_relation}
+        ch_db = self.get_ch_database(schema_relation.schema)
+        db_engine = ch_db.engine if ch_db else None
         results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
 
         relations = []
         for row in results:
-            name, schema, type_info, db_engine = row
+            _, name, schema, type_info =  row
             rel_type = RelationType.View if 'view' in type_info else RelationType.Table
             relation = self.Relation.create(
                 database=None,
@@ -119,6 +120,17 @@ class ClickhouseAdapter(SQLAdapter):
             database = None
 
         return super().get_relation(database, schema, identifier)
+
+    @available
+    def get_ch_database(self, schema: str):
+        conn = self.connections.get_if_exists()
+        if not conn:
+            return None
+        try:
+            result = conn.handle.query(f"SELECT name, engine, comment FROM system.databases WHERE name = '{schema}'")
+            return ClickHouseDatabase(*result.result_set[0])
+        except dbt.exceptions.RuntimeException:
+            return None
 
     def parse_clickhouse_columns(
         self, relation: ClickhouseRelation, raw_rows: List[agate.Row]
@@ -263,6 +275,13 @@ class ClickhouseAdapter(SQLAdapter):
         for key in settings:
             res.append(f' {key}={settings[key]}')
         return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
+
+@dataclass
+class ClickHouseDatabase:
+    name: str
+    engine: str
+    comment: str
 
 
 def _expect_row_value(key: str, row: agate.Row):

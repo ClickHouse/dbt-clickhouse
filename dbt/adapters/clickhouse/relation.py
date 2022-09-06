@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import dbt.exceptions
 from dbt.adapters.base.relation import BaseRelation, Policy
+from dbt.contracts.relation import RelationType
 
 
 @dataclass
@@ -41,4 +42,4 @@ class ClickhouseRelation(BaseRelation):
 
     @property
     def can_exchange(self):
-        return self.db_engine in ('Atomic', 'Replicated')
+        return self.type == RelationType.Table and self.db_engine in ('Atomic', 'Replicated')
