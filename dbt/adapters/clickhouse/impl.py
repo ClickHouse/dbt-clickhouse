@@ -89,7 +89,7 @@ class ClickhouseAdapter(SQLAdapter):
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
         conn = self.connections.get_if_exists()
-        if conn and conn.handle.database == relation.identifier:
+        if conn and conn.handle.database == relation.schema:
             conn.handle.database = None
 
     def list_relations_without_caching(
@@ -121,15 +121,12 @@ class ClickhouseAdapter(SQLAdapter):
 
     @available
     def get_ch_database(self, schema: str):
-        conn = self.connections.get_if_exists()
-        if not conn:
-            return None
         try:
-            result = conn.handle.query(f"SELECT name, engine, comment FROM system.databases WHERE name = '{schema}'")
-            return ClickHouseDatabase(*result.result_set[0])
-        except dbt.exceptions.RuntimeException:
+            results = self.execute_macro('clickhouse__get_database', kwargs={'database': schema})
+            if len(results.rows):
+                return ClickHouseDatabase(**results.rows[0])
             return None
-        except Exception as e:
+        except dbt.exceptions.RuntimeException:
             return None
 
     def parse_clickhouse_columns(
