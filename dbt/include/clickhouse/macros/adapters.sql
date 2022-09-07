@@ -138,11 +138,11 @@
 {% macro clickhouse__list_relations_without_caching(schema_relation) %}
   {% call statement('list_relations_without_caching', fetch_result=True) -%}
     select
-      '' as db,
       t.name as name,
       t.database as schema,
-      if(engine not in ('MaterializedView', 'View'), 'table', 'view') as type
-    from system.tables as t
+      if(engine not in ('MaterializedView', 'View'), 'table', 'view') as type,
+      db.engine as db_engine
+    from system.tables as t JOIN system.databases as db on t.database = db.name
     where schema = '{{ schema_relation.schema }}'
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}

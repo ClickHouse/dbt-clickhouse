@@ -96,13 +96,11 @@ class ClickhouseAdapter(SQLAdapter):
         self, schema_relation: ClickhouseRelation
     ) -> List[ClickhouseRelation]:
         kwargs = {'schema_relation': schema_relation}
-        ch_db = self.get_ch_database(schema_relation.schema)
-        db_engine = ch_db.engine if ch_db else None
         results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
 
         relations = []
         for row in results:
-            _, name, schema, type_info =  row
+            name, schema, type_info, db_engine = row
             rel_type = RelationType.View if 'view' in type_info else RelationType.Table
             relation = self.Relation.create(
                 database=None,
@@ -130,6 +128,8 @@ class ClickhouseAdapter(SQLAdapter):
             result = conn.handle.query(f"SELECT name, engine, comment FROM system.databases WHERE name = '{schema}'")
             return ClickHouseDatabase(*result.result_set[0])
         except dbt.exceptions.RuntimeException:
+            return None
+        except Exception as e:
             return None
 
     def parse_clickhouse_columns(
