@@ -31,6 +31,7 @@
 {% macro snapshot_merge_sql(target, source, insert_cols) -%}
                {{ log('ARE WE DOING THE CORRECT MERGE', True) }}
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
+  {%- set valid_to_col = adapter.quote('dbt_valid_to') -%}
 
   {%- set upsert = target ~ '__snapshot_upsert' -%}
   {% call statement('create_upsert_relation') %}
@@ -58,10 +59,10 @@
       where dbt_change_type IN ('update', 'delete')
     )
     select {% for column in insert_cols %}
-      {%- if column != 'dbt_valid_to' -%}
-        target.{{ column }} as {{ column }}
-      {%- else -%}
+      {%- if column == valid_to_col -%}
         updates_and_deletes.dbt_valid_to as dbt_valid_to
+      {%- else -%}
+        target.{{ column }} as {{ column }}
       {%- endif %} {%- if not loop.last %}, {%- endif %}
     {%- endfor %}
     from {{ target }} target
