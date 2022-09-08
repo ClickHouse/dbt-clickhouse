@@ -1,13 +1,10 @@
 {% macro clickhouse__get_or_create_relation(database, schema, identifier, type) %}
   {%- set target_relation = adapter.get_relation(database=database, schema=schema, identifier=identifier) %}
-  {{ log('GET OR CREATE NOT BEING CALLED?', True) }}
   {% if target_relation %}
     {% do return([true, target_relation]) %}
   {% endif %}
 
   {% set ch_db = adapter.get_ch_database(schema) %}
-
-  {{ log('GOT A DB? ' ~ ch_db | string )}}
   {%- set new_relation = api.Relation.create(
       database=None,
       schema=schema,

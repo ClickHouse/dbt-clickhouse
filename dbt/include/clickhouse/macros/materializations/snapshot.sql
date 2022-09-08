@@ -16,7 +16,6 @@
 {% endmacro %}
 
 {% macro build_snapshot_staging_table(strategy, sql, target_relation) %}
-    {{ log('STARTING TO BUILD STAGING TABLE', True) }}
     {% set tmp_relation = make_temp_relation(target_relation) %}
 
     {% set select = snapshot_staging_table(strategy, sql, target_relation) %}
@@ -29,7 +28,6 @@
 {% endmacro %}
 
 {% macro snapshot_merge_sql(target, source, insert_cols) -%}
-               {{ log('ARE WE DOING THE CORRECT MERGE', True) }}
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
   {%- set valid_to_col = adapter.quote('dbt_valid_to') -%}
 
@@ -79,7 +77,6 @@
   {% endcall %}
 
   {% if target.can_exchange %}
-      {{ log ('SNAPSHOT EXCHANGING?', True) }}
     {% do exchange_tables_atomic(upsert, target) %}
     {% call statement('drop_exchanged_relation') %}
       drop table if exists {{ upsert }};
