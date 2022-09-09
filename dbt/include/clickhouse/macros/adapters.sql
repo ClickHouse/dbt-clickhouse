@@ -229,13 +229,9 @@
 
 
 {% macro engine_exchange_support(rel) %}
-  {% if rel is none %}
+  {% if rel is none or not execute or not adapter.supports_atomic_exchange() %}
       {% do return(None) %}
   {% endif %}
-
-	{% if not execute %}
-		{% do return(None) %}
-	{% endif %}
 
   {% set relation = adapter.get_relation(rel.database, rel.schema, rel.table) %}
   {% if relation is none %}
