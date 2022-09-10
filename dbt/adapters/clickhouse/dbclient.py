@@ -3,14 +3,13 @@ from abc import ABC, abstractmethod
 from dbt.events import AdapterLogger
 from dbt.exceptions import DatabaseException as DBTDatabaseException
 from dbt.exceptions import FailedToConnectException
-from dbt.version import __version__ as dbt_version
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 
 logger = AdapterLogger('clickhouse')
 
 
-def get_client_adapter(credentials: ClickHouseCredentials):
+def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
     port = credentials.port
     if not driver and not port:
@@ -35,9 +34,9 @@ def get_client_adapter(credentials: ClickHouseCredentials):
         try:
             import clickhouse_driver  # noqa
 
-            from dbt.adapters.clickhouse.nativeadapter import ChNativeAdapter
+            from dbt.adapters.clickhouse.nativeclient import ChNativeClient
 
-            return ChNativeAdapter(credentials)
+            return ChNativeClient(credentials)
         except ImportError:
             raise FailedToConnectException(
                 'Native adapter required but package clickhouse-driver is not installed'
@@ -45,32 +44,36 @@ def get_client_adapter(credentials: ClickHouseCredentials):
     try:
         import clickhouse_connect  # noqa
 
-        from dbt.adapters.clickhouse.httpadapter import ChHttpAdapter
+        from dbt.adapters.clickhouse.httpclient import ChHttpClient
 
-        return ChHttpAdapter(credentials)
+        return ChHttpClient(credentials)
     except ImportError:
         raise FailedToConnectException(
             'HTTP adapter required but package clickhouse-connect is not installed'
         )
 
 
-class ChClientAdapter(ABC):
+class ChClientWrapper(ABC):
     def __init__(self, credentials: ClickHouseCredentials):
-        self.client = self._create_client(dbt_version, credentials)
+        self.database = credentials.schema
+        self.client = self._create_client(credentials)
         try:
-            self.database = self._ensure_database(credentials.schema)
+            self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
             self.atomic_exchange = self._check_atomic_exchange()
         except Exception as ex:
-            self.client.close()
+            self.close()
             raise ex
 
     @abstractmethod
-    def query(self, sql, **kwargs):
+    def query(self, sql: str, **kwargs):
         pass
 
     @abstractmethod
-    def command(self, sql, **kwargs):
+    def command(self, sql: str, **kwargs):
+        pass
+
+    def database_dropped(self, database: str):
         pass
 
     @abstractmethod
@@ -78,37 +81,42 @@ class ChClientAdapter(ABC):
         pass
 
     @abstractmethod
-    def _create_client(self, dbt_version, credentials):
+    def _create_client(self, credentials: ClickHouseCredentials):
+        pass
+
+    @abstractmethod
+    def _set_client_database(self):
         pass
 
     @abstractmethod
     def _server_version(self):
         pass
 
-    def _ensure_database(self, database):
-        if not database:
-            return None
-        check_db = f'EXISTS DATABASE {database}'
+    def _ensure_database(self, database_engine) -> None:
+        if not self.database:
+            return
+        check_db = f'EXISTS DATABASE {self.database}'
         try:
             db_exists = self.command(check_db)
             if not db_exists:
-                self.command(f'CREATE DATABASE {database}')
+                engine_clause = f' ENGINE {database_engine} ' if database_engine else ''
+                self.command(f'CREATE DATABASE {self.database}{engine_clause}')
                 db_exists = self.command(check_db)
                 if not db_exists:
                     raise FailedToConnectException(
-                        f'Failed to create database {database} for unknown reason'
+                        f'Failed to create database {self.database} for unknown reason'
                     )
-            return database
         except DBTDatabaseException as ex:
             raise FailedToConnectException(
-                f'Failed to create {database} database due to ClickHouse exception'
+                f'Failed to create {self.database} database due to ClickHouse exception'
             ) from ex
+        self._set_client_database()
 
-    def _check_atomic_exchange(self):
+    def _check_atomic_exchange(self) -> bool:
         try:
             db_engine = self.command('SELECT engine FROM system.databases WHERE name = database()')
             if db_engine not in ('Atomic', 'Replicated'):
-                return
+                return False
             create_cmd = (
                 'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
             )
@@ -119,7 +127,7 @@ class ChClientAdapter(ABC):
                 self.command('EXCHANGE TABLES {} AND {}'.format(*swap_tables))
                 return True
             except DBTDatabaseException as ex:
-                logger.info('ClickHouse server does not support exchange tables %s', str(ex))
+                logger.info(f'ClickHouse server does not support exchange tables {ex}')
             finally:
                 try:
                     for table in swap_tables:

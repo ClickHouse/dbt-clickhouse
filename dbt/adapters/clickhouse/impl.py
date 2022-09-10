@@ -77,6 +77,13 @@ class ClickHouseAdapter(SQLAdapter):
             return '"{}"'.format(conn.credentials.cluster)
 
     @available
+    def clickhouse_db_engine_clause(self):
+        conn = self.connections.get_if_exists()
+        if conn and conn.credentials.database_engine:
+            return f'ENGINE {conn.credentials.database_engine}'
+        return ''
+
+    @available
     def is_before_version(self, version: str) -> bool:
         conn = self.connections.get_if_exists()
         if conn:
@@ -91,15 +98,13 @@ class ClickHouseAdapter(SQLAdapter):
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
-
-        exists = True if schema in [row[0] for row in results] else False
-        return exists
+        return schema in (row[0] for row in results)
 
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
         conn = self.connections.get_if_exists()
         if conn:
-            conn.handle.database = None
+            conn.handle.database_dropped(relation.schema)
 
     def list_relations_without_caching(
         self, schema_relation: ClickHouseRelation

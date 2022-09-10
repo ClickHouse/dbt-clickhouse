@@ -12,12 +12,12 @@ class ClickHouseCredentials(Credentials):
     ClickHouse connection credentials data class.
     """
 
-    # pylint: disable=too-many-instance-attributes
     driver: Optional[str] = None
     host: str = 'localhost'
     port: Optional[int] = None
     user: Optional[str] = 'default'
     database: Optional[str] = None
+    database_engine: Optional[str] = None
     schema: Optional[str] = 'default'
     password: str = ''
     cluster: Optional[str] = None

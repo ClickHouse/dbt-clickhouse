@@ -1,15 +1,16 @@
 import clickhouse_driver
 from dbt.exceptions import DatabaseException as DBTDatabaseException
 from dbt.exceptions import FailedToConnectException
+from dbt.version import __version__ as dbt_version
 
 from dbt.adapters.clickhouse import ClickHouseCredentials
-from dbt.adapters.clickhouse.clientadapter import ChClientAdapter
+from dbt.adapters.clickhouse.dbclient import ChClientWrapper
 
 
-class ChNativeAdapter(ChClientAdapter):
+class ChNativeClient(ChClientWrapper):
     def query(self, sql, **kwargs):
         try:
-            return NativeAdapterResult(self.client.execute(sql, with_column_types=True, **kwargs))
+            return NativeClientResult(self.client.execute(sql, with_column_types=True, **kwargs))
         except clickhouse_driver.errors.Error as ex:
             raise DBTDatabaseException(str(ex).strip()) from ex
 
@@ -24,7 +25,7 @@ class ChNativeAdapter(ChClientAdapter):
     def close(self):
         self.client.disconnect()
 
-    def _create_client(self, dbt_version: str, credentials: ClickHouseCredentials):
+    def _create_client(self, credentials: ClickHouseCredentials):
         try:
             return clickhouse_driver.Client(
                 host=credentials.host,
@@ -44,15 +45,21 @@ class ChNativeAdapter(ChClientAdapter):
         except clickhouse_driver.errors.Error as ex:
             raise FailedToConnectException(str(ex)) from ex
 
+    def _set_client_database(self):
+        # After we know the database exists, reconnect to that database if appropriate
+        if self.client.connection.database != self.database:
+            self.client.connection.disconnect()
+            self.client.connection.database = self.database
+            self.client.connection.connect()
+
     def _server_version(self):
-        self.client.execute('SELECT 1')  # Ensure we're connected so we have server_info
         server_info = self.client.connection.server_info
         return (
             f'{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}'
         )
 
 
-class NativeAdapterResult:
+class NativeClientResult:
     def __init__(self, native_result):
         self.result_set = native_result[0]
         self.column_names = [col[0] for col in native_result[1]]

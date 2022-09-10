@@ -4,11 +4,12 @@ import clickhouse_connect
 from clickhouse_connect.driver.exceptions import DatabaseError
 from dbt.exceptions import DatabaseException as DBTDatabaseException
 from dbt.exceptions import FailedToConnectException
+from dbt.version import __version__ as dbt_version
 
-from dbt.adapters.clickhouse.clientadapter import ChClientAdapter
+from dbt.adapters.clickhouse.dbclient import ChClientWrapper
 
 
-class ChHttpAdapter(ChClientAdapter):
+class ChHttpClient(ChClientWrapper):
     def query(self, sql, **kwargs):
         try:
             return self.client.query(sql, **kwargs)
@@ -21,10 +22,16 @@ class ChHttpAdapter(ChClientAdapter):
         except DatabaseError as ex:
             raise DBTDatabaseException(str(ex).strip()) from ex
 
+    def database_dropped(self, database: str):
+        # This is necessary for the http client to avoid exceptions when ClickHouse doesn't recognize the database
+        # query parameter
+        if self.database == database:
+            self.client.database = None
+
     def close(self):
         self.client.close()
 
-    def _create_client(self, dbt_version, credentials):
+    def _create_client(self, credentials):
         try:
             return clickhouse_connect.get_client(
                 host=credentials.host,
@@ -43,6 +50,9 @@ class ChHttpAdapter(ChClientAdapter):
             )
         except clickhouse_connect.driver.exceptions.DatabaseError as ex:
             raise FailedToConnectException(str(ex)) from ex
+
+    def _set_client_database(self):
+        self.client.database = self.database
 
     def _server_version(self):
         return self.client.server_version

@@ -8,7 +8,7 @@ from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
 from dbt.events import AdapterLogger
 
-from dbt.adapters.clickhouse.clientadapter import get_client_adapter
+from dbt.adapters.clickhouse.dbclient import get_db_client
 
 logger = AdapterLogger('clickhouse')
 
@@ -25,7 +25,6 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         try:
             yield
         except Exception as exp:
-            self.release()
             logger.debug('Error running SQL: {}', sql)
             if isinstance(exp, dbt.exceptions.RuntimeException):
                 raise
@@ -38,7 +37,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
             return connection
         credentials = cls.get_credentials(connection.credentials)
         try:
-            client = get_client_adapter(credentials)
+            client = get_db_client(credentials)
         except dbt.exceptions.FailedToConnectException as ex:
             connection.state = 'fail'
             raise ex
@@ -51,6 +50,9 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         logger.debug('Cancelling query \'{}\'', connection_name)
         connection.handle.close()
         logger.debug('Cancel query \'{}\'', connection_name)
+
+    def release(self):
+        pass  # There is no "release" type functionality in the existing ClickHouse connectors
 
     @classmethod
     def get_table_from_response(cls, response, column_names) -> agate.Table:
