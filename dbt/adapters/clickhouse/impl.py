@@ -89,7 +89,6 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         return conn and conn.handle.atomic_exchange
 
-
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
 
