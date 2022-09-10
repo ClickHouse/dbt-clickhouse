@@ -56,6 +56,7 @@ class ClickHouseCredentials(Credentials):
             'port',
             'user',
             'schema',
+            'database_engine',
             'secure',
             'verify',
             'connect_timeout',
