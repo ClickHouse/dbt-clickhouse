@@ -3,7 +3,7 @@
 
 check-black:
 	@echo "--> Running black checks"
-	@black --check --diff .
+	@black --check --diff --exclude=venv .
 
 check-isort:
 	@echo "--> Running isort checks"
@@ -19,7 +19,7 @@ check-mypy:
 
 check-yamllint:
 	@echo "--> Running yamllint checks"
-	@yamllint .
+	@yamllint dbt tests .github 
 
 lint: check-black check-isort check-flake8 check-mypy check-yamllint
 

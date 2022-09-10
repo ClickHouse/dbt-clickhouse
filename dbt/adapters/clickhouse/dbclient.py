@@ -1,0 +1,139 @@
+from abc import ABC, abstractmethod
+
+from dbt.events import AdapterLogger
+from dbt.exceptions import DatabaseException as DBTDatabaseException
+from dbt.exceptions import FailedToConnectException
+
+from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
+
+logger = AdapterLogger('clickhouse')
+
+
+def get_db_client(credentials: ClickHouseCredentials):
+    driver = credentials.driver
+    port = credentials.port
+    if not driver and not port:
+        raise FailedToConnectException('Either driver or port must be specified')
+    if not driver:
+        if port in (9000, 9440):
+            driver = 'native'
+        else:
+            driver = 'http'
+    elif driver == 'http':
+        if not port:
+            port = 8443 if credentials.secure else 8123
+    elif driver == 'native':
+        if not port:
+            port = 9440 if credentials.secure else 9000
+    else:
+        raise FailedToConnectException(f'Unrecognized ClickHouse driver {driver}')
+
+    credentials.driver = driver
+    credentials.port = port
+    if driver == 'native':
+        try:
+            import clickhouse_driver  # noqa
+
+            from dbt.adapters.clickhouse.nativeclient import ChNativeClient
+
+            return ChNativeClient(credentials)
+        except ImportError:
+            raise FailedToConnectException(
+                'Native adapter required but package clickhouse-driver is not installed'
+            )
+    try:
+        import clickhouse_connect  # noqa
+
+        from dbt.adapters.clickhouse.httpclient import ChHttpClient
+
+        return ChHttpClient(credentials)
+    except ImportError:
+        raise FailedToConnectException(
+            'HTTP adapter required but package clickhouse-connect is not installed'
+        )
+
+
+class ChClientWrapper(ABC):
+    def __init__(self, credentials: ClickHouseCredentials):
+        self.database = credentials.schema
+        self.client = self._create_client(credentials)
+        try:
+            self._ensure_database(credentials.database_engine)
+            self.server_version = self._server_version()
+            self.atomic_exchange = self._check_atomic_exchange()
+        except Exception as ex:
+            self.close()
+            raise ex
+
+    @abstractmethod
+    def query(self, sql: str, **kwargs):
+        pass
+
+    @abstractmethod
+    def command(self, sql: str, **kwargs):
+        pass
+
+    def database_dropped(self, database: str):
+        pass
+
+    @abstractmethod
+    def close(self):
+        pass
+
+    @abstractmethod
+    def _create_client(self, credentials: ClickHouseCredentials):
+        pass
+
+    @abstractmethod
+    def _set_client_database(self):
+        pass
+
+    @abstractmethod
+    def _server_version(self):
+        pass
+
+    def _ensure_database(self, database_engine) -> None:
+        if not self.database:
+            return
+        check_db = f'EXISTS DATABASE {self.database}'
+        try:
+            db_exists = self.command(check_db)
+            if not db_exists:
+                engine_clause = f' ENGINE {database_engine} ' if database_engine else ''
+                self.command(f'CREATE DATABASE {self.database}{engine_clause}')
+                db_exists = self.command(check_db)
+                if not db_exists:
+                    raise FailedToConnectException(
+                        f'Failed to create database {self.database} for unknown reason'
+                    )
+        except DBTDatabaseException as ex:
+            raise FailedToConnectException(
+                f'Failed to create {self.database} database due to ClickHouse exception'
+            ) from ex
+        self._set_client_database()
+
+    def _check_atomic_exchange(self) -> bool:
+        try:
+            db_engine = self.command('SELECT engine FROM system.databases WHERE name = database()')
+            if db_engine not in ('Atomic', 'Replicated'):
+                return False
+            create_cmd = (
+                'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
+            )
+            swap_tables = [f'__dbt_exchange_test_{x}' for x in range(0, 2)]
+            for table in swap_tables:
+                self.command(create_cmd.format(table))
+            try:
+                self.command('EXCHANGE TABLES {} AND {}'.format(*swap_tables))
+                return True
+            except DBTDatabaseException as ex:
+                logger.info(f'ClickHouse server does not support exchange tables {ex}')
+            finally:
+                try:
+                    for table in swap_tables:
+                        self.command(f'DROP TABLE IF EXISTS {table}')
+                except DBTDatabaseException:
+                    logger.info('Unexpected server exception dropping table', exc_info=True)
+        except DBTDatabaseException:
+            logger.warning('Failed to run exchange test', exc_info=True)
+        return False

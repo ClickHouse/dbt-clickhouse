@@ -16,26 +16,26 @@ from dbt.contracts.relation import RelationType
 from dbt.events import AdapterLogger
 from dbt.utils import executor
 
-from dbt.adapters.clickhouse.column import ClickhouseColumn
-from dbt.adapters.clickhouse.connections import ClickhouseConnectionManager
-from dbt.adapters.clickhouse.relation import ClickhouseRelation
+from dbt.adapters.clickhouse.column import ClickHouseColumn
+from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
 
 @dataclass
-class ClickhouseConfig(AdapterConfig):
+class ClickHouseConfig(AdapterConfig):
     engine: str = 'MergeTree()'
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None
 
 
-class ClickhouseAdapter(SQLAdapter):
-    Relation = ClickhouseRelation
-    Column = ClickhouseColumn
-    ConnectionManager = ClickhouseConnectionManager
-    AdapterSpecificConfigs = ClickhouseConfig
+class ClickHouseAdapter(SQLAdapter):
+    Relation = ClickHouseRelation
+    Column = ClickHouseColumn
+    ConnectionManager = ClickHouseConnectionManager
+    AdapterSpecificConfigs = ClickHouseConfig
     logger = AdapterLogger("dbt_clickhouse_tests")
 
     @classmethod
@@ -76,25 +76,38 @@ class ClickhouseAdapter(SQLAdapter):
             return '"{}"'.format(conn.credentials.cluster)
 
     @available
+    def clickhouse_db_engine_clause(self):
+        conn = self.connections.get_if_exists()
+        if conn and conn.credentials.database_engine:
+            return f'ENGINE {conn.credentials.database_engine}'
+        return ''
+
+    @available
     def is_before_version(self, version: str) -> bool:
         conn = self.connections.get_if_exists()
-        server_version = conn.handle.server_version
-        return compare_versions(version, server_version) > 0
+        if conn:
+            server_version = conn.handle.server_version
+            return compare_versions(version, server_version) > 0
+        return False
+
+    @available
+    def supports_atomic_exchange(self) -> bool:
+        conn = self.connections.get_if_exists()
+        return conn and conn.handle.atomic_exchange
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
-        exists = True if schema in [row[0] for row in results] else False
-        return exists
+        return schema in (row[0] for row in results)
 
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
         conn = self.connections.get_if_exists()
-        if conn and conn.handle.database == relation.schema:
-            conn.handle.database = None
+        if conn:
+            conn.handle.database_dropped(relation.schema)
 
     def list_relations_without_caching(
-        self, schema_relation: ClickhouseRelation
-    ) -> List[ClickhouseRelation]:
+        self, schema_relation: ClickHouseRelation
+    ) -> List[ClickHouseRelation]:
         kwargs = {'schema_relation': schema_relation}
         results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
 
@@ -130,19 +143,19 @@ class ClickhouseAdapter(SQLAdapter):
             return None
 
     def parse_clickhouse_columns(
-        self, relation: ClickhouseRelation, raw_rows: List[agate.Row]
-    ) -> List[ClickhouseColumn]:
+        self, relation: ClickHouseRelation, raw_rows: List[agate.Row]
+    ) -> List[ClickHouseColumn]:
         rows = [dict(zip(row._keys, row._values)) for row in raw_rows]
 
         return [
-            ClickhouseColumn(
+            ClickHouseColumn(
                 column=column['name'],
                 dtype=column['type'],
             )
             for column in rows
         ]
 
-    def get_columns_in_relation(self, relation: ClickhouseRelation) -> List[ClickhouseColumn]:
+    def get_columns_in_relation(self, relation: ClickHouseRelation) -> List[ClickHouseColumn]:
         rows: List[agate.Row] = super().get_columns_in_relation(relation)
 
         return self.parse_clickhouse_columns(relation, rows)
@@ -191,8 +204,8 @@ class ClickhouseAdapter(SQLAdapter):
 
     def get_rows_different_sql(
         self,
-        relation_a: ClickhouseRelation,
-        relation_b: ClickhouseRelation,
+        relation_a: ClickHouseRelation,
+        relation_b: ClickHouseRelation,
         column_names: Optional[List[str]] = None,
     ) -> str:
         names: List[str]

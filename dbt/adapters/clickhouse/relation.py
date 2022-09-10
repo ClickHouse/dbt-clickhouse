@@ -6,23 +6,23 @@ from dbt.contracts.relation import RelationType
 
 
 @dataclass
-class ClickhouseQuotePolicy(Policy):
+class ClickHouseQuotePolicy(Policy):
     database: bool = False
     schema: bool = False
     identifier: bool = False
 
 
 @dataclass
-class ClickhouseIncludePolicy(Policy):
+class ClickHouseIncludePolicy(Policy):
     database: bool = False
     schema: bool = True
     identifier: bool = True
 
 
 @dataclass(frozen=True, eq=False, repr=False)
-class ClickhouseRelation(BaseRelation):
-    quote_policy: ClickhouseQuotePolicy = ClickhouseQuotePolicy()
-    include_policy: ClickhouseIncludePolicy = ClickhouseIncludePolicy()
+class ClickHouseRelation(BaseRelation):
+    quote_policy: ClickHouseQuotePolicy = ClickHouseQuotePolicy()
+    include_policy: ClickHouseIncludePolicy = ClickHouseIncludePolicy()
     quote_character: str = ''
     db_engine: str = ''
 
