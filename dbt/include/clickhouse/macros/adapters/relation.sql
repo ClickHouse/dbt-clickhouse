@@ -4,19 +4,19 @@
     {% do return([true, target_relation]) %}
   {% endif %}
 
-  {% set ch_db = adapter.get_ch_database(schema) %}
+  {%- set can_exchange = adapter.can_exchange(schema, type) %}
   {%- set new_relation = api.Relation.create(
       database=None,
       schema=schema,
       identifier=identifier,
       type=type,
-      db_engine=ch_db.engine if ch_db else ''
+      can_exchange=can_exchange
   ) -%}
   {% do return([false, new_relation]) %}
 {% endmacro %}
 
 {% macro clickhouse__get_database(database) %}
-    {% call statement('get_database') %}
+    {% call statement('get_database', fetch_result=True) %}
         select name, engine, comment
         from system.databases
         where name = '{{ database }}'

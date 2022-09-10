@@ -229,27 +229,6 @@
   {{ sql }}
 {%- endmacro %}
 
-
-{% macro engine_exchange_support(rel) %}
-  {% if rel is none or not execute or not adapter.supports_atomic_exchange() %}
-      {% do return(None) %}
-  {% endif %}
-
-  {% set relation = adapter.get_relation(rel.database, rel.schema, rel.table) %}
-  {% if relation is none %}
-    {% do return(None) %}
-  {% endif %}
-
-  {% set sel %} 
-		( SELECT engine FROM system.databases WHERE name='{{relation.schema}}' )
-	{% endset %}
-
-	{% set results = run_query(sel) %}
-	{% set engine = results.columns[0].values()[0] %}  
-  {% do return(engine in ['Atomic', 'Replicated']) %}
-{% endmacro %}
-
-
 {% macro exchange_tables_atomic(old_relation, target_relation) %}
   {%- call statement('exchange_tables_atomic') -%}
     EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }}

@@ -1,14 +1,13 @@
 import os
 import sys
 import timeit
-import pytest
-import requests
-
 from pathlib import Path
 from subprocess import PIPE, Popen
 from time import sleep
-from clickhouse_connect import get_client
 
+import pytest
+import requests
+from clickhouse_connect import get_client
 
 # Import the standard integration fixtures as a plugin
 # Note: fixtures with session scope need to be local
@@ -18,7 +17,9 @@ pytest_plugins = ["dbt.tests.fixtures.project"]
 # Ensure that test users exist in environment
 @pytest.fixture(scope="session", autouse=True)
 def ch_test_users():
-    test_users = [os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{x}') for x in range(1, 4)]
+    test_users = [
+        os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{x}') for x in range(1, 4)
+    ]
     yield test_users
 
 
@@ -46,12 +47,15 @@ def test_config(ch_test_users):
             raise Exception('Failed to run docker-compose: {}', str(e))
     test_client = get_client(
         host=test_host,
-        port=test_port,
+        port=client_port,
         username=os.environ.get('USER_ENV_VAR_NAME', 'default'),
-        password=os.environ.get('PASSWORD_ENV_VAR_NAME', ''))
+        password=os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
+    )
     for user in ch_test_users:
-        test_client.command('CREATE USER IF NOT EXISTS %s IDENTIFIED WITH plaintext_password BY %s',
-                            (user, 'password'))
+        test_client.command(
+            'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH plaintext_password BY %s',
+            (user, 'password'),
+        )
     yield {}
     if run_docker:
         try:

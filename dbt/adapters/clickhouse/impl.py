@@ -95,6 +95,13 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         return conn and conn.handle.atomic_exchange
 
+    @available
+    def can_exchange(self, schema: str, rel_type: str) -> bool:
+        if rel_type != 'table' or not schema or not self.supports_atomic_exchange():
+            return False
+        ch_db = self.get_ch_database(schema)
+        return ch_db and ch_db.engine in ('Atomic', 'Replicated')
+
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
         return schema in (row[0] for row in results)
@@ -110,17 +117,23 @@ class ClickHouseAdapter(SQLAdapter):
     ) -> List[ClickHouseRelation]:
         kwargs = {'schema_relation': schema_relation}
         results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
+        conn_supports_exchange = self.supports_atomic_exchange()
 
         relations = []
         for row in results:
             name, schema, type_info, db_engine = row
             rel_type = RelationType.View if 'view' in type_info else RelationType.Table
+            can_exchange = (
+                conn_supports_exchange
+                and rel_type == RelationType.Table
+                and db_engine in ('Atomic', 'Replicated')
+            )
             relation = self.Relation.create(
                 database=None,
                 schema=schema,
                 identifier=name,
                 type=rel_type,
-                db_engine=db_engine
+                can_exchange=can_exchange,
             )
             relations.append(relation)
 

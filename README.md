@@ -84,7 +84,7 @@ You can customize a few test params through environment variables. In order to p
 2. DBT_CH_TEST_USER - your ClickHouse username. Default=`default`
 3. DBT_CH_TEST_PASSWORD - your ClickHouse password. Default=''
 4. DBT_CH_TEST_PORT - ClickHouse client port. Default=8123
-5. DBT_CH_TEST_DATABASE - Explicit database (dbt 'schema') used for test relations.  Defaults to ClickHouse user default
+5. DBT_CH_TEST_DATABASE - Explicit database (dbt 'schema') used to execute queries for test setup.  Defaults to ClickHouse user default.  Note that each test will actually generate a new random database.
 6. DBT_CH_TEST_DB_ENGINE - Database engine used to create schemas.  Defaults to '' (server default)
 7. DBT_CH_TEST_USE_DOCKER - Identify whether to run clickhouse-server docker image (see tests/docker-compose.yml). Default=False. Set it to True if you'd like to raise a docker image (assuming docker-compose is installed in your machine) during tests that launches a clickhouse-server. Note: If you decide to run a docker image you should set DBT_CH_TEST_PORT to 10900 too.
 

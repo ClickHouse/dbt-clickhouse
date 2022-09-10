@@ -2,7 +2,6 @@ from dataclasses import dataclass
 
 import dbt.exceptions
 from dbt.adapters.base.relation import BaseRelation, Policy
-from dbt.contracts.relation import RelationType
 
 
 @dataclass
@@ -24,7 +23,7 @@ class ClickHouseRelation(BaseRelation):
     quote_policy: ClickHouseQuotePolicy = ClickHouseQuotePolicy()
     include_policy: ClickHouseIncludePolicy = ClickHouseIncludePolicy()
     quote_character: str = ''
-    db_engine: str = ''
+    can_exchange: bool = False
 
     def __post_init__(self):
         if self.database != self.schema and self.database:
@@ -39,7 +38,3 @@ class ClickHouseRelation(BaseRelation):
                 'include, but only one can be set'
             )
         return super().render()
-
-    @property
-    def can_exchange(self):
-        return self.type == RelationType.Table and self.db_engine in ('Atomic', 'Replicated')
