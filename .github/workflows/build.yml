@@ -54,8 +54,6 @@ jobs:
           pip install -r dev_requirements.txt
 
       - name: Run HTTP tests
-        env:
-          DBT_CH_TEST_HOST: clickhouse
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests
 
