@@ -39,7 +39,7 @@ jobs:
       - name: Run ClickHouse Container
         run: docker run 
             -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml 
-            --network {{ job.container.network }}
+            --network ${{ job.container.network }}
             --name clickhouse
             -p 8123:8123
             -p 9000:9000
