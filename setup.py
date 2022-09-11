@@ -25,7 +25,7 @@ package_name = 'dbt-clickhouse'
 package_version = _dbt_clickhouse_version()
 description = '''The Clickhouse plugin for dbt (data build tool)'''
 
-dbt_version = '1.1'
+dbt_version = '1.2'
 
 if not package_version.startswith(dbt_version):
     raise ValueError(
