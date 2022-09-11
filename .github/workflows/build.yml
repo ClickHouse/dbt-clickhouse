@@ -45,7 +45,7 @@ jobs:
       - name: Copy access file
         run: |
           mkdir -p ${{ github.workspace }}/docker_users
-          cp -u tests/integration/access_management.yaml ${{ github.workspace }}/docker_users
+          cp -u tests/integration/access_management.xml ${{ github.workspace }}/docker_users
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
