@@ -40,9 +40,7 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: clickhouse/clickhouse-server:latest
-          options: -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml 
-            -p 8123:8123
-            -p 9000:9000
+          options: -p 8123:8123 -p 9000:9000 -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
