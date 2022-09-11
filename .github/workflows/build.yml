@@ -37,13 +37,12 @@ jobs:
         run: docker network create data
 
       - name: Run ClickHouse Container
-        run: docker run 
-            -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml 
-            --network data
-            --name clickhouse
+        uses: addnab/docker-run-action@v3
+        with:
+          image: clickhouse/clickhouse-server:latest
+          options: -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml 
             -p 8123:8123
             -p 9000:9000
-            clickhouse/clickhouse-server:latest
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
