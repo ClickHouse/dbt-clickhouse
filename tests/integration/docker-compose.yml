@@ -1,0 +1,15 @@
+---
+version: '3'
+
+services:
+  ch_server:
+    image: clickhouse/clickhouse-server:22.6.1
+    ports:
+      - "10723:8123"
+      - "10743:8443"
+      - "10900:9000"
+    volumes:
+      - /var/lib/clickhouse
+      - type: bind
+        source: ./access_management.xml
+        target: /etc/clickhouse-server/users.d/users.xml

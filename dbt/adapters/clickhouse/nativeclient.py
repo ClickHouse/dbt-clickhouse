@@ -1,10 +1,10 @@
 import clickhouse_driver
+from clickhouse_driver.errors import NetworkError, SocketTimeoutError
 from dbt.exceptions import DatabaseException as DBTDatabaseException
-from dbt.exceptions import FailedToConnectException
 from dbt.version import __version__ as dbt_version
 
 from dbt.adapters.clickhouse import ClickHouseCredentials
-from dbt.adapters.clickhouse.dbclient import ChClientWrapper
+from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 
 
 class ChNativeClient(ChClientWrapper):
@@ -26,24 +26,26 @@ class ChNativeClient(ChClientWrapper):
         self.client.disconnect()
 
     def _create_client(self, credentials: ClickHouseCredentials):
+        client = clickhouse_driver.Client(
+            host=credentials.host,
+            port=credentials.port,
+            user=credentials.user,
+            password=credentials.password,
+            client_name=f'dbt-{dbt_version}',
+            secure=credentials.secure,
+            verify=credentials.verify,
+            connect_timeout=credentials.connect_timeout,
+            send_receive_timeout=credentials.send_receive_timeout,
+            sync_request_timeout=credentials.sync_request_timeout,
+            compress_block_size=credentials.compress_block_size,
+            compression=False if credentials.compression == '' else credentials.compression,
+            settings=credentials.custom_settings,
+        )
         try:
-            return clickhouse_driver.Client(
-                host=credentials.host,
-                port=credentials.port,
-                user=credentials.user,
-                password=credentials.password,
-                client_name=f'dbt-{dbt_version}',
-                secure=credentials.secure,
-                verify=credentials.verify,
-                connect_timeout=credentials.connect_timeout,
-                send_receive_timeout=credentials.send_receive_timeout,
-                sync_request_timeout=credentials.sync_request_timeout,
-                compress_block_size=credentials.compress_block_size,
-                compression=False if credentials.compression == '' else credentials.compression,
-                settings=credentials.custom_settings,
-            )
-        except clickhouse_driver.errors.Error as ex:
-            raise FailedToConnectException(str(ex)) from ex
+            client.connection.connect()
+        except (SocketTimeoutError, NetworkError) as ex:
+            raise ChRetryableException from ex
+        return client
 
     def _set_client_database(self):
         # After we know the database exists, reconnect to that database if appropriate

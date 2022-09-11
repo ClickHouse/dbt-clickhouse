@@ -16,6 +16,7 @@ class ClickHouseCredentials(Credentials):
     host: str = 'localhost'
     port: Optional[int] = None
     user: Optional[str] = 'default'
+    retries: int = 1
     database: Optional[str] = None
     database_engine: Optional[str] = None
     schema: Optional[str] = 'default'
@@ -56,6 +57,7 @@ class ClickHouseCredentials(Credentials):
             'port',
             'user',
             'schema',
+            'retries',
             'database_engine',
             'secure',
             'verify',

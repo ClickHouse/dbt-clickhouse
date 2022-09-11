@@ -1,12 +1,11 @@
 import uuid
 
 import clickhouse_connect
-from clickhouse_connect.driver.exceptions import DatabaseError
+from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError
 from dbt.exceptions import DatabaseException as DBTDatabaseException
-from dbt.exceptions import FailedToConnectException
 from dbt.version import __version__ as dbt_version
 
-from dbt.adapters.clickhouse.dbclient import ChClientWrapper
+from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 
 
 class ChHttpClient(ChClientWrapper):
@@ -48,8 +47,8 @@ class ChHttpClient(ChClientWrapper):
                 session_id='dbt::' + str(uuid.uuid4()),
                 **(credentials.custom_settings or {}),
             )
-        except clickhouse_connect.driver.exceptions.DatabaseError as ex:
-            raise FailedToConnectException(str(ex)) from ex
+        except OperationalError as ex:
+            raise ChRetryableException from ex
 
     def _set_client_database(self):
         self.client.database = self.database

@@ -53,6 +53,10 @@ def get_db_client(credentials: ClickHouseCredentials):
         )
 
 
+class ChRetryableException(Exception):
+    pass
+
+
 class ChClientWrapper(ABC):
     def __init__(self, credentials: ClickHouseCredentials):
         self.database = credentials.schema
