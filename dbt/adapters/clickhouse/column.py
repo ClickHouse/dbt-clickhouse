@@ -5,11 +5,11 @@ from typing import Any, TypeVar
 from dbt.adapters.base.column import Column
 from dbt.exceptions import RuntimeException
 
-Self = TypeVar('Self', bound='ClickhouseColumn')
+Self = TypeVar('Self', bound='ClickHouseColumn')
 
 
 @dataclass
-class ClickhouseColumn(Column):
+class ClickHouseColumn(Column):
     TYPE_LABELS = {
         'STRING': 'String',
         'TIMESTAMP': 'DateTime',

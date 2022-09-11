@@ -17,7 +17,7 @@ pytest_plugins = ["dbt.tests.fixtures.project"]
 # repos. Example in dbt.tests.adapter.basic.test_base.
 @pytest.fixture(scope="session")
 def test_config():
-    run_docker = os.environ.get('RUN_DOCKER_ENV_VAR_NAME', '').lower() in ('1', 'true', 'yes')
+    run_docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
     if run_docker:
         # Run docker compose with clickhouse-server image.
         compose_file = f'{Path(__file__).parent}/docker-compose.yml'
@@ -27,7 +27,7 @@ def test_config():
             up_result = run_cmd(['docker-compose', '-f', compose_file, 'up', '-d'])
             if up_result[0]:
                 raise Exception(f'Failed to start docker: {up_result[2]}')
-            url = "http://{}:{}".format(os.environ.get('HOST_ENV_VAR_NAME', 'localhost'), 10723)
+            url = "http://{}:{}".format(os.environ.get('DBT_CH_TEST_HOST', 'localhost'), 10723)
             wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
             raise Exception('Failed to run docker-compose: {}', str(e))
@@ -44,7 +44,7 @@ def test_config():
 # dbt will supply a unique schema per test, so we do not specify 'schema' here
 @pytest.fixture(scope="class")
 def dbt_profile_target():
-    port = int(os.environ.get('PORT_ENV_VAR_NAME', 8123))
+    port = int(os.environ.get('DBT_CH_TEST_PORT', 8123))
     if port in (10900, 9000):
         driver = 'native'
     else:
@@ -52,10 +52,12 @@ def dbt_profile_target():
     return {
         'type': 'clickhouse',
         'threads': 1,
-        'host': os.environ.get('HOST_ENV_VAR_NAME', 'localhost'),
-        'user': os.environ.get('USER_ENV_VAR_NAME', 'default'),
-        'password': os.environ.get('PASSWORD_ENV_VAR_NAME', ''),
-        'port': int(os.environ.get('PORT_ENV_VAR_NAME', 8123)),  # docker client port
+        'host': os.environ.get('DBT_CH_TEST_HOST', 'localhost'),
+        'user': os.environ.get('DBT_CH_TEST_USER', 'default'),
+        'password': os.environ.get('DBT_CH_TEST_PASSWORD', ''),
+        'port': int(os.environ.get('DBT_CH_TEST_PORT', 8123)),  # docker client port
+        'schema': os.environ.get('DBT_CH_TEST_DATABASE', None),
+        'database_engine': os.environ.get('DBT_CH_TEST_DB_ENGINE', ''),
         'secure': False,
         'driver': driver,
         'custom_settings': {'distributed_ddl_task_timeout': 300},

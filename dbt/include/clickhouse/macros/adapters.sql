@@ -125,7 +125,9 @@
 
 {% macro clickhouse__create_schema(relation) -%}
   {%- call statement('create_schema') -%}
-    create database if not exists {{ relation.without_identifier().include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
+    create database if not exists {{ relation.without_identifier().include(database=False) }}
+        {{ on_cluster_clause(label="on cluster") }}
+        {{ adapter.clickhouse_db_engine_clause() }}
   {% endcall %}
 {% endmacro %}
 
@@ -229,13 +231,9 @@
 
 
 {% macro engine_exchange_support(rel) %}
-  {% if rel is none %}
+  {% if rel is none or not execute or not adapter.supports_atomic_exchange() %}
       {% do return(None) %}
   {% endif %}
-
-	{% if not execute %}
-		{% do return(None) %}
-	{% endif %}
 
   {% set relation = adapter.get_relation(rel.database, rel.schema, rel.table) %}
   {% if relation is none %}

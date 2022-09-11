@@ -79,12 +79,14 @@ Note: The only feature that is not supported and not tested is Ephemeral materia
 Tests running command: 
 `pytest tests/integration`
 
-You can customize a few test params through environment variables. In order to provide custom params you'll need to create `test.env` file under root (remember not to commit this file!) and define the following env variables inside:
-1. HOST_ENV_VAR_NAME - Default=`localhost`
-2. USER_ENV_VAR_NAME - your ClickHouse username. Default=`default`
-3. PASSWORD_ENV_VAR_NAME - your ClickHouse password. Default=''
-4. PORT_ENV_VAR_NAME - ClickHouse client port. Default=8123
-5. RUN_DOCKER_ENV_VAR_NAME - Identify whether to run clickhouse-server docker image (see tests/docker-compose.yml). Default=False. Set it to True if you'd like to raise a docker image (assuming docker-compose is installed in your machine) during tests that launches a clickhouse-server. Note: If you decide to run  a docker image you should set PORT_ENV_VAR_NAME to 10900 too.
+You can customize a few test params through environment variables. In order to provide custom params you can create `test.env` file under root (remember not to commit this file!) and define the following env variables inside:
+1. DBT_CH_TEST_HOST - Default=`localhost`
+2. DBT_CH_TEST_USER - your ClickHouse username. Default=`default`
+3. DBT_CH_TEST_PASSWORD - your ClickHouse password. Default=''
+4. DBT_CH_TEST_PORT - ClickHouse client port. Default=8123
+5. DBT_CH_TEST_DATABASE - Explicit database (dbt 'schema') used for test relations.  Defaults to ClickHouse user default
+6. DBT_CH_TEST_DB_ENGINE - Database engine used to create schemas.  Defaults to '' (server default)
+7. DBT_CH_TEST_USE_DOCKER - Identify whether to run clickhouse-server docker image (see tests/docker-compose.yml). Default=False. Set it to True if you'd like to raise a docker image (assuming docker-compose is installed in your machine) during tests that launches a clickhouse-server. Note: If you decide to run a docker image you should set DBT_CH_TEST_PORT to 10900 too.
 
 ### Original Author
 ClickHouse wants to thank @[silentsokolov](https://github.com/silentsokolov) for creating this connector and for their valuable contributions.
