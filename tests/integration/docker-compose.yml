@@ -12,4 +12,4 @@ services:
       - /var/lib/clickhouse
       - type: bind
         source: ./access_management.xml
-        target: /etc/clickhouse-server/users.d/users.xml
+        target: /etc/clickhouse-server/users.d/access_management.xml

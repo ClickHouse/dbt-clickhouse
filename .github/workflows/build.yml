@@ -21,12 +21,12 @@ jobs:
       fail-fast: false
       matrix:
         python-version:
-          - '3.8'
+          #- '3.8'
           - '3.9'
-          - '3.10'
+          #- '3.10'
         clickhouse-version:
-          - '22.3'
-          - '22.8'
+          #- '22.3'
+          #- '22.8'
           - latest
 
     services:
@@ -35,6 +35,8 @@ jobs:
         ports:
           - 8123:8123
           - 9000:9000
+        volumes:
+          - ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/users.xml
 
     steps:
       - name: Checkout
