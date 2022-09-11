@@ -24,7 +24,7 @@ def ch_test_users():
 @pytest.fixture(scope="session")
 def test_config(ch_test_users):
     compose_file = f'{Path(__file__).parent}/docker-compose.yml'
-    test_host = os.environ.get('DBT_CH_TEST_HOST', 'local_host')
+    test_host = os.environ.get('DBT_CH_TEST_HOST', 'localhost')
     test_port = int(os.environ.get('DBT_CH_TEST_PORT', 8123))
     test_driver = 'native' if test_port in (10900, 9000) else 'http'
     test_user = os.environ.get('DBT_CH_TEST_USER', 'default')

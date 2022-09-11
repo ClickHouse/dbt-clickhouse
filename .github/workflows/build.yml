@@ -34,9 +34,6 @@ jobs:
         image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
         ports:
           - 8123:8123
-      clickhouse-native:
-        image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
-        ports:
           - 9000:9000
 
     steps:
