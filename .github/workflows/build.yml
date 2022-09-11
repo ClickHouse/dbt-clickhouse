@@ -3,8 +3,15 @@ name: "build"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-  push:
     branches: master
+  push:
+    branches-ignore:
+      - '*_test'
+      - '*_dev'
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
 
 jobs:
   build:
@@ -16,10 +23,10 @@ jobs:
         python-version:
           - '3.8'
           - '3.9'
+          - '3.10'
         clickhouse-version:
-          - '22.1'
           - '22.3'
-          - '22.6'
+          - '22.8'
           - latest
 
     services:
