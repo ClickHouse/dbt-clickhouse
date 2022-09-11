@@ -29,23 +29,21 @@ jobs:
           #- '22.8'
           - latest
 
-    services:
-      clickhouse:
-        image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
-        ports:
-          - 8123:8123
-          - 9000:9000
-        volumes:
-          - ${{ github.workspace }}/docker_users:/etc/clickhouse-server/users.d
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Copy access file
-        run: |
-          mkdir -p ${{ github.workspace }}/docker_users
-          cp -u tests/integration/access_management.xml ${{ github.workspace }}/docker_users
+      - name: Create docker network
+        run: docker network create data
+
+      - name: Run ClickHouse Container
+        run: docker run 
+            -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml 
+            --network data
+            --name clickhouse
+            -p 8123:8123
+            -p 9000:9000
+            clickhouse/clickhouse-server:latest
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -57,11 +55,13 @@ jobs:
           pip install -r dev_requirements.txt
 
       - name: Run HTTP tests
+        env:
+          DBT_CH_TEST_HOST: clickhouse
         run: |
-          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
+          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests
 
       - name: Run Native tests
         env:
-          PORT_ENV_VAR_NAME: 9000
+          DBT_CH_TEST_PORT: 9000
         run: |
-          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
+          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests
