@@ -43,8 +43,8 @@ jobs:
       #    mkdir -p /home/runner/work/_temp/users.d
       #    cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
 
-      - name: Install pip
-        run: python -m ensurepip --upgrade
+      #- name: Install pip
+      #  run: python3 -m ensurepip --upgrade
 
       - name: Run ClickHouse Container
         run: docker run
@@ -62,7 +62,7 @@ jobs:
 
       - name: Install requirements
         run: |
-          pip install -r dev_requirements.txt
+          pip3 install -r dev_requirements.txt
 
       - name: Run HTTP tests
         run: |
