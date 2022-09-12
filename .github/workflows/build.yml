@@ -67,7 +67,7 @@ jobs:
           pip3 install -r dev_requirements.txt
 
       - name: Start docker compose
-        run: docker compose --project_directory tests -f tests/github-docker-compose.yml up
+        run: docker compose --project-directory tests -f tests/github-docker-compose.yml up
 
       - name: Run HTTP tests
         #env:
