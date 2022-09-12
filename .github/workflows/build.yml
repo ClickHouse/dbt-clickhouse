@@ -74,6 +74,7 @@ jobs:
 
       - name: Run Native tests
         env:
-          PORT_ENV_VAR_NAME: 9000
+          DBT_CH_TEST_USE_DOCKER: True
+          DBT_CH_TEST_PORT: 9000
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
