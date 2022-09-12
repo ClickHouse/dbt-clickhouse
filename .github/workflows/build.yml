@@ -30,18 +30,22 @@ jobs:
           - latest
 
     services:
-      alpine:
-        image: alpine:latest
+      clickhouse:
+        image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
+        ports:
+          - 8123:8123
+          - 9000:9000
+        volumes:
+          - ${{ github.workspace }}/docker_users:/etc/clickhouse-server/users.d
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Run ClickHouse Container
-        run: docker run 
-            --name clickhouse
-            --ulimit nofile=262144:262144
-            clickhouse/clickhouse-server:latest
+      - name: Copy access file
+        run: |
+          mkdir -p ${{ github.workspace }}/docker_users
+          cp -u tests/integration/access_management.xml ${{ github.workspace }}/docker_users
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -53,13 +57,11 @@ jobs:
           pip install -r dev_requirements.txt
 
       - name: Run HTTP tests
-        env:
-          DBT_CH_TEST_HOST: clickhouse
         run: |
-          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests
+          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
 
       - name: Run Native tests
         env:
-          DBT_CH_TEST_PORT: 9000
+          PORT_ENV_VAR_NAME: 9000
         run: |
-          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests
+          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
