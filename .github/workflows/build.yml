@@ -46,6 +46,10 @@ jobs:
       #- name: Install pip
       #  run: python3 -m ensurepip --upgrade
 
+      - name: Install Docker
+        run: apt get docker
+
+
       - name: Run ClickHouse Container
         run: docker run
             --name clickhouse
