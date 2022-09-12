@@ -30,9 +30,9 @@ jobs:
           #- '22.8'
           - latest
 
-    services:
-      clickhouse:
-        image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
+    #services:
+      #clickhouse:
+        #image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
 
     steps:
       - name: Checkout
@@ -42,6 +42,16 @@ jobs:
       #  run: |
       #    mkdir -p /home/runner/work/_temp/users.d
       #    cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
+
+
+      - name: Run ClickHouse Container
+        run: docker run
+            --name clickhouse
+            --network {{ job.container.network }}
+            -p 8123:8123
+            -p 9000:9000 
+            --ulimit nofile=262144:262144
+            clickhouse/clickhouse-server:latest
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
