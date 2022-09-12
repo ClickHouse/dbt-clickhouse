@@ -55,6 +55,7 @@ jobs:
              -p 9000:9000
              --name clickhouse
              -v /var/lib/clickhouse
+             -v ${{ github.workdir }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml
              --ulimit nofile=262144:262144
              clickhouse/clickhouse-server:22.6
 
