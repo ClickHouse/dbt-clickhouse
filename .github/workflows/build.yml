@@ -66,18 +66,15 @@ jobs:
         run: |
           pip3 install -r dev_requirements.txt
 
-      - name: Start docker compose
-        run: docker compose --project-directory tests -f tests/github-docker-compose.yml up
-
       - name: Run HTTP tests
-        #env:
-        #  DBT_CH_TEST_USE_DOCKER: True
+        env:
+          DBT_CH_TEST_USE_DOCKER: True
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
 
       - name: Run Native tests
         env:
-        #  DBT_CH_TEST_USE_DOCKER: True
+          DBT_CH_TEST_USE_DOCKER: True
           DBT_CH_TEST_PORT: 9000
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
