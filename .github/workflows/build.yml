@@ -68,7 +68,7 @@ jobs:
 
       - name: Run HTTP tests
         env:
-          DBT_CH_TEST_USER_DOCKER: True
+          DBT_CH_TEST_USE_DOCKER: True
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
 
