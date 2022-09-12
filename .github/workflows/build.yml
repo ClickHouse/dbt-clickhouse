@@ -33,12 +33,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Create docker network
+        run: docker network create ch_network
+
       - name: Run ClickHouse Container
-        uses: addnab/docker-run-action@v3
-        with:
-          image: clickhouse/clickhouse-server:latest
-          options: -p 8123:8123 -p 9000:9000 -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml
-          run: /entrypoint.sh
+        run: docker run 
+            --network ch_network
+            --name clickhouse
+            -p 8123:8123
+            -p 9000:9000
+            clickhouse/clickhouse-server:latest
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -50,6 +54,8 @@ jobs:
           pip install -r dev_requirements.txt
 
       - name: Run HTTP tests
+        env:
+          DBT_CH_TEST_HOST: clickhouse
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests
 
