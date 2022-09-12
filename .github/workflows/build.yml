@@ -29,18 +29,18 @@ jobs:
           #- '22.8'
           - latest
 
+    services:
+      alpine:
+        image: alpine:latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Create docker network
-        run: docker network create ch_network
-
       - name: Run ClickHouse Container
         run: docker run 
             --name clickhouse
-            --network ch_network
+            --network {{ job.container.network }}
             -p 8123:8123
             -p 9000:9000
             --ulimit nofile=262144:262144
