@@ -40,7 +40,7 @@ jobs:
       - name: Run ClickHouse Container
         run: docker run 
             --name clickhouse
-            --network {{ job.container.network }}
+            --network ${{ job.container.network }}
             -p 8123:8123
             -p 9000:9000
             --ulimit nofile=262144:262144
