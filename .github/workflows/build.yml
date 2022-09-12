@@ -36,7 +36,7 @@ jobs:
           - 8123:8123
           - 9000:9000
         volumes:
-          - ${{ runner.temp }}/docker_users:/etc/clickhouse-server/users.d
+          - /docker_users:/etc/clickhouse-server/users.d
 
     steps:
       - name: Checkout
@@ -44,8 +44,8 @@ jobs:
 
       - name: Copy access file
         run: |
-          mkdir -p ${{ github.workspace }}/docker_users
-          cp -u tests/integration/access_management.xml ${{ runner.temp }}/docker_users
+          mkdir -p /docker_users
+          cp -u tests/integration/access_management.xml /docker_users
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
