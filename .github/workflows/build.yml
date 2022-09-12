@@ -50,6 +50,7 @@ jobs:
 
       - name: Run ClickHouse Container
         run: docker run
+             -d
              --name clickhouse
              -v /var/lib/clickhouse
              --ulimit nofile=262144:262144
