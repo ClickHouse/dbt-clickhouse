@@ -36,7 +36,7 @@ jobs:
           - 8123:8123
           - 9000:9000
         volumes:
-          - /home/runner/work/dbt-clickhouse/mounts/users.d:/etc/clickhouse-server/users.d
+          - /home/runner/work/_temp/users.d:/etc/clickhouse-server/users.d
 
     steps:
       - name: Checkout
@@ -44,8 +44,8 @@ jobs:
 
       - name: Copy access file
         run: |
-          mkdir -p /home/runner/work/dbt-clickhouse/mounts/users.d
-          cp -u tests/integration/access_management.xml //home/runner/work/dbt-clickhouse/mounts/users.d
+          mkdir -p /home/runner/work/_temp/users.d
+          cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
