@@ -17,6 +17,8 @@ jobs:
   build:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
+    container:
+      image: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -38,8 +40,8 @@ jobs:
 
       - name: Run ClickHouse Container
         run: docker run 
-            --network ch_network
             --name clickhouse
+            --network ${{ job.container.network }}
             -p 8123:8123
             -p 9000:9000
             clickhouse/clickhouse-server:latest
