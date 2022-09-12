@@ -36,16 +36,16 @@ jobs:
           - 8123:8123
           - 9000:9000
         volumes:
-          - ${{ github.workspace }}/mounts/users.d:/etc/clickhouse-server/users.d
+          - /home/runner/work/dbt-clickhouse/mounts/users.d:/etc/clickhouse-server/users.d
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      #- name: Copy access file
-      #  run: |
-      #    mkdir -p {{/docker_users
-      #    cp -u tests/integration/access_management.xml /docker_users
+      - name: Copy access file
+        run: |
+          mkdir -p /home/runner/work/dbt-clickhouse/mounts/users.d
+          cp -u tests/integration/access_management.xml //home/runner/work/dbt-clickhouse/mounts/users.d
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
