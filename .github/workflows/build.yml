@@ -48,14 +48,12 @@ jobs:
       #- name: Install Docker
       #  run: apt install docker
 
-      #- name: Run ClickHouse Container
-      #  run: docker run
-      #      --name clickhouse
-      #      --network {{ job.container.network }}
-      #      -p 8123:8123
-      #      -p 9000:9000
-      #      --ulimit nofile=262144:262144
-      #      clickhouse/clickhouse-server:latest
+      - name: Run ClickHouse Container
+        run: docker run
+             --name clickhouse
+             -v /var/lib/clickhouse
+             --ulimit nofile=262144:262144
+             clickhouse/clickhouse-server:22.6
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
