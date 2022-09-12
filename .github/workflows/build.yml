@@ -51,6 +51,8 @@ jobs:
       - name: Run ClickHouse Container
         run: docker run
              -d
+             -p 8123:8123
+             -p 9000:9000
              --name clickhouse
              -v /var/lib/clickhouse
              --ulimit nofile=262144:262144
@@ -66,14 +68,14 @@ jobs:
           pip3 install -r dev_requirements.txt
 
       - name: Run HTTP tests
-        env:
-          DBT_CH_TEST_USE_DOCKER: True
+        # env:
+          # DBT_CH_TEST_USE_DOCKER: True
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
 
       - name: Run Native tests
         env:
-          DBT_CH_TEST_USE_DOCKER: True
+          # DBT_CH_TEST_USE_DOCKER: True
           DBT_CH_TEST_PORT: 9000
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
