@@ -17,8 +17,6 @@ jobs:
   build:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
-    container:
-      image: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +29,7 @@ jobs:
           #- '22.8'
           - latest
 
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -41,9 +40,10 @@ jobs:
       - name: Run ClickHouse Container
         run: docker run 
             --name clickhouse
-            --network ${{ job.container.network }}
+            --network ch_network
             -p 8123:8123
             -p 9000:9000
+            --ulimit nofile=262144:262144
             clickhouse/clickhouse-server:latest
 
       - name: Setup Python ${{ matrix.python-version }}
