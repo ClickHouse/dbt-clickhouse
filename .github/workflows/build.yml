@@ -43,8 +43,8 @@ jobs:
       #    mkdir -p /home/runner/work/_temp/users.d
       #    cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
 
-      - name: install Python
-        run: apt install python3.9
+      - name: Install pip
+        run: python -m ensurepip --upgrade
 
       - name: Run ClickHouse Container
         run: docker run
