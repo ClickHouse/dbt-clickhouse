@@ -36,7 +36,7 @@ jobs:
           - 8123:8123
           - 9000:9000
         volumes:
-          - ${{ github.workflow }}/mounts/users.d:/etc/clickhouse-server/users.d
+          - ${{ github.workspace }}/mounts/users.d:/etc/clickhouse-server/users.d
 
     steps:
       - name: Checkout
