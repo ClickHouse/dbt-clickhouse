@@ -17,6 +17,7 @@ jobs:
   build:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
+    container: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -32,20 +33,15 @@ jobs:
     services:
       clickhouse:
         image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
-        ports:
-          - 8123:8123
-          - 9000:9000
-        volumes:
-          - /home/runner/work/_temp/users.d:/etc/clickhouse-server/users.d
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Copy access file
-        run: |
-          mkdir -p /home/runner/work/_temp/users.d
-          cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
+      #- name: Copy access file
+      #  run: |
+      #    mkdir -p /home/runner/work/_temp/users.d
+      #    cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
