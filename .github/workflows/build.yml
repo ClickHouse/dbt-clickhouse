@@ -17,36 +17,22 @@ jobs:
   build:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
+
     strategy:
       fail-fast: false
       matrix:
         python-version:
-          #- '3.8'
+          - '3.8'
           - '3.9'
-          #- '3.10'
+          - '3.10'
         clickhouse-version:
-          #- '22.3'
-          #- '22.8'
+          - '22.3'
+          - '22.8'
           - latest
-
-    #services:
-      #clickhouse:
-        #image: clickhouse/clickhouse-server:${{ matrix.clickhouse-version}}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-
-      #- name: Copy access file
-      #  run: |
-      #    mkdir -p /home/runner/work/_temp/users.d
-      #    cp -u tests/integration/access_management.xml /home/runner/work/_temp/users.d
-
-      #- name: Install pip
-      #  run: python3 -m ensurepip --upgrade
-
-      #- name: Install Docker
-      #  run: apt install docker
 
       - name: Run ClickHouse Container
         run: docker run
@@ -57,7 +43,7 @@ jobs:
              -v /var/lib/clickhouse
              -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml
              --ulimit nofile=262144:262144
-             clickhouse/clickhouse-server:22.6
+             clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v2
@@ -65,18 +51,16 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install requirements
-        run: |
-          pip3 install -r dev_requirements.txt
+        run:  pip3 install -r dev_requirements.txt
 
       - name: Run HTTP tests
-        # env:
-          # DBT_CH_TEST_USE_DOCKER: True
         run: |
-          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
+          PYTHONPATH="${PYTHONPATH}:dbt"
+          pytest tests
 
       - name: Run Native tests
         env:
-          # DBT_CH_TEST_USE_DOCKER: True
           DBT_CH_TEST_PORT: 9000
         run: |
-          PYTHONPATH="${PYTHONPATH}:dbt" pytest tests/integration
+          PYTHONPATH="${PYTHONPATH}:dbt"
+          pytest tests
