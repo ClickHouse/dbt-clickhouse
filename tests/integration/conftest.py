@@ -92,6 +92,7 @@ def dbt_profile_target(test_config):
         'port': test_config['port'],
         'database_engine': test_config['db_engine'],
         'secure': False,
+        'check_exchange': False,
         'custom_settings': {'distributed_ddl_task_timeout': 300},
     }
 

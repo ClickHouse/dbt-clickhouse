@@ -64,7 +64,7 @@ class ChClientWrapper(ABC):
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
-            self.atomic_exchange = self._check_atomic_exchange()
+            self.atomic_exchange = not credentials.check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
             raise ex

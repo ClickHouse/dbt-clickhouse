@@ -29,6 +29,7 @@ class ClickHouseCredentials(Credentials):
     sync_request_timeout: int = 5
     compress_block_size: int = 1048576
     compression: str = ''
+    check_exchange: bool = True
     custom_settings: Optional[Dict[str, Any]] = None
 
     @property
@@ -66,5 +67,6 @@ class ClickHouseCredentials(Credentials):
             'sync_request_timeout',
             'compress_block_size',
             'compression',
+            'check_exchange',
             'custom_settings',
         )

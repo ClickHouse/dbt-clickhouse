@@ -51,7 +51,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install requirements
-        run:  pip3 install -r dev_requirements.txt
+        run: pip3 install -r dev_requirements.txt
 
       - name: Run HTTP tests
         run: |
