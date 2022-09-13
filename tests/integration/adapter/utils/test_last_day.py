@@ -1,10 +1,8 @@
 import pytest
-
 from dbt.tests.adapter.utils.test_last_day import BaseLastDay
 
 
 class TestLastDay(BaseLastDay):
-
     @pytest.fixture(scope="class")
     def project_config_update(self):
         return {
@@ -20,4 +18,3 @@ class TestLastDay(BaseLastDay):
                 },
             },
         }
-

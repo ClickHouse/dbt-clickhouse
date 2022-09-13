@@ -1,5 +1,4 @@
 import pytest
-
 from dbt.tests.adapter.utils.fixture_datediff import models__test_datediff_yml
 from dbt.tests.adapter.utils.test_datediff import BaseDateDiff
 
@@ -40,7 +39,6 @@ from data
 
 
 class TestDateDiff(BaseDateDiff):
-
     @pytest.fixture(scope="class")
     def seeds(self):
         return {"data_datediff.csv": seeds__data_datediff_csv}
@@ -53,4 +51,3 @@ class TestDateDiff(BaseDateDiff):
                 models__test_datediff_sql, "datediff"
             ),
         }
-

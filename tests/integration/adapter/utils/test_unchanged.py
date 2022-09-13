@@ -3,8 +3,10 @@ from dbt.tests.adapter.utils.test_bool_or import BaseBoolOr
 from dbt.tests.adapter.utils.test_cast_bool_to_text import BaseCastBoolToText
 from dbt.tests.adapter.utils.test_concat import BaseConcat
 from dbt.tests.adapter.utils.test_date_trunc import BaseDateTrunc
-from dbt.tests.adapter.utils.test_escape_single_quotes import BaseEscapeSingleQuotesQuote,\
-    BaseEscapeSingleQuotesBackslash
+from dbt.tests.adapter.utils.test_escape_single_quotes import (
+    BaseEscapeSingleQuotesBackslash,
+    BaseEscapeSingleQuotesQuote,
+)
 from dbt.tests.adapter.utils.test_except import BaseExcept
 from dbt.tests.adapter.utils.test_hash import BaseHash
 from dbt.tests.adapter.utils.test_intersect import BaseIntersect

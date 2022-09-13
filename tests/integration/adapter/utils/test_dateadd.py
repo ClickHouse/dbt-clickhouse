@@ -1,5 +1,4 @@
 import pytest
-
 from dbt.tests.adapter.utils.test_dateadd import BaseDateAdd
 
 # We remove the null row from this test because (1) nullables work fine with Nullable ClickHouse types, but
