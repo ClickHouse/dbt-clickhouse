@@ -21,3 +21,8 @@
 {%- macro clickhouse__last_day(date, datepart) -%}
     {{ dbt.dateadd('day', '-1', dbt.dateadd(datepart, '1', dbt.date_trunc(datepart, date)))}}
 {%- endmacro -%}
+
+
+{% macro clickhouse__split_part(string_text, delimiter_text, part_number) %}
+    splitByChar({{ string_text }},{{ delimiter_text }})[{{ part_number }}]
+{% endmacro %}

@@ -12,6 +12,9 @@ from dbt.tests.adapter.utils.test_hash import BaseHash
 from dbt.tests.adapter.utils.test_intersect import BaseIntersect
 from dbt.tests.adapter.utils.test_length import BaseLength
 from dbt.tests.adapter.utils.test_position import BasePosition
+from dbt.tests.adapter.utils.test_right import BaseRight
+from dbt.tests.adapter.utils.test_safe_cast import BaseSafeCast
+from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
 
 
 class TestAnyValue(BaseAnyValue):
@@ -59,4 +62,16 @@ class TestLength(BaseLength):
 
 
 class TestPosition(BasePosition):
+    pass
+
+
+class TestRight(BaseRight):
+    pass
+
+
+class TestSafeCast(BaseSafeCast):
+    pass
+
+
+class TestStringLiteral(BaseStringLiteral):
     pass
