@@ -12,14 +12,12 @@ logger = AdapterLogger('clickhouse')
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
     port = credentials.port
-    if not driver and not port:
-        raise FailedToConnectException('Either driver or port must be specified')
     if not driver:
         if port in (9000, 9440):
             driver = 'native'
         else:
             driver = 'http'
-    elif driver == 'http':
+    if driver == 'http':
         if not port:
             port = 8443 if credentials.secure else 8123
     elif driver == 'native':
