@@ -24,5 +24,17 @@
 
 
 {% macro clickhouse__split_part(string_text, delimiter_text, part_number) %}
-    splitByChar({{ string_text }},{{ delimiter_text }})[{{ part_number }}]
+    splitByChar('{{delimiter_text}}', {{ string_text }})[{{ part_number }}]
+{% endmacro %}
+
+
+{% macro clickhouse__replace(field, old_chars, new_chars) %}
+   replaceAll({{ field }},'{{ old_chars }}','{{ new_chars }}')
+{% endmacro %}
+
+
+{% macro clickhouse__listagg(measure, delimiter_text, order_by_clause, limit_num) %}
+  {{ exceptions.raise_compiler_error(
+    'ClickHouse does not support the listagg function.  See the groupArray function instead')
+    }}
 {% endmacro %}

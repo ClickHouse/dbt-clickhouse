@@ -1,9 +1,7 @@
 import pytest
-from dbt.tests.adapter.basic.expected_catalog import base_expected_catalog, no_stats
 from dbt.tests.adapter.basic.files import model_base, model_incremental, schema_base_yml
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
-from dbt.tests.adapter.basic.test_docs_generate import BaseDocsGenerate
 from dbt.tests.adapter.basic.test_empty import BaseEmpty
 from dbt.tests.adapter.basic.test_generic_tests import BaseGenericTests
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
@@ -120,18 +118,3 @@ class TestCSVSeed:
         # seed command
         results = run_dbt(["seed"])
         assert len(results) == 2
-
-
-class TestBaseDocsGenerate(BaseDocsGenerate):
-    @pytest.fixture(scope="class")
-    def expected_catalog(self, project, profile_user):
-        return base_expected_catalog(
-            project,
-            role=None,
-            id_type="Int32",
-            text_type="String",
-            time_type="DateTime",
-            view_type="view",
-            table_type="table",
-            model_stats=no_stats(),
-        )
