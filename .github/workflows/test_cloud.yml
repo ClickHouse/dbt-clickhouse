@@ -14,6 +14,12 @@ jobs:
     name: ClickHouse Cloud Tests
     runs-on: ubuntu-latest
 
+    env:
+      PYTHONPATH: dbt
+      DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST }}
+      DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD }}
+      DBT_CH_TEST_CLOUD: true
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -26,12 +32,12 @@ jobs:
       - name: Install requirements
         run: pip3 install -r dev_requirements.txt
 
-      - name: Run pytest tests
+      - name: Run HTTP tests
         env:
-          DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST }}
-          DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD }}
           DBT_CH_TEST_PORT: 8443
-          DBT_CH_TEST_CLOUD: true
-        run: |
-          PYTHONPATH="${PYTHONPATH}:dbt"
-          pytest tests
+        run: pytest tests
+
+      - name: Run Native tests
+        env:
+          DBT_CH_TEST_PORT: 9440
+        run: pytest tests
