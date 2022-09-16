@@ -63,11 +63,11 @@ class ChClientWrapper(ABC):
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
             self._conn_settings['insert_quorum'] = 'auto'
         self._client = self._create_client(credentials)
-
+        check_exchange = credentials.check_exchange and not credentials.clickhouse_cloud
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
-            self.atomic_exchange = not credentials.check_exchange or self._check_atomic_exchange()
+            self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
             raise ex

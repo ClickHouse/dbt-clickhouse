@@ -5,7 +5,9 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches:
       - master
-      - cloud_tests
+  push:
+    branches:
+      - '*cloud*'
 
 jobs:
   cloud_tests:
