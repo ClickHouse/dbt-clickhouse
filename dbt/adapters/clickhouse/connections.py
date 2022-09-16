@@ -1,3 +1,4 @@
+import re
 import time
 from contextlib import contextmanager
 from typing import Any, Optional, Tuple
@@ -12,6 +13,7 @@ from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
 
 logger = AdapterLogger('clickhouse')
 retryable_exceptions = [ChRetryableException]
+ddl_re = re.compile(r'^\s*(CREATE|DROP|ALTER)\s', re.IGNORECASE)
 
 
 class ClickHouseConnectionManager(SQLConnectionManager):
@@ -61,7 +63,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
     @classmethod
     def get_table_from_response(cls, response, column_names) -> agate.Table:
         """
-        Build agate tabel from response.
+        Build agate table from response.
         :param response: ClickHouse query result
         :param column_names: Table column names
         """
@@ -74,6 +76,10 @@ class ClickHouseConnectionManager(SQLConnectionManager):
     def execute(
         self, sql: str, auto_begin: bool = False, fetch: bool = False
     ) -> Tuple[str, agate.Table]:
+        # Don't try to fetch result of clustered DDL responses, we don't know what to do with them
+        if fetch and ddl_re.match(sql):
+            fetch = False
+
         sql = self._add_query_comment(sql)
         conn = self.get_thread_connection()
         client = conn.handle

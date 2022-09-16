@@ -58,7 +58,12 @@ class ChRetryableException(Exception):
 class ChClientWrapper(ABC):
     def __init__(self, credentials: ClickHouseCredentials):
         self.database = credentials.schema
-        self.client = self._create_client(credentials)
+        self._conn_settings = credentials.custom_settings or {}
+        if credentials.clickhouse_cloud or credentials.database_engine == 'Replicated':
+            self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
+            self._conn_settings['insert_quorum'] = 'auto'
+        self._client = self._create_client(credentials)
+
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()

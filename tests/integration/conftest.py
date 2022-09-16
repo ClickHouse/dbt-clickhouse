@@ -26,10 +26,12 @@ def test_config(ch_test_users):
     compose_file = f'{Path(__file__).parent}/docker-compose.yml'
     test_host = os.environ.get('DBT_CH_TEST_HOST', 'localhost')
     test_port = int(os.environ.get('DBT_CH_TEST_PORT', 8123))
-    test_driver = 'native' if test_port in (10900, 9000) else 'http'
+    test_driver = 'native' if test_port in (10900, 9000, 9440) else 'http'
     test_user = os.environ.get('DBT_CH_TEST_USER', 'default')
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
     test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', '')
+    test_secure = test_port in (8443, 9440)
+    test_cloud = os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes')
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
 
     if docker:
@@ -46,18 +48,22 @@ def test_config(ch_test_users):
         except Exception as e:
             raise Exception('Failed to run docker-compose: {}', str(e))
     else:
-        client_port = 8123 if test_driver == 'native' else test_port
+        if test_driver == 'native':
+            client_port = 8443 if test_port == 9440 else 8123
+        else:
+            client_port = test_port
 
     test_client = get_client(
         host=test_host,
         port=client_port,
         username=test_user,
         password=test_password,
+        secure=test_secure,
     )
     for dbt_user in ch_test_users:
         test_client.command(
-            'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH plaintext_password BY %s',
-            (dbt_user, 'password'),
+            'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s',
+            (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
         )
     yield {
         'driver': test_driver,
@@ -66,6 +72,8 @@ def test_config(ch_test_users):
         'user': test_user,
         'password': test_password,
         'db_engine': test_db_engine,
+        'secure': test_secure,
+        'cloud': test_cloud,
     }
 
     if docker:
@@ -91,7 +99,8 @@ def dbt_profile_target(test_config):
         'password': test_config['password'],
         'port': test_config['port'],
         'database_engine': test_config['db_engine'],
-        'secure': False,
+        'clickhouse_cloud': test_config['cloud'],
+        'secure': test_config['secure'],
         'check_exchange': False,
         'custom_settings': {'distributed_ddl_task_timeout': 300},
     }

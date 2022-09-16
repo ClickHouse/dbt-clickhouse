@@ -18,10 +18,11 @@ class ClickHouseCredentials(Credentials):
     user: Optional[str] = 'default'
     retries: int = 1
     database: Optional[str] = None
-    database_engine: Optional[str] = None
     schema: Optional[str] = 'default'
     password: str = ''
     cluster: Optional[str] = None
+    database_engine: Optional[str] = None
+    clickhouse_cloud: bool = False
     secure: bool = False
     verify: bool = True
     connect_timeout: int = 10
@@ -60,6 +61,7 @@ class ClickHouseCredentials(Credentials):
             'schema',
             'retries',
             'database_engine',
+            'clickhouse_cloud',
             'secure',
             'verify',
             'connect_timeout',

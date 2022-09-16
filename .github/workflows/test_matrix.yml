@@ -1,5 +1,5 @@
 ---
-name: "build"
+name: "text_matrix"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
@@ -14,12 +14,11 @@ on:  # yamllint disable-line rule:truthy
       - 'LICENSE'
 
 jobs:
-  build:
+  tests:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
 
     strategy:
-      fail-fast: false
       matrix:
         python-version:
           - '3.8'
@@ -32,7 +31,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Run ClickHouse Container
         run: docker run

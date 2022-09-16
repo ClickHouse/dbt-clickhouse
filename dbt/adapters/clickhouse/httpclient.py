@@ -11,13 +11,13 @@ from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableExcepti
 class ChHttpClient(ChClientWrapper):
     def query(self, sql, **kwargs):
         try:
-            return self.client.query(sql, **kwargs)
+            return self._client.query(sql, **kwargs)
         except DatabaseError as ex:
             raise DBTDatabaseException(str(ex).strip()) from ex
 
     def command(self, sql, **kwargs):
         try:
-            return self.client.command(sql, **kwargs)
+            return self._client.command(sql, **kwargs)
         except DatabaseError as ex:
             raise DBTDatabaseException(str(ex).strip()) from ex
 
@@ -25,10 +25,10 @@ class ChHttpClient(ChClientWrapper):
         # This is necessary for the http client to avoid exceptions when ClickHouse doesn't recognize the database
         # query parameter
         if self.database == database:
-            self.client.database = None
+            self._client.database = None
 
     def close(self):
-        self.client.close()
+        self._client.close()
 
     def _create_client(self, credentials):
         try:
@@ -45,13 +45,13 @@ class ChHttpClient(ChClientWrapper):
                 verify=credentials.verify,
                 query_limit=0,
                 session_id='dbt::' + str(uuid.uuid4()),
-                **(credentials.custom_settings or {}),
+                **self._conn_settings,
             )
         except OperationalError as ex:
-            raise ChRetryableException from ex
+            raise ChRetryableException(str(ex)) from ex
 
     def _set_client_database(self):
-        self.client.database = self.database
+        self._client.database = self.database
 
     def _server_version(self):
-        return self.client.server_version
+        return self._client.server_version
