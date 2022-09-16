@@ -61,8 +61,7 @@ class ChClientWrapper(ABC):
         self._conn_settings = credentials.custom_settings or {}
         if credentials.clickhouse_cloud or credentials.database_engine == 'Replicated':
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
-            self._conn_settings['insert_quorum'] = 'auto'
-            self._conn_settings['mutations_sync'] = '2'
+            self._conn_settings['insert_quorum'] = '2'
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.clickhouse_cloud
         try:
