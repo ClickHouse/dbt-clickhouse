@@ -90,8 +90,3 @@ You can customize a few test params through environment variables. In order to p
 
 ### Original Author
 ClickHouse wants to thank @[silentsokolov](https://github.com/silentsokolov) for creating this connector and for their valuable contributions.
-
-## Update 05/31/2022
-* Incremental changes of an incremental model are loaded into a MergeTree table instead of in-memory temporary table. This removed memory limitations - Clickhouse recommends that in-memory table engines should not exceed 100 million rows.
-* Incremental model supports 'inserts_only' mode where incremental changes are loaded directly to the target table instead of creating a temporary table for the changes and running another insert-into command. This mode is relevant only for immutable data, and can accelerate dramatically the performance of the incremental materialization.
-* Fix update and delete in snapshots. 
