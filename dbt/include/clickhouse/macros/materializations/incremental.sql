@@ -96,8 +96,8 @@
 
   {% if need_swap %}
       {% if existing_relation.can_exchange %}
-        {% do exchange_tables_atomic(intermediate_relation, target_relation) %}
         {% do adapter.rename_relation(intermediate_relation, backup_relation) %}
+        {% do exchange_tables_atomic(backup_relation, target_relation) %}
       {% else %}
         {% do adapter.rename_relation(target_relation, backup_relation) %} 
         {% do adapter.rename_relation(intermediate_relation, target_relation) %}

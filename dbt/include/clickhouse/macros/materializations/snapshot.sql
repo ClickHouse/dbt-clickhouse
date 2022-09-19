@@ -27,7 +27,7 @@
     {% do return(tmp_relation) %}
 {% endmacro %}
 
-{% macro snapshot_merge_sql(target, source, insert_cols) -%}
+{% macro clickhouse__snapshot_merge_sql(target, source, insert_cols) -%}
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
   {%- set valid_to_col = adapter.quote('dbt_valid_to') -%}
 
