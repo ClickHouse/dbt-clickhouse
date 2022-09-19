@@ -2,9 +2,6 @@
 name: "test_cloud"
 
 on:  # yamllint disable-line rule:truthy
-  pull_request:
-    branches:
-      - master
   push:
     branches:
       - '*cloud*'
@@ -18,7 +15,7 @@ jobs:
       PYTHONPATH: dbt
       DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST }}
       DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD }}
-      DBT_CH_TEST_CLOUD: true
+      DBT_CH_TEST_CLUSTER_MODE: true
 
     steps:
       - name: Checkout
