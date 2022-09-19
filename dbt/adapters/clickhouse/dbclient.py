@@ -59,11 +59,11 @@ class ChClientWrapper(ABC):
     def __init__(self, credentials: ClickHouseCredentials):
         self.database = credentials.schema
         self._conn_settings = credentials.custom_settings or {}
-        if credentials.clickhouse_cloud or credentials.database_engine == 'Replicated':
+        if credentials.cluster_mode or credentials.database_engine == 'Replicated':
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
-            self._conn_settings['insert_quorum'] = '2'
+            self._conn_settings['insert_quorum'] = 'auto'
         self._client = self._create_client(credentials)
-        check_exchange = credentials.check_exchange and not credentials.clickhouse_cloud
+        check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()

@@ -31,7 +31,7 @@ def test_config(ch_test_users):
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
     test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', '')
     test_secure = test_port in (8443, 9440)
-    test_cloud = os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes')
+    test_cluster_mode = os.environ.get('DBT_CH_TEST_CLUSTER_MODE', '').lower() in ('1', 'true', 'yes')
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
 
     if docker:
@@ -73,7 +73,7 @@ def test_config(ch_test_users):
         'password': test_password,
         'db_engine': test_db_engine,
         'secure': test_secure,
-        'cloud': test_cloud,
+        'cluster_mode': test_cluster_mode,
     }
 
     if docker:
@@ -99,7 +99,7 @@ def dbt_profile_target(test_config):
         'password': test_config['password'],
         'port': test_config['port'],
         'database_engine': test_config['db_engine'],
-        'clickhouse_cloud': test_config['cloud'],
+        'cluster_mode': test_config['cluster_mode'],
         'secure': test_config['secure'],
         'check_exchange': False,
         'custom_settings': {'distributed_ddl_task_timeout': 300},
