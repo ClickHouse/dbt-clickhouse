@@ -31,7 +31,11 @@ def test_config(ch_test_users):
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
     test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', '')
     test_secure = test_port in (8443, 9440)
-    test_cluster_mode = os.environ.get('DBT_CH_TEST_CLUSTER_MODE', '').lower() in ('1', 'true', 'yes')
+    test_cluster_mode = os.environ.get('DBT_CH_TEST_CLUSTER_MODE', '').lower() in (
+        '1',
+        'true',
+        'yes',
+    )
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
 
     if docker:
