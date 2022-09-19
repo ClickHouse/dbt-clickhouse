@@ -22,7 +22,8 @@ class ClickHouseIncludePolicy(Policy):
 class ClickHouseRelation(BaseRelation):
     quote_policy: ClickHouseQuotePolicy = ClickHouseQuotePolicy()
     include_policy: ClickHouseIncludePolicy = ClickHouseIncludePolicy()
-    quote_character: str = ""
+    quote_character: str = ''
+    can_exchange: bool = False
 
     def __post_init__(self):
         if self.database != self.schema and self.database:

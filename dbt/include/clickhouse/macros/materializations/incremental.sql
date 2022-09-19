@@ -1,122 +1,102 @@
 {% materialization incremental, adapter='clickhouse' %}
 
-  {% set unique_key = config.get('unique_key') %}
-  {% set inserts_only = config.get('inserts_only') %}
+  {%- set existing_relation = load_cached_relation(this) -%}
+  {%- set target_relation = this.incorporate(type='table') -%}
 
-  {% set target_relation = this.incorporate(type='table') %}
-  {% set existing_relation = load_relation(this) %}
-  {% set tmp_relation = make_temp_relation(target_relation) %}
+  {%- set unique_key = config.get('unique_key') -%}
+  {%- set inserts_only = config.get('inserts_only') -%}
+  {%- set grant_config = config.get('grants') -%}
+  {%- set full_refresh_mode = (should_full_refresh()  or existing_relation.is_view) -%}
+  {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
 
-  {% set is_atomic = engine_exchange_support(this) %}
+  {%- set intermediate_relation = make_intermediate_relation(target_relation)-%}
+  {%- set backup_relation_type = 'table' if existing_relation is none else existing_relation.type -%}
+  {%- set backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
+  {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
+  {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
 
-  {%- set full_refresh_mode = (should_full_refresh()) -%}
-
-  {% set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') %}
-
-  {% set tmp_identifier = model['name'] + '__dbt_tmp' %}
-  {% set old_identifier = model['name'] + '__dbt_old' %}
-  {% set backup_identifier = model['name'] + "__dbt_backup" %}
-
-  -- the intermediate_ and backup_ relations should not already exist in the database; get_relation
-  -- will return None in that case. Otherwise, we get a relation that we can drop
-  -- later, before we try to use this name for the current operation. This has to happen before
-  -- BEGIN, in a separate transaction
-  {% set preexisting_intermediate_relation = adapter.get_relation(identifier=tmp_identifier, 
-                                                                  schema=schema,
-                                                                  database=database) %}                                               
-  {% set preexisting_backup_relation = adapter.get_relation(identifier=backup_identifier,
-                                                            schema=schema,
-                                                            database=database) %}
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
-  -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
-
   {% set to_drop = [] %}
 
-  {# -- first check whether we want to full refresh for source view or config reasons #}
-  {% set trigger_full_refresh = (full_refresh_mode or existing_relation.is_view) %}
-
   {% if existing_relation is none %}
-      {% set build_sql = create_table_as(False, target_relation, sql) %}
-  {% elif trigger_full_refresh %}
-      {#-- Make sure the backup doesn't exist so we don't encounter issues with the rename below #}
-      {% set tmp_identifier = model['name'] + '__dbt_tmp' %}
-      {% set backup_identifier = model['name'] + '__dbt_backup' %}
-      {% set intermediate_relation = existing_relation.incorporate(path={"identifier": tmp_identifier}) %}
-      {% set backup_relation = existing_relation.incorporate(path={"identifier": backup_identifier}) %}
-
-      {% set build_sql = create_table_as(False, intermediate_relation, sql) %}
-      {% set need_swap = true %}
-  {% else %}
-    {%- if inserts_only or unique_key is none -%}
-        -- Run incremental insert without updates - updated rows will be added too to the table and will create
-        -- duplicate entries in the table. It is the user's responsibility to avoid updates.
-        {% set build_sql = clickhouse__insert_into(target_relation, sql) %}
-    {% else %}
-        {% set old_relation = existing_relation.incorporate(path={"identifier": old_identifier}) %}
-        -- Create a table with only updated rows.
-        {% call statement('creat_temp_table_statement') %}
-            {{ create_table_as(False, tmp_relation, sql) }}
-        {% endcall %}
-        {% if on_schema_change != 'ignore' %}
-            -- Update schema types if necessary.
-            {% do adapter.expand_target_column_types(
-                 from_relation=tmp_relation,
-                 to_relation=target_relation) %}
-            {% do process_schema_changes(on_schema_change, tmp_relation, existing_relation) %}
-        {% endif %}
-
-        {% if is_atomic %}
-          -- Create a new target table from existing (old_relation will be new table here, then EXCHANGE'd with target_relation) 
-          {% set create_sql = clickhouse__incremental_create(target_relation, old_relation) %}
-          {% call statement('main') %}
-              {{ create_sql }}
-          {% endcall %}
-          -- Insert all current rows from target table to the new table (old_relation)
-          {% set currect_insert_sql = clickhouse__incremental_cur_insert(target_relation, tmp_relation, old_relation, unique_key=unique_key) %}
-          {% call statement('main') %}
-              {{ currect_insert_sql }}
-          {% endcall %}
-          -- Insert all incremental updates from tmp table to the new table (old_relation)
-          {% set build_sql_insert = clickhouse__incremental_insert_from_table(tmp_relation, old_relation) %}
-          {% call statement('main') %}
-            {{ build_sql_insert }}
-          {% endcall %}
-          -- Exchange tables
-          {% do exchange_tables_atomic(old_relation, target_relation) %}
-        {% else %}
-          {% do adapter.rename_relation(target_relation, old_relation) %}
-          -- Create a new target table.
-          {% set create_sql = clickhouse__incremental_create(old_relation, target_relation) %}
-          {% call statement('main') %}
-              {{ create_sql }}
-          {% endcall %}
-          -- Insert all untouched rows to the target table.
-          {% set currect_insert_sql = clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=unique_key) %}
-          {% call statement('main') %}
-              {{ currect_insert_sql }}
-          {% endcall %}
-          -- Insert all incremental updates to the target table.
-          {% set build_sql = clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
-        {% endif %}
-        {% do to_drop.append(old_relation) %}
-        {% do to_drop.append(tmp_relation) %}
-    {% endif %}
-  {% endif %}
-
-  {% if build_sql %}
+    -- No existing table, simply create a new one
     {% call statement('main') %}
-        {{ build_sql }}
+        {{ get_create_table_as_sql(False, target_relation, sql) }}
     {% endcall %}
+
+  {% elif full_refresh_mode %}
+    -- Completely replacing the old table, so create a temporary table and then swap it
+    {% call statement('main') %}
+        {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
+    {% endcall %}
+    {% set need_swap = true %}
+
+  {% elif inserts_only or unique_key is none -%}
+    -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
+    -- table. It is the user's responsibility to avoid duplicates.
+    {% call statement('main') %}
+        {{ clickhouse__insert_into(target_relation, sql) }}
+    {% endcall %}
+
+  {% else %}
+    -- We potentially have updated rows or deletes.  This is more complex for ClickHouse because we don't want to
+    -- delete rows from or update rows in the existing table (mutations are expensive in ClickHouse).
+
+    -- First create a temporary table with all of the new data
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
+    {% call statement('create_new_data_temp') %}
+        {{ get_create_table_as_sql(False, new_data_relation, sql) }}
+    {% endcall %}
+    {{ to_drop.append(new_data_relation) }}
+
+    -- Next create another temporary table that will eventually be used to replace the existing table.  We can't
+    -- use the table just created in the previous step because we don't want to override any updated rows with
+    -- old rows when we insert the old data
+    {% call statement('main') %}
+       create table {{ intermediate_relation }} as {{ new_data_relation }}
+    {% endcall %}
+
+    -- Update (if possible) the schema for the existing table to match the new schema, so that the next step
+    -- can use the consistent column list to insert the old data into the temporary table
+    {% if on_schema_change != 'ignore' %}
+      {% do adapter.expand_target_column_types(from_relation=new_data_relation, to_relation=existing_relation) %}
+      {% do process_schema_changes(on_schema_change, new_data_relation, existing_relation) %}
+    {% endif %}
+
+    -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
+    -- table.
+    {%- set dest_columns = adapter.get_columns_in_relation(existing_table) -%}
+    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+    {% call statement('insert_existing_data') %}
+        insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
+        select {{ dest_cols_csv }}
+        from {{ existing_relation }}
+          where ({{ unique_key }}) not in (
+            select ({{ unique_key }})
+            from {{ new_data_relation }}
+          )
+       {{ adapter.get_model_settings(model) }}
+    {% endcall %}
+
+    -- Insert all of the new data into the temporary table
+    {% call statement('insert_new_data') %}
+     insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
+        select {{ dest_cols_csv }}
+        from {{ new_data_relation }}
+      {{ adapter.get_model_settings(model) }}
+    {% endcall %}
+
+    {% set need_swap = true %}
   {% endif %}
 
-  {% if need_swap %} 
-      {% if is_atomic %}
-        {% do adapter.rename_relation(intermediate_relation, backup_relation) %} 
+  {% if need_swap %}
+      {% if existing_relation.can_exchange %}
+        {% do adapter.rename_relation(intermediate_relation, backup_relation) %}
         {% do exchange_tables_atomic(backup_relation, target_relation) %}
       {% else %}
         {% do adapter.rename_relation(target_relation, backup_relation) %} 
@@ -124,6 +104,9 @@
       {% endif %}
       {% do to_drop.append(backup_relation) %}
   {% endif %}
+
+  {% set should_revoke = should_revoke(existing_relation, full_refresh_mode) %}
+  {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
 
@@ -133,7 +116,6 @@
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 
-  -- `COMMIT` happens here
   {% do adapter.commit() %}
 
   {% for rel in to_drop %}
@@ -146,81 +128,44 @@
 
 {%- endmaterialization %}
 
-{% macro clickhouse__incremental_create(old_relation, target_relation) %}
-  create table {{ target_relation }} as {{ old_relation }}
 
-{%- endmacro %}
+{% macro clickhouse__incremental_validate_on_schema_change(on_schema_change, default='ignore') %}
 
-{% macro clickhouse__incremental_cur_insert(old_relation, tmp_relation, target_relation, unique_key=none) %}
-  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
-  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+  {% if on_schema_change in ['sync_all_columns', 'append_new_columns', 'fail', 'ignore'] %}
+    {{ return(on_schema_change) }}
+  {% endif %}
 
-  insert into {{ target_relation }} ({{ dest_cols_csv }})
-  select {{ dest_cols_csv }}
-  from {{ old_relation }}
-  where ({{ unique_key }}) not in (
-    select ({{ unique_key }})
-    from {{ tmp_relation }}
-  )
-  {{ adapter.get_model_settings(model) }}
-{%- endmacro %}
-
-{% macro clickhouse__incremental_insert_from_table(tmp_relation, target_relation) %}
-  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
-  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
-
-  insert into {{ target_relation }} ({{ dest_cols_csv }})
-  select {{ dest_cols_csv }}
-  from {{ tmp_relation }}
-  {{ adapter.get_model_settings(model) }}
-{%- endmacro %}
-
-{% macro incremental_validate_on_schema_change(on_schema_change, default='ignore') %}
-   
-   {% if on_schema_change not in ['sync_all_columns', 'append_new_columns', 'fail', 'ignore'] %}
-     
-     {% set log_message = 'Invalid value for on_schema_change (%s) specified. Setting default value of %s.' % (on_schema_change, default) %}
-     {% do log(log_message) %}
-     
-     {{ return(default) }}
-
-   {% else %}
-
-     {{ return(on_schema_change) }}
-   
-   {% endif %}
+  {%- set log_message = 'Invalid value for on_schema_change (%s) specified. Setting default value of %s.'
+    % (on_schema_change, default) -%}
+  {% do log(log_message) %}
+  {{ return(default) }}
 
 {% endmacro %}
 
+
 {% macro process_schema_changes(on_schema_change, source_relation, target_relation) %}
 
-    {% if on_schema_change != 'ignore' %}
-
-      {% set schema_changes_dict = check_for_schema_changes(source_relation, target_relation) %}
-
-      {% if schema_changes_dict['schema_changed'] %}
-
-        {% if on_schema_change == 'fail' %}
-
-          {% set fail_msg %}
-              The source and target schemas on this incremental model are out of sync!
-              They can be reconciled in several ways:
-                - set the `on_schema_change` config to either append_new_columns or sync_all_columns, depending on your situation.
-                - Re-run the incremental model with `full_refresh: True` to update the target schema.
-                - update the schema manually and re-run the process.
-          {% endset %}
-
-          {% do exceptions.raise_compiler_error(fail_msg) %}
-
-        {# -- unless we ignore, run the sync operation per the config #}
-        {% else %}
-
-          {% do sync_column_schemas(on_schema_change, target_relation, schema_changes_dict) %}
-
-        {% endif %}
-
-      {% endif %}
-
+    {% if on_schema_change == 'ignore' %}
+      {{ return }}
     {% endif %}
+
+    {%- set schema_changes_dict = check_for_schema_changes(source_relation, target_relation) -%}
+    {% if not schema_changes_dict['schema_changed'] %}
+      {{ return }}
+    {% endif %}
+
+    {% if on_schema_change == 'fail' %}
+      {% set fail_msg %}
+          The source and target schemas on this incremental model are out of sync!
+          They can be reconciled in several ways:
+            - set the `on_schema_change` config to either append_new_columns or sync_all_columns, depending on your situation.
+            - Re-run the incremental model with `full_refresh: True` to update the target schema.
+            - update the schema manually and re-run the process.
+      {% endset %}
+      {% do exceptions.raise_compiler_error(fail_msg) %}
+      {{ return }}
+    {% endif %}
+
+    {% do sync_column_schemas(on_schema_change, target_relation, schema_changes_dict) %}
 
 {% endmacro %}

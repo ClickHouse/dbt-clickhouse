@@ -4,7 +4,9 @@ name: "lint"
 on:  # yamllint disable-line rule:truthy
   pull_request:
   push:
-    branches: master
+    branches-ignore:
+      - '*_test'
+      - '*_dev'
 
 jobs:
   lint:

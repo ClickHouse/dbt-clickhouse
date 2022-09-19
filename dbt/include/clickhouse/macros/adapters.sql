@@ -84,7 +84,7 @@
 
     {% if temporary -%}
         create temporary table {{ relation.name }}
-        engine = Memory
+        engine Memory
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
@@ -140,11 +140,11 @@
 {% macro clickhouse__list_relations_without_caching(schema_relation) %}
   {% call statement('list_relations_without_caching', fetch_result=True) -%}
     select
-      null as db,
-      name as name,
-      database as schema,
-      if(engine not in ('MaterializedView', 'View'), 'table', 'view') as type
-    from system.tables as t
+      t.name as name,
+      t.database as schema,
+      if(engine not in ('MaterializedView', 'View'), 'table', 'view') as type,
+      db.engine as db_engine
+    from system.tables as t JOIN system.databases as db on t.database = db.name
     where schema = '{{ schema_relation.schema }}'
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
@@ -229,29 +229,8 @@
   {{ sql }}
 {%- endmacro %}
 
-
-{% macro engine_exchange_support(rel) %}
-  {% if rel is none or not execute or not adapter.supports_atomic_exchange() %}
-      {% do return(None) %}
-  {% endif %}
-
-  {% set relation = adapter.get_relation(rel.database, rel.schema, rel.table) %}
-  {% if relation is none %}
-    {% do return(None) %}
-  {% endif %}
-
-  {% set sel %} 
-		( SELECT engine FROM system.databases WHERE name='{{relation.schema}}' )
-	{% endset %}
-
-	{% set results = run_query(sel) %}
-	{% set engine = results.columns[0].values()[0] %}  
-  {% do return(engine in ['Atomic', 'Replicated']) %}
-{% endmacro %}
-
-
-{% macro exchange_tables_atomic(intermediate_relation, target_relation) %}
+{% macro exchange_tables_atomic(old_relation, target_relation) %}
   {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE TABLES {{ intermediate_relation }} AND {{ target_relation }}
+    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }}
   {% endcall %}
 {% endmacro %}

@@ -12,14 +12,12 @@ logger = AdapterLogger('clickhouse')
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
     port = credentials.port
-    if not driver and not port:
-        raise FailedToConnectException('Either driver or port must be specified')
     if not driver:
         if port in (9000, 9440):
             driver = 'native'
         else:
             driver = 'http'
-    elif driver == 'http':
+    if driver == 'http':
         if not port:
             port = 8443 if credentials.secure else 8123
     elif driver == 'native':
@@ -53,14 +51,23 @@ def get_db_client(credentials: ClickHouseCredentials):
         )
 
 
+class ChRetryableException(Exception):
+    pass
+
+
 class ChClientWrapper(ABC):
     def __init__(self, credentials: ClickHouseCredentials):
         self.database = credentials.schema
-        self.client = self._create_client(credentials)
+        self._conn_settings = credentials.custom_settings or {}
+        if credentials.cluster_mode or credentials.database_engine == 'Replicated':
+            self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
+            self._conn_settings['insert_quorum'] = 'auto'
+        self._client = self._create_client(credentials)
+        check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
-            self.atomic_exchange = self._check_atomic_exchange()
+            self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
             raise ex

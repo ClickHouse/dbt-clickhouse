@@ -16,11 +16,13 @@ class ClickHouseCredentials(Credentials):
     host: str = 'localhost'
     port: Optional[int] = None
     user: Optional[str] = 'default'
+    retries: int = 1
     database: Optional[str] = None
-    database_engine: Optional[str] = None
     schema: Optional[str] = 'default'
     password: str = ''
     cluster: Optional[str] = None
+    database_engine: Optional[str] = None
+    cluster_mode: bool = False
     secure: bool = False
     verify: bool = True
     connect_timeout: int = 10
@@ -28,6 +30,7 @@ class ClickHouseCredentials(Credentials):
     sync_request_timeout: int = 5
     compress_block_size: int = 1048576
     compression: str = ''
+    check_exchange: bool = True
     custom_settings: Optional[Dict[str, Any]] = None
 
     @property
@@ -56,7 +59,9 @@ class ClickHouseCredentials(Credentials):
             'port',
             'user',
             'schema',
+            'retries',
             'database_engine',
+            'cluster_mode',
             'secure',
             'verify',
             'connect_timeout',
@@ -64,5 +69,6 @@ class ClickHouseCredentials(Credentials):
             'sync_request_timeout',
             'compress_block_size',
             'compression',
+            'check_exchange',
             'custom_settings',
         )

@@ -21,7 +21,6 @@ from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
-LIST_RELATIONS_MACRO_NAME = 'list_relations_without_caching'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
 
@@ -96,6 +95,13 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         return conn and conn.handle.atomic_exchange
 
+    @available
+    def can_exchange(self, schema: str, rel_type: str) -> bool:
+        if rel_type != 'table' or not schema or not self.supports_atomic_exchange():
+            return False
+        ch_db = self.get_ch_database(schema)
+        return ch_db and ch_db.engine in ('Atomic', 'Replicated')
+
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
         return schema in (row[0] for row in results)
@@ -110,22 +116,24 @@ class ClickHouseAdapter(SQLAdapter):
         self, schema_relation: ClickHouseRelation
     ) -> List[ClickHouseRelation]:
         kwargs = {'schema_relation': schema_relation}
-        results = self.execute_macro(LIST_RELATIONS_MACRO_NAME, kwargs=kwargs)
+        results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
+        conn_supports_exchange = self.supports_atomic_exchange()
 
         relations = []
         for row in results:
-            if len(row) != 4:
-                raise dbt.exceptions.RuntimeException(
-                    f'Invalid value from \'show table extended ...\', '
-                    f'got {len(row)} values, expected 4'
-                )
-            _database, name, schema, type_info = row
+            name, schema, type_info, db_engine = row
             rel_type = RelationType.View if 'view' in type_info else RelationType.Table
+            can_exchange = (
+                conn_supports_exchange
+                and rel_type == RelationType.Table
+                and db_engine in ('Atomic', 'Replicated')
+            )
             relation = self.Relation.create(
                 database=None,
                 schema=schema,
                 identifier=name,
                 type=rel_type,
+                can_exchange=can_exchange,
             )
             relations.append(relation)
 
@@ -136,6 +144,16 @@ class ClickHouseAdapter(SQLAdapter):
             database = None
 
         return super().get_relation(database, schema, identifier)
+
+    @available
+    def get_ch_database(self, schema: str):
+        try:
+            results = self.execute_macro('clickhouse__get_database', kwargs={'database': schema})
+            if len(results.rows):
+                return ClickHouseDatabase(**results.rows[0])
+            return None
+        except dbt.exceptions.RuntimeException:
+            return None
 
     def parse_clickhouse_columns(
         self, relation: ClickHouseRelation, raw_rows: List[agate.Row]
@@ -280,6 +298,13 @@ class ClickHouseAdapter(SQLAdapter):
         for key in settings:
             res.append(f' {key}={settings[key]}')
         return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
+
+@dataclass
+class ClickHouseDatabase:
+    name: str
+    engine: str
+    comment: str
 
 
 def _expect_row_value(key: str, row: agate.Row):

@@ -25,7 +25,7 @@ package_name = 'dbt-clickhouse'
 package_version = _dbt_clickhouse_version()
 description = '''The Clickhouse plugin for dbt (data build tool)'''
 
-dbt_version = '1.1'
+dbt_version = '1.2.1'
 
 if not package_version.startswith(dbt_version):
     raise ValueError(
@@ -54,7 +54,7 @@ setup(
     },
     install_requires=[
         f'dbt-core~={dbt_version}',
-        'clickhouse-connect>=0.2.5',
+        'clickhouse-connect>=0.2.7',
         'clickhouse-driver>=0.2.3',
     ],
     python_requires=">=3.7",
@@ -67,5 +67,7 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
     ],
 )

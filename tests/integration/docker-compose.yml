@@ -1,0 +1,15 @@
+---
+version: '3'
+
+services:
+  ch_server:
+    image: clickhouse/clickhouse-server:${DBT_TEST_CH_VERSION:-latest}
+    ports:
+      - "10723:8123"
+      - "10743:8443"
+      - "10900:9000"
+    volumes:
+      - /var/lib/clickhouse
+      - type: bind
+        source: ./access_management.xml
+        target: /etc/clickhouse-server/users.d/access_management.xml

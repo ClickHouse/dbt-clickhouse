@@ -1,0 +1,66 @@
+---
+name: "text_matrix"
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: master
+  push:
+    branches-ignore:
+      - '*_test'
+      - '*_dev'
+      - '*cloud*'
+    paths-ignore:
+      - 'README.md'
+      - 'CHANGELOG.md'
+      - 'LICENSE'
+
+jobs:
+  tests:
+    name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        python-version:
+          - '3.8'
+          - '3.9'
+          - '3.10'
+        clickhouse-version:
+          - '22.3'
+          - '22.8'
+          - latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Run ClickHouse Container
+        run: docker run
+             -d
+             -p 8123:8123
+             -p 9000:9000
+             --name clickhouse
+             -v /var/lib/clickhouse
+             -v ${{ github.workspace }}/tests/integration/access_management.xml:/etc/clickhouse-server/users.d/am.xml
+             --ulimit nofile=262144:262144
+             clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install requirements
+        run: pip3 install -r dev_requirements.txt
+
+      - name: Run HTTP tests
+        run: |
+          PYTHONPATH="${PYTHONPATH}:dbt"
+          pytest tests
+
+      - name: Run Native tests
+        env:
+          DBT_CH_TEST_PORT: 9000
+        run: |
+          PYTHONPATH="${PYTHONPATH}:dbt"
+          pytest tests
