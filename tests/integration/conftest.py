@@ -1,9 +1,10 @@
 import os
 import sys
 import timeit
+import time
+import random
 from pathlib import Path
 from subprocess import PIPE, Popen
-from time import sleep
 
 import pytest
 import requests
@@ -110,6 +111,17 @@ def dbt_profile_target(test_config):
     }
 
 
+@pytest.fixture(scope="class")
+def prefix():
+    return f"dbt_clickhouse_{random.randint(1000, 9999)}"
+
+
+@pytest.fixture(scope="class")
+def unique_schema(request, prefix) -> str:
+    test_file = request.module.__name__.split(".")[-1]
+    return f"{prefix}_{test_file}_{int(time.time() * 1000)}"
+
+
 def run_cmd(cmd):
     with Popen(cmd, stdout=PIPE, stderr=PIPE) as popen:
         stdout, stderr = popen.communicate()
@@ -129,7 +141,7 @@ def wait_until_responsive(check, timeout, pause, clock=timeit.default_timer):
     ref = clock()
     now = ref
     while (now - ref) < timeout:
-        sleep(pause)
+        time.sleep(pause)
         if check():
             return
         now = clock()
