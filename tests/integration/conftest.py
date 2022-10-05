@@ -1,8 +1,8 @@
 import os
-import sys
-import timeit
-import time
 import random
+import sys
+import time
+import timeit
 from pathlib import Path
 from subprocess import PIPE, Popen
 
