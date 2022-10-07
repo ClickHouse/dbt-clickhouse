@@ -26,11 +26,12 @@ package_version = _dbt_clickhouse_version()
 description = '''The Clickhouse plugin for dbt (data build tool)'''
 
 dbt_version = '1.2.1'
+dbt_minor = '.'.join(dbt_version.split('.')[0:2])
 
-if not package_version.startswith(dbt_version):
+if not package_version.startswith(dbt_minor):
     raise ValueError(
         f'Invalid setup.py: package_version={package_version} must start with '
-        f'dbt_version={dbt_version}'
+        f'dbt_version={dbt_minor}'
     )
 
 
@@ -54,7 +55,7 @@ setup(
     },
     install_requires=[
         f'dbt-core~={dbt_version}',
-        'clickhouse-connect>=0.2.7',
+        'clickhouse-connect>=0.2.10',
         'clickhouse-driver>=0.2.3',
     ],
     python_requires=">=3.7",
