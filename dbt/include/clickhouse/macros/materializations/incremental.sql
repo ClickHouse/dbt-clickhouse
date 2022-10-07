@@ -70,7 +70,7 @@
 
     -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
     -- table.
-    {%- set dest_columns = adapter.get_columns_in_relation(existing_table) -%}
+    {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
     {% call statement('insert_existing_data') %}
         insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
