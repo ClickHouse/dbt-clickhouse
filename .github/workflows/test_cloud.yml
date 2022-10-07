@@ -4,7 +4,7 @@ name: "test_cloud"
 on:  # yamllint disable-line rule:truthy
   push:
     branches:
-      - '_cloud*'
+      - '*_cloud'
 
 jobs:
   cloud_tests:
