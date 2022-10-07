@@ -1,14 +1,14 @@
 ---
-name: "text_matrix"
+name: "test_matrix"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    branches: master
+    branches: main
   push:
     branches-ignore:
       - '*_test'
       - '*_dev'
-      - '*cloud*'
+      - '*_cloud'
     paths-ignore:
       - 'README.md'
       - 'CHANGELOG.md'
