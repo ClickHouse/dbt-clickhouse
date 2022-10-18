@@ -13,8 +13,8 @@ class ClickHouseColumn(Column):
     TYPE_LABELS = {
         'STRING': 'String',
         'TIMESTAMP': 'DateTime',
-        'FLOAT': 'Float64',
-        'INTEGER': 'Int64',
+        'FLOAT': 'Float32',
+        'INTEGER': 'Int32',
     }
     is_nullable: bool = False
     _brackets_regex = re.compile(r'^(Nullable|LowCardinality)\((.*)\)$')
@@ -109,7 +109,7 @@ class ClickHouseColumn(Column):
 
     @classmethod
     def numeric_type(cls, dtype: str, precision: Any, scale: Any) -> str:
-        return dtype
+        return f'Decimal({precision}, {scale})'
 
     def literal(self, value):
         return f'to{self.dtype}({value})'

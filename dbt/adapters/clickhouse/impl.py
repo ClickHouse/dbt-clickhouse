@@ -49,6 +49,7 @@ class ClickHouseAdapter(SQLAdapter):
     @classmethod
     def convert_number_type(cls, agate_table: agate.Table, col_idx: int) -> str:
         decimals = agate_table.aggregate(agate.MaxPrecision(col_idx))
+        # We match these type to the Column.TYPE_LABELS for consistency
         return 'Float32' if decimals else 'Int32'
 
     @classmethod
