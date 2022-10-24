@@ -1,7 +1,9 @@
 from dbt.tests.adapter.utils.test_any_value import BaseAnyValue
+from dbt.tests.adapter.utils.test_array_construct import BaseArrayConstruct
 from dbt.tests.adapter.utils.test_bool_or import BaseBoolOr
 from dbt.tests.adapter.utils.test_cast_bool_to_text import BaseCastBoolToText
 from dbt.tests.adapter.utils.test_concat import BaseConcat
+from dbt.tests.adapter.utils.test_current_timestamp import BaseCurrentTimestampNaive
 from dbt.tests.adapter.utils.test_date_trunc import BaseDateTrunc
 from dbt.tests.adapter.utils.test_escape_single_quotes import (
     BaseEscapeSingleQuotesBackslash,
@@ -74,4 +76,12 @@ class TestSafeCast(BaseSafeCast):
 
 
 class TestStringLiteral(BaseStringLiteral):
+    pass
+
+
+class TestCurrentTimestampNaive(BaseCurrentTimestampNaive):
+    pass
+
+
+class TestArrayConstruct(BaseArrayConstruct):
     pass
