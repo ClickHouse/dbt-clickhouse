@@ -64,7 +64,7 @@ class TestBaseAdapterMethod(BaseAdapterMethod):
     pass
 
 
-class TestMergeTreeTabelMaterializations(BaseSimpleMaterializations):
+class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_table = """
@@ -96,7 +96,7 @@ class TestMergeTreeTabelMaterializations(BaseSimpleMaterializations):
         assert result[0] == 10
 
 
-class TestInsertsOnlyIncrementalMaterializations(BaseIncremental):
+class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_incremental = """
