@@ -65,3 +65,118 @@
   {{ return({'relations': [target_relation]}) }}
 
 {% endmaterialization %}
+
+{% macro engine_clause(label) %}
+  {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
+  {%- if engine is not none %}
+    {{ label }} = {{ engine }}
+  {%- else %}
+    {{ label }} = MergeTree()
+  {%- endif %}
+{%- endmacro -%}
+
+{% macro partition_cols(label) %}
+  {%- set cols = config.get('partition_by', validator=validation.any[list, basestring]) -%}
+  {%- if cols is not none %}
+    {%- if cols is string -%}
+      {%- set cols = [cols] -%}
+    {%- endif -%}
+    {{ label }} (
+    {%- for item in cols -%}
+      {{ item }}
+      {%- if not loop.last -%},{%- endif -%}
+    {%- endfor -%}
+    )
+  {%- endif %}
+{%- endmacro -%}
+
+{% macro primary_key_clause(label) %}
+  {%- set primary_key = config.get('primary_key', validator=validation.any[basestring]) -%}
+
+  {%- if primary_key is not none %}
+    {{ label }} {{ primary_key }}
+  {%- endif %}
+{%- endmacro -%}
+
+{% macro order_cols(label) %}
+  {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
+  {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
+  {%- set supported = [
+    'HDFS',
+    'MaterializedPostgreSQL',
+    'S3',
+    'EmbeddedRocksDB',
+    'Hive'
+  ] -%}
+
+  {%- if engine is none or 'MergeTree' in engine or engine in supported %}
+    {%- if cols is not none %}
+      {%- if cols is string -%}
+        {%- set cols = [cols] -%}
+      {%- endif -%}
+      {{ label }} (
+      {%- for item in cols -%}
+        {{ item }}
+        {%- if not loop.last -%},{%- endif -%}
+      {%- endfor -%}
+      )
+    {%- else %}
+      {{ label }} (tuple())
+    {%- endif %}
+  {%- endif %}
+{%- endmacro -%}
+
+{% macro on_cluster_clause(label) %}
+  {% set on_cluster = adapter.get_clickhouse_cluster_name() %}
+  {%- if on_cluster is not none %}
+    {{ label }} {{ on_cluster }}
+  {%- endif %}
+{%- endmacro -%}
+
+{% macro clickhouse__create_table_as(temporary, relation, sql) -%}
+    {% set create_table = create_table_or_empty(temporary, relation, sql) %}
+    {% if adapter.is_before_version('22.7.1') -%}
+        {{ create_table }}
+    {%- else %}
+        {% call statement('create_table_empty') %}
+            {{ create_table }}
+        {% endcall %}
+        {{ clickhouse__insert_into(relation.include(database=False), sql) }}
+    {%- endif %}
+{%- endmacro %}
+
+{% macro create_table_or_empty(temporary, relation, sql) -%}
+    {%- set sql_header = config.get('sql_header', none) -%}
+
+    {{ sql_header if sql_header is not none }}
+
+    {% if temporary -%}
+        create temporary table {{ relation.name }}
+        engine Memory
+        {{ order_cols(label="order by") }}
+        {{ partition_cols(label="partition by") }}
+        {{ adapter.get_model_settings(model) }}
+    {%- else %}
+        create table {{ relation.include(database=False) }}
+        {{ on_cluster_clause(label="on cluster") }}
+        {{ engine_clause(label="engine") }}
+        {{ order_cols(label="order by") }}
+        {{ primary_key_clause(label="primary key") }}
+        {{ partition_cols(label="partition by") }}
+        {{ adapter.get_model_settings(model) }}
+        {% if not adapter.is_before_version('22.7.1') -%}
+            empty
+        {%- endif %}
+    {%- endif %}
+    as (
+        {{ sql }}
+    )
+{%- endmacro %}
+
+{% macro clickhouse__insert_into(target_relation, sql) %}
+  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+  {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+
+  insert into {{ target_relation }} ({{ dest_cols_csv }})
+  {{ sql }}
+{%- endmacro %}

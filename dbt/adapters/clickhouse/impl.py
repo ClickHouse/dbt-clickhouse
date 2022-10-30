@@ -2,7 +2,7 @@ import csv
 import io
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Callable, List, Optional, Set, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 
 import agate
 import dbt.exceptions
@@ -14,7 +14,7 @@ from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
 from dbt.events import AdapterLogger
-from dbt.utils import executor
+from dbt.utils import executor, filter_null_values
 
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
@@ -113,6 +113,14 @@ class ClickHouseAdapter(SQLAdapter):
         if conn:
             conn.handle.database_dropped(relation.schema)
 
+    def _make_match_kwargs(self, database: str, schema: str, identifier: str) -> Dict[str, str]:
+        return filter_null_values(
+            {
+                "database": database,
+                "identifier": identifier,
+            }
+        )
+
     def list_relations_without_caching(
         self, schema_relation: ClickHouseRelation
     ) -> List[ClickHouseRelation]:
@@ -171,7 +179,6 @@ class ClickHouseAdapter(SQLAdapter):
 
     def get_columns_in_relation(self, relation: ClickHouseRelation) -> List[ClickHouseColumn]:
         rows: List[agate.Row] = super().get_columns_in_relation(relation)
-
         return self.parse_clickhouse_columns(relation, rows)
 
     def get_catalog(self, manifest):
@@ -221,6 +228,7 @@ class ClickHouseAdapter(SQLAdapter):
         relation_a: ClickHouseRelation,
         relation_b: ClickHouseRelation,
         column_names: Optional[List[str]] = None,
+        except_operator: str = None,
     ) -> str:
         names: List[str]
         if column_names is None:
