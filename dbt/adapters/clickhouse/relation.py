@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Optional
 
 import dbt.exceptions
 from dbt.adapters.base.relation import BaseRelation, Policy
@@ -38,3 +39,15 @@ class ClickHouseRelation(BaseRelation):
                 'include, but only one can be set'
             )
         return super().render()
+
+    def matches(
+        self,
+        database: Optional[str] = None,
+        schema: Optional[str] = None,
+        identifier: Optional[str] = None,
+    ):
+        if schema:
+            raise dbt.exceptions.RuntimeException(
+                f'Passed unexpected schema value {schema} to Relation.matches'
+            )
+        return self.database == database and self.identifier == identifier

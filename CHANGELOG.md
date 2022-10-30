@@ -1,3 +1,16 @@
+### Release [1.3.0], 2022-10-30
+#### Improvement
+- Support dbt [1.3.0]  https://github.com/ClickHouse/dbt-clickhouse/issues/105
+  - Adds additional dbt 1.3.0 core tests
+  - Adds array utility macros ported from dbt-utils
+  - Does NOT add support for Python models (not implemented)
+  - Does NOT utilize default/standard incremental materialization macros (standard strategies do not work in ClickHouse)
+
+#### Bug Fix
+- Require exact match for relations.  ClickHouse databases and tables are all case sensitive, so all searches are now case sensitive.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/100 and https://github.com/ClickHouse/dbt-clickhouse/issues/110
+
+</br></br>
+
 ### Release [1.2.1], 2022-09-19
 #### Improvements
 - Support dbt 1.2.1  https://github.com/ClickHouse/dbt-clickhouse/issues/79

@@ -38,3 +38,22 @@
     'ClickHouse does not support the listagg function.  See the groupArray function instead')
     }}
 {% endmacro %}
+
+
+{% macro clickhouse__array_construct(inputs, data_type) -%}
+    {% if inputs|length > 0 %}
+    [ {{ inputs|join(' , ') }} ]
+    {% else %}
+    emptyArray{{data_type}}()
+    {% endif %}
+{%- endmacro %}
+
+
+{% macro clickhouse__array_append(array, new_element) -%}
+    arrayPushBack({{ array }}, {{ new_element }})
+{% endmacro %}
+
+
+{% macro clickhouse__array_concat(array_1, array_2) -%}
+   arrayConcat({{ array_1 }}, {{ array_2 }})
+{% endmacro %}
