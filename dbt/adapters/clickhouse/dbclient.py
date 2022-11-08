@@ -134,7 +134,10 @@ class ChClientWrapper(ABC):
                 self.command('EXCHANGE TABLES {} AND {}'.format(*swap_tables))
                 return True
             except DBTDatabaseException as ex:
-                logger.info(f'ClickHouse server does not support exchange tables {ex}')
+                logger.info('ClickHouse server does not support the EXCHANGE TABLES command')
+                logger.info('This can be caused by an obsolete ClickHouse version or by running ClickHouse on')
+                logger.info('an operating system that does not support the low level renameat2() system call.')
+                logger.info('Some DBT materializations will be slower and not atomic as a result.')
             finally:
                 try:
                     for table in swap_tables:
