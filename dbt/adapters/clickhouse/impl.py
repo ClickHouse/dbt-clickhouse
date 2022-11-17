@@ -349,7 +349,6 @@ def compare_versions(v1: str, v2: str) -> int:
             raise dbt.exceptions.RuntimeException(
                 "Version must consist of only numbers separated by '.'"
             )
-    # Versions are equal - return False
     return 0
 
 
