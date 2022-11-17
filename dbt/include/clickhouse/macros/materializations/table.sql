@@ -135,7 +135,7 @@
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set create_table = create_table_or_empty(temporary, relation, sql) %}
-    {% if adapter.is_before_version('22.7.1') -%}
+    {% if adapter.is_before_version('22.7.1.2484') -%}
         {{ create_table }}
     {%- else %}
         {% call statement('create_table_empty') %}
@@ -164,7 +164,7 @@
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
-        {% if not adapter.is_before_version('22.7.1') -%}
+        {% if not adapter.is_before_version('22.7.1.2484') -%}
             empty
         {%- endif %}
     {%- endif %}

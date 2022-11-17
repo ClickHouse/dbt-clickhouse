@@ -28,6 +28,7 @@ jobs:
         clickhouse-version:
           - '22.3'
           - '22.8'
+          - '22.9'
           - latest
 
     steps:
