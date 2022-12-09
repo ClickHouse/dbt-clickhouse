@@ -44,20 +44,14 @@
 {% endmacro %}
 
 {% macro clickhouse__get_columns_in_relation(relation) -%}
-  {% call statement('get_columns_in_relation', fetch_result=True) %}
-    select
-      name,
-      type,
-      position
-    from system.columns
-    where
-      table = '{{ relation.identifier }}'
+  {% call statement('get_columns', fetch_result=True) %}
+    select name, type from system.columns where table = '{{ relation.identifier }}'
     {% if relation.schema %}
       and database = '{{ relation.schema }}'
     {% endif %}
     order by position
   {% endcall %}
-  {% do return(load_result('get_columns_in_relation').table) %}
+  {{ return(sql_convert_columns_in_relation(load_result('get_columns').table)) }}
 {% endmacro %}
 
 {% macro clickhouse__drop_relation(relation) -%}
@@ -116,7 +110,6 @@
 
 {% macro exchange_tables_atomic(old_relation, target_relation) %}
   {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }}
+    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
-

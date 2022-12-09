@@ -1,12 +1,11 @@
+import uuid
 from abc import ABC, abstractmethod
 
-from dbt.events import AdapterLogger
 from dbt.exceptions import DatabaseException as DBTDatabaseException
 from dbt.exceptions import FailedToConnectException
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
-
-logger = AdapterLogger('clickhouse')
+from dbt.adapters.clickhouse.logger import logger
 
 
 def get_db_client(credentials: ClickHouseCredentials):
@@ -67,6 +66,8 @@ class ChClientWrapper(ABC):
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
+            lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
+            self.has_lw_deletes = lw_deletes and int(lw_deletes) > 0
             self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
@@ -78,6 +79,10 @@ class ChClientWrapper(ABC):
 
     @abstractmethod
     def command(self, sql: str, **kwargs):
+        pass
+
+    @abstractmethod
+    def get_ch_setting(self, setting_name):
         pass
 
     def database_dropped(self, database: str):
@@ -127,7 +132,8 @@ class ChClientWrapper(ABC):
             create_cmd = (
                 'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
             )
-            swap_tables = [f'__dbt_exchange_test_{x}' for x in range(0, 2)]
+            table_id = str(uuid.uuid1()).replace('-', '')
+            swap_tables = [f'__dbt_exchange_test_{x}_{table_id}' for x in range(0, 2)]
             for table in swap_tables:
                 self.command(create_cmd.format(table))
             try:

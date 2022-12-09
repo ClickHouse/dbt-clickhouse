@@ -13,11 +13,11 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
-from dbt.events import AdapterLogger
 from dbt.utils import executor, filter_null_values
 
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
@@ -36,7 +36,6 @@ class ClickHouseAdapter(SQLAdapter):
     Column = ClickHouseColumn
     ConnectionManager = ClickHouseConnectionManager
     AdapterSpecificConfigs = ClickHouseConfig
-    logger = AdapterLogger("dbt_clickhouse_tests")
 
     @classmethod
     def date_function(cls):
@@ -151,7 +150,6 @@ class ClickHouseAdapter(SQLAdapter):
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
         if not self.Relation.include_policy.database:
             database = None
-
         return super().get_relation(database, schema, identifier)
 
     @available
@@ -163,23 +161,6 @@ class ClickHouseAdapter(SQLAdapter):
             return None
         except dbt.exceptions.RuntimeException:
             return None
-
-    def parse_clickhouse_columns(
-        self, relation: ClickHouseRelation, raw_rows: List[agate.Row]
-    ) -> List[ClickHouseColumn]:
-        rows = [dict(zip(row._keys, row._values)) for row in raw_rows]
-
-        return [
-            ClickHouseColumn(
-                column=column['name'],
-                dtype=column['type'],
-            )
-            for column in rows
-        ]
-
-    def get_columns_in_relation(self, relation: ClickHouseRelation) -> List[ClickHouseColumn]:
-        rows: List[agate.Row] = super().get_columns_in_relation(relation)
-        return self.parse_clickhouse_columns(relation, rows)
 
     def get_catalog(self, manifest):
         schema_map = self._get_catalog_schemas(manifest)
@@ -294,8 +275,8 @@ class ClickHouseAdapter(SQLAdapter):
             if fetch == "all":
                 return result
         except BaseException as e:
-            self.logger.error(sql)
-            self.logger.error(e)
+            logger.error(sql)
+            logger.error(e)
             raise
         finally:
             conn.state = 'close'
@@ -326,14 +307,14 @@ def _expect_row_value(key: str, row: agate.Row):
 
 
 def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
-    schemas = frozenset((None, s.lower()) for d, s in manifest.get_used_schemas())
+    schemas = frozenset((None, s) for d, s in manifest.get_used_schemas())
 
     def test(row: agate.Row) -> bool:
         table_database = _expect_row_value('table_database', row)
         table_schema = _expect_row_value('table_schema', row)
         if table_schema is None:
             return False
-        return (table_database, table_schema.lower()) in schemas
+        return (table_database, table_schema) in schemas
 
     return test
 

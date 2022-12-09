@@ -5,6 +5,7 @@ from dbt.version import __version__ as dbt_version
 
 from dbt.adapters.clickhouse import ClickHouseCredentials
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
+from dbt.adapters.clickhouse.logger import logger
 
 
 class ChNativeClient(ChClientWrapper):
@@ -21,6 +22,16 @@ class ChNativeClient(ChClientWrapper):
                 return result[0][0]
         except clickhouse_driver.errors.Error as ex:
             raise DBTDatabaseException(str(ex).strip()) from ex
+
+    def get_ch_setting(self, setting_name):
+        try:
+            result = self._client.execute(
+                f"SELECT value FROM system.settings WHERE name = '{setting_name}'"
+            )
+        except clickhouse_driver.errors.Error as ex:
+            logger.warn('Unexpected error retrieving ClickHouse server setting', ex)
+            return None
+        return result[0][0] if result else None
 
     def close(self):
         self._client.disconnect()
