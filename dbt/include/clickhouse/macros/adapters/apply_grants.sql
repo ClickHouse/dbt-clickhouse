@@ -1,5 +1,5 @@
 {% macro clickhouse__get_show_grant_sql(relation) %}
-    SELECT access_type as privilege_type, user_name as grantee FROM system.grants WHERE table = '{{ relation.name }}'
+    SELECT access_type as privilege_type, COALESCE(user_name, role_name) as grantee FROM system.grants WHERE table = '{{ relation.name }}'
     AND database = '{{ relation.schema }}'
 {%- endmacro %}
 
