@@ -158,7 +158,7 @@
         {{ adapter.get_model_settings(model) }}
     {%- else %}
         create table {{ relation.include(database=False) }}
-        {{ on_cluster_clause }}
+        {{ on_cluster_clause()}}
         {{ engine_clause(label="engine") }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
