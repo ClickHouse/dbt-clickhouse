@@ -127,9 +127,9 @@
 {%- endmacro -%}
 
 {% macro on_cluster_clause(label) %}
-  {% set on_cluster = adapter.get_clickhouse_cluster_name() %}
-  {%- if on_cluster is not none %}
-    {{ label }} {{ on_cluster }}
+  {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
+  {%- if active_cluster is not none %}
+    ON CLUSTER {{ active_cluster }}
   {%- endif %}
 {%- endmacro -%}
 
@@ -158,7 +158,7 @@
         {{ adapter.get_model_settings(model) }}
     {%- else %}
         create table {{ relation.include(database=False) }}
-        {{ on_cluster_clause(label="on cluster") }}
+        {{ on_cluster_clause }}
         {{ engine_clause(label="engine") }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}

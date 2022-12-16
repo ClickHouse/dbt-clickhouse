@@ -3,7 +3,7 @@
 
   {{ sql_header if sql_header is not none }}
 
-  create view {{ relation.include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
+  create view {{ relation.include(database=False) }} {{ on_cluster_clause }}
   as (
     {{ sql }}
   )
@@ -19,14 +19,14 @@
 {% macro clickhouse__create_schema(relation) -%}
   {%- call statement('create_schema') -%}
     create database if not exists {{ relation.without_identifier().include(database=False) }}
-        {{ on_cluster_clause(label="on cluster") }}
+        {{ on_cluster_clause }}
         {{ adapter.clickhouse_db_engine_clause() }}
   {% endcall %}
 {% endmacro %}
 
 {% macro clickhouse__drop_schema(relation) -%}
   {%- call statement('drop_schema') -%}
-    drop database if exists {{ relation.without_identifier().include(database=False) }} {{ on_cluster_clause(label="on cluster") }}
+    drop database if exists {{ relation.without_identifier().include(database=False) }} {{ on_cluster_clause }}
   {%- endcall -%}
 {% endmacro %}
 
@@ -54,24 +54,24 @@
   {{ return(sql_convert_columns_in_relation(load_result('get_columns').table)) }}
 {% endmacro %}
 
-{% macro clickhouse__drop_relation(relation, structure='table') -%}
+{% macro clickhouse__drop_relation(relation, obj_type='table') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
-    drop {{ structure }} if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause }}
   {%- endcall %}
 {% endmacro %}
 
-{% macro clickhouse__rename_relation(from_relation, to_relation, structure='table') -%}
+{% macro clickhouse__rename_relation(from_relation, to_relation, obj_type='table') -%}
   {% call statement('drop_relation') %}
-    drop {{ structure }} if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop {{ obj_type }} if exists {{ to_relation }} {{ on_cluster_clause }}
   {% endcall %}
   {% call statement('rename_relation') %}
-    rename {{ structure }} {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
+    rename {{ obj_type }} {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause }}
   {% endcall %}
 {% endmacro %}
 
 {% macro clickhouse__truncate_relation(relation) -%}
   {% call statement('truncate_relation') -%}
-    truncate table {{ relation }} {{ on_cluster_clause(label="on cluster") }}
+    truncate table {{ relation }} {{ on_cluster_clause }}
   {%- endcall %}
 {% endmacro %}
 
@@ -104,13 +104,12 @@
 
 {% macro clickhouse__alter_column_type(relation, column_name, new_column_type) -%}
   {% call statement('alter_column_type') %}
-    alter table {{ relation }} {{ on_cluster_clause(label="on cluster") }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
+    alter table {{ relation }} {{ on_cluster_clause }} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
   {% endcall %}
 {% endmacro %}
 
-{% macro exchange_tables_atomic(old_relation, target_relation, structure='TABLES') %}
+{% macro exchange_tables_atomic(old_relation, target_relation, obj_types='TABLES') %}
   {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE {{ structure }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(label="on cluster") }}
-    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(label="on cluster") }}
+    EXCHANGE {{ obj_types }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause }}
   {% endcall %}
 {% endmacro %}
