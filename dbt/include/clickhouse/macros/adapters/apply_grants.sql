@@ -11,3 +11,11 @@
     {% endfor %}
 {% endmacro %}
 
+
+{%- macro clickhouse__get_grant_sql(relation, privilege, grantees) -%}
+    grant {{ on_cluster_clause(label="on cluster") }} {{ privilege }} on {{ relation }} to {{ grantees | join(', ') }}
+{%- endmacro -%}
+
+{%- macro clickhouse__get_revoke_sql(relation, privilege, grantees) -%}
+    revoke {{ on_cluster_clause(label="on cluster") }} {{ privilege }} on {{ relation }} from {{ grantees | join(', ') }}
+{%- endmacro -%}

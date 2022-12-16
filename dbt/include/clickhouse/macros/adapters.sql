@@ -60,24 +60,24 @@
   {% do return(load_result('get_columns_in_relation').table) %}
 {% endmacro %}
 
-{% macro clickhouse__drop_relation(relation) -%}
+{% macro clickhouse__drop_relation(relation, structure='table') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
-    drop table if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop {{ structure }} if exists {{ relation }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall %}
 {% endmacro %}
 
-{% macro clickhouse__rename_relation(from_relation, to_relation) -%}
+{% macro clickhouse__rename_relation(from_relation, to_relation, structure='table') -%}
   {% call statement('drop_relation') %}
-    drop table if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
+    drop {{ structure }} if exists {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
   {% call statement('rename_relation') %}
-    rename table {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
+    rename {{ structure }} {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
 
 {% macro clickhouse__truncate_relation(relation) -%}
   {% call statement('truncate_relation') -%}
-    truncate table {{ relation }}
+    truncate table {{ relation }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall %}
 {% endmacro %}
 
@@ -114,9 +114,9 @@
   {% endcall %}
 {% endmacro %}
 
-{% macro exchange_tables_atomic(old_relation, target_relation) %}
+{% macro exchange_tables_atomic(old_relation, target_relation, structure='TABLES') %}
   {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }}
+    EXCHANGE {{ structure }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
 
