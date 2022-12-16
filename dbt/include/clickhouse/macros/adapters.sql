@@ -77,7 +77,7 @@
 
 {% macro clickhouse__truncate_relation(relation) -%}
   {% call statement('truncate_relation') -%}
-    truncate table {{ relation }}
+    truncate table {{ relation }} {{ on_cluster_clause(label="on cluster") }}
   {%- endcall %}
 {% endmacro %}
 
@@ -116,7 +116,7 @@
 
 {% macro exchange_tables_atomic(old_relation, target_relation) %}
   {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }}
+    EXCHANGE TABLES {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(label="on cluster") }}
   {% endcall %}
 {% endmacro %}
 
