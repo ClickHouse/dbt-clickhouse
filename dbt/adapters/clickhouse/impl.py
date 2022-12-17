@@ -73,7 +73,7 @@ class ClickHouseAdapter(SQLAdapter):
     def get_clickhouse_cluster_name(self):
         conn = self.connections.get_if_exists()
         if conn.credentials.cluster:
-            return '"{}"'.format(conn.credentials.cluster)
+            return f'"{conn.credentials.cluster}"'
 
     @available
     def clickhouse_db_engine_clause(self):
@@ -90,17 +90,35 @@ class ClickHouseAdapter(SQLAdapter):
             return compare_versions(version, server_version) > 0
         return False
 
-    @available
+    @available.parse_none
     def supports_atomic_exchange(self) -> bool:
         conn = self.connections.get_if_exists()
         return conn and conn.handle.atomic_exchange
 
-    @available
+    @available.parse_none
     def can_exchange(self, schema: str, rel_type: str) -> bool:
         if rel_type != 'table' or not schema or not self.supports_atomic_exchange():
             return False
         ch_db = self.get_ch_database(schema)
         return ch_db and ch_db.engine in ('Atomic', 'Replicated')
+
+    @available.parse_none
+    def calculate_incremental_strategy(self, strategy: str) -> str:
+        conn = self.connections.get_if_exists()
+        lw_deletes = conn.handle.has_lw_deletes
+        if not strategy or strategy == 'default':
+            strategy = 'delete_insert' if lw_deletes else 'legacy'
+        strategy = strategy.replace('+', '_')
+        if strategy not in ['legacy', 'append', 'delete_insert']:
+            raise dbt.exceptions.RuntimeException(
+                f"The incremental strategy '{strategy}' is not valid for ClickHouse"
+            )
+        if not lw_deletes and strategy == 'delete_insert':
+            logger.warning(
+                'Lightweight deletes are not available, using legacy ClickHouse strategy'
+            )
+            strategy = 'legacy'
+        return strategy
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})

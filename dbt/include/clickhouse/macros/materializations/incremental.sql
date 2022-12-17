@@ -38,61 +38,18 @@
 
   {% elif inserts_only or unique_key is none -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
-    -- table. It is the user's responsibility to avoid duplicates.
+    -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
+    -- specific configurable that is used to avoid creating an expensive intermediate table.
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
     {% endcall %}
 
   {% else %}
-    -- We potentially have updated rows or deletes.  This is more complex for ClickHouse because we don't want to
-    -- delete rows from or update rows in the existing table (mutations are expensive in ClickHouse).
-
-    -- First create a temporary table with all of the new data
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
-    {{ drop_relation_if_exists(new_data_relation) }}
-    {% call statement('create_new_data_temp') %}
-        {{ get_create_table_as_sql(False, new_data_relation, sql) }}
-    {% endcall %}
-    {{ to_drop.append(new_data_relation) }}
-
-    -- Next create another temporary table that will eventually be used to replace the existing table.  We can't
-    -- use the table just created in the previous step because we don't want to override any updated rows with
-    -- old rows when we insert the old data
-    {% call statement('main') %}
-       create table {{ intermediate_relation }} as {{ new_data_relation }}
-    {% endcall %}
-
-    -- Update (if possible) the schema for the existing table to match the new schema, so that the next step
-    -- can use the consistent column list to insert the old data into the temporary table
-    {% if on_schema_change != 'ignore' %}
-      {% do adapter.expand_target_column_types(from_relation=new_data_relation, to_relation=existing_relation) %}
-      {% do process_schema_changes(on_schema_change, new_data_relation, existing_relation) %}
-    {% endif %}
-
-    -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
-    -- table.
-    {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
-    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
-    {% call statement('insert_existing_data') %}
-        insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
-        select {{ dest_cols_csv }}
-        from {{ existing_relation }}
-          where ({{ unique_key }}) not in (
-            select ({{ unique_key }})
-            from {{ new_data_relation }}
-          )
-       {{ adapter.get_model_settings(model) }}
-    {% endcall %}
-
-    -- Insert all of the new data into the temporary table
-    {% call statement('insert_new_data') %}
-     insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
-        select {{ dest_cols_csv }}
-        from {{ new_data_relation }}
-      {{ adapter.get_model_settings(model) }}
-    {% endcall %}
-
-    {% set need_swap = true %}
+     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
+     {% if incremental_strategy == 'legacy' %}
+        {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key) %}
+        {% set need_swap = true %}
+     {% endif %}
   {% endif %}
 
   {% if need_swap %}
@@ -170,3 +127,54 @@
     {% do sync_column_schemas(on_schema_change, target_relation, schema_changes_dict) %}
 
 {% endmacro %}
+
+
+{% macro clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key) %}
+    -- First create a temporary table with all of the new data
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
+    {{ drop_relation_if_exists(new_data_relation) }}
+    {% call statement('create_new_data_temp') %}
+        {{ get_create_table_as_sql(False, new_data_relation, sql) }}
+    {% endcall %}
+
+    -- Next create another temporary table that will eventually be used to replace the existing table.  We can't
+    -- use the table just created in the previous step because we don't want to override any updated rows with
+    -- old rows when we insert the old data
+    {% call statement('main') %}
+       create table {{ intermediate_relation }} as {{ new_data_relation }}
+    {% endcall %}
+
+    -- Update (if possible) the schema for the existing table to match the new schema, so that the next step
+    -- can use the consistent column list to insert the old data into the temporary table
+    {% if on_schema_change != 'ignore' %}
+      {% do adapter.expand_target_column_types(from_relation=new_data_relation, to_relation=existing_relation) %}
+      {% do process_schema_changes(on_schema_change, new_data_relation, existing_relation) %}
+    {% endif %}
+
+    -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
+    -- table.
+    {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
+    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+    {% call statement('insert_existing_data') %}
+        insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
+        select {{ dest_cols_csv }}
+        from {{ existing_relation }}
+          where ({{ unique_key }}) not in (
+            select ({{ unique_key }})
+            from {{ new_data_relation }}
+          )
+       {{ adapter.get_model_settings(model) }}
+    {% endcall %}
+
+    -- Insert all of the new data into the temporary table
+    {% call statement('insert_new_data') %}
+     insert into {{ intermediate_relation }} ({{ dest_cols_csv }})
+        select {{ dest_cols_csv }}
+        from {{ new_data_relation }}
+      {{ adapter.get_model_settings(model) }}
+    {% endcall %}
+
+    {% do adapter.drop_relation(new_data_relation) %}
+
+{% endmacro %}
+
