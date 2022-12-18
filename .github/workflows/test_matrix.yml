@@ -22,14 +22,14 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - '3.8'
+          # - '3.8'
           - '3.9'
-          - '3.10'
+          # - '3.10'
         clickhouse-version:
           - '22.3'
-          - '22.8'
-          - '22.9'
-          - '22.10'
+          # - '22.8'
+          # - '22.9'
+          # - '22.10'
           - latest
 
     steps:
@@ -37,11 +37,16 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Set test_settings file
-        run: TEST_SETTINGS_FILE=latest
+        run: |
+           TEST_SETTINGS_FILE=latest
+           echo testsettings{TEST_SETTINGS_FILE}
+          
 
       - name: Set legacy test settings file
         if: ${{ matrix.clickhouse-version == '22.3' }}
-        run: TEST_SETTINGS_FILE=22_3
+        run: |
+          TEST_SETTINGS_FILE=22_3
+          echo testsettings{TEST_SETTINGS_FILE}
 
       - name: Run ClickHouse Container
         run: docker run
