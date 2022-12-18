@@ -39,14 +39,13 @@ jobs:
       - name: Set test_settings file
         run: |
            TEST_SETTINGS_FILE=latest
-           echo testsettings{TEST_SETTINGS_FILE}
-          
+           echo testsettings$TEST_SETTINGS_FILE
 
       - name: Set legacy test settings file
         if: ${{ matrix.clickhouse-version == '22.3' }}
         run: |
           TEST_SETTINGS_FILE=22_3
-          echo testsettings{TEST_SETTINGS_FILE}
+          echo testsettings$TEST_SETTINGS_FILE
 
       - name: Run ClickHouse Container
         run: docker run
@@ -55,7 +54,7 @@ jobs:
              -p 9000:9000
              --name clickhouse
              -v /var/lib/clickhouse
-             -v ${{ github.workspace }}/tests/integration/test_settings_${TEST_SETTINGS_FILE}.xml:/etc/clickhouse-server/users.d/test_settings.xml
+             -v ${{ github.workspace }}/tests/integration/test_settings_$TEST_SETTINGS_FILE.xml:/etc/clickhouse-server/users.d/test_settings.xml
              --ulimit nofile=262144:262144
              clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
 
