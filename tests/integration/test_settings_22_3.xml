@@ -2,6 +2,6 @@
     <users>
         <default>
             <access_management>1</access_management>
-        </default>
+         </default>
     </users>
 </clickhouse>

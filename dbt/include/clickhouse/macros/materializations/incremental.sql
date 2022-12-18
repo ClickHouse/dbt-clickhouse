@@ -6,7 +6,7 @@
   {%- set unique_key = config.get('unique_key') -%}
   {%- set inserts_only = config.get('inserts_only') -%}
   {%- set grant_config = config.get('grants') -%}
-  {%- set full_refresh_mode = (should_full_refresh()  or existing_relation.is_view) -%}
+  {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
   {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
 
   {%- set intermediate_relation = make_intermediate_relation(target_relation)-%}
@@ -19,7 +19,6 @@
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
-
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
   {% set to_drop = [] %}
 
@@ -45,10 +44,20 @@
     {% endcall %}
 
   {% else %}
+     {% set schema_changes = none %}
      {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
+     {% if on_schema_change != 'ignore' %}
+       {%- set schema_changes = check_for_schema_changes(existing_relation, target_relation) -%}
+       {% if schema_changes['schema_changed'] and incremental_strategy == 'delete_insert' %}
+         {% set incremental_strategy = 'legacy' %}
+         {% do log('Schema changes detected, switching to legacy incremental strategy') %}
+       {% endif %}
+     {% endif %}
      {% if incremental_strategy == 'legacy' %}
-        {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key) %}
+        {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, schema_changes, unique_key) %}
         {% set need_swap = true %}
+     {% elif incremental_strategy == 'delete_insert' %}
+        {% do clickhouse__incremental_delete_insert(existing_relation, unique_key) %}
      {% endif %}
   {% endif %}
 
@@ -87,25 +96,7 @@
 {%- endmaterialization %}
 
 
-{% macro clickhouse__incremental_validate_on_schema_change(on_schema_change, default='ignore') %}
-
-  {% if on_schema_change in ['sync_all_columns', 'append_new_columns', 'fail', 'ignore'] %}
-    {{ return(on_schema_change) }}
-  {% endif %}
-
-  {%- set log_message = 'Invalid value for on_schema_change (%s) specified. Setting default value of %s.'
-    % (on_schema_change, default) -%}
-  {% do log(log_message) %}
-  {{ return(default) }}
-
-{% endmacro %}
-
-
 {% macro process_schema_changes(on_schema_change, source_relation, target_relation) %}
-
-    {% if on_schema_change == 'ignore' %}
-      {{ return }}
-    {% endif %}
 
     {%- set schema_changes_dict = check_for_schema_changes(source_relation, target_relation) -%}
     {% if not schema_changes_dict['schema_changed'] %}
@@ -144,13 +135,6 @@
        create table {{ intermediate_relation }} as {{ new_data_relation }}
     {% endcall %}
 
-    -- Update (if possible) the schema for the existing table to match the new schema, so that the next step
-    -- can use the consistent column list to insert the old data into the temporary table
-    {% if on_schema_change != 'ignore' %}
-      {% do adapter.expand_target_column_types(from_relation=new_data_relation, to_relation=existing_relation) %}
-      {% do process_schema_changes(on_schema_change, new_data_relation, existing_relation) %}
-    {% endif %}
-
     -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
     -- table.
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
@@ -178,3 +162,22 @@
 
 {% endmacro %}
 
+
+{% macro clickhouse__incremental_delete_insert(existing_relation, unique_key) %}
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
+    {{ drop_relation_if_exists(new_data_relation) }}
+    {% call statement('main') %}
+        {{ get_create_table_as_sql(False, new_data_relation, sql) }}
+    {% endcall %}
+    {% call statement('delete_existing_data') %}
+        delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+         from {{ new_data_relation }})
+    {% endcall %}
+
+    {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
+    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+    {% call statement('insert_new_data') %}
+        insert into {{ existing_relation}} select {{ dest_cols_csv}} from {{ new_data_relation }}
+    {% endcall %}
+    {% do adapter.drop_relation(new_data_relation) %}
+{% endmacro %}

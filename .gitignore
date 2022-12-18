@@ -97,3 +97,6 @@ target/
 
 # self
 dbt-tut
+
+# local development stuff
+dev/

@@ -105,15 +105,14 @@ class ClickHouseAdapter(SQLAdapter):
     @available.parse_none
     def calculate_incremental_strategy(self, strategy: str) -> str:
         conn = self.connections.get_if_exists()
-        lw_deletes = conn.handle.has_lw_deletes
         if not strategy or strategy == 'default':
-            strategy = 'delete_insert' if lw_deletes else 'legacy'
+            strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
         strategy = strategy.replace('+', '_')
         if strategy not in ['legacy', 'append', 'delete_insert']:
             raise dbt.exceptions.RuntimeException(
                 f"The incremental strategy '{strategy}' is not valid for ClickHouse"
             )
-        if not lw_deletes and strategy == 'delete_insert':
+        if not conn.handle.has_lw_deletes and strategy == 'delete_insert':
             logger.warning(
                 'Lightweight deletes are not available, using legacy ClickHouse strategy'
             )

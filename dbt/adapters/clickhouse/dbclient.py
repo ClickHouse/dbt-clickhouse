@@ -67,7 +67,8 @@ class ChClientWrapper(ABC):
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
             lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
-            self.has_lw_deletes = lw_deletes and int(lw_deletes) > 0
+            self.has_lw_deletes = lw_deletes is not None and int(lw_deletes) > 0
+            self.use_lw_deletes = self.has_lw_deletes and credentials.use_lw_deletes
             self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
