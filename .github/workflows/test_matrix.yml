@@ -18,6 +18,8 @@ jobs:
   tests:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
+    env:
+      TEST_SETTINGS_FILE: latest
 
     strategy:
       matrix:
@@ -36,16 +38,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set test_settings file
-        run: |
-           TEST_SETTINGS_FILE=latest
-           echo testsettings$TEST_SETTINGS_FILE
-
       - name: Set legacy test settings file
         if: ${{ matrix.clickhouse-version == '22.3' }}
-        run: |
-          TEST_SETTINGS_FILE=22_3
-          echo testsettings$TEST_SETTINGS_FILE
+        run: echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
 
       - name: Run ClickHouse Container
         run: docker run
@@ -54,7 +49,7 @@ jobs:
              -p 9000:9000
              --name clickhouse
              -v /var/lib/clickhouse
-             -v ${{ github.workspace }}/tests/integration/test_settings_$TEST_SETTINGS_FILE.xml:/etc/clickhouse-server/users.d/test_settings.xml
+             -v ${{ github.workspace }}/tests/integration/test_settings_${{ env.TEST_SETTINGS_FILE }}.xml:/etc/clickhouse-server/users.d/test_settings.xml
              --ulimit nofile=262144:262144
              clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
 
