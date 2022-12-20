@@ -144,7 +144,7 @@
         select {{ dest_cols_csv }}
         from {{ existing_relation }}
           where ({{ unique_key }}) not in (
-            select ({{ unique_key }})
+            select {{ unique_key }}
             from {{ new_data_relation }}
           )
        {{ adapter.get_model_settings(model) }}
