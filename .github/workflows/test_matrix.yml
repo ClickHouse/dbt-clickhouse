@@ -24,14 +24,14 @@ jobs:
     strategy:
       matrix:
         python-version:
-          # - '3.8'
+          - '3.8'
           - '3.9'
-          # - '3.10'
+          - '3.10'
         clickhouse-version:
           - '22.3'
-          # - '22.8'
-          # - '22.9'
-          # - '22.10'
+          - '22.8'
+          - '22.9'
+          - '22.10'
           - latest
 
     steps:
@@ -49,7 +49,7 @@ jobs:
              -p 9000:9000
              --name clickhouse
              -v /var/lib/clickhouse
-             -v ${{ github.workspace }}/tests/integration/test_settings_${{ env.TEST_SETTINGS_FILE }}.xml:/etc/clickhouse-server/users.d/test_settings.xml
+             -v ${{ github.workspace }}/tests/integration/test_settings_$TEST_SETTINGS_FILE.xml:/etc/clickhouse-server/users.d/test_settings.xml
              --ulimit nofile=262144:262144
              clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
 
