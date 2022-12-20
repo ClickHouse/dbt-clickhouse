@@ -73,7 +73,7 @@ lw_delete_inc = """
 }}
 {% if is_incremental() %}
    WITH (SELECT max(key1) - 20 FROM lw_delete_inc) as old_max
-   SELECT toUInt64(number + old_max + 1) as key1, toInt64(-(number + old_max)) as key2, toString(number + 30) as value FROM numbers(100)
+   SELECT assumeNotNull(toUInt64(number + old_max + 1)) as key1, toInt64(-(number + old_max)) as key2, toString(number + 30) as value FROM numbers(100)
 {% else %}
    SELECT toUInt64(number) as key1, toInt64(-number) as key2, toString(number) as value FROM numbers(100)
 {% endif %}
@@ -112,7 +112,7 @@ compound_key_inc = """
 }}
 {% if is_incremental() %}
    WITH (SELECT max(key1) - 20 FROM compound_key_inc) as old_max
-   SELECT toUInt64(number + old_max + 1) as key1, toInt64(-key1) as key2, toString(number + 30) as value FROM numbers(100)
+   SELECT assumeNotNull(toUInt64(number + old_max + 1)) as key1, toInt64(-key1) as key2, toString(number + 30) as value FROM numbers(100)
 {% else %}
    SELECT toUInt64(number) as key1, toInt64(-number) as key2, toString(number) as value FROM numbers(100)
 {% endif %}
