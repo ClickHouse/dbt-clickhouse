@@ -81,9 +81,6 @@ target/
 
 .python-version
 
-# Vim
-*.sw*
-
 # pycharm
 .idea/
 
