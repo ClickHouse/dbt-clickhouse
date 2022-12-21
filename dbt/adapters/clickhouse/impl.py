@@ -2,7 +2,7 @@ import csv
 import io
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 import agate
 import dbt.exceptions
@@ -118,6 +118,15 @@ class ClickHouseAdapter(SQLAdapter):
             )
             strategy = 'legacy'
         return strategy
+
+    @available.parse_none
+    def s3table_clause(self, url: str, fmt: str, structure: Any) -> str:
+        struct = None
+        if isinstance(structure, list):
+            struct = f", '{','.join(structure)}'"
+        elif isinstance(structure, str):
+            struct = f",'{structure}'"
+        return f"s3('{url}', '{fmt}'{struct})"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
