@@ -1,5 +1,29 @@
+### Release [1.3.2], 2022-12-23
+#### Improvements
+- Added *experimental* support for the `delete+insert` incremental strategy.  In most cases this strategy should be significantly faster
+than the existing "legacy" custom strategy (which is still the default).  To enable `delete+insert` incremental materialization, the flag `allow_experimental_lightweight_delete`
+must be enabled on your ClickHouse server.  This flag is NOT currently considered production ready, so use at your own risk.  To use this strategy
+as the "default" incremental strategy, the new configuration value `use_lw_deletes` must be set to True.  To use it for a particular model,
+set the 'incremental_strategy' to `delete+insert`.  Important caveats about this strategy:
+  - This strategy directly uses lightweight deletes on the target model/table.  It does not create a temporary or intermediate table.  Accordingly,
+if there is an issue during that transformation, the materialization can not be rolled back and the model may contain inconsistent data.
+  - If the incremental materialization includes schema changes, or lightweight deletes are not available, dbt-clickhouse will fall back to the much
+slower 'legacy' strategy.
+- Allow `append` as an incremental strategy.  This is the same as using the custom model configuration value `inserts_only`.
+
+#### Bug Fixes
+- The ON CLUSTER clause has been added to additional DDL statements including incremental models processing. 
+Closes https://github.com/ClickHouse/dbt-clickhouse/issues/117 and should close https://github.com/ClickHouse/dbt-clickhouse/issues/95
+for Replicated tables that use the `{uuid}` macro in the path to avoid name conflicts.  Thanks to [Saurabh Bikram](https://github.com/saurabhbikram)
+- The `apply` and `revoke` grants macros now correctly work with roles as well as user.  Again thanks to [Saurabh Bikram](https://github.com/saurabhbikram)
+- A compound unique_key (such as `key1, key2`) now works correctly with incremental models
+
+### Release [1.3.1], 2022-11-17
+#### Improvements
+- Improve error message when atomic "EXCHANGE TABLES" operation is not supported
+
 ### Release [1.3.0], 2022-10-30
-#### Improvement
+#### Improvements
 - Support dbt [1.3.0]  https://github.com/ClickHouse/dbt-clickhouse/issues/105
   - Adds additional dbt 1.3.0 core tests
   - Adds array utility macros ported from dbt-utils
@@ -7,7 +31,7 @@
   - Does NOT utilize default/standard incremental materialization macros (standard strategies do not work in ClickHouse)
 
 #### Bug Fix
-- Require exact match for relations.  ClickHouse databases and tables are all case sensitive, so all searches are now case sensitive.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/100 and https://github.com/ClickHouse/dbt-clickhouse/issues/110
+- Require exact match for relations.  ClickHouse databases and tables are all case-sensitive, so all searches are now case-sensitive.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/100 and https://github.com/ClickHouse/dbt-clickhouse/issues/110
 
 </br></br>
 

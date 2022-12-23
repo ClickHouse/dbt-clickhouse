@@ -2,7 +2,7 @@ import csv
 import io
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Callable, Dict, List, Optional, Set, Union
 
 import agate
 import dbt.exceptions
@@ -120,13 +120,56 @@ class ClickHouseAdapter(SQLAdapter):
         return strategy
 
     @available.parse_none
-    def s3table_clause(self, url: str, fmt: str, structure: Any) -> str:
-        struct = None
-        if isinstance(structure, list):
-            struct = f", '{','.join(structure)}'"
-        elif isinstance(structure, str):
-            struct = f",'{structure}'"
-        return f"s3('{url}', '{fmt}'{struct})"
+    def s3source_clause(
+        self,
+        elem_type: str,
+        config_name: str,
+        s3_model_config: dict,
+        bucket: str,
+        path: str,
+        fmt: str,
+        structure: Union[str, list, dict],
+        aws_access_key_id: str,
+        aws_secret_access_key: str,
+        compression: str = '',
+    ) -> str:
+        s3config = self.config.vars.vars.get(config_name, {})
+        s3config.update(s3_model_config)
+        structure = structure or s3config.get('structure', '')
+        struct = ''
+        if structure and elem_type == 'table':
+            if isinstance(structure, dict):
+                cols = [f'{name} {col_type}' for name, col_type in structure.items()]
+                struct = f", '{','.join(cols)}'"
+            elif isinstance(structure, list):
+                struct = f", '{','.join(structure)}'"
+            else:
+                struct = f",'{structure}'"
+        fmt = fmt or s3config.get('fmt')
+        bucket = bucket or s3config.get('bucket', '')
+        path = path or s3config.get('path', '')
+        url = bucket
+        if path:
+            if bucket and path and not bucket.endswith('/') and not bucket.startswith('/'):
+                path = f'/{path}'
+            url = f'{url}{path}'
+        if not url.startswith('http'):
+            url = f'https://{url}'
+        access = ''
+        if aws_access_key_id and not aws_secret_access_key:
+            raise dbt.exceptions.RuntimeException(
+                'S3 aws_access_key_id specified without aws_secret_access_key'
+            )
+        if aws_secret_access_key and not aws_access_key_id:
+            raise dbt.exceptions.RuntimeException(
+                'S3 aws_secret_access_key specified without aws_access_key_id'
+            )
+        if aws_access_key_id:
+            access = f", '{aws_access_key_id}', '{aws_secret_access_key}'"
+        comp = compression or s3config.get('compression', '')
+        if comp:
+            comp = f"', {comp}'"
+        return f"s3('{url}'{access}, '{fmt}'{struct}{comp})"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
@@ -178,7 +221,7 @@ class ClickHouseAdapter(SQLAdapter):
             database = None
         return super().get_relation(database, schema, identifier)
 
-    @available
+    @available.parse_none
     def get_ch_database(self, schema: str):
         try:
             results = self.execute_macro('clickhouse__get_database', kwargs={'database': schema})

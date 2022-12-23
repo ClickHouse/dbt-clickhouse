@@ -1,23 +1,17 @@
-{% macro clickhouse_s3table(url, format, structure) %}
-  {{ log("STARTING S3") }}
-  {%- if not format -%}
-    {{ log("DID WE GET TO BAD FORMAT") }}
-    {%- set format = config.get('s3_format') -%}
-    {%- if format is none -%}
-        {{ exceptions.raise_compiler_error('Format required for S3table query') }}
-    {%- endif -%}
-  {%- endif -%}
-
-  {%- if not url -%}
-   {{ log("DID WE GET TO BAD URL") }}
-    {%- set url = config.get('s3_url') -%}
-    {%- if url is none -%}
-        {{ exceptions.raise_compiler_error('Url required for S3table query') }}
-    {%- endif -%}
-  {%- endif -%}
-
-  {%- if not structure -%}
-    {%- set structure = config.get('s3_structure') -%}
-  {%- endif -%}
-  {{ adapter.s3table_clause(url, format, structure) }}
+{% macro clickhouse_s3table(config_name='', bucket='', path='', fmt='', structure='',
+    aws_access_key_id='', aws_secret_access_key='', compression='') %}
+  {% if config_name and not config_name.lower().endswith('s3') %}
+    {{ exceptions.raise_compiler_error("S3 configuration should end with 's3'") }}
+  {% endif %}
+  {% set s3config = config.get(config_name, {}) %}
+  {{ adapter.s3source_clause('table',
+    config_name=config_name,
+    s3_model_config=s3config,
+    bucket=bucket,
+    path=path,
+    fmt=fmt,
+    structure=structure,
+    aws_access_key_id=aws_access_key_id,
+    aws_secret_access_key=aws_secret_access_key,
+    compression=compression) }}
 {% endmacro %}

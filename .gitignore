@@ -79,11 +79,6 @@ target/
 # Vim
 *.sw*
 
-.python-version
-
-# Vim
-*.sw*
-
 # pycharm
 .idea/
 
@@ -100,3 +95,4 @@ dbt-tut
 
 # local development stuff
 dev/
+.python-version

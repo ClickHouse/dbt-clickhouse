@@ -48,7 +48,7 @@
      {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
      {% if on_schema_change != 'ignore' %}
        {%- set schema_changes = check_for_schema_changes(existing_relation, target_relation) -%}
-       {% if schema_changes['schema_changed'] and incremental_strategy == 'delete_insert' %}
+       {% if schema_changes['schema_changed'] and incremental_strategy in ('append', 'delete_insert') %}
          {% set incremental_strategy = 'legacy' %}
          {% do log('Schema changes detected, switching to legacy incremental strategy') %}
        {% endif %}
@@ -58,6 +58,10 @@
         {% set need_swap = true %}
      {% elif incremental_strategy == 'delete_insert' %}
         {% do clickhouse__incremental_delete_insert(existing_relation, unique_key) %}
+     {% elif incremental_strategy == 'append' %}
+        {% call statement('main') %}
+          {{ clickhouse__insert_into(target_relation, sql) }}
+        {% endcall %}
      {% endif %}
   {% endif %}
 
