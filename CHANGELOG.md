@@ -3,13 +3,15 @@
 - Added *experimental* support for the `delete+insert` incremental strategy.  In most cases this strategy should be significantly faster
 than the existing "legacy" custom strategy (which is still the default).  To enable `delete+insert` incremental materialization, the flag `allow_experimental_lightweight_delete`
 must be enabled on your ClickHouse server.  This flag is NOT currently considered production ready, so use at your own risk.  To use this strategy
-as the "default" incremental strategy, the new configuration value `use_lw_deletes` must be set to True.  To use it for a particular model,
-set the 'incremental_strategy' to `delete+insert`.  Important caveats about this strategy:
+as the "default" incremental strategy, the new configuration value `use_lw_deletes` must be set to True.  Otherwise, to use it for a particular model,
+set the model's `incremental_strategy` to `delete+insert`.  Important caveats about this strategy:
   - This strategy directly uses lightweight deletes on the target model/table.  It does not create a temporary or intermediate table.  Accordingly,
 if there is an issue during that transformation, the materialization can not be rolled back and the model may contain inconsistent data.
   - If the incremental materialization includes schema changes, or lightweight deletes are not available, dbt-clickhouse will fall back to the much
-slower 'legacy' strategy.
+slower "legacy" strategy.
 - Allow `append` as an incremental strategy.  This is the same as using the custom model configuration value `inserts_only`.
+- New s3source macro.  This simplifies the process of using the ClickHouse s3 table function in queries.  See the
+[tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/test_s3.py) for example usage.
 
 #### Bug Fixes
 - The ON CLUSTER clause has been added to additional DDL statements including incremental models processing. 
@@ -205,6 +207,10 @@ for Replicated tables that use the `{uuid}` macro in the path to avoid name conf
 ### Release [0.19.0], 2021-02-14
 #### Initial Release
 
+[1.3.2]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.3.1..v1.3.2
+[1.3.1]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.3.0..v1.3.1
+[1.3.0]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.2.1..v1.3.0
+[1.2.1]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.2.0..v1.2.1
 [1.2.0]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.1.8..v1.2.0
 [1.1.8]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.1.7..v1.1.8
 [1.1.7]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.1.6..v1.1.7

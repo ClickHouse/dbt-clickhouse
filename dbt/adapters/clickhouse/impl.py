@@ -122,7 +122,6 @@ class ClickHouseAdapter(SQLAdapter):
     @available.parse_none
     def s3source_clause(
         self,
-        elem_type: str,
         config_name: str,
         s3_model_config: dict,
         bucket: str,
@@ -137,7 +136,7 @@ class ClickHouseAdapter(SQLAdapter):
         s3config.update(s3_model_config)
         structure = structure or s3config.get('structure', '')
         struct = ''
-        if structure and elem_type == 'table':
+        if structure:
             if isinstance(structure, dict):
                 cols = [f'{name} {col_type}' for name, col_type in structure.items()]
                 struct = f", '{','.join(cols)}'"

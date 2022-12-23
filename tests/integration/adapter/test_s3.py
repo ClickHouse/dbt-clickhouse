@@ -24,7 +24,7 @@ models:
 """
 
 s3_taxis_source = """
-select * from {{ clickhouse_s3table('taxi_s3', path='/trips_4.gz') }} LIMIT 5000
+select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz') }} LIMIT 5000
 """
 
 s3_taxis_inc = """
@@ -33,12 +33,12 @@ s3_taxis_inc = """
     order_by='pickup_datetime',
     incremental_strategy='delete+insert',
     unique_key='trip_id',
-    taxi_s3=({"structure":['trip_id UInt32', 'pickup_datetime DateTime', 'passenger_count UInt8']})
+    taxi_s3={"structure":['trip_id UInt32', 'pickup_datetime DateTime', 'passenger_count UInt8']}
     )
 }}
 
 {% if is_incremental() %}
-  select * from {{ clickhouse_s3table('taxi_s3', path='/trips_4.gz') }}
+  select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz') }}
     where pickup_datetime > (SELECT addDays(max(pickup_datetime), -2) FROM s3_taxis_inc)
 {% else %}
   select trip_id, pickup_datetime, toUInt8(0) as passenger_count from s3_taxis_source
