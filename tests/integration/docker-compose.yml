@@ -11,5 +11,5 @@ services:
     volumes:
       - /var/lib/clickhouse
       - type: bind
-        source: ./access_management.xml
-        target: /etc/clickhouse-server/users.d/access_management.xml
+        source: ./test_settings_${DBT_CH_TEST_SETTINGS:-latest}.xml
+        target: /etc/clickhouse-server/users.d/test_settings.xml

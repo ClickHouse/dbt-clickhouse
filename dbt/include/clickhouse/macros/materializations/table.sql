@@ -66,13 +66,8 @@
 
 {% endmaterialization %}
 
-{% macro engine_clause(label) %}
-  {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
-  {%- if engine is not none %}
-    {{ label }} = {{ engine }}
-  {%- else %}
-    {{ label }} = MergeTree()
-  {%- endif %}
+{% macro engine_clause() %}
+  engine = {{ config.get('engine', default='MergeTree()') }}
 {%- endmacro -%}
 
 {% macro partition_cols(label) %}
@@ -100,7 +95,7 @@
 
 {% macro order_cols(label) %}
   {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
-  {%- set engine = config.get('engine', validator=validation.any[basestring]) -%}
+  {%- set engine = config.get('engine', default='MergeTree()') -%}
   {%- set supported = [
     'HDFS',
     'MaterializedPostgreSQL',
@@ -109,7 +104,7 @@
     'Hive'
   ] -%}
 
-  {%- if engine is none or 'MergeTree' in engine or engine in supported %}
+  {%- if 'MergeTree' in engine or engine in supported %}
     {%- if cols is not none %}
       {%- if cols is string -%}
         {%- set cols = [cols] -%}
@@ -127,9 +122,9 @@
 {%- endmacro -%}
 
 {% macro on_cluster_clause(label) %}
-  {% set on_cluster = adapter.get_clickhouse_cluster_name() %}
-  {%- if on_cluster is not none %}
-    {{ label }} {{ on_cluster }}
+  {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
+  {%- if active_cluster is not none %}
+    ON CLUSTER {{ active_cluster }}
   {%- endif %}
 {%- endmacro -%}
 
@@ -158,8 +153,8 @@
         {{ adapter.get_model_settings(model) }}
     {%- else %}
         create table {{ relation.include(database=False) }}
-        {{ on_cluster_clause(label="on cluster") }}
-        {{ engine_clause(label="engine") }}
+        {{ on_cluster_clause()}}
+        {{ engine_clause() }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}

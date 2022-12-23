@@ -1,12 +1,11 @@
+import uuid
 from abc import ABC, abstractmethod
 
-from dbt.events import AdapterLogger
 from dbt.exceptions import DatabaseException as DBTDatabaseException
 from dbt.exceptions import FailedToConnectException
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
-
-logger = AdapterLogger('clickhouse')
+from dbt.adapters.clickhouse.logger import logger
 
 
 def get_db_client(credentials: ClickHouseCredentials):
@@ -62,11 +61,15 @@ class ChClientWrapper(ABC):
         if credentials.cluster_mode or credentials.database_engine == 'Replicated':
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
             self._conn_settings['insert_quorum'] = 'auto'
+        self._conn_settings['mutations_sync'] = '2'
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
+            lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
+            self.has_lw_deletes = lw_deletes is not None and int(lw_deletes) > 0
+            self.use_lw_deletes = self.has_lw_deletes and credentials.use_lw_deletes
             self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
@@ -78,6 +81,10 @@ class ChClientWrapper(ABC):
 
     @abstractmethod
     def command(self, sql: str, **kwargs):
+        pass
+
+    @abstractmethod
+    def get_ch_setting(self, setting_name):
         pass
 
     def database_dropped(self, database: str):
@@ -127,7 +134,8 @@ class ChClientWrapper(ABC):
             create_cmd = (
                 'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
             )
-            swap_tables = [f'__dbt_exchange_test_{x}' for x in range(0, 2)]
+            table_id = str(uuid.uuid1()).replace('-', '')
+            swap_tables = [f'__dbt_exchange_test_{x}_{table_id}' for x in range(0, 2)]
             for table in swap_tables:
                 self.command(create_cmd.format(table))
             try:

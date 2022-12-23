@@ -32,6 +32,7 @@ class ClickHouseCredentials(Credentials):
     compression: str = ''
     check_exchange: bool = True
     custom_settings: Optional[Dict[str, Any]] = None
+    use_lw_deletes: bool = False
 
     @property
     def type(self):
@@ -71,4 +72,5 @@ class ClickHouseCredentials(Credentials):
             'compression',
             'check_exchange',
             'custom_settings',
+            'use_lw_deletes',
         )

@@ -7,11 +7,10 @@ import agate
 import dbt.exceptions
 from dbt.adapters.sql import SQLConnectionManager
 from dbt.contracts.connection import Connection
-from dbt.events import AdapterLogger
 
 from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
+from dbt.adapters.clickhouse.logger import logger
 
-logger = AdapterLogger('clickhouse')
 retryable_exceptions = [ChRetryableException]
 ddl_re = re.compile(r'^\s*(CREATE|DROP|ALTER)\s', re.IGNORECASE)
 
@@ -111,17 +110,12 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         sql = self._add_query_comment(sql)
         conn = self.get_thread_connection()
         client = conn.handle
-
         with self.exception_handler(sql):
             logger.debug(f'On {conn.name}: {sql}...')
-
             pre = time.time()
             client.command(sql)
-
             status = self.get_status(client)
-
             logger.debug(f'SQL status: {status} in {(time.time() - pre):0.2f} seconds')
-
             return conn, None
 
     @classmethod

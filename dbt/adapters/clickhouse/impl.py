@@ -13,11 +13,11 @@ from dbt.adapters.sql import SQLAdapter
 from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
-from dbt.events import AdapterLogger
 from dbt.utils import executor, filter_null_values
 
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
@@ -36,7 +36,6 @@ class ClickHouseAdapter(SQLAdapter):
     Column = ClickHouseColumn
     ConnectionManager = ClickHouseConnectionManager
     AdapterSpecificConfigs = ClickHouseConfig
-    logger = AdapterLogger("dbt_clickhouse_tests")
 
     @classmethod
     def date_function(cls):
@@ -74,7 +73,7 @@ class ClickHouseAdapter(SQLAdapter):
     def get_clickhouse_cluster_name(self):
         conn = self.connections.get_if_exists()
         if conn.credentials.cluster:
-            return '"{}"'.format(conn.credentials.cluster)
+            return f'"{conn.credentials.cluster}"'
 
     @available
     def clickhouse_db_engine_clause(self):
@@ -91,17 +90,85 @@ class ClickHouseAdapter(SQLAdapter):
             return compare_versions(version, server_version) > 0
         return False
 
-    @available
+    @available.parse_none
     def supports_atomic_exchange(self) -> bool:
         conn = self.connections.get_if_exists()
         return conn and conn.handle.atomic_exchange
 
-    @available
+    @available.parse_none
     def can_exchange(self, schema: str, rel_type: str) -> bool:
         if rel_type != 'table' or not schema or not self.supports_atomic_exchange():
             return False
         ch_db = self.get_ch_database(schema)
         return ch_db and ch_db.engine in ('Atomic', 'Replicated')
+
+    @available.parse_none
+    def calculate_incremental_strategy(self, strategy: str) -> str:
+        conn = self.connections.get_if_exists()
+        if not strategy or strategy == 'default':
+            strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
+        strategy = strategy.replace('+', '_')
+        if strategy not in ['legacy', 'append', 'delete_insert']:
+            raise dbt.exceptions.RuntimeException(
+                f"The incremental strategy '{strategy}' is not valid for ClickHouse"
+            )
+        if not conn.handle.has_lw_deletes and strategy == 'delete_insert':
+            logger.warning(
+                'Lightweight deletes are not available, using legacy ClickHouse strategy'
+            )
+            strategy = 'legacy'
+        return strategy
+
+    @available.parse_none
+    def s3source_clause(
+        self,
+        config_name: str,
+        s3_model_config: dict,
+        bucket: str,
+        path: str,
+        fmt: str,
+        structure: Union[str, list, dict],
+        aws_access_key_id: str,
+        aws_secret_access_key: str,
+        compression: str = '',
+    ) -> str:
+        s3config = self.config.vars.vars.get(config_name, {})
+        s3config.update(s3_model_config)
+        structure = structure or s3config.get('structure', '')
+        struct = ''
+        if structure:
+            if isinstance(structure, dict):
+                cols = [f'{name} {col_type}' for name, col_type in structure.items()]
+                struct = f", '{','.join(cols)}'"
+            elif isinstance(structure, list):
+                struct = f", '{','.join(structure)}'"
+            else:
+                struct = f",'{structure}'"
+        fmt = fmt or s3config.get('fmt')
+        bucket = bucket or s3config.get('bucket', '')
+        path = path or s3config.get('path', '')
+        url = bucket
+        if path:
+            if bucket and path and not bucket.endswith('/') and not bucket.startswith('/'):
+                path = f'/{path}'
+            url = f'{url}{path}'
+        if not url.startswith('http'):
+            url = f'https://{url}'
+        access = ''
+        if aws_access_key_id and not aws_secret_access_key:
+            raise dbt.exceptions.RuntimeException(
+                'S3 aws_access_key_id specified without aws_secret_access_key'
+            )
+        if aws_secret_access_key and not aws_access_key_id:
+            raise dbt.exceptions.RuntimeException(
+                'S3 aws_secret_access_key specified without aws_access_key_id'
+            )
+        if aws_access_key_id:
+            access = f", '{aws_access_key_id}', '{aws_secret_access_key}'"
+        comp = compression or s3config.get('compression', '')
+        if comp:
+            comp = f"', {comp}'"
+        return f"s3('{url}'{access}, '{fmt}'{struct}{comp})"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
@@ -151,10 +218,9 @@ class ClickHouseAdapter(SQLAdapter):
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
         if not self.Relation.include_policy.database:
             database = None
-
         return super().get_relation(database, schema, identifier)
 
-    @available
+    @available.parse_none
     def get_ch_database(self, schema: str):
         try:
             results = self.execute_macro('clickhouse__get_database', kwargs={'database': schema})
@@ -163,23 +229,6 @@ class ClickHouseAdapter(SQLAdapter):
             return None
         except dbt.exceptions.RuntimeException:
             return None
-
-    def parse_clickhouse_columns(
-        self, relation: ClickHouseRelation, raw_rows: List[agate.Row]
-    ) -> List[ClickHouseColumn]:
-        rows = [dict(zip(row._keys, row._values)) for row in raw_rows]
-
-        return [
-            ClickHouseColumn(
-                column=column['name'],
-                dtype=column['type'],
-            )
-            for column in rows
-        ]
-
-    def get_columns_in_relation(self, relation: ClickHouseRelation) -> List[ClickHouseColumn]:
-        rows: List[agate.Row] = super().get_columns_in_relation(relation)
-        return self.parse_clickhouse_columns(relation, rows)
 
     def get_catalog(self, manifest):
         schema_map = self._get_catalog_schemas(manifest)
@@ -294,8 +343,8 @@ class ClickHouseAdapter(SQLAdapter):
             if fetch == "all":
                 return result
         except BaseException as e:
-            self.logger.error(sql)
-            self.logger.error(e)
+            logger.error(sql)
+            logger.error(e)
             raise
         finally:
             conn.state = 'close'
@@ -326,14 +375,14 @@ def _expect_row_value(key: str, row: agate.Row):
 
 
 def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
-    schemas = frozenset((None, s.lower()) for d, s in manifest.get_used_schemas())
+    schemas = frozenset((None, s) for d, s in manifest.get_used_schemas())
 
     def test(row: agate.Row) -> bool:
         table_database = _expect_row_value('table_database', row)
         table_schema = _expect_row_value('table_schema', row)
         if table_schema is None:
             return False
-        return (table_database, table_schema.lower()) in schemas
+        return (table_database, table_schema) in schemas
 
     return test
 

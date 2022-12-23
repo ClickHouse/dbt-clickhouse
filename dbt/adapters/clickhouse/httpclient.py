@@ -21,6 +21,10 @@ class ChHttpClient(ChClientWrapper):
         except DatabaseError as ex:
             raise DBTDatabaseException(str(ex).strip()) from ex
 
+    def get_ch_setting(self, setting_name):
+        setting = self._client.server_settings.get(setting_name)
+        return setting.value if setting else None
+
     def database_dropped(self, database: str):
         # This is necessary for the http client to avoid exceptions when ClickHouse doesn't recognize the database
         # query parameter
@@ -45,7 +49,7 @@ class ChHttpClient(ChClientWrapper):
                 verify=credentials.verify,
                 query_limit=0,
                 session_id='dbt::' + str(uuid.uuid4()),
-                **self._conn_settings,
+                settings=self._conn_settings,
             )
         except OperationalError as ex:
             raise ChRetryableException(str(ex)) from ex

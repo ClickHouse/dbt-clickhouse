@@ -40,6 +40,8 @@ def test_config(ch_test_users):
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
 
     if docker:
+        if os.environ.get('DBT_CH_TEST_CH_VERSION', '').startswith('22.3'):
+            os.environ['DBT_CH_TEST_SETTINGS'] = '22_3'
         client_port = 10723
         test_port = 10900 if test_driver == 'native' else client_port
         try:
@@ -107,7 +109,10 @@ def dbt_profile_target(test_config):
         'cluster_mode': test_config['cluster_mode'],
         'secure': test_config['secure'],
         'check_exchange': False,
-        'custom_settings': {'distributed_ddl_task_timeout': 300},
+        'custom_settings': {
+            'distributed_ddl_task_timeout': 300,
+            'input_format_skip_unknown_fields': 1,
+        },
     }
 
 
