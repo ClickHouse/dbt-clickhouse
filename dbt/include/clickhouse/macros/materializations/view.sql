@@ -17,6 +17,7 @@
   {% endif %}
 
   {% set grant_config = config.get('grants') %}
+  {%- set matview = config.get('matview') -%}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
@@ -31,18 +32,30 @@
     {{ log('Creating new relation ' + target_relation.name )}}
     -- There is not existing relation, so we can just create
     {% call statement('main') -%}
-      {{ get_create_view_as_sql(target_relation, sql) }}
+      {% if matview %}
+        {{ clickhouse__create_matview_as(target_relation, sql) }}
+      {% else %}
+        {{ get_create_view_as_sql(target_relation, sql) }}
+      {% endif %}
     {%- endcall %}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
-      {{ get_create_view_as_sql(backup_relation, sql) }}
+      {% if matview %}
+        {{ clickhouse__create_matview_as(target_relation, sql) }}
+      {% else %}
+        {{ get_create_view_as_sql(target_relation, sql) }}
+      {% endif %}
     {%- endcall %}
     {% do exchange_tables_atomic(backup_relation, existing_relation) %}
   {% else %}
     -- We have to use an intermediate and rename accordingly
     {% call statement('main') -%}
-      {{ get_create_view_as_sql(intermediate_relation, sql) }}
+      {% if matview %}
+        {{ clickhouse__create_matview_as(intermediate_relation, sql) }}
+      {% else %}
+        {{ get_create_view_as_sql(intermediate_relation, sql) }}
+      {% endif %}
     {%- endcall %}
     {{ adapter.rename_relation(existing_relation, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation) }}
