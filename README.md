@@ -28,7 +28,7 @@ pip install dbt-clickhouse
 - [x] Tests
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)  
-- [ ] Ephemeral materialization
+- [x] Ephemeral materialization
 
 # Usage Notes
 
@@ -147,8 +147,7 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 
 This adapter passes all of dbt basic tests as presented in dbt's official docs: https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter.
 
-Notes:  Ephemeral materializations are not supported and not tested.  Replicated tables (combined with the `cluster` profile setting) are available
-using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
+Note: Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
 
 Use `pytest tests` to run tests.
 
