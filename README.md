@@ -85,6 +85,12 @@ your_profile_name:
 | inserts_only         | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way | Optional                          |
 | incremental_strategy | Incremental model update strategy of `delete+insert` or `append`.  See the following Incremental Model Strategies                                                                                                                                      | Optional (default: `default`)     |
 
+## Known Limitations
+
+* Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
+* Ephemeral models/CTEs don't work with INSERT statements in ClickHouse, so materializations that combine an ephemeral model with an insert will fail.
+See https://github.com/ClickHouse/ClickHouse/issues/30323 
+
 ## Incremental Model Strategies
 
 As of version 1.3.2, dbt-clickhouse supports three incremental model strategies.
@@ -146,9 +152,6 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 # Running Tests
 
 This adapter passes all of dbt basic tests as presented in dbt's official docs: https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter.
-
-Note: Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
-
 Use `pytest tests` to run tests.
 
 You can customize the test environment via environment variables. We recommend doing so with the pytest `pytest-dotenv` plugin combined with root level `test.env`
