@@ -99,7 +99,7 @@ def test_config(ch_test_users):
 def dbt_profile_target(test_config):
     return {
         'type': 'clickhouse',
-        'threads': 1,
+        'threads': 4,
         'driver': test_config['driver'],
         'host': test_config['host'],
         'user': test_config['user'],

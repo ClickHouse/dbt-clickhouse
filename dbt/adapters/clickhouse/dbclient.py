@@ -57,7 +57,8 @@ class ChRetryableException(Exception):
 class ChClientWrapper(ABC):
     def __init__(self, credentials: ClickHouseCredentials):
         self.database = credentials.schema
-        self._conn_settings = credentials.custom_settings or {}
+        custom_settings = credentials.custom_settings or {}
+        self._conn_settings = custom_settings.copy()
         if credentials.cluster_mode or credentials.database_engine == 'Replicated':
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
             self._conn_settings['insert_quorum'] = 'auto'
@@ -109,7 +110,7 @@ class ChClientWrapper(ABC):
     def _ensure_database(self, database_engine) -> None:
         if not self.database:
             return
-        check_db = f'EXISTS DATABASE {self.database}'
+        check_db = f'EXISTS DATABASE {self.database} -- FROM ENSURE DATABASE'
         try:
             db_exists = self.command(check_db)
             if not db_exists:

@@ -1,3 +1,9 @@
+### Release [1.3.3], 2023-01-18
+#### Bug Fix
+- Client connections would incorrectly reuse a previous session_id when initializing, causing session locked errors.  This has been fixed.  This
+closes https://github.com/ClickHouse/dbt-clickhouse/issues/127
+
+
 ### Release [1.3.2], 2022-12-23
 #### Improvements
 - Added *experimental* support for the `delete+insert` incremental strategy.  In most cases this strategy should be significantly faster
@@ -207,6 +213,7 @@ for Replicated tables that use the `{uuid}` macro in the path to avoid name conf
 ### Release [0.19.0], 2021-02-14
 #### Initial Release
 
+[1.3.3]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.3.2..v1.3.3
 [1.3.2]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.3.1..v1.3.2
 [1.3.1]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.3.0..v1.3.1
 [1.3.0]: https://github.com/ClickHouse/dbt-clickhouse/compare/v1.2.1..v1.3.0
