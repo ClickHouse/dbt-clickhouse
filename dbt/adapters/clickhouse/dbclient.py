@@ -59,6 +59,7 @@ class ChClientWrapper(ABC):
         self.database = credentials.schema
         custom_settings = credentials.custom_settings or {}
         self._conn_settings = custom_settings.copy()
+        self._conn_settings['session_id'] = f'dbt::{uuid.uuid4()}'
         if credentials.cluster_mode or credentials.database_engine == 'Replicated':
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
             self._conn_settings['insert_quorum'] = 'auto'
