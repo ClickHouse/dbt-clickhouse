@@ -110,7 +110,7 @@ class ChClientWrapper(ABC):
     def _ensure_database(self, database_engine) -> None:
         if not self.database:
             return
-        check_db = f'EXISTS DATABASE {self.database} -- FROM ENSURE DATABASE'
+        check_db = f'EXISTS DATABASE {self.database}'
         try:
             db_exists = self.command(check_db)
             if not db_exists:
