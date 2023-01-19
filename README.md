@@ -28,7 +28,7 @@ pip install dbt-clickhouse
 - [x] Tests
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)  
-- [ ] Ephemeral materialization
+- [x] Ephemeral materialization (but incompatible with table materializations)
 
 # Usage Notes
 
@@ -84,6 +84,12 @@ your_profile_name:
 | unique_key           | A tuple of column names that uniquely identify rows.  Used with incremental models for updates.                                                                                                                                                        | Optional                          |
 | inserts_only         | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way | Optional                          |
 | incremental_strategy | Incremental model update strategy of `delete+insert` or `append`.  See the following Incremental Model Strategies                                                                                                                                      | Optional (default: `default`)     |
+
+## Known Limitations
+
+* Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
+* Ephemeral models/CTEs don't work with INSERT statements in ClickHouse, so table materializations that incorporate an ephemeral model will fail.
+See https://github.com/ClickHouse/ClickHouse/issues/30323.  View models and other SQL statements using ephemeral models should work correctly.
 
 ## Incremental Model Strategies
 
@@ -146,10 +152,6 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 # Running Tests
 
 This adapter passes all of dbt basic tests as presented in dbt's official docs: https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter.
-
-Notes:  Ephemeral materializations are not supported and not tested.  Replicated tables (combined with the `cluster` profile setting) are available
-using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
-
 Use `pytest tests` to run tests.
 
 You can customize the test environment via environment variables. We recommend doing so with the pytest `pytest-dotenv` plugin combined with root level `test.env`

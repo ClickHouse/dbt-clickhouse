@@ -3,6 +3,7 @@ from dbt.tests.adapter.basic.files import model_base, model_incremental, schema_
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_empty import BaseEmpty
+from dbt.tests.adapter.basic.test_ephemeral import BaseEphemeral
 from dbt.tests.adapter.basic.test_generic_tests import BaseGenericTests
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental, BaseIncrementalNotSchemaChange
 from dbt.tests.adapter.basic.test_singular_tests import BaseSingularTests
@@ -21,15 +22,26 @@ klm,false
 
 # CSV content with empty fields.
 seeds_empty_csv = """
-key,val1,val2
-abc,1,1
-abc,1,0
-def,1,0
-hij,1,1
-hij,1,
-klm,1,0
-klm,1,
+key,val1,val2,str1
+abc,1,1,some_str
+abc,1,0,"another string"
+def,1,0,
+hij,1,1,Caps
+hij,1,,"second string"
+klm,1,0,"test"
+klm,1,,"test4"
 """.lstrip()
+
+seeds_schema_yml = """
+version: 2
+
+seeds:
+  - name: empty
+    config:
+      column_types:
+        val2: Nullable(UInt32)
+        str1: Nullable(String)
+"""
 
 
 class TestBaseSimpleMaterializations(BaseSimpleMaterializations):
@@ -41,6 +53,10 @@ class TestEmpty(BaseEmpty):
 
 
 class TestIncremental(BaseIncremental):
+    pass
+
+
+class TestEphemeral(BaseEphemeral):
     pass
 
 
@@ -112,12 +128,19 @@ class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
 class TestCSVSeed:
     @pytest.fixture(scope="class")
     def seeds(self):
-        return {"boolean.csv": seeds_boolean_csv, "empty.csv": seeds_empty_csv}
+        return {
+            "schema.yml": seeds_schema_yml,
+            "boolean.csv": seeds_boolean_csv,
+            "empty.csv": seeds_empty_csv,
+        }
 
     def test_seed(self, project):
         # seed command
         results = run_dbt(["seed"])
         assert len(results) == 2
+        columns = project.run_sql("DESCRIBE TABLE empty", fetch='all')
+        assert columns[2][1] == 'Nullable(UInt32)'
+        assert columns[3][1] == 'Nullable(String)'
 
 
 incremental_not_schema_change_sql = """
