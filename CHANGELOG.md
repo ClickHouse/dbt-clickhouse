@@ -1,8 +1,14 @@
 ### Release [1.3.3], 2023-01-18
+#### Documentation Update
+- The documentation has been updated to reflect that dbt-clickhouse does support ephemeral models, and ephemeral model tests do pass.
+However, due to a [ClickHouse limitation](https://github.com/ClickHouse/ClickHouse/issues/30323), CTEs will not work directly
+with INSERT statements so table models will fail if they include ephemeral models in the SELECT.  View models and other SQL 
+statements using ephemeral models should work correctly.
+
 #### Bug Fix
 - Client connections would incorrectly reuse a previous session_id when initializing, causing session locked errors.  This has been fixed.  This
-closes https://github.com/ClickHouse/dbt-clickhouse/issues/127
-
+closes https://github.com/ClickHouse/dbt-clickhouse/issues/127.  Multiple threads should now work correctly in dbt projects,
+and dbt-clickhouse automated tests now use `threads=4` (soon to be the dbt default).
 
 ### Release [1.3.2], 2022-12-23
 #### Improvements

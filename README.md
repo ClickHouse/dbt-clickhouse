@@ -28,7 +28,7 @@ pip install dbt-clickhouse
 - [x] Tests
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)  
-- [x] Ephemeral materialization
+- [x] Ephemeral materialization (but incompatible with table materializations)
 
 # Usage Notes
 
@@ -88,8 +88,8 @@ your_profile_name:
 ## Known Limitations
 
 * Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
-* Ephemeral models/CTEs don't work with INSERT statements in ClickHouse, so materializations that combine an ephemeral model with an insert will fail.
-See https://github.com/ClickHouse/ClickHouse/issues/30323 
+* Ephemeral models/CTEs don't work with INSERT statements in ClickHouse, so table materializations that incorporate an ephemeral model will fail.
+See https://github.com/ClickHouse/ClickHouse/issues/30323.  View models and other SQL statements using ephemeral models should work correctly.
 
 ## Incremental Model Strategies
 
