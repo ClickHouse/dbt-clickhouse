@@ -10,8 +10,7 @@ on:  # yamllint disable-line rule:truthy
       - '*_dev'
       - '*_cloud'
     paths-ignore:
-      - 'README.md'
-      - 'CHANGELOG.md'
+      - '**.md'
       - 'LICENSE'
 
 jobs:
