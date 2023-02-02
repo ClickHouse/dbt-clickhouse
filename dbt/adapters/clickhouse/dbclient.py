@@ -1,8 +1,8 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from dbt.exceptions import DatabaseException as DBTDatabaseException
-from dbt.exceptions import FailedToConnectException
+from dbt.exceptions import DbtDatabaseError
+from dbt.exceptions import FailedToConnectError
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.logger import logger
@@ -23,7 +23,7 @@ def get_db_client(credentials: ClickHouseCredentials):
         if not port:
             port = 9440 if credentials.secure else 9000
     else:
-        raise FailedToConnectException(f'Unrecognized ClickHouse driver {driver}')
+        raise FailedToConnectError(f'Unrecognized ClickHouse driver {driver}')
 
     credentials.driver = driver
     credentials.port = port
@@ -35,7 +35,7 @@ def get_db_client(credentials: ClickHouseCredentials):
 
             return ChNativeClient(credentials)
         except ImportError:
-            raise FailedToConnectException(
+            raise FailedToConnectError(
                 'Native adapter required but package clickhouse-driver is not installed'
             )
     try:
@@ -45,7 +45,7 @@ def get_db_client(credentials: ClickHouseCredentials):
 
         return ChHttpClient(credentials)
     except ImportError:
-        raise FailedToConnectException(
+        raise FailedToConnectError(
             'HTTP adapter required but package clickhouse-connect is not installed'
         )
 
@@ -119,11 +119,11 @@ class ChClientWrapper(ABC):
                 self.command(f'CREATE DATABASE {self.database}{engine_clause}')
                 db_exists = self.command(check_db)
                 if not db_exists:
-                    raise FailedToConnectException(
+                    raise FailedToConnectError(
                         f'Failed to create database {self.database} for unknown reason'
                     )
-        except DBTDatabaseException as ex:
-            raise FailedToConnectException(
+        except DbtDatabaseError as ex:
+            raise FailedToConnectError(
                 f'Failed to create {self.database} database due to ClickHouse exception'
             ) from ex
         self._set_client_database()
@@ -143,7 +143,7 @@ class ChClientWrapper(ABC):
             try:
                 self.command('EXCHANGE TABLES {} AND {}'.format(*swap_tables))
                 return True
-            except DBTDatabaseException:
+            except DbtDatabaseError:
                 logger.info('ClickHouse server does not support the EXCHANGE TABLES command')
                 logger.info(
                     'This can be caused by an obsolete ClickHouse version or by running ClickHouse on'
@@ -156,8 +156,8 @@ class ChClientWrapper(ABC):
                 try:
                     for table in swap_tables:
                         self.command(f'DROP TABLE IF EXISTS {table}')
-                except DBTDatabaseException:
+                except DbtDatabaseError:
                     logger.info('Unexpected server exception dropping table', exc_info=True)
-        except DBTDatabaseException:
+        except DbtDatabaseError:
             logger.warning('Failed to run exchange test', exc_info=True)
         return False

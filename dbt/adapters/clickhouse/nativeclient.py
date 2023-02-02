@@ -1,6 +1,6 @@
 import clickhouse_driver
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
-from dbt.exceptions import DatabaseException as DBTDatabaseException
+from dbt.exceptions import DbtDatabaseError
 from dbt.version import __version__ as dbt_version
 
 from dbt.adapters.clickhouse import ClickHouseCredentials
@@ -13,7 +13,7 @@ class ChNativeClient(ChClientWrapper):
         try:
             return NativeClientResult(self._client.execute(sql, with_column_types=True, **kwargs))
         except clickhouse_driver.errors.Error as ex:
-            raise DBTDatabaseException(str(ex).strip()) from ex
+            raise DbtDatabaseError(str(ex).strip()) from ex
 
     def command(self, sql, **kwargs):
         try:
@@ -21,7 +21,7 @@ class ChNativeClient(ChClientWrapper):
             if len(result) and len(result[0]):
                 return result[0][0]
         except clickhouse_driver.errors.Error as ex:
-            raise DBTDatabaseException(str(ex).strip()) from ex
+            raise DbtDatabaseError(str(ex).strip()) from ex
 
     def get_ch_setting(self, setting_name):
         try:

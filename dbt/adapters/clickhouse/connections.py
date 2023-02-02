@@ -28,9 +28,9 @@ class ClickHouseConnectionManager(SQLConnectionManager):
             yield
         except Exception as exp:
             logger.debug('Error running SQL: {}', sql)
-            if isinstance(exp, dbt.exceptions.RuntimeException):
+            if isinstance(exp, dbt.exceptions.DbtRuntimeError):
                 raise
-            raise dbt.exceptions.RuntimeException(exp) from exp
+            raise dbt.exceptions.DbtRuntimeError from exp
 
     @classmethod
     def open(cls, connection):

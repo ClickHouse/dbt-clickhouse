@@ -125,7 +125,7 @@
 
 
 {% macro clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key) %}
-    -- First create a temporary table with all of the new data
+    -- First create a temporary table for all of the new data
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
     {% call statement('create_new_data_temp') %}

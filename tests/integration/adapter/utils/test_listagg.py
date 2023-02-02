@@ -1,5 +1,5 @@
 import pytest
-from dbt.exceptions import CompilationException
+from dbt.exceptions import CompilationError
 from dbt.tests.adapter.utils.fixture_listagg import (
     models__test_listagg_yml,
     seeds__data_listagg_csv,
@@ -32,5 +32,5 @@ class TestListagg:
     def test_listagg_exception(self, project):
         try:
             run_dbt(["build"], False)
-        except CompilationException as e:
+        except CompilationError as e:
             assert 'does not support' in e.msg
