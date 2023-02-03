@@ -28,9 +28,7 @@ class ClickHouseRelation(BaseRelation):
 
     def __post_init__(self):
         if self.database != self.schema and self.database:
-            raise DbtRuntimeError(
-                f'Cannot set database {self.database} in clickhouse!'
-            )
+            raise DbtRuntimeError(f'Cannot set database {self.database} in clickhouse!')
 
     def render(self):
         if self.include_policy.database and self.include_policy.schema:
@@ -47,7 +45,5 @@ class ClickHouseRelation(BaseRelation):
         identifier: Optional[str] = None,
     ):
         if schema:
-            raise DbtRuntimeError(
-                f'Passed unexpected schema value {schema} to Relation.matches'
-            )
+            raise DbtRuntimeError(f'Passed unexpected schema value {schema} to Relation.matches')
         return self.database == database and self.identifier == identifier

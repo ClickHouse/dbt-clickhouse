@@ -10,10 +10,10 @@ from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import catch_as_completed
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
-from dbt.exceptions import DbtRuntimeError, NotImplementedError, DbtInternalError
 from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
+from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
 from dbt.utils import executor, filter_null_values
 
 from dbt.adapters.clickhouse.column import ClickHouseColumn
@@ -66,9 +66,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     @classmethod
     def convert_time_type(cls, agate_table: agate.Table, col_idx: int) -> str:
-        raise NotImplementedError(
-            '`convert_time_type` is not implemented for this adapter!'
-        )
+        raise NotImplementedError('`convert_time_type` is not implemented for this adapter!')
 
     @available.parse(lambda *a, **k: {})
     def get_clickhouse_cluster_name(self):
@@ -157,13 +155,9 @@ class ClickHouseAdapter(SQLAdapter):
             url = f'https://{url}'
         access = ''
         if aws_access_key_id and not aws_secret_access_key:
-            raise DbtRuntimeError(
-                'S3 aws_access_key_id specified without aws_secret_access_key'
-            )
+            raise DbtRuntimeError('S3 aws_access_key_id specified without aws_secret_access_key')
         if aws_secret_access_key and not aws_access_key_id:
-            raise DbtRuntimeError(
-                'S3 aws_secret_access_key specified without aws_access_key_id'
-            )
+            raise DbtRuntimeError('S3 aws_secret_access_key specified without aws_access_key_id')
         if aws_access_key_id:
             access = f", '{aws_access_key_id}', '{aws_secret_access_key}'"
         comp = compression or s3config.get('compression', '')
@@ -366,9 +360,7 @@ class ClickHouseDatabase:
 
 def _expect_row_value(key: str, row: agate.Row):
     if key not in row.keys():
-        raise DbtInternalError(
-            f'Got a row without \'{key}\' column, columns: {row.keys()}'
-        )
+        raise DbtInternalError(f'Got a row without \'{key}\' column, columns: {row.keys()}')
 
     return row[key]
 
@@ -394,9 +386,7 @@ def compare_versions(v1: str, v2: str) -> int:
             if int(part1) != int(part2):
                 return 1 if int(part1) > int(part2) else -1
         except ValueError:
-            raise DbtRuntimeError(
-                "Version must consist of only numbers separated by '.'"
-            )
+            raise DbtRuntimeError("Version must consist of only numbers separated by '.'")
     return 0
 
 

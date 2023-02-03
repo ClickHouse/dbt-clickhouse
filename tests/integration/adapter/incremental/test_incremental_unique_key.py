@@ -1,10 +1,17 @@
 import pytest
-from dbt.tests.adapter.incremental.test_incremental_unique_id import BaseIncrementalUniqueKey, \
-    models__unary_unique_key_list_sql, models__trinary_unique_key_list_sql, \
-    models__nontyped_trinary_unique_key_list_sql, models__not_found_unique_key_sql, models__empty_unique_key_list_sql, \
-    models__no_unique_key_sql, models__empty_str_unique_key_sql, models__str_unique_key_sql, \
-    models__duplicated_unary_unique_key_list_sql, models__not_found_unique_key_list_sql
-
+from dbt.tests.adapter.incremental.test_incremental_unique_id import (
+    BaseIncrementalUniqueKey,
+    models__duplicated_unary_unique_key_list_sql,
+    models__empty_str_unique_key_sql,
+    models__empty_unique_key_list_sql,
+    models__no_unique_key_sql,
+    models__nontyped_trinary_unique_key_list_sql,
+    models__not_found_unique_key_list_sql,
+    models__not_found_unique_key_sql,
+    models__str_unique_key_sql,
+    models__trinary_unique_key_list_sql,
+    models__unary_unique_key_list_sql,
+)
 
 models__expected__one_str__overwrite_sql = """
 {{

@@ -3,7 +3,6 @@ from dbt.tests.adapter.utils.test_timestamps import BaseCurrentTimestamps
 
 
 class TestCurrentTimestamps(BaseCurrentTimestamps):
-
     @pytest.fixture(scope="class")
     def expected_schema(self):
         return {
@@ -15,4 +14,3 @@ class TestCurrentTimestamps(BaseCurrentTimestamps):
     @pytest.fixture(scope="class")
     def expected_sql(self):
         return None
-

@@ -1,5 +1,11 @@
-from dbt.tests.adapter.query_comment.test_query_comment import BaseQueryComments, BaseMacroQueryComments, \
-    BaseMacroArgsQueryComments, BaseMacroInvalidQueryComments, BaseNullQueryComments, BaseEmptyQueryComments
+from dbt.tests.adapter.query_comment.test_query_comment import (
+    BaseEmptyQueryComments,
+    BaseMacroArgsQueryComments,
+    BaseMacroInvalidQueryComments,
+    BaseMacroQueryComments,
+    BaseNullQueryComments,
+    BaseQueryComments,
+)
 
 
 class TestQueryComments(BaseQueryComments):

@@ -1,8 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from dbt.exceptions import DbtDatabaseError
-from dbt.exceptions import FailedToConnectError
+from dbt.exceptions import DbtDatabaseError, FailedToConnectError
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.logger import logger
@@ -69,7 +68,9 @@ class ChClientWrapper(ABC):
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
-            self.has_lw_deletes, self.use_lw_deletes = self._check_lightweight_deletes(credentials.use_lw_deletes)
+            self.has_lw_deletes, self.use_lw_deletes = self._check_lightweight_deletes(
+                credentials.use_lw_deletes
+            )
             self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
@@ -110,7 +111,9 @@ class ChClientWrapper(ABC):
         lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
         if lw_deletes is None:
             if requested:
-                logger.warning('use_lw_deletes requested but are not available on this ClickHouse server')
+                logger.warning(
+                    'use_lw_deletes requested but are not available on this ClickHouse server'
+                )
             return False, False
         lw_deletes = int(lw_deletes)
         if lw_deletes == 1:
@@ -121,7 +124,9 @@ class ChClientWrapper(ABC):
             self.command('SET allow_experimental_lightweight_delete = 1')
             return True, True
         except DbtDatabaseError as ex:
-            logger.warning('use_lw_deletes requested but cannot enable on this ClickHouse server %s', str(ex))
+            logger.warning(
+                'use_lw_deletes requested but cannot enable on this ClickHouse server %s', str(ex)
+            )
             return False, False
 
     def _ensure_database(self, database_engine) -> None:
