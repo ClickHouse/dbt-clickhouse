@@ -42,7 +42,7 @@ jobs:
         if: ${{ matrix.clickhouse-version == '22.3' }}
         run: |
           echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
-          echo "DBT_CH_TEST_CH_VERSION=${{ matrix.clickhouse_version }}" >> $GITHUB_ENV
+          echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
 
       - name: Run ClickHouse Container
         run: docker run
