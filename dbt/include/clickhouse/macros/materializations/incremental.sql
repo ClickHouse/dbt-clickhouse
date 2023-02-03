@@ -7,9 +7,9 @@
   {% if unique_key is not none and unique_key|length == 0 %}
     {% set unique_key = none %}
   {% endif %}
-    {% if unique_key is not none %}
-      {% do log('UNIQUE KEY IS "' + unique_key + '"') %}
-    {% endif %}
+  {% if unique_key is iterable and (unique_key is not string and unique_key is not mapping) %}
+     {% set unique_key = unique_key|join(', ') %}
+  {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
   {%- set grant_config = config.get('grants') -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
