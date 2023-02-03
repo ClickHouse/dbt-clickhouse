@@ -87,10 +87,6 @@
   {% do return(None) %}
 {%- endmacro %}
 
-{% macro clickhouse__current_timestamp() -%}
-  now()
-{%- endmacro %}
-
 {% macro clickhouse__get_columns_in_query(select_sql) %}
   {% call statement('get_columns_in_query', fetch_result=True, auto_begin=False) -%}
     select * from (

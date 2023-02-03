@@ -5,12 +5,6 @@
   {%- endfor -%})
 {%- endmacro %}
 
-{% macro clickhouse__snapshot_string_as_time(timestamp) -%}
-  {%- set result = "toDateTime('" ~ timestamp ~ "')" -%}
-  {{ return(result) }}
-{%- endmacro %}
-
-
 {% macro clickhouse__post_snapshot(staging_relation) %}
     {{ drop_relation_if_exists(staging_relation) }}
 {% endmacro %}

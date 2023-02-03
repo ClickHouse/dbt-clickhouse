@@ -1,4 +1,6 @@
 import pytest
+from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
+from dbt.tests.adapter.basic.test_incremental import BaseIncremental, BaseIncrementalNotSchemaChange
 from dbt.tests.util import run_dbt
 
 uniq_schema = """
@@ -131,3 +133,34 @@ class TestIncrementalCompoundKey:
         run_dbt()
         result = project.run_sql("select count(*) as num_rows from compound_key_inc", fetch="one")
         assert result[0] == 180
+
+
+class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
+    @pytest.fixture(scope="class")
+    def models(self):
+        config_materialized_incremental = """
+          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='incremental', unique_key='id') }}
+        """
+        incremental_sql = config_materialized_incremental + model_incremental
+        return {
+            "incremental.sql": incremental_sql,
+            "schema.yml": schema_base_yml,
+        }
+
+
+incremental_not_schema_change_sql = """
+{{ config(materialized="incremental", unique_key="user_id_current_time",on_schema_change="sync_all_columns") }}
+select
+    toString(1) || '-' || toString(now64()) as user_id_current_time,
+    {% if is_incremental() %}
+        'thisis18characters' as platform
+    {% else %}
+        'okthisis20characters' as platform
+    {% endif %}
+"""
+
+
+class TestIncrementalNotSchemaChange(BaseIncrementalNotSchemaChange):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"incremental_not_schema_change.sql": incremental_not_schema_change_sql}

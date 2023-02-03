@@ -43,7 +43,7 @@ class ChHttpClient(ChClientWrapper):
                 compress=False if credentials.compression == '' else bool(credentials.compression),
                 connect_timeout=credentials.connect_timeout,
                 send_receive_timeout=credentials.send_receive_timeout,
-                client_name=f'dbt/{dbt_version}',
+                client_name=f'dbt-clickhouse/{dbt_version}',
                 verify=credentials.verify,
                 query_limit=0,
                 settings=self._conn_settings,

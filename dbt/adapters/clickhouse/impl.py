@@ -217,7 +217,7 @@ class ClickHouseAdapter(SQLAdapter):
         return relations
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
-        return super().get_relation('', schema, identifier)
+        return super().get_relation(None, schema, identifier)
 
     @available.parse_none
     def get_ch_database(self, schema: str):
