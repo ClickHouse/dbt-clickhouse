@@ -107,7 +107,8 @@ goes wrong before the operation completes; however, since it involves a full cop
 ClickHouse added "lightweight deletes" as an experimental feature in version 22.8.  Lightweight deletes are significantly faster than ALTER TABLE ... DELETE
 operations, because they don't require rewriting ClickHouse data parts.  The incremental strategy `delete+insert` utilizes lightweight deletes to implement
 incremental materializations that perform significantly better than the "legacy" strategy.  However, there are important caveats to using this strategy:
-- The setting `allow_experimental_lightweight_delete` must be enabled on your ClickHouse server or including in the `custom_settings` for your ClickHouse profile.
+- Lightweight deletes must be enabled on your ClickHouse server using the setting `allow_experimental_lightweight_delete=1` or you 
+must set `use_lw_deletes=true` in your profile (which will enable that setting for your dbt sessions)
 - As suggested by the setting name, lightweight delete functionality is still experimental and there are still known issues that must be resolved before the feature is considered production ready,
 so usage should be limited to datasets that are easily recreated
 - This strategy operates directly on the affected table/relation (with creating any intermediate or temporary tables), so if there is an issue during the operation, the
