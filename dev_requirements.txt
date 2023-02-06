@@ -13,4 +13,4 @@ types-requests==2.27.29
 agate~=1.6.3
 requests~=2.27.1
 setuptools~=65.3.0
-types-setuptools=67.1.0.0
+types-setuptools==67.1.0.0
