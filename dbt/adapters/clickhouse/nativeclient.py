@@ -1,11 +1,18 @@
 import clickhouse_driver
+import pkg_resources
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
 from dbt.exceptions import DbtDatabaseError
 from dbt.version import __version__ as dbt_version
 
 from dbt.adapters.clickhouse import ClickHouseCredentials
+from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 from dbt.adapters.clickhouse.logger import logger
+
+try:
+    driver_version = pkg_resources.get_distribution('clickhouse-driver').version
+except pkg_resources.ResolutionError:
+    driver_version = 'unknown'
 
 
 class ChNativeClient(ChClientWrapper):
@@ -42,7 +49,7 @@ class ChNativeClient(ChClientWrapper):
             port=credentials.port,
             user=credentials.user,
             password=credentials.password,
-            client_name=f'dbt-{dbt_version}',
+            client_name=f'dbt/{dbt_version} dbt-clickhouse/{dbt_clickhouse_version} clickhouse-driver/{driver_version}',
             secure=credentials.secure,
             verify=credentials.verify,
             connect_timeout=credentials.connect_timeout,
