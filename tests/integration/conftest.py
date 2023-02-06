@@ -115,6 +115,7 @@ def dbt_profile_target(test_config):
         'cluster_mode': test_config['cluster_mode'],
         'secure': test_config['secure'],
         'check_exchange': False,
+        'use_lw_deletes': True,
         'custom_settings': {
             'distributed_ddl_task_timeout': 300,
             'input_format_skip_unknown_fields': 1,

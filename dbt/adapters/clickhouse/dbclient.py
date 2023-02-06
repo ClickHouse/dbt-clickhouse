@@ -122,6 +122,7 @@ class ChClientWrapper(ABC):
             return False, False
         try:
             self.command('SET allow_experimental_lightweight_delete = 1')
+            self.command('SET allow_nondeterministic_mutations = 1')
             return True, True
         except DbtDatabaseError as ex:
             logger.warning(
