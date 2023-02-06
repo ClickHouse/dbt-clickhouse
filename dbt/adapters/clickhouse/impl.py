@@ -270,7 +270,7 @@ class ClickHouseAdapter(SQLAdapter):
         relation_a: ClickHouseRelation,
         relation_b: ClickHouseRelation,
         column_names: Optional[List[str]] = None,
-        except_operator: str = None,
+        except_operator: Optional[str] = None,
     ) -> str:
         names: List[str]
         if column_names is None:
