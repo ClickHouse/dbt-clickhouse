@@ -2,8 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from dbt.contracts.connection import Credentials
-
-import dbt
+from dbt.exceptions import DbtRuntimeError
 
 
 @dataclass
@@ -44,7 +43,7 @@ class ClickHouseCredentials(Credentials):
 
     def __post_init__(self):
         if self.database is not None and self.database != self.schema:
-            raise dbt.exceptions.RuntimeException(
+            raise DbtRuntimeError(
                 f'    schema: {self.schema} \n'
                 f'    database: {self.database} \n'
                 f'    cluster: {self.cluster} \n'

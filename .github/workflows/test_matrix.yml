@@ -26,20 +26,23 @@ jobs:
           - '3.8'
           - '3.9'
           - '3.10'
+          - '3.11'
         clickhouse-version:
           - '22.3'
           - '22.8'
-          - '22.9'
-          - '22.10'
+          - '22.11'
+          - '22.12'
           - latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Set legacy test settings file
+      - name: Set environment variables
         if: ${{ matrix.clickhouse-version == '22.3' }}
-        run: echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
+        run: |
+          echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
+          echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
 
       - name: Run ClickHouse Container
         run: docker run

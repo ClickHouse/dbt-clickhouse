@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 from dbt.tests.util import run_dbt
@@ -66,6 +67,8 @@ class TestBaseComment:
         ['table_comment', 'view_comment'],
     )
     def test_comment(self, project, model_name):
+        if '_cloud' in os.environ.get('GITHUB_REF', ''):
+            pytest.skip('Not running comment test for cloud')
         run_dbt(["run"])
         run_dbt(["docs", "generate"])
         with open("target/catalog.json") as fp:

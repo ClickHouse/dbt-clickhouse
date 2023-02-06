@@ -1,3 +1,19 @@
+### Release [1.4.0], 2023-02-06
+#### Improvements
+- Support dbt [1.4.1] https://github.com/ClickHouse/dbt-clickhouse/issues/135
+  - Adds support for Python 3.11
+  - Adds additional dbt 1.4.0 tests
+  - Adds support for incremental_predicates.  This only applies to `delete+insert` incremental strategy.  Note that incremental
+predicates that depend on "non-deterministic" data (such as a subquery using a table that is accepting inserts) could lead to
+unexpected results for ReplicatedMergeTree tables depending on the timing of the incremental materialization.  
+  - Replaces deprecated Exception classes
+- Setting the `use_lw_deletes` profile value to True will now attempt to enable the `allow_experimental_lightweight_delete`
+setting for the dbt session (if user has such permissions on the ClickHouse server).  See https://github.com/ClickHouse/dbt-clickhouse/issues/133
+
+#### Bug Fix
+- Composite unique keys specified as a list would not work with incremental materializations.  This has been fixed.
+
+
 ### Release [1.3.3], 2023-01-18
 #### Documentation Update
 - The documentation has been updated to reflect that dbt-clickhouse does support ephemeral models, and ephemeral model tests do pass.

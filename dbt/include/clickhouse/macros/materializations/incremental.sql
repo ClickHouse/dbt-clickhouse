@@ -4,6 +4,12 @@
   {%- set target_relation = this.incorporate(type='table') -%}
 
   {%- set unique_key = config.get('unique_key') -%}
+  {% if unique_key is not none and unique_key|length == 0 %}
+    {% set unique_key = none %}
+  {% endif %}
+  {% if unique_key is iterable and (unique_key is not string and unique_key is not mapping) %}
+     {% set unique_key = unique_key|join(', ') %}
+  {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
   {%- set grant_config = config.get('grants') -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
@@ -44,25 +50,29 @@
     {% endcall %}
 
   {% else %}
-     {% set schema_changes = none %}
-     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-     {% if on_schema_change != 'ignore' %}
-       {%- set schema_changes = check_for_schema_changes(existing_relation, target_relation) -%}
-       {% if schema_changes['schema_changed'] and incremental_strategy in ('append', 'delete_insert') %}
-         {% set incremental_strategy = 'legacy' %}
-         {% do log('Schema changes detected, switching to legacy incremental strategy') %}
-       {% endif %}
-     {% endif %}
-     {% if incremental_strategy == 'legacy' %}
-        {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, schema_changes, unique_key) %}
-        {% set need_swap = true %}
-     {% elif incremental_strategy == 'delete_insert' %}
-        {% do clickhouse__incremental_delete_insert(existing_relation, unique_key) %}
-     {% elif incremental_strategy == 'append' %}
-        {% call statement('main') %}
-          {{ clickhouse__insert_into(target_relation, sql) }}
-        {% endcall %}
-     {% endif %}
+    {% set schema_changes = none %}
+    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
+    {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
+    {% if on_schema_change != 'ignore' %}
+      {%- set schema_changes = check_for_schema_changes(existing_relation, target_relation) -%}
+      {% if schema_changes['schema_changed'] and incremental_strategy in ('append', 'delete_insert') %}
+        {% set incremental_strategy = 'legacy' %}
+        {% do log('Schema changes detected, switching to legacy incremental strategy') %}
+      {% endif %}
+    {% endif %}
+    {% if incremental_strategy != 'delete_insert' and incremental_predicates %}
+      {% do exceptions.raise_compiler_error('Cannot apply incremental predicates with ' + incremental_strategy + ' strategy.') %}
+    {% endif %}
+    {% if incremental_strategy == 'legacy' %}
+      {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, schema_changes, unique_key) %}
+      {% set need_swap = true %}
+    {% elif incremental_strategy == 'delete_insert' %}
+      {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
+    {% elif incremental_strategy == 'append' %}
+      {% call statement('main') %}
+        {{ clickhouse__insert_into(target_relation, sql) }}
+      {% endcall %}
+    {% endif %}
   {% endif %}
 
   {% if need_swap %}
@@ -70,7 +80,7 @@
         {% do adapter.rename_relation(intermediate_relation, backup_relation) %}
         {% do exchange_tables_atomic(backup_relation, target_relation) %}
       {% else %}
-        {% do adapter.rename_relation(target_relation, backup_relation) %} 
+        {% do adapter.rename_relation(target_relation, backup_relation) %}
         {% do adapter.rename_relation(intermediate_relation, target_relation) %}
       {% endif %}
       {% do to_drop.append(backup_relation) %}
@@ -125,7 +135,7 @@
 
 
 {% macro clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key) %}
-    -- First create a temporary table with all of the new data
+    -- First create a temporary table for all of the new data
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
     {% call statement('create_new_data_temp') %}
@@ -167,15 +177,20 @@
 {% endmacro %}
 
 
-{% macro clickhouse__incremental_delete_insert(existing_relation, unique_key) %}
+{% macro clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
     {% call statement('main') %}
         {{ get_create_table_as_sql(False, new_data_relation, sql) }}
     {% endcall %}
     {% call statement('delete_existing_data') %}
-        delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
-         from {{ new_data_relation }})
+      delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                          from {{ new_data_relation }})
+      {%- if incremental_predicates %}
+        {% for predicate in incremental_predicates %}
+            and {{ predicate }}
+        {% endfor %}
+      {%- endif -%};
     {% endcall %}
 
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}

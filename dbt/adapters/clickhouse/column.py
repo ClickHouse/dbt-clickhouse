@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from dbt.adapters.base.column import Column
-from dbt.exceptions import RuntimeException
+from dbt.exceptions import DbtRuntimeError
 
 Self = TypeVar('Self', bound='ClickHouseColumn')
 
@@ -96,7 +96,7 @@ class ClickHouseColumn(Column):
 
     def string_size(self) -> int:
         if not self.is_string():
-            raise RuntimeException('Called string_size() on non-string field!')
+            raise DbtRuntimeError('Called string_size() on non-string field!')
 
         if not self.dtype.lower().startswith('fixedstring') or self.char_size is None:
             return 256

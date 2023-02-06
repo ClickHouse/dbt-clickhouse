@@ -1,8 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 
-from dbt.exceptions import DatabaseException as DBTDatabaseException
-from dbt.exceptions import FailedToConnectException
+from dbt.exceptions import DbtDatabaseError, FailedToConnectError
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.logger import logger
@@ -23,7 +22,7 @@ def get_db_client(credentials: ClickHouseCredentials):
         if not port:
             port = 9440 if credentials.secure else 9000
     else:
-        raise FailedToConnectException(f'Unrecognized ClickHouse driver {driver}')
+        raise FailedToConnectError(f'Unrecognized ClickHouse driver {driver}')
 
     credentials.driver = driver
     credentials.port = port
@@ -35,7 +34,7 @@ def get_db_client(credentials: ClickHouseCredentials):
 
             return ChNativeClient(credentials)
         except ImportError:
-            raise FailedToConnectException(
+            raise FailedToConnectError(
                 'Native adapter required but package clickhouse-driver is not installed'
             )
     try:
@@ -45,7 +44,7 @@ def get_db_client(credentials: ClickHouseCredentials):
 
         return ChHttpClient(credentials)
     except ImportError:
-        raise FailedToConnectException(
+        raise FailedToConnectError(
             'HTTP adapter required but package clickhouse-connect is not installed'
         )
 
@@ -69,9 +68,9 @@ class ChClientWrapper(ABC):
         try:
             self._ensure_database(credentials.database_engine)
             self.server_version = self._server_version()
-            lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
-            self.has_lw_deletes = lw_deletes is not None and int(lw_deletes) > 0
-            self.use_lw_deletes = self.has_lw_deletes and credentials.use_lw_deletes
+            self.has_lw_deletes, self.use_lw_deletes = self._check_lightweight_deletes(
+                credentials.use_lw_deletes
+            )
             self.atomic_exchange = not check_exchange or self._check_atomic_exchange()
         except Exception as ex:
             self.close()
@@ -108,6 +107,29 @@ class ChClientWrapper(ABC):
     def _server_version(self):
         pass
 
+    def _check_lightweight_deletes(self, requested: bool):
+        lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
+        if lw_deletes is None:
+            if requested:
+                logger.warning(
+                    'use_lw_deletes requested but are not available on this ClickHouse server'
+                )
+            return False, False
+        lw_deletes = int(lw_deletes)
+        if lw_deletes == 1:
+            return True, requested
+        if not requested:
+            return False, False
+        try:
+            self.command('SET allow_experimental_lightweight_delete = 1')
+            self.command('SET allow_nondeterministic_mutations = 1')
+            return True, True
+        except DbtDatabaseError as ex:
+            logger.warning(
+                'use_lw_deletes requested but cannot enable on this ClickHouse server %s', str(ex)
+            )
+            return False, False
+
     def _ensure_database(self, database_engine) -> None:
         if not self.database:
             return
@@ -119,11 +141,11 @@ class ChClientWrapper(ABC):
                 self.command(f'CREATE DATABASE {self.database}{engine_clause}')
                 db_exists = self.command(check_db)
                 if not db_exists:
-                    raise FailedToConnectException(
+                    raise FailedToConnectError(
                         f'Failed to create database {self.database} for unknown reason'
                     )
-        except DBTDatabaseException as ex:
-            raise FailedToConnectException(
+        except DbtDatabaseError as ex:
+            raise FailedToConnectError(
                 f'Failed to create {self.database} database due to ClickHouse exception'
             ) from ex
         self._set_client_database()
@@ -143,7 +165,7 @@ class ChClientWrapper(ABC):
             try:
                 self.command('EXCHANGE TABLES {} AND {}'.format(*swap_tables))
                 return True
-            except DBTDatabaseException:
+            except DbtDatabaseError:
                 logger.info('ClickHouse server does not support the EXCHANGE TABLES command')
                 logger.info(
                     'This can be caused by an obsolete ClickHouse version or by running ClickHouse on'
@@ -156,8 +178,8 @@ class ChClientWrapper(ABC):
                 try:
                     for table in swap_tables:
                         self.command(f'DROP TABLE IF EXISTS {table}')
-                except DBTDatabaseException:
+                except DbtDatabaseError:
                     logger.info('Unexpected server exception dropping table', exc_info=True)
-        except DBTDatabaseException:
+        except DbtDatabaseError:
             logger.warning('Failed to run exchange test', exc_info=True)
         return False
