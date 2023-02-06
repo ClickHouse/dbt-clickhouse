@@ -75,16 +75,16 @@ your_profile_name:
 
 ## Model Configuration
 
-| Option               | Description                                                                                                                                                                                                                                            | Required?                         |
-|----------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
-| engine               | The table engine (type of table) to use when creating tables                                                                                                                                                                                           | Optional (default: `MergeTree()`) |
-| order_by             | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                          | Optional (default: `tuple()`)     |
-| partition_by         | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                   | Optional                          |
-| primary_key          | Like order_by, a ClickHouse primary key expression.  If not specified, ClickHouse will use the order by expression as the primary key                                                                                                                  |
-| unique_key           | A tuple of column names that uniquely identify rows.  Used with incremental models for updates.                                                                                                                                                        | Optional                          |
-| inserts_only         | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way | Optional                          |
-| incremental_strategy | Incremental model update strategy of `delete+insert` or `append`.  See the following Incremental Model Strategies                                                                                                                                      | Optional (default: `default`)     |
-
+| Option                 | Description                                                                                                                                                                                                                                            | Required?                         |
+|------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------|
+| engine                 | The table engine (type of table) to use when creating tables                                                                                                                                                                                           | Optional (default: `MergeTree()`) |
+| order_by               | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                          | Optional (default: `tuple()`)     |
+| partition_by           | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                   | Optional                          |
+| primary_key            | Like order_by, a ClickHouse primary key expression.  If not specified, ClickHouse will use the order by expression as the primary key                                                                                                                  |
+| unique_key             | A tuple of column names that uniquely identify rows.  Used with incremental models for updates.                                                                                                                                                        | Optional                          |
+| inserts_only           | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way | Optional                          |
+| incremental_strategy   | Incremental model update strategy of `delete+insert` or `append`.  See the following Incremental Model Strategies                                                                                                                                      | Optional (default: `default`)     |
+| incremental_predicates | Additional conditions to be applied to the incremental materialization (only applied to `delete+insert` strategy                                                                                                                                       |
 ## Known Limitations
 
 * Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
@@ -113,6 +113,9 @@ must set `use_lw_deletes=true` in your profile (which will enable that setting f
 so usage should be limited to datasets that are easily recreated
 - This strategy operates directly on the affected table/relation (with creating any intermediate or temporary tables), so if there is an issue during the operation, the
 data in the incremental model is likely to be in an invalid state
+- When using lightweight deletes, dbt-clickhouse enabled the setting `allow_nondeterministic_mutations`.  In some very rare cases using non-deterministic incremental_predicates
+this could result in a race condition for the updated/deleted items (and related log messages in the ClickHouse logs).  To ensure consistent results the
+incremental predicates should only include sub-queries on data that will not be modified during the incremental materialization.
 
 ### The Append Strategy
 
