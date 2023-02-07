@@ -110,7 +110,7 @@
 
 {% macro exchange_tables_atomic(old_relation, target_relation, obj_types='TABLES') %}
 
-  {%- if adapter.get_clickhouse_cluster_name() is not none and structure == 'TABLES' %}
+  {%- if adapter.get_clickhouse_cluster_name() is not none and obj_types == 'TABLES' %}
     {% do run_query("SYSTEM SYNC REPLICA "+target_relation.identifier) %}
   {%- endif %}
   
