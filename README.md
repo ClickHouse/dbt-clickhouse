@@ -90,7 +90,7 @@ your_profile_name:
 * Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
 * Ephemeral models/CTEs don't work if placed before the "INSERT INTO" in a ClickHouse insert statement, see https://github.com/ClickHouse/ClickHouse/issues/30323.  This
 should not affect most models, but care should be taken where an ephemeral model is placed in model definitions and other SQL statements.
-* 
+
 ## Incremental Model Strategies
 
 As of version 1.3.2, dbt-clickhouse supports three incremental model strategies.
