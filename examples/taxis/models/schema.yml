@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: trips_inc
+    description: NY Taxi dataset from S3
+    config:
+      materialized: incremental
+      order_by: trip_id
+      unique_key: trip_id
+
+  - name: trips_rand
+    description: Random indexes to apply to incremental materialization
+    config:
+      materialized: incremental
+      order_by: date_time
+      uniq_id: date_time
+      incremental_strategy: append

@@ -150,7 +150,7 @@ class ClickHouseAdapter(SQLAdapter):
         if path:
             if bucket and path and not bucket.endswith('/') and not bucket.startswith('/'):
                 path = f'/{path}'
-            url = f'{url}{path}'
+            url = f'{url}{path}'.replace('//', '/')
         if not url.startswith('http'):
             url = f'https://{url}'
         access = ''

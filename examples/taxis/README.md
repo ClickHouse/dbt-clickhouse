@@ -1,15 +1,71 @@
-Welcome to your new dbt project!
+```sql
 
-### Using the starter project
+CREATE DATABASE taxis;
 
-Try running the following commands:
-- dbt run
-- dbt test
+CREATE TABLE taxis.trips (
+    trip_id             UInt32,
+    pickup_datetime     DateTime,
+    dropoff_datetime    DateTime,
+    pickup_longitude    Nullable(Float64),
+    pickup_latitude     Nullable(Float64),
+    dropoff_longitude   Nullable(Float64),
+    dropoff_latitude    Nullable(Float64),
+    passenger_count     UInt8,
+    trip_distance       Float32,
+    fare_amount         Float32,
+    extra               Float32,
+    tip_amount          Float32,
+    tolls_amount        Float32,
+    total_amount        Float32,
+    payment_type        LowCardinality(String),
+    pickup_ntaname      LowCardinality(String),
+    dropoff_ntaname     LowCardinality(String)
+)
+ENGINE = MergeTree
+ORDER BY trip_id;
+  
+SET input_format_skip_unknown_fields = 1;
 
+INSERT INTO taxis.trips
+SELECT
+    trip_id,
+    pickup_datetime,
+    dropoff_datetime,
+    pickup_longitude,
+    pickup_latitude,
+    dropoff_longitude,
+    dropoff_latitude,
+    passenger_count,
+    trip_distance,
+    fare_amount,
+    extra,
+    tip_amount,
+    tolls_amount,
+    total_amount,
+    payment_type,
+    pickup_ntaname,
+    dropoff_ntaname
+FROM s3(
+    'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/trips_{0..10}.gz',
+    'TabSeparatedWithNames'
+);
 
-### Resources:
-- Learn more about dbt [in the docs](https://docs.getdbt.com/docs/introduction)
-- Check out [Discourse](https://discourse.getdbt.com/) for commonly asked questions and answers
-- Join the [chat](https://community.getdbt.com/) on Slack for live discussions and support
-- Find [dbt events](https://events.getdbt.com) near you
-- Check out [the blog](https://blog.getdbt.com/) for the latest news on dbt's development and best practices
+## dbt_profiles.yml in ~/.dbt
+```yml
+
+taxis:
+  outputs:
+
+    dev:
+      type: clickhouse
+      threads: 4 
+      host: localhost
+      port: 8123 
+      user: dbt_test
+      password: dbt_password
+      use_lw_deletes: true
+      schema: taxis_dbt 
+
+  target: dev
+
+```
