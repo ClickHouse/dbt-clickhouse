@@ -7,7 +7,7 @@
 This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https://clickhouse.tech/).
 
 The plugin uses syntax that requires ClickHouse version 22.1 or newer. We do not test older versions of Clickhouse.  We also do not currently test
-Replicated tables/`ON CLUSTER` functionality.
+Replicated tables or the related `ON CLUSTER` functionality.
 
 ## Installation
 
@@ -28,7 +28,7 @@ pip install dbt-clickhouse
 - [x] Tests
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)  
-- [x] Ephemeral materialization (but incompatible with table materializations)
+- [x] Ephemeral materialization
 
 # Usage Notes
 
@@ -88,8 +88,8 @@ your_profile_name:
 ## Known Limitations
 
 * Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
-* Ephemeral models/CTEs don't work with INSERT statements in ClickHouse, so table materializations that incorporate an ephemeral model will fail.
-See https://github.com/ClickHouse/ClickHouse/issues/30323.  View models and other SQL statements using ephemeral models should work correctly.
+* Ephemeral models/CTEs don't work if placed before the "INSERT INTO" in a ClickHouse insert statement, see https://github.com/ClickHouse/ClickHouse/issues/30323.  This
+should not affect most models, but care should be taken where an ephemeral model is placed in model definitions and other SQL statements.
 
 ## Incremental Model Strategies
 
