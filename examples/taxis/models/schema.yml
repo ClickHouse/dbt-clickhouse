@@ -5,8 +5,8 @@ models:
     description: NY Taxi dataset from S3
     config:
       materialized: incremental
-      order_by: trip_id
-      unique_key: trip_id
+      order_by: rand_trip_id
+      unique_key: rand_trip_id
 
   - name: trips_rand
     description: Random indexes to apply to incremental materialization

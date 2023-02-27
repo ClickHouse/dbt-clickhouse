@@ -1,3 +1,12 @@
+# Taxis Large Incremental Model Example/Test
+
+This is an example designed to test large incremental materializations.  It builds a `taxis_inc` model in the
+`taxis_dbt` database that uses randomized keys to increase on each subsequent run.
+
+## Create the source data
+
+Use this SQL to create and populate the "source" data from the ClickHouse taxis example dataset.
+
 ```sql
 
 CREATE DATABASE taxis;
@@ -49,10 +58,12 @@ FROM s3(
     'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/trips_{0..10}.gz',
     'TabSeparatedWithNames'
 );
+```
 
-## dbt_profiles.yml in ~/.dbt
+## Create a dbt profile entry
+
+Use the following profile to create the associated dbt profile in the  dbt_profiles.yml in ~/.dbt
 ```yml
-
 taxis:
   outputs:
 
@@ -69,3 +80,8 @@ taxis:
   target: dev
 
 ```
+
+## Run the model
+
+`dbt run` in this directory should execute the model.  Each run will create a somewhat larger dataset (by adding
+additional random trip_ids).
