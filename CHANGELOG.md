@@ -1,3 +1,8 @@
+### Release [1.4.1]
+#### Bug Fix
+- Enable ANSI quotes for identifiers when specified in the profile.  This is required for some identifiers that contain hyphens, non-alphanumeric characters, or that are reserved words. Closes issue [#144](https://github.com/ClickHouse/dbt-clickhouse/issues/144)
+
+
 ### Release [1.4.0], 2023-02-06
 #### Improvements
 - Support dbt [1.4.1] https://github.com/ClickHouse/dbt-clickhouse/issues/135

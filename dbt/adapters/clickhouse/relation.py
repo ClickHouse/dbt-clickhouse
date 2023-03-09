@@ -23,7 +23,7 @@ class ClickHouseIncludePolicy(Policy):
 class ClickHouseRelation(BaseRelation):
     quote_policy: Policy = field(default_factory=lambda: ClickHouseQuotePolicy())
     include_policy: Policy = field(default_factory=lambda: ClickHouseIncludePolicy())
-    quote_character: str = ''
+    quote_character: str = '"'
     can_exchange: bool = False
 
     def __post_init__(self):
