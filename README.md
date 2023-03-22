@@ -128,7 +128,7 @@ in the data or excluded by the incremental query WHERE clause/filter.
 ### Model Materialization Utility Macros
 
 The following macros are included to facilitate creating ClickHouse specific tables and views:
-- `engine_clause` -- Uses the `engine` model configuration property to assign a ClickHouse table engine.  dbt-clickhouse uses the `MergeTree` engine by default (`ReplicatedMergeTree` if running on a cluster).
+- `engine_clause` -- Uses the `engine` model configuration property to assign a ClickHouse table engine.  dbt-clickhouse uses the `MergeTree` engine by default.
 - `partition_cols` -- Uses the `partition_by` model configuration property to assign a ClickHouse partition key.  No partition key is assigned by default.
 - `order_cols` -- Uses the `order_by` model configuration to assign a ClickHouse order by/sorting key.  If not specified ClickHouse will use an empty tuple() and the table will be unsorted
 - `primary_key_clause` -- Uses the `primary_key` model configuration property to assign a ClickHouse primary key.  By default, primary key is set and ClickHouse will use the order by clause as the primary key. 

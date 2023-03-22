@@ -67,16 +67,7 @@
 {% endmaterialization %}
 
 {% macro engine_clause() %}
-  {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
-  {%- if active_cluster is none %}
-     engine = {{ config.get('engine', default='MergeTree()') }}
-  {%- else %}
-     {% set engine = config.get('engine', default='ReplicatedMergeTree()') %}
-     engine = {{ engine }}
-     {% if 'Replicated' not in engine %}
-        {% do exceptions.raise_compiler_error("Tables on cluster should be created with Replicated table engines and not "~engine) %}
-     {% endif %}
-  {% endif%}
+  engine = {{ config.get('engine', default='MergeTree()') }}
 {%- endmacro -%}
 
 {% macro partition_cols(label) %}
