@@ -17,7 +17,7 @@
   {%- set quote_seed_column = model['config'].get('quote_columns', None) -%}
 
   {% set sql %}
-    create table {{ this.render() }} (
+    create table {{ this.render() }} {{ on_cluster_clause() }} (
       {%- for col_name in agate_table.column_names -%}
         {%- set inferred_type = adapter.convert_type(agate_table, loop.index0) -%}
         {%- set type = column_override.get(col_name, inferred_type) -%}
@@ -25,7 +25,6 @@
           {{ adapter.quote_seed_column(column_name, quote_seed_column) }} {{ type }} {%- if not loop.last -%}, {%- endif -%}
       {%- endfor -%}
     )
-    {{ on_cluster_clause() }}
     {{ engine_clause() }}
     {{ order_cols(label='order by') }}
     {{ partition_cols(label='partition by') }}
