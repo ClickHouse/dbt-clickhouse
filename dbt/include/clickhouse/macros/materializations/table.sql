@@ -67,7 +67,8 @@
 {% endmaterialization %}
 
 {% macro engine_clause() %}
-  engine = {{ config.get('engine', default='MergeTree()') }}
+  {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
+   engine = {{ config.get('engine', default='MergeTree()' if active_cluster is not none else 'ReplicatedMergeTree') }}
 {%- endmacro -%}
 
 {% macro partition_cols(label) %}
