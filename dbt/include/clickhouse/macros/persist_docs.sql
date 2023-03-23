@@ -1,9 +1,9 @@
 {% macro one_alter_column_comment(relation, column_name, comment) %}
-  alter table {{ relation }} comment column {{ column_name }} '{{ comment }}'
+  alter table {{ relation }} {{ on_cluster_clause(label) }} comment column {{ column_name }} '{{ comment }}'
 {% endmacro %}
 
 {% macro clickhouse__alter_relation_comment(relation, comment) %}
-  alter table {{ relation }} modify comment '{{ comment }}'
+  alter table {{ relation }} {{ on_cluster_clause(label) }} modify comment '{{ comment }}'
 {% endmacro %}
 
 {% macro clickhouse__persist_docs(relation, model, for_relation, for_columns) %}
