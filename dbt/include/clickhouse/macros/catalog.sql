@@ -5,11 +5,11 @@
       columns.database as table_schema,
       columns.table as table_name,
       if(tables.engine not in ('MaterializedView', 'View'), 'table', 'view') as table_type,
-      tables.comment as table_comment,
+      nullIf(tables.comment, '') as table_comment,
       columns.name as column_name,
       columns.position as column_index,
       columns.type as column_type,
-      columns.comment as column_comment,
+      nullIf(columns.comment, '') as column_comment,
       null as table_owner
     from system.columns as columns
     join system.tables as tables on tables.database = columns.database and tables.name = columns.table
