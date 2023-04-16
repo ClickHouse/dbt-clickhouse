@@ -20,6 +20,7 @@
   {%- set backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
 
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
@@ -35,11 +36,20 @@
     {% endcall %}
 
   {% elif full_refresh_mode %}
-    -- Completely replacing the old table, so create a temporary table and then swap it
-    {% call statement('main') %}
-        {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
-    {% endcall %}
-    {% set need_swap = true %}
+    
+    {% if is_cluster %}
+      {{ drop_relation_if_exists(target_relation) }}
+      {% call statement('main') %}
+          {{ get_create_table_as_sql(False, target_relation, sql) }}
+      {% endcall %}
+      {% set need_swap = false %}
+    {% else %}
+      -- Completely replacing the old table, so create a temporary table and then swap it
+      {% call statement('main') %}
+          {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
+      {% endcall %}
+      {% set need_swap = true %}
+    {% endif %}
 
   {% elif inserts_only or unique_key is none -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
@@ -135,6 +145,7 @@
 
 
 {% macro clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key) %}
+    {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
     -- First create a temporary table for all of the new data
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
@@ -146,7 +157,7 @@
     -- use the table just created in the previous step because we don't want to override any updated rows with
     -- old rows when we insert the old data
     {% call statement('main') %}
-       create table {{ intermediate_relation }} as {{ new_data_relation }}
+       create table {{ intermediate_relation }}{% if is_cluster -%}_local{%- endif %} {{ on_cluster_clause()}} as {{ new_data_relation }}
     {% endcall %}
 
     -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
@@ -178,14 +189,16 @@
 
 
 {% macro clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
+    {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
     {% call statement('main') %}
         {{ get_create_table_as_sql(False, new_data_relation, sql) }}
     {% endcall %}
     {% call statement('delete_existing_data') %}
-      delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ new_data_relation }})
+      delete from {{ existing_relation }}{% if is_cluster -%}_local{%- endif %} {{ on_cluster_clause()}} where ({{ unique_key }}) in (select {{ unique_key }}
+                                          from {{ new_data_relation }}){% if is_cluster -%}_local{%- endif %}
       {%- if incremental_predicates %}
         {% for predicate in incremental_predicates %}
             and {{ predicate }}

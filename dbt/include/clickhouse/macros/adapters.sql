@@ -39,6 +39,7 @@
       db.engine as db_engine
     from system.tables as t JOIN system.databases as db on t.database = db.name
     where schema = '{{ schema_relation.schema }}'
+      and engine not like 'Replicated%'
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {% endmacro %}
@@ -56,22 +57,50 @@
 
 {% macro clickhouse__drop_relation(relation, obj_type='table') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
+    drop {{ obj_type }} if exists {{ relation }}_local {{ on_cluster_clause()}}
+  {%- endcall %}
+
+  {% call statement('drop_relation', auto_begin=False) -%}
     drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause()}}
   {%- endcall %}
 {% endmacro %}
 
 {% macro clickhouse__rename_relation(from_relation, to_relation, obj_type='table') -%}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+
+  {% if is_cluster -%}
+    {% call statement('drop_relation') %}
+      drop {{ obj_type }} if exists {{ to_relation }}_local {{ on_cluster_clause()}}
+    {% endcall %}
+    {% call statement('rename_relation') %}
+      rename {{ obj_type }} {{ from_relation }}_local to {{ to_relation }}_local {{ on_cluster_clause()}}
+    {% endcall %}
+  {%- endif %}
+
   {% call statement('drop_relation') %}
     drop {{ obj_type }} if exists {{ to_relation }} {{ on_cluster_clause()}}
   {% endcall %}
   {% call statement('rename_relation') %}
     rename {{ obj_type }} {{ from_relation }} to {{ to_relation }} {{ on_cluster_clause()}}
   {% endcall %}
+  
 {% endmacro %}
 
 {% macro clickhouse__truncate_relation(relation) -%}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+
+  {% if is_cluster -%}
+    alter table {{ relation }}_local {{ on_cluster_clause()}} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
+  {%- endif %}
+  
+  alter table {{ relation }} {{ on_cluster_clause()}} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
+
   {% call statement('truncate_relation') -%}
+    {% if is_cluster -%}
+    truncate table {{ relation }}_local {{ on_cluster_clause()}}
+    {%- else %}
     truncate table {{ relation }} {{ on_cluster_clause()}}
+    {%- endif %}
   {%- endcall %}
 {% endmacro %}
 
@@ -99,17 +128,24 @@
 {% endmacro %}
 
 {% macro clickhouse__alter_column_type(relation, column_name, new_column_type) -%}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
   {% call statement('alter_column_type') %}
+    {% if is_cluster -%}
+      alter table {{ relation }}_local {{ on_cluster_clause()}} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
+    {%- endif %}
+    
     alter table {{ relation }} {{ on_cluster_clause()}} modify column {{ adapter.quote(column_name) }} {{ new_column_type }}
   {% endcall %}
 {% endmacro %}
 
 {% macro exchange_tables_atomic(old_relation, target_relation, obj_types='TABLES') %}
-
-  {%- if adapter.get_clickhouse_cluster_name() is not none and obj_types == 'TABLES' %}
-    {% do run_query("SYSTEM SYNC REPLICA "+target_relation.identifier) %}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+  {% if is_cluster -%}
+    {%- call statement('exchange_tables_atomic') -%}
+        EXCHANGE {{ obj_types }} {{ old_relation }}_local AND {{ target_relation }}_local {{ on_cluster_clause()}}
+    {% endcall %}
   {%- endif %}
-  
+
   {%- call statement('exchange_tables_atomic') -%}
     EXCHANGE {{ obj_types }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause()}}
   {% endcall %}

@@ -67,7 +67,8 @@
 {% endmaterialization %}
 
 {% macro engine_clause() %}
-  engine = {{ config.get('engine', default='MergeTree()') }}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+  engine = {% if is_cluster -%}Replicated{%- endif %}{{ config.get('engine', default='MergeTree()') }}
 {%- endmacro -%}
 
 {% macro partition_cols(label) %}
@@ -93,12 +94,21 @@
   {%- endif %}
 {%- endmacro -%}
 
+{% macro ttl_clause(label) %}
+  {%- set ttl = config.get('ttl', validator=validation.any[basestring]) -%}
+
+  {%- if ttl is not none %}
+    {{ label }} {{ ttl }}
+  {%- endif %}
+{%- endmacro -%}
+
 {% macro order_cols(label) %}
   {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
   {%- set engine = config.get('engine', default='MergeTree()') -%}
   {%- set supported = [
     'HDFS',
     'MaterializedPostgreSQL',
+    'OSS',
     'S3',
     'EmbeddedRocksDB',
     'Hive'
@@ -136,6 +146,14 @@
         {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
+
+        {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+        {% if is_cluster -%}
+          {% call statement('create_distributed_table') %}
+              {{ create_distributed_table(relation) }}
+          {% endcall %}
+        {%- endif %}
+
         {{ clickhouse__insert_into(relation.include(database=False), sql) }}
     {%- endif %}
 {%- endmacro %}
@@ -145,19 +163,24 @@
 
     {{ sql_header if sql_header is not none }}
 
+    {%- set sharding_key = config.get('sharding_key', 'rand()') -%}
+    {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+
     {% if temporary -%}
-        create temporary table {{ relation.name }}
+        create temporary table {{ relation.name }}{% if is_cluster -%}_local{%- endif %}
         engine Memory
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
+        {{ ttl_clause(label="ttl") }}
         {{ adapter.get_model_settings(model) }}
     {%- else %}
-        create table {{ relation.include(database=False) }}
+        create table {{ relation.include(database=False) }}{% if is_cluster -%}_local{%- endif %}
         {{ on_cluster_clause()}}
         {{ engine_clause() }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
+        {{ ttl_clause(label="ttl") }}
         {{ adapter.get_model_settings(model) }}
         {% if not adapter.is_before_version('22.7.1.2484') -%}
             empty
@@ -166,6 +189,13 @@
     as (
         {{ sql }}
     )
+{%- endmacro %}
+
+{% macro create_distributed_table(relation) -%}
+    {%- set sharding_key = config.get('sharding_key', 'rand()') -%}
+
+    create table if not exists {{ relation.include(database=False) }} {{ on_cluster_clause()}} as {{ relation.include(database=False) }}_local
+      engine = Distributed({{ adapter.get_clickhouse_cluster_name() }}, {{ relation.schema }}, {{ relation.identifier }}_local, sipHash64({{ sharding_key }}))
 {%- endmacro %}
 
 {% macro clickhouse__insert_into(target_relation, sql) %}

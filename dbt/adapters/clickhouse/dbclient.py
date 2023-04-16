@@ -60,9 +60,11 @@ class ChClientWrapper(ABC):
         self._conn_settings = custom_settings.copy()
         self._conn_settings['session_id'] = f'dbt::{uuid.uuid4()}'
         if credentials.cluster_mode or credentials.database_engine == 'Replicated':
+            # pass
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
-            self._conn_settings['insert_quorum'] = 'auto'
-        self._conn_settings['mutations_sync'] = '2'
+            # self._conn_settings['insert_quorum'] = 'auto'
+        else:
+            self._conn_settings['mutations_sync'] = '2'
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
