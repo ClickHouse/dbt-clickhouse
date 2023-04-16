@@ -30,6 +30,7 @@ class ClickHouseConfig(AdapterConfig):
     engine: str = 'MergeTree()'
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None
+    ttl: Optional[str] = None
 
 
 class ClickHouseAdapter(SQLAdapter):
@@ -73,6 +74,11 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         if conn.credentials.cluster:
             return f'"{conn.credentials.cluster}"'
+
+    @available
+    def is_clickhouse_cluster_mode(self) -> bool:
+        conn = self.connections.get_if_exists()
+        return conn.credentials.cluster_mode is True
 
     @available
     def clickhouse_db_engine_clause(self):
@@ -164,6 +170,53 @@ class ClickHouseAdapter(SQLAdapter):
         if comp:
             comp = f"', {comp}'"
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp})"
+    
+    @available.parse_none
+    def osssource_clause(
+        self,
+        config_name: str,
+        oss_model_config: dict,
+        bucket: str,
+        path: str,
+        fmt: str,
+        structure: Union[str, list, dict],
+        oss_access_key_id: str,
+        oss_secret_access_key: str,
+        compression: str = '',
+    ) -> str:
+        ossconfig = self.config.vars.vars.get(config_name, {})
+        ossconfig.update(oss_model_config)
+        structure = structure or ossconfig.get('structure', '')
+        struct = ''
+        if structure:
+            if isinstance(structure, dict):
+                cols = [f'{name} {col_type}' for name, col_type in structure.items()]
+                struct = f", '{','.join(cols)}'"
+            elif isinstance(structure, list):
+                struct = f", '{','.join(structure)}'"
+            else:
+                struct = f",'{structure}'"
+        fmt = fmt or ossconfig.get('fmt')
+        bucket = bucket or ossconfig.get('bucket', '')
+        path = path or ossconfig.get('path', '')
+        url = bucket
+        if path:
+            if bucket and path and not bucket.endswith('/') and not bucket.startswith('/'):
+                path = f'/{path}'
+            url = f'{url}{path}'
+        if not url.startswith('http'):
+            url = f'https://{url}'
+        access = ''
+        if oss_access_key_id and not oss_secret_access_key:
+            raise DbtRuntimeError('oss oss_access_key_id specified without oss_secret_access_key')
+        if oss_secret_access_key and not oss_access_key_id:
+            raise DbtRuntimeError('oss oss_secret_access_key specified without oss_access_key_id')
+        if oss_access_key_id:
+            access = f", '{oss_access_key_id}', '{oss_secret_access_key}'"
+        comp = compression or ossconfig.get('compression', '')
+        if comp:
+            comp = f"', {comp}'"
+        return f"oss('{url}'{access}, '{fmt}'{struct}{comp})"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
