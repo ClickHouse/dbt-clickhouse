@@ -68,7 +68,11 @@
 
 {% macro engine_clause() %}
   {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
-  engine = {% if is_cluster -%}Replicated{%- endif %}{{ config.get('engine', default='MergeTree()') }}
+  {% if is_cluster -%}
+    engine = {{ 'Replicated' ~ config.get('engine', default='MergeTree()') | replace('MergeTree(', 'MergeTree(\'' ~ config.get('replica_path', default='/clickhouse/tables/{database}/{table}/{shard}/{uuid}')  ~ '\', \'{replica}\'') }}
+  {% else %}
+    engine = {{ config.get('engine', default='MergeTree()') }}
+  {%- endif %}
 {%- endmacro -%}
 
 {% macro partition_cols(label) %}

@@ -144,9 +144,9 @@
     {%- call statement('exchange_tables_atomic') -%}
         EXCHANGE {{ obj_types }} {{ old_relation }}_local AND {{ target_relation }}_local {{ on_cluster_clause()}}
     {% endcall %}
+  {%- else %}
+    {%- call statement('exchange_tables_atomic') -%}
+      EXCHANGE {{ obj_types }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause()}}
+    {% endcall %}
   {%- endif %}
-
-  {%- call statement('exchange_tables_atomic') -%}
-    EXCHANGE {{ obj_types }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause()}}
-  {% endcall %}
 {% endmacro %}

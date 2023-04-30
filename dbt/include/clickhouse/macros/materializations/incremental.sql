@@ -37,19 +37,11 @@
 
   {% elif full_refresh_mode %}
     
-    {% if is_cluster %}
-      {{ drop_relation_if_exists(target_relation) }}
-      {% call statement('main') %}
-          {{ get_create_table_as_sql(False, target_relation, sql) }}
-      {% endcall %}
-      {% set need_swap = false %}
-    {% else %}
-      -- Completely replacing the old table, so create a temporary table and then swap it
-      {% call statement('main') %}
-          {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
-      {% endcall %}
-      {% set need_swap = true %}
-    {% endif %}
+    -- Completely replacing the old table, so create a temporary table and then swap it
+    {% call statement('main') %}
+        {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
+    {% endcall %}
+    {% set need_swap = true %}
 
   {% elif inserts_only or unique_key is none -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
