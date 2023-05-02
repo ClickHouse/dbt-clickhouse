@@ -191,7 +191,7 @@
         {%- endif %}
     {%- endif %}
     as (
-        {{ sql }}
+        {{ batch_insert_mask(sql) }}
     )
 {%- endmacro %}
 
@@ -206,6 +206,10 @@
   {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
+  {%- set insert_into_sql -%}
   insert into {{ target_relation }} ({{ dest_cols_csv }})
-  {{ sql }}
+  {%- endset %}
+  
+  {{ insert_into_sql }}
+  {{ batch_insert_unmask(sql, insert_into_sql) }}
 {%- endmacro %}

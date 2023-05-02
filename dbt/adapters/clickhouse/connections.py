@@ -78,27 +78,40 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         # Don't try to fetch result of clustered DDL responses, we don't know what to do with them
         if fetch and ddl_re.match(sql):
             fetch = False
+        if "create table" in sql:    
+            logger.info(f'Executing raw sql: {sql}...')
+        result = None, None
+            
+        for sql_statement in sql.strip("; ").strip().split(';'):
+            sql_statement = '\n'.join((line if '-- depends_on: ' not in line else '') for line in sql_statement.split(r"\n"))
+            sql_statement = sql_statement.strip()
+            if not sql_statement:
+                continue
+            sql_statement = self._add_query_comment(sql_statement)
+            conn = self.get_thread_connection()
+            client = conn.handle
 
-        sql = self._add_query_comment(sql)
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        with self.exception_handler(sql):
-            logger.debug(f'On {conn.name}: {sql}...')
-            pre = time.time()
-            if fetch:
-                query_result = client.query(sql)
-            else:
-                query_result = client.command(sql)
-            status = self.get_status(client)
-            logger.debug(f'SQL status: {status} in {(time.time() - pre):.2f} seconds')
-            if fetch:
-                table = self.get_table_from_response(
-                    query_result.result_set, query_result.column_names
-                )
-            else:
-                table = dbt.clients.agate_helper.empty_table()
-            return status, table
+            with self.exception_handler(sql_statement):
+                if "insert into" in sql_statement:
+                    logger.info(f"Executing insert into on {conn.name}: {sql_statement}...")
+                else:
+                    logger.debug(f'On {conn.name}: {sql_statement}...')
+                pre = time.time()
+                if fetch:
+                    query_result = client.query(sql_statement)
+                else:
+                    query_result = client.command(sql_statement)
+                status = self.get_status(client)
+                logger.debug(f'SQL status: {status} in {(time.time() - pre):.2f} seconds')
+                if fetch:
+                    table = self.get_table_from_response(
+                        query_result.result_set, query_result.column_names
+                    )
+                else:
+                    table = dbt.clients.agate_helper.empty_table()
+                result = status, table
+                
+        return result
 
     def add_query(
         self,
