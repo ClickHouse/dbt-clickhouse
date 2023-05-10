@@ -1,12 +1,21 @@
 {% macro clickhouse__create_view_as(relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
+  {%- set is_subscribe = config.get('incremental_strategy', none) == 'subscribe' -%}
 
   {{ sql_header if sql_header is not none }}
 
-  create view {{ relation.include(database=False) }} {{ on_cluster_clause()}}
-  as (
-    {{ sql }}
-  )
+  {% if is_subscribe %}
+    CREATE MATERIALIZED VIEW {{ relation.include(database=False) }} {{ on_cluster_clause()}}
+      {{ engine_clause() }}
+      {{ order_cols(label="order by") }}
+      {{ primary_key_clause(label="primary key") }}
+      POPULATE
+  {% else %}
+    create view {{ relation.include(database=False) }} {{ on_cluster_clause()}}
+  {% endif %}
+    as (
+      {{ sql }}
+    )
 {%- endmacro %}
 
 {% macro clickhouse__list_schemas(database) %}
