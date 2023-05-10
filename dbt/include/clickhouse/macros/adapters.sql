@@ -1,11 +1,12 @@
 {% macro clickhouse__create_view_as(relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
   {%- set is_subscribe = config.get('incremental_strategy', none) == 'subscribe' -%}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
 
   {{ sql_header if sql_header is not none }}
 
   {% if is_subscribe %}
-    CREATE MATERIALIZED VIEW {{ relation.include(database=False) }} {{ on_cluster_clause()}}
+    CREATE MATERIALIZED VIEW {{ relation.include(database=False) }}{% if is_cluster -%}_local{%- endif %} {{ on_cluster_clause()}}
       {{ engine_clause() }}
       {{ order_cols(label="order by") }}
       {{ primary_key_clause(label="primary key") }}
@@ -13,9 +14,17 @@
   {% else %}
     create view {{ relation.include(database=False) }} {{ on_cluster_clause()}}
   {% endif %}
+
+  {# {% if is_cluster %}
+    {% set re = modules.re %}
+    as (
+      {{ re.sub('\/from\\s([^\\s]+)\/', 'from \\1_local', sql, flags=re.IGNORECASE) }}
+    )
+  {% else %} #}
     as (
       {{ sql }}
     )
+  {# {% endif %} #}
 {%- endmacro %}
 
 {% macro clickhouse__list_schemas(database) %}
@@ -76,6 +85,7 @@
 
 {% macro clickhouse__rename_relation(from_relation, to_relation, obj_type='table') -%}
   {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
+  {%- set is_table = from_relation.type == "table" -%}
 
   {% if is_cluster -%}
     {% call statement('drop_relation') %}

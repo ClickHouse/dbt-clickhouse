@@ -5,6 +5,7 @@
   {%- set backup_relation = none -%}
   {%- set preexisting_backup_relation = none -%}
   {%- set preexisting_intermediate_relation = none -%}
+  {%- set is_cluster = adapter.is_clickhouse_cluster_mode() -%}
 
   {% if existing_relation is not none %}
     {%- set backup_relation_type = existing_relation.type -%}
@@ -33,17 +34,33 @@
     {% call statement('main') -%}
       {{ get_create_view_as_sql(target_relation, sql) }}
     {%- endcall %}
+
+    {% if is_cluster -%}
+      {% call statement('create_distributed_table') %}
+          {{ create_distributed_table(target_relation) }}
+      {% endcall %}
+    {%- endif %}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
       {{ get_create_view_as_sql(backup_relation, sql) }}
     {%- endcall %}
+    {% if is_cluster -%}
+      {% call statement('create_distributed_table') %}
+          {{ create_distributed_table(backup_relation) }}
+      {% endcall %}
+    {%- endif %}
     {% do exchange_tables_atomic(backup_relation, existing_relation) %}
   {% else %}
     -- We have to use an intermediate and rename accordingly
     {% call statement('main') -%}
       {{ get_create_view_as_sql(intermediate_relation, sql) }}
     {%- endcall %}
+    {% if is_cluster -%}
+      {% call statement('create_distributed_table') %}
+          {{ create_distributed_table(intermediate_relation) }}
+      {% endcall %}
+    {%- endif %}
     {{ adapter.rename_relation(existing_relation, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation) }}
   {% endif %}
