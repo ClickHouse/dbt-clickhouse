@@ -23,7 +23,7 @@
     {{ config.set('batch_insert', True) }}
     {%- set target_relation = this -%}
     {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
-    {%- set is_creating_table = dest_columns|length == 0 -%}
+    {%- set is_creating_table = dest_columns|length == 0 or should_full_refresh() -%}
 
     {% if not execute %}
         {{ caller(none) }}
