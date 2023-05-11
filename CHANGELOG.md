@@ -1,3 +1,11 @@
+### Release [1.4.1], 2023-05-11
+#### Improvements
+- Reduce the number of SQL calls for Modify Comment operations.  Thanks to [Konstantin Ilchenko](https://github.com/simpl1g).
+- Add "on cluster" to several additional macros to better support distributed tables.  Thanks to [Saurabh Bikram](https://github.com/saurabhbikram)
+- Add the unique invocation id to temporary "new data" used in `delete+insert` incremental materializations to allow parallel transformations on the same
+table.  In general parallel transformations are risky, so this approach should only be used when transformations are explicitly limited
+to non-overlapping data ranges.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/150
+
 ### Release [1.4.0], 2023-02-06
 #### Improvements
 - Support dbt [1.4.1] https://github.com/ClickHouse/dbt-clickhouse/issues/135
