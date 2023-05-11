@@ -1,0 +1,9 @@
+version: 2
+
+sources:
+  - name: taxis_source
+    database: taxis
+    description: This references the main taxi table as copied from S3
+    tables:
+      - database: taxis
+        name: trips
