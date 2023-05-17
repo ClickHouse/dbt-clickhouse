@@ -66,11 +66,7 @@ class ChClientWrapper(ABC):
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
-            self._ensure_database(
-                credentials.database_engine, 
-                credentials.cluster_mode,
-                credentials.cluster
-            )
+            self._ensure_database(credentials.database_engine, credentials.cluster)
             self.server_version = self._server_version()
             self.has_lw_deletes, self.use_lw_deletes = self._check_lightweight_deletes(
                 credentials.use_lw_deletes
@@ -134,7 +130,7 @@ class ChClientWrapper(ABC):
             )
             return False, False
 
-    def _ensure_database(self, database_engine, cluster_mode, cluster_name) -> None:
+    def _ensure_database(self, database_engine, cluster_name) -> None:
         if not self.database:
             return
         check_db = f'EXISTS DATABASE {self.database}'
@@ -142,7 +138,7 @@ class ChClientWrapper(ABC):
             db_exists = self.command(check_db)
             if not db_exists:
                 engine_clause = f' ENGINE {database_engine} ' if database_engine else ''
-                cluster_clause = f' ON CLUSTER {cluster_name} ' if cluster_mode else ''
+                cluster_clause = f' ON CLUSTER {cluster_name} ' if cluster_name is not None else ''
                 self.command(f'CREATE DATABASE {self.database}{cluster_clause}{engine_clause}')
                 db_exists = self.command(check_db)
                 if not db_exists:
