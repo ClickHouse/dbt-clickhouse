@@ -37,16 +37,16 @@
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   {% if backup_relation is none %}
-    {% do run_query(create_empty_table_from_view(target_relation_local, view_relation)) or '' %}
+    {% do run_query(create_empty_table_from_relation(target_relation_local, view_relation)) or '' %}
     {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
-      {% do run_query(create_empty_table_from_view(backup_relation, view_relation)) or '' %}
+      {% do run_query(create_empty_table_from_relation(backup_relation, view_relation)) or '' %}
     {%- endcall %}
     {% do exchange_tables_atomic(backup_relation, existing_relation) %}
   {% else %}
-    {% do run_query(create_empty_table_from_view(intermediate_relation, view_relation)) or '' %}
+    {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
   {% endif %}
@@ -69,18 +69,17 @@
    {%- set cluster = adapter.get_clickhouse_cluster_name()[1:-1] -%}
    {%- set sharding = config.get('sharding_key') -%}
 
-    CREATE TABLE {{ relation }} {{ on_cluster_clause() }}
+    CREATE TABLE {{ relation }} {{ on_cluster_clause() }} AS {{ local_relation }}
     ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
-    {% if sharding is none %}
+    {% if sharding is not none %}
         , {{ sharding }}
     {% endif %}
     )
-    AS SELECT * FROM {{ local_relation}} LIMIT 0
  {% endmacro %}
 
-{% macro create_empty_table_from_view(relation, view_relation) -%}
+{% macro create_empty_table_from_relation(relation, source_relation) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
-  {%- set columns = adapter.get_columns_in_relation(view_relation) | list -%}
+  {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
 
   {%- set col_list = [] -%}
   {% for col in columns %}
