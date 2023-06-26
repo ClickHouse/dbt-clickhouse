@@ -74,6 +74,12 @@ class ClickHouseAdapter(SQLAdapter):
         if conn.credentials.cluster:
             return f'"{conn.credentials.cluster}"'
 
+    @available.parse(lambda *a, **k: {})
+    def get_clickhouse_local_suffix(self):
+        conn = self.connections.get_if_exists()
+        if conn.credentials.local_suffix:
+            return f'{conn.credentials.local_suffix}'
+
     @available
     def clickhouse_db_engine_clause(self):
         conn = self.connections.get_if_exists()
