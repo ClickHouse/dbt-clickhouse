@@ -146,7 +146,12 @@
     -- use the table just created in the previous step because we don't want to override any updated rows with
     -- old rows when we insert the old data
     {% call statement('main') %}
-       create table {{ intermediate_relation }} as {{ new_data_relation }}
+        create table {{ intermediate_relation }}
+        {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
+        {%- if active_cluster is not none %}
+        ON CLUSTER {{ active_cluster }}
+        {% endif %}
+        as {{ new_data_relation }}
     {% endcall %}
 
     -- Insert all the existing rows into the new temporary table, ignoring any rows that have keys in the "new data"
