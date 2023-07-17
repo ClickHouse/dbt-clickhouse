@@ -124,7 +124,8 @@
 {% macro on_cluster_clause(label) %}
   {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
   {%- if active_cluster is not none %}
-    ON CLUSTER {{ active_cluster }}
+    {# Add trailing whitespace to avoid problems when this clause is not last #}
+    ON CLUSTER {{ active_cluster + ' ' }}
   {%- endif %}
 {%- endmacro -%}
 
