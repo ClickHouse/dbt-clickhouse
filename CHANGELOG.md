@@ -1,3 +1,27 @@
+### Release [1.4.4], 2023-07-19
+#### Bug Fixes
+- Fixed two logging/exception handling issues that would cause exception on startup or when handling some exceptions
+from the ClickHouse server.  Partially addresses https://github.com/ClickHouse/dbt-clickhouse/issues/169.
+- Fixed issue with the `on_cluster` macro that would break the exchange tables step of incremental materializations
+with an active cluster.  Thanks to [Andrew Davis](https://github.com/Savid) for the PR.  Closes
+https://github.com/ClickHouse/dbt-clickhouse/issues/167
+
+### Release [1.4.3], 2023-06-27
+#### Bug Fix
+- Use correct return value for `execute`.  This would cause an exception when running hooks.  Thanks to
+[Sergey Reshetnikov](https://github.com/PrVrSs) for the PR.  Closed https://github.com/ClickHouse/dbt-clickhouse/issues/161
+
+#### Improvement
+- Added macros for creating distributed tables.  See the `distributed_table.sql` include file.  Thanks to
+[gladkikhtutu](https://github.com/gladkikhtutu) for the contribution.  
+
+### Release [1.4.2], 2023-05-14
+#### Bug fixes
+- Create initial dbt database (if not found) on the defined cluster on first run, instead of just the execution node.
+Thanks to [Jens Hoevenaars](https://github.com/codenation-nl) for the PR
+- Fix the SYSTEM SYNC REPLICA statement when exchanging tables ON CLUSTER for incremental materializations.  Thanks to
+[Schum](https://github.com/Schum-io) for PR.  Closed https://github.com/ClickHouse/dbt-clickhouse/issues/157.
+
 ### Release [1.4.1], 2023-05-11
 #### Improvements
 - Reduce the number of SQL calls for Modify Comment operations.  Thanks to [Konstantin Ilchenko](https://github.com/simpl1g).

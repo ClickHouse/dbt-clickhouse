@@ -30,7 +30,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
             logger.debug('Error running SQL: {}', sql)
             if isinstance(exp, dbt.exceptions.DbtRuntimeError):
                 raise
-            raise dbt.exceptions.DbtRuntimeError from exp
+            raise dbt.exceptions.DbtRuntimeError('ClickHouse exception:  ' + str(exp)) from exp
 
     @classmethod
     def open(cls, connection):
