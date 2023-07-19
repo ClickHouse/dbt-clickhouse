@@ -180,7 +180,7 @@ class ChClientWrapper(ABC):
                     for table in swap_tables:
                         self.command(f'DROP TABLE IF EXISTS {table}')
                 except DbtDatabaseError:
-                    logger.info('Unexpected server exception dropping table', exc_info=True)
+                    logger.info('Unexpected server exception dropping table')
         except DbtDatabaseError:
-            logger.warning('Failed to run exchange test', exc_info=True)
+            logger.warning('Failed to run exchange test')
         return False
