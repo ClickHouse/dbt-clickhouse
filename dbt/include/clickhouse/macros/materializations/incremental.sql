@@ -137,6 +137,7 @@
 {% macro clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key, is_distributed=False) %}
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
+    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_distributed_new_data'}) -%}
 
     {%- set inserted_relation = intermediate_relation -%}
     {%- set inserting_relation = new_data_relation -%}
@@ -144,7 +145,6 @@
     -- First create a temporary table for all of the new data
     {% if is_distributed %}
       -- Need to use distributed table to have data on all shards
-      {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_distributed_new_data'}) -%}
       {%- set inserting_relation = distributed_new_data_relation -%}
       {{ create_distributed_shard_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
     {% else %}
