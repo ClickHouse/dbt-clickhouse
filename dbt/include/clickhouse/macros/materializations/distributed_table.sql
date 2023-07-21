@@ -37,8 +37,7 @@
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   {% if backup_relation is none %}
-    {% do run_query(create_empty_table_from_relation(target_relation_local, view_relation)) or '' %}
-    {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
+    {{ create_distributed_shard_table(target_relation, target_relation_local, view_relation) }}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
@@ -66,7 +65,12 @@
 {% endmaterialization %}
 
 {% macro create_distributed_table(relation, local_relation) %}
-   {%- set cluster = adapter.get_clickhouse_cluster_name()[1:-1] -%}
+    {%- set cluster = adapter.get_clickhouse_cluster_name() -%}
+   {% if cluster is none %}
+        {% do exceptions.raise_compiler_error('Cluster name should be defined for using distributed materializations, current is None') %}
+    {% endif %}
+
+   {%- set cluster = cluster[1:-1] -%}
    {%- set sharding = config.get('sharding_key') -%}
 
     CREATE TABLE {{ relation }} {{ on_cluster_clause() }} AS {{ local_relation }}
@@ -97,4 +101,14 @@
   {{ primary_key_clause(label="primary key") }}
   {{ partition_cols(label="partition by") }}
   {{ adapter.get_model_settings(model) }}
+{%- endmacro %}
+
+{% macro create_distributed_shard_table(distributed_relation, shard_relation, structure_relation, sql_query=none) -%}
+  {{ drop_relation_if_exists(shard_relation) }}
+  {{ drop_relation_if_exists(distributed_relation) }}
+  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation)) or '' %}
+  {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
+  {% if sql_query is not none %}
+    {% do run_query(clickhouse__insert_into(distributed_relation, sql_query)) or '' %}
+  {% endif %}
 {%- endmacro %}
