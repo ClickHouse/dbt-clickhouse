@@ -197,7 +197,8 @@
 
 
 {% macro clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, is_distributed=False) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
+       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
 
     {%- set inserting_relation = new_data_relation -%}

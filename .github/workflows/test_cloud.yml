@@ -5,6 +5,7 @@ on:  # yamllint disable-line rule:truthy
   push:
     branches:
       - '*_cloud'
+  workflow_dispatch:
 
 jobs:
   cloud_tests:

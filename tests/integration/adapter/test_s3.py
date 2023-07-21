@@ -53,7 +53,7 @@ class TestS3:
         return {
             'vars': {
                 'taxi_s3': {
-                    'bucket': 'datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi',
+                    'bucket': 'datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
                     'fmt': 'TabSeparatedWithNames',
                 }
             }
