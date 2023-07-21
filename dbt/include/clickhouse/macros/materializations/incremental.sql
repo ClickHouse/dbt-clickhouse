@@ -200,12 +200,12 @@
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
+    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_distributed_new_data'}) -%}
 
     {%- set inserting_relation = new_data_relation -%}
 
     {% if is_distributed %}
       -- Need to use distributed table to have data on all shards
-      {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_distributed_new_data'}) -%}
       {%- set inserting_relation = distributed_new_data_relation -%}
       {{ create_distributed_shard_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
     {% else %}
