@@ -1,4 +1,9 @@
 {% materialization distributed_table, adapter='clickhouse' %}
+  {% set insert_distributed_sync = run_query("SELECT value FROM system.settings WHERE name = 'insert_distributed_sync'")[0][0] %}
+  {% if insert_distributed_sync == 1 %}
+     {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
+  {% endif %}
+
   {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
 
   {%- set existing_relation = load_cached_relation(this) -%}
