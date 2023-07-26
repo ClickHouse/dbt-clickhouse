@@ -158,9 +158,13 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 
 # Distributed materializations
 
+WARNING: 
+
+To use distributed materializations correctly you should set **insert_distributed_sync** = 1 or use as prehhook in order to have correct data while SELECT queries. Otherwise downstream calculation could be wrong if the distributed insert is not finished in time
+
 ## Distributed table materialization
 
-Distributed table created with fillowing steps:
+Distributed table created with following steps:
 1. Creates temp view with sql query to get right structure
 2. Create empty local tables based on view 
 3. Create distributed table based on local tables. 
