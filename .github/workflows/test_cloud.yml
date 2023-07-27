@@ -17,6 +17,7 @@ jobs:
       DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST }}
       DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD }}
       DBT_CH_TEST_CLUSTER_MODE: true
+      DBT_CH_TEST_CLOUD: true
 
     steps:
       - name: Checkout
