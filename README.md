@@ -29,8 +29,8 @@ pip install dbt-clickhouse
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)  
 - [x] Ephemeral materialization
-- [x] Distributed table materialization
-- [x] Didtributed incremental materialization
+- [x] Distributed table materialization (experimental)
+- [x] Distributed incremental materialization (experimental)
 
 # Usage Notes
 
@@ -160,7 +160,7 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 
 WARNING: 
 
-To use distributed materializations correctly you should set **insert_distributed_sync** = 1 or use as prehhook in order to have correct data while SELECT queries. Otherwise downstream calculation could be wrong if the distributed insert is not finished in time
+To use distributed materializations correctly you should set **insert_distributed_sync** = 1 (or use as prehook) in order to have correct data while SELECT queries. Otherwise, downstream calculation could be wrong if the distributed insert is not finished in time.
 
 ## Distributed table materialization
 
@@ -175,7 +175,6 @@ Distributed table created with following steps:
 {{
     config(
         materialized='distributed_table',
-        on_cluster='cluster',
         order_by='id, created_at',
         sharding_key='cityHash64(id)',
         engine='ReplacingMergeTree'
@@ -224,7 +223,6 @@ The distributed table reloads only when the full_refresh mode is enabled or the 
 {{
     config(
         materialized='distributed_incremental',
-        on_cluster='cluster',
         engine='MergeTree',
         incremental_strategy='append',
         unique_key='id,created_at'

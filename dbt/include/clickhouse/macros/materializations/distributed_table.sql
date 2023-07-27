@@ -42,7 +42,7 @@
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   {% if backup_relation is none %}
-    {{ create_distributed_shard_table(target_relation, target_relation_local, view_relation) }}
+    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation) }}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
@@ -108,7 +108,7 @@
   {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
-{% macro create_distributed_shard_table(distributed_relation, shard_relation, structure_relation, sql_query=none) -%}
+{% macro create_distributed_local_table(distributed_relation, shard_relation, structure_relation, sql_query=none) -%}
   {{ drop_relation_if_exists(shard_relation) }}
   {{ drop_relation_if_exists(distributed_relation) }}
   {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation)) or '' %}

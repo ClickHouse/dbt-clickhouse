@@ -146,7 +146,7 @@
     {% if is_distributed %}
       -- Need to use distributed table to have data on all shards
       {%- set inserting_relation = distributed_new_data_relation -%}
-      {{ create_distributed_shard_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
+      {{ create_distributed_local_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
     {% else %}
       {% call statement('create_new_data_temp') %}
         {{ get_create_table_as_sql(False, new_data_relation, sql) }}
@@ -159,7 +159,7 @@
     {% if is_distributed %}
       {%- set distributed_intermediate_relation = make_intermediate_relation(existing_relation) -%}
       {%- set inserted_relation = distributed_intermediate_relation -%}
-      {{ create_distributed_shard_table(distributed_intermediate_relation, intermediate_relation, existing_relation) }}
+      {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, existing_relation) }}
     {% else %}
       {% call statement('main') %}
           create table {{ intermediate_relation }} as {{ new_data_relation }} {{ on_cluster_clause() }}
@@ -207,7 +207,7 @@
     {% if is_distributed %}
       -- Need to use distributed table to have data on all shards
       {%- set inserting_relation = distributed_new_data_relation -%}
-      {{ create_distributed_shard_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
+      {{ create_distributed_local_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
     {% else %}
       {% call statement('main') %}
         {{ get_create_table_as_sql(False, new_data_relation, sql) }}

@@ -49,11 +49,11 @@
 
   {% if existing_relation is none %}
     -- No existing table, simply create a new one
-    {{ create_distributed_shard_table(target_relation, target_relation_local, view_relation, sql) }}
+    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql) }}
 
   {% elif full_refresh_mode %}
     -- Completely replacing the old table, so create a temporary table and then swap it
-    {{ create_distributed_shard_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql) }}
+    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql) }}
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
     {% set need_swap = true %}
 
