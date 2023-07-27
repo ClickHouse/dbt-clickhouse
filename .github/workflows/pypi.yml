@@ -1,11 +1,13 @@
 ---
 name: "PyPI Release"
 
+# yamllint disable-line rule:truthy
 on:
   push:
     tags:
       - 'v*'
   workflow_dispatch:
+
 
 jobs:
   publish:

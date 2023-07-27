@@ -34,6 +34,14 @@ pip install dbt-clickhouse
 
 # Usage Notes
 
+## SET Statement Warning
+In many environments, using the SET statement to persist a ClickHouse setting across all DBT queries is not reliable
+and can cause unexpected failures.  This is particularly true when using HTTP connections through a load balancer that
+distributes queries across multiple nodes (such as ClickHouse cloud), although in some circumstances this can also
+happen with native ClickHouse connections.  Accordingly, we recommend configuring any required ClickHouse settings in the
+"custom_settings" property of the DBT profile as a best practice, instead of relying on a prehook "SET" statement as
+has been occasionally suggested.
+
 ## Database
 
 The dbt model relation identifier `database.schema.table` is not compatible with Clickhouse because Clickhouse does not support a `schema`.
@@ -68,7 +76,7 @@ your_profile_name:
       use_lw_deletes: [False] Use the strategy `delete+insert` as the default incremental strategy.
       check_exchange: [True] # Validate that clickhouse support the atomic EXCHANGE TABLES command.  (Not needed for most ClickHouse versions)
       local_suffix [local] # Table suffix of local tables on shards for distributed materializations 
-      custom_settings: [{}] # A dicitonary/mapping of custom ClickHouse settings for the connection - default is empty.
+      custom_settings: [{}] # A dictionary/mapping of custom ClickHouse settings for the connection - default is empty.
       
       # Native (clickhouse-driver) connection settings
       sync_request_timeout: [5] Timeout for server ping
@@ -158,12 +166,11 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 
 # Distributed materializations
 
-Note:  Distributed materializations experimental and are not currently included in the automated test suite.
+Notes:
 
-WARNING: 
-
-To use distributed materializations correctly you should set **insert_distributed_sync** = 1 (or use as prehook) in order to have correct data while SELECT queries. Otherwise, downstream operations could produce invalid results
-if the distributed insert has not completed before additional updates are executed.
+- Distributed materializations are experimental and are not currently included in the automated test suite.
+- dbt-clickhouse queries now automatically include the setting `insert_distributed_sync = 1` in order to ensure that downstream incremental
+materialization operations execute correctly.  This could cause some distributed table inserts to run more slowly than expected.
 
 ## Distributed table materialization
 
