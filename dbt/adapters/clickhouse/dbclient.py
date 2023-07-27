@@ -6,6 +6,9 @@ from dbt.exceptions import DbtDatabaseError, FailedToConnectError
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.logger import logger
 
+LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
+ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
+
 
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
@@ -63,6 +66,7 @@ class ChClientWrapper(ABC):
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
             self._conn_settings['insert_quorum'] = 'auto'
         self._conn_settings['mutations_sync'] = '2'
+        self._conn_settings['insert_distributed_sync'] = '1'
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
@@ -108,27 +112,35 @@ class ChClientWrapper(ABC):
         pass
 
     def _check_lightweight_deletes(self, requested: bool):
-        lw_deletes = self.get_ch_setting('allow_experimental_lightweight_delete')
-        if lw_deletes is None:
+        lw_deletes = self.get_ch_setting(LW_DELETE_SETTING)
+        nd_mutations = self.get_ch_setting(ND_MUTATION_SETTING)
+        if lw_deletes is None or nd_mutations is None:
             if requested:
                 logger.warning(
                     'use_lw_deletes requested but are not available on this ClickHouse server'
                 )
             return False, False
-        lw_deletes = int(lw_deletes)
-        if lw_deletes == 1:
+        lw_deletes = int(lw_deletes) > 0
+        if not lw_deletes:
+            try:
+                self.command(f'SET {LW_DELETE_SETTING} = 1')
+                self._conn_settings[LW_DELETE_SETTING] = '1'
+                lw_deletes = True
+            except DbtDatabaseError:
+                pass
+        nd_mutations = int(nd_mutations) > 0
+        if lw_deletes and not nd_mutations:
+            try:
+                self.command(f'SET {ND_MUTATION_SETTING} = 1')
+                self._conn_settings[ND_MUTATION_SETTING] = '1'
+                nd_mutations = True
+            except DbtDatabaseError:
+                pass
+        if lw_deletes and nd_mutations:
             return True, requested
-        if not requested:
-            return False, False
-        try:
-            self.command('SET allow_experimental_lightweight_delete = 1')
-            self.command('SET allow_nondeterministic_mutations = 1')
-            return True, True
-        except DbtDatabaseError as ex:
-            logger.warning(
-                'use_lw_deletes requested but cannot enable on this ClickHouse server %s', str(ex)
-            )
-            return False, False
+        if requested:
+            logger.warning('use_lw_deletes requested but cannot enable on this ClickHouse server')
+        return False, False
 
     def _ensure_database(self, database_engine, cluster_name) -> None:
         if not self.database:

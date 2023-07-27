@@ -1,3 +1,9 @@
+### Release [1.4.6], 2023-07-27
+#### Bug fix
+- Lightweight deletes could fail in environments where the HTTP session was not preserved (such as clusters behind a non-sticky
+load balancer).  This has been fixed by sending the required settings with every request instead of relying on a SET statement.
+A similar approach has been used to persist the 'insert_distributed_sync' setting for Distributed table materializations.
+
 ### Release [1.4.5], 2023-07-27
 #### Improvement
 - Adds additional experimental support for Distributed table engine models and incremental materialization.  See the README for
