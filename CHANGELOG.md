@@ -1,3 +1,8 @@
+### Release [1.4.5], 2023-07-27
+#### Improvement
+- Adds additional experimental support for Distributed table engine models and incremental materialization.  See the README for
+details.  Thanks to [gladkikhtutu](https://github.com/gladkikhtutu) for the contribution!
+
 ### Release [1.4.4], 2023-07-19
 #### Bug Fixes
 - Fixed two logging/exception handling issues that would cause exception on startup or when handling some exceptions

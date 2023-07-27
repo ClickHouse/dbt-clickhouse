@@ -158,9 +158,12 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 
 # Distributed materializations
 
+Note:  Distributed materializations experimental and are not currently included in the automated test suite.
+
 WARNING: 
 
-To use distributed materializations correctly you should set **insert_distributed_sync** = 1 (or use as prehook) in order to have correct data while SELECT queries. Otherwise, downstream calculation could be wrong if the distributed insert is not finished in time.
+To use distributed materializations correctly you should set **insert_distributed_sync** = 1 (or use as prehook) in order to have correct data while SELECT queries. Otherwise, downstream operations could produce invalid results
+if the distributed insert has not completed before additional updates are executed.
 
 ## Distributed table materialization
 
