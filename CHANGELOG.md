@@ -1,3 +1,7 @@
+### Release [1.5.3], 2023-07-27
+#### Bug Fixes
+
+
 ### Release [1.4.4], 2023-07-19
 #### Bug Fixes
 - Fixed two logging/exception handling issues that would cause exception on startup or when handling some exceptions
