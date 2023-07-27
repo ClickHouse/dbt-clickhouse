@@ -29,6 +29,8 @@ pip install dbt-clickhouse
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)  
 - [x] Ephemeral materialization
+- [x] Distributed table materialization (experimental)
+- [x] Distributed incremental materialization (experimental)
 
 # Usage Notes
 
@@ -65,6 +67,7 @@ your_profile_name:
       cluster_mode: [False] # Use specific settings designed to improve operation on Replicated databases (recommended for ClickHouse Cloud)
       use_lw_deletes: [False] Use the strategy `delete+insert` as the default incremental strategy.
       check_exchange: [True] # Validate that clickhouse support the atomic EXCHANGE TABLES command.  (Not needed for most ClickHouse versions)
+      local_suffix [local] # Table suffix of local tables on shards for distributed materializations 
       custom_settings: [{}] # A dicitonary/mapping of custom ClickHouse settings for the connection - default is empty.
       
       # Native (clickhouse-driver) connection settings
@@ -152,6 +155,104 @@ keys used to populate the parameters of the S3 table function:
 | compression           | The compression method used with the S3 objects.  If not provided ClickHouse will attempt to determine compression based on the file name.                                                   |
 
 See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/test_s3.py) for examples of how to use this macro.
+
+# Distributed materializations
+
+WARNING: 
+
+To use distributed materializations correctly you should set **insert_distributed_sync** = 1 (or use as prehook) in order to have correct data while SELECT queries. Otherwise, downstream calculation could be wrong if the distributed insert is not finished in time.
+
+## Distributed table materialization
+
+Distributed table created with following steps:
+1. Creates temp view with sql query to get right structure
+2. Create empty local tables based on view 
+3. Create distributed table based on local tables. 
+4. Data inserts into distributed table, so it is distributed across shards without duplicating.
+
+### Distributed table model example
+```sql
+{{
+    config(
+        materialized='distributed_table',
+        order_by='id, created_at',
+        sharding_key='cityHash64(id)',
+        engine='ReplacingMergeTree'
+    )
+}}
+
+select id, created_at, item from {{ source('db', 'table') }}
+```
+
+### Generated migrations
+
+```sql
+CREATE TABLE db.table_local on cluster cluster
+(
+    `id` UInt64,
+    `created_at` DateTime,
+    `item` String
+)
+ENGINE = ReplacingMergeTree
+ORDER BY (id, created_at)
+SETTINGS index_granularity = 8192;
+
+
+CREATE TABLE db.table on cluster cluster
+(
+    `id` UInt64,
+    `created_at` DateTime,
+    `item` String
+)
+ENGINE = Distributed('cluster', 'db', 'table_local', cityHash64(id));
+```
+
+## Distributed incremental materialization
+
+Incremental model based on the same idea as distributed table, the main difficulty is to process all incremental strategies correctly.
+
+1. _The Append Strategy_ just insert data into distributed table.
+2. _The Delete+Insert_ Strategy creates distributed temp table to work with all data on every shard.
+3. _The Default (Legacy) Strategy_ creates distributed temp and intermediate tables for the same reason.
+
+Only shard tables are replacing, because distributed table does not keep data. 
+The distributed table reloads only when the full_refresh mode is enabled or the table structure may have changed.
+
+### Distributed incremental model example
+```sql
+{{
+    config(
+        materialized='distributed_incremental',
+        engine='MergeTree',
+        incremental_strategy='append',
+        unique_key='id,created_at'
+    )
+}}
+
+select id, created_at, item from {{ source('db', 'table') }}
+```
+
+### Generated migrations
+
+```sql
+CREATE TABLE db.table_local on cluster cluster
+(
+    `id` UInt64,
+    `created_at` DateTime,
+    `item` String
+)
+ENGINE = MergeTree
+SETTINGS index_granularity = 8192;
+
+
+CREATE TABLE db.table on cluster cluster
+(
+    `id` UInt64,
+    `created_at` DateTime,
+    `item` String
+)
+ENGINE = Distributed('cluster', 'db', 'table_local', cityHash64(id));
+```
 
 # Running Tests
 
