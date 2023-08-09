@@ -1,3 +1,7 @@
+### Release [1.4.7], 2023-08-09
+#### Bug Fix
+- Fixed an exception in "legacy" incremental materializations that are not distributed
+
 ### Release [1.4.6], 2023-07-27
 #### Bug fix
 - Lightweight deletes could fail in environments where the HTTP session was not preserved (such as clusters behind a non-sticky
