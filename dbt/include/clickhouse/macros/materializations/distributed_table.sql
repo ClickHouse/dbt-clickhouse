@@ -46,7 +46,7 @@
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
-      {% do run_query(create_empty_table_from_relation(backup_relation, view_relation)) or '' %}
+      {{ create_empty_table_from_relation(backup_relation, view_relation) }}
     {%- endcall %}
     {% do exchange_tables_atomic(backup_relation, existing_relation) %}
   {% else %}
