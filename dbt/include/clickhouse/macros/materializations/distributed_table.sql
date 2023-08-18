@@ -46,13 +46,14 @@
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
-      {% do run_query(create_empty_table_from_relation(backup_relation, view_relation)) or '' %}
+      {{ create_empty_table_from_relation(backup_relation, view_relation) }}
     {%- endcall %}
-    {% do exchange_tables_atomic(backup_relation, existing_relation) %}
+    {% do exchange_tables_atomic(backup_relation, existing_relation_local) %}
   {% else %}
     {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
+    {{ create_distributed_table(target_relation, target_relation_local) }}
   {% endif %}
   {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
   {{ drop_relation_if_exists(view_relation) }}
