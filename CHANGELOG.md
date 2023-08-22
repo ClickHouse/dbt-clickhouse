@@ -1,3 +1,8 @@
+### Release [1.4.8], 2023-08-22
+#### Bug Fix
+- Fixed issues with experimental Distributed table materializations.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/179.
+Thanks to [Zhebnang](https://github.com/zli06160) for the report and for contributing to the fix with [gfunc](https://github.com/gfunc).
+
 ### Release [1.4.7], 2023-08-09
 #### Bug Fix
 - Fixed an exception in "legacy" incremental materializations that are not distributed
