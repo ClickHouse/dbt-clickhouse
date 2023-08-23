@@ -11,13 +11,12 @@ from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCo
 from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.util import (
     check_relation_types,
-    relation_from_name,
-    run_dbt,
+    check_relations_equal,
     check_result_nodes_by_name,
     relation_from_name,
-    check_relation_types,
-    check_relations_equal,
+    run_dbt,
 )
+
 # CSV content with boolean column type.
 seeds_boolean_csv = """
 key,value
@@ -142,10 +141,10 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
     def models(self):
         config_distributed_table = """
             {{ config(
-                order_by='(some_date, id, name)', 
-                engine='MergeTree()', 
+                order_by='(some_date, id, name)',
+                engine='MergeTree()',
                 materialized='distributed_table',
-                settings={'allow_nullable_key': 1}) 
+                settings={'allow_nullable_key': 1}
             }}
         """
         return {
@@ -158,14 +157,20 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         # check if data is properly distributed/replicated
         table_relation = relation_from_name(project.adapter, "distributed")
         cluster_info = project.run_sql(
-            f"select shard_num,max(host_name) as host_name,count(distinct replica_num) as replica_counts from system.clusters where cluster='{cluster}' group by shard_num", fetch="all")
+            f"select shard_num,max(host_name) as host_name,count(distinct replica_num) as replica_counts from system.clusters where cluster='{cluster}' group by shard_num",
+            fetch="all",
+        )
         sum_count = project.run_sql(
-            f"select count() From clusterAllReplicas('{cluster}',{table_relation}_local)", fetch="one")
+            f"select count() From clusterAllReplicas('{cluster}',{table_relation}_local)",
+            fetch="one",
+        )
         total_count = 0
         # total count should be equal to sum(count of each shard * replica_counts)
         for shard_num, host_name, replica_counts in cluster_info:
             count = project.run_sql(
-                f"select count() From remote('{host_name}',{table_relation}_local)", fetch="one")
+                f"select count() From remote('{host_name}',{table_relation}_local)",
+                fetch="one",
+            )
             total_count += count[0] * replica_counts
         assert total_count == sum_count[0]
 
@@ -223,10 +228,10 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
     def models(self):
         config_replicated_table = """
             {{ config(
-                order_by='(some_date, id, name)', 
-                engine="ReplicatedMergeTree('/clickhouse/tables/{uuid}/one_shard', '{server_index}' )", 
+                order_by='(some_date, id, name)',
+                engine="ReplicatedMergeTree('/clickhouse/tables/{uuid}/one_shard', '{server_index}' )",
                 materialized='table',
-                settings={'allow_nullable_key': 1}) 
+                settings={'allow_nullable_key': 1})
             }}
         """
 
@@ -241,15 +246,21 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
         table_relation = relation_from_name(project.adapter, "replicated")
         # ClickHouse cluster in the docker-compose file under tests/integration is configured with 3 nodes
         host_count = project.run_sql(
-            f"select count(host_name) as host_count from system.clusters where cluster='{cluster}'", fetch="one")
+            f"select count(host_name) as host_count from system.clusters where cluster='{cluster}'",
+            fetch="one",
+        )
         assert host_count[0] == 3
 
         table_count = project.run_sql(
-            f"select count() From clusterAllReplicas('{cluster}', system.tables) where database='{table_relation.schema}' and name='{table_relation.identifier}'", fetch="one")
+            f"select count() From clusterAllReplicas('{cluster}', system.tables) where database='{table_relation.schema}' and name='{table_relation.identifier}'",
+            fetch="one",
+        )
         assert table_count[0] == host_count[0]
 
         sum_count = project.run_sql(
-            f"select count() From clusterAllReplicas('{cluster}',{table_relation})", fetch="one")
+            f"select count() From clusterAllReplicas('{cluster}',{table_relation})",
+            fetch="one",
+        )
 
         assert sum_count[0] == 3 * 10
 

@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional, Type, Dict
+from typing import Any, Dict, Optional, Type
 
 from dbt.adapters.base.relation import BaseRelation, Policy, Self
-from dbt.contracts.graph.nodes import SourceDefinition, ManifestNode
+from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
 from dbt.contracts.relation import HasQuoting
 from dbt.exceptions import DbtRuntimeError
 from dbt.utils import deep_merge, merge
@@ -61,8 +61,13 @@ class ClickHouseRelation(BaseRelation):
             return True
 
     @classmethod
-    def get_on_cluster(cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = '') -> str:
-        return cluster and ('view' == materialized or 'distributed' in materialized or 'Replicated' in engine)
+    def get_on_cluster(
+        cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = ''
+    ) -> bool:
+        if cluster:
+            return 'view' == materialized or 'distributed' in materialized or 'Replicated' in engine
+        else:
+            return False
 
     @classmethod
     def create_from_source(cls: Type[Self], source: SourceDefinition, **kwargs: Any) -> Self:

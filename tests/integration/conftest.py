@@ -35,7 +35,7 @@ def test_config(ch_test_users, ch_test_version):
     test_driver = 'native' if test_port in (10900, 9000, 9440) else 'http'
     test_user = os.environ.get('DBT_CH_TEST_USER', 'default')
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
-    test_cluster = os.environ.get('DBT_CH_TEST_CLUSTER','')
+    test_cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '')
     test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', '')
     test_secure = test_port in (8443, 9440)
     test_cluster_mode = os.environ.get('DBT_CH_TEST_CLUSTER_MODE', '').lower() in (

@@ -1,14 +1,9 @@
 from dbt.tests.adapter.grants.test_incremental_grants import BaseIncrementalGrants
 from dbt.tests.adapter.grants.test_invalid_grants import BaseInvalidGrants
-from dbt.tests.adapter.grants.test_model_grants import BaseModelGrants, my_model_sql, model_schema_yml
+from dbt.tests.adapter.grants.test_model_grants import BaseModelGrants
 from dbt.tests.adapter.grants.test_seed_grants import BaseSeedGrants
 from dbt.tests.adapter.grants.test_snapshot_grants import BaseSnapshotGrants
-
-from dbt.tests.util import (
-    run_dbt_and_capture,
-    get_manifest,
-    write_file,
-)
+from dbt.tests.util import get_manifest, run_dbt_and_capture, write_file
 
 distributed_table_model_schema_yml = """
 version: 2
@@ -65,13 +60,14 @@ class TestDistributedTableModelGrants(BaseModelGrants):
         assert model.config.materialized == "distributed_table"
         expected = {select_privilege_name: [test_users[0]], insert_privilege_name: [test_users[1]]}
         self.assert_expected_grants_match_actual(project, "my_model", expected)
-    
+
     def assert_expected_grants_match_actual(self, project, relation_name, expected_grants):
         super().assert_expected_grants_match_actual(project, relation_name, expected_grants)
-        
-        # also needs grants for local table 
-        actual_local_grants = self.get_grants_on_relation(project, relation_name+"_local")
+
+        # also needs grants for local table
+        actual_local_grants = self.get_grants_on_relation(project, relation_name + "_local")
         from dbt.context.base import BaseContext
+
         diff_a_local = BaseContext.diff_of_two_dicts(actual_local_grants, expected_grants)
         diff_b_local = BaseContext.diff_of_two_dicts(expected_grants, actual_local_grants)
         assert diff_a_local == diff_b_local == {}
