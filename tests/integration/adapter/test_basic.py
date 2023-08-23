@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from dbt.tests.adapter.basic.files import model_base, schema_base_yml
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
@@ -174,6 +176,9 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
             total_count += count[0] * replica_counts
         assert total_count == sum_count[0]
 
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
     def test_base(self, project):
         # cluster setting must exists
         cluster = project.test_config['cluster']
@@ -222,6 +227,12 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         assert len(catalog.nodes) == 2
         assert len(catalog.sources) == 1
 
+    def test_no_cluster_setting(self, project):
+        project.test_config['cluster'] = ''
+        result = run_dbt(['run', '--select', 'distributed'], False)
+        assert result[0].status == 'error'
+        assert 'Compilation Error' in result[0].message
+
 
 class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
@@ -264,6 +275,9 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
 
         assert sum_count[0] == 3 * 10
 
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
     def test_base(self, project):
         # cluster setting must exists
         cluster = project.test_config['cluster']

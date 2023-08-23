@@ -43,10 +43,10 @@ jobs:
         run: |
           echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
           echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
-          echo "DBT_CH_TEST_CLUSTER=test_replica" >> $GITHUB_ENV
-          echo "PROJECT_ROOT=${{ github.workspace }}" >> $GITHUB_ENV
 
       - name: Run ClickHouse Cluster Containers
+        env:
+          PROJECT_ROOT=${{ github.workspace }}
         run: REPLICA_NUM=1 docker-compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
       - name: Setup Python ${{ matrix.python-version }}
@@ -67,7 +67,6 @@ jobs:
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9000
-          DBT_CH_TEST_CLUSTER: test_replica
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
           pytest tests

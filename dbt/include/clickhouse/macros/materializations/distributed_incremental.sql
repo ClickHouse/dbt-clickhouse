@@ -9,6 +9,11 @@
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
+  {% set on_cluster = on_cluster_clause(target_relation) %}
+  {% if on_cluster.strip() == '' %}
+     {% do exceptions.raise_compiler_error('To use distributed materializations cluster setting in dbt profile must be set') %}
+  {% endif %}
+
   {% set existing_relation_local = existing_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if existing_relation is not none else none %}
   {% set target_relation_local = target_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if target_relation is not none else none %}
 
