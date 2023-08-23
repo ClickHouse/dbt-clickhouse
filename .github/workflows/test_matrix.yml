@@ -58,6 +58,8 @@ jobs:
         run: pip3 install -r dev_requirements.txt
 
       - name: Run HTTP tests
+        env:
+          DBT_CH_TEST_CLUSTER: test_replica
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
           pytest tests
@@ -65,6 +67,7 @@ jobs:
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9000
+          DBT_CH_TEST_CLUSTER: test_replica
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
           pytest tests
