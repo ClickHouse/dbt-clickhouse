@@ -1,0 +1,89 @@
+<clickhouse>
+    <http_port>8123</http_port>
+    <tcp_port>9000</tcp_port>
+    <interserver_http_port>9009</interserver_http_port>
+    <macros>
+        <shard from_env="SHARD_NUM" />
+        <replica from_env="REPLICA_NUM" />
+        <server_index from_env="SERVER_INDEX" />
+    </macros>
+    <remote_servers>
+        <test_shard>
+            <shard>
+                <replica>
+                    <host>ch0</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+            <shard>
+                <replica>
+                    <host>ch1</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+            <shard>
+                <replica>
+                    <host>ch2</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </test_shard>
+        <test_replica>
+            <shard>
+                <replica>
+                    <host>ch0</host>
+                    <port>9000</port>
+                </replica>
+                <replica>
+                    <host>ch1</host>
+                    <port>9000</port>
+                </replica>
+                <replica>
+                    <host>ch2</host>
+                    <port>9000</port>
+                </replica>
+            </shard>
+        </test_replica>
+    </remote_servers>
+    <keeper_server>
+        <tcp_port>9181</tcp_port>
+        <server_id from_env="SERVER_INDEX" />
+
+        <coordination_settings>
+            <operation_timeout_ms>10000</operation_timeout_ms>
+            <session_timeout_ms>30000</session_timeout_ms>
+        </coordination_settings>
+
+        <raft_configuration>
+            <server>
+                <id>1</id>
+                <hostname>ch0</hostname>
+                <port>9234</port>
+            </server>
+            <server>
+                <id>2</id>
+                <hostname>ch1</hostname>
+                <port>9234</port>
+            </server>
+            <server>
+                <id>3</id>
+                <hostname>ch2</hostname>
+                <port>9234</port>
+            </server>
+        </raft_configuration>
+    </keeper_server>
+    <zookeeper>
+        <node index="1">
+            <host>ch0</host>
+            <port>9181</port>
+        </node>
+        <node index="2">
+            <host>ch1</host>
+            <port>9181</port>
+        </node>
+        <node index="3">
+            <host>ch2</host>
+            <port>9181</port>
+        </node>
+    </zookeeper>
+</clickhouse>

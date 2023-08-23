@@ -118,9 +118,10 @@
 {% macro exchange_tables_atomic(old_relation, target_relation, obj_types='TABLES') %}
 
   {%- if adapter.get_clickhouse_cluster_name() is not none and obj_types == 'TABLES' and 'Replicated' in engine_clause() %}
-      {% do run_query("SYSTEM SYNC REPLICA " + on_cluster_clause(target_relation) + target_relation.schema + '.' + target_relation.identifier) %}
+    {%- call statement('exchange_table_sync_replica') -%}
+      SYSTEM SYNC REPLICA  {{ on_cluster_clause(target_relation) }} {{ target_relation.schema }}.{{ target_relation.identifier }}
+    {% endcall %}
   {%- endif %}
-  
   {%- call statement('exchange_tables_atomic') -%}
     EXCHANGE {{ obj_types }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(target_relation)}}
   {% endcall %}
