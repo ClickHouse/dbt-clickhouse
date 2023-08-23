@@ -46,7 +46,7 @@ jobs:
 
       - name: Run ClickHouse Cluster Containers
         env:
-          PROJECT_ROOT=${{ github.workspace }}
+          PROJECT_ROOT: ${{ github.workspace }}
         run: REPLICA_NUM=1 docker-compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
       - name: Setup Python ${{ matrix.python-version }}
