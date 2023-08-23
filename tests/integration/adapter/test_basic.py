@@ -227,8 +227,10 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         assert len(catalog.nodes) == 2
         assert len(catalog.sources) == 1
 
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() != '', reason='Not on a cluster'
+    )
     def test_no_cluster_setting(self, project):
-        project.test_config['cluster'] = ''
         result = run_dbt(['run', '--select', 'distributed'], False)
         assert result[0].status == 'error'
         assert 'Compilation Error' in result[0].message
