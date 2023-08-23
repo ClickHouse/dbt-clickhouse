@@ -144,7 +144,7 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
                 order_by='(some_date, id, name)',
                 engine='MergeTree()',
                 materialized='distributed_table',
-                settings={'allow_nullable_key': 1}
+                settings={'allow_nullable_key': 1})
             }}
         """
         return {
