@@ -1,3 +1,6 @@
+import os
+
+import pytest
 from dbt.tests.adapter.grants.test_incremental_grants import BaseIncrementalGrants
 from dbt.tests.adapter.grants.test_invalid_grants import BaseInvalidGrants
 from dbt.tests.adapter.grants.test_model_grants import BaseModelGrants
@@ -43,6 +46,9 @@ class TestSnapshotGrants(BaseSnapshotGrants):
 
 
 class TestDistributedTableModelGrants(BaseModelGrants):
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
     def test_view_table_grants(self, project, get_test_users):
         # we want the test to fail, not silently skip
         test_users = get_test_users
