@@ -121,9 +121,9 @@
   {%- endif %}
 {%- endmacro -%}
 
-{% macro on_cluster_clause(label) %}
+{% macro on_cluster_clause(relation) %}
   {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
-  {%- if active_cluster is not none %}
+  {%- if active_cluster is not none and relation.should_on_cluster %}
     {# Add trailing whitespace to avoid problems when this clause is not last #}
     ON CLUSTER {{ active_cluster + ' ' }}
   {%- endif %}
@@ -154,7 +154,7 @@
         {{ adapter.get_model_settings(model) }}
     {%- else %}
         create table {{ relation.include(database=False) }}
-        {{ on_cluster_clause()}}
+        {{ on_cluster_clause(relation)}}
         {{ engine_clause() }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}

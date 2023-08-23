@@ -162,7 +162,7 @@
       {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, existing_relation) }}
     {% else %}
       {% call statement('main') %}
-          create table {{ intermediate_relation }} as {{ new_data_relation }} {{ on_cluster_clause() }}
+          create table {{ intermediate_relation }} as {{ new_data_relation }} {{ on_cluster_clause(existing_relation) }}
       {% endcall %}
     {% endif %}
 

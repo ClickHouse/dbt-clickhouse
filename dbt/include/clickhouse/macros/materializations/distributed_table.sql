@@ -59,6 +59,7 @@
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
+  {% do apply_grants(target_relation_local, grant_config, should_revoke=should_revoke) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
@@ -79,7 +80,7 @@
    {%- set cluster = cluster[1:-1] -%}
    {%- set sharding = config.get('sharding_key') -%}
 
-    CREATE TABLE {{ relation }} {{ on_cluster_clause() }} AS {{ local_relation }}
+    CREATE TABLE {{ relation }} {{ on_cluster_clause(relation) }} AS {{ local_relation }}
     ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
     {% if sharding is not none %}
         , {{ sharding }}
@@ -98,7 +99,7 @@
   {{ sql_header if sql_header is not none }}
 
   create table {{ relation.include(database=False) }}
-  {{ on_cluster_clause() }} (
+  {{ on_cluster_clause(relation) }} (
       {{col_list | join(', ')}}
   )
 
