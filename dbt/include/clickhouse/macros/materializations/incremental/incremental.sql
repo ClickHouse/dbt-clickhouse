@@ -217,8 +217,13 @@
     {% endif %}
 
     {% call statement('delete_existing_data') %}
-      delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+      {% if is_distributed %}
+            delete from {{ existing_relation }}{{ adapter.get_clickhouse_local_suffix() }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
                                           from {{ inserting_relation }})
+      {% else %}
+            delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                          from {{ inserting_relation }})
+      {% endif %}
       {%- if incremental_predicates %}
         {% for predicate in incremental_predicates %}
             and {{ predicate }}

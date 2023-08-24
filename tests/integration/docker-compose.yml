@@ -45,3 +45,7 @@ services:
       - SHARD_NUM=${SHARD_NUM:-3}
       - REPLICA_NUM=${REPLICA_NUM:-3}
     <<: *ch-common
+
+networks:
+  default:
+    name: integration-test

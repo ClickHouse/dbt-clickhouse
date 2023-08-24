@@ -87,9 +87,11 @@
 
     CREATE TABLE {{ relation }} {{ on_cluster_clause(relation) }} AS {{ local_relation }}
     ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
-    {% if sharding is not none %}
+    {%- if sharding is not none and sharding.strip() != '' -%}
         , {{ sharding }}
-    {% endif %}
+    {%- else %}
+        , rand()
+    {% endif -%}
     )
  {% endmacro %}
 

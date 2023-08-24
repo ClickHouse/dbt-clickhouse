@@ -1,7 +1,7 @@
 import os
 
 import pytest
-from dbt.tests.adapter.basic.files import model_base, schema_base_yml
+from dbt.tests.adapter.basic.files import model_base, schema_base_yml, seeds_base_csv
 from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_empty import BaseEmpty
@@ -49,6 +49,27 @@ seeds:
       column_types:
         val2: Nullable(UInt32)
         str1: Nullable(String)
+"""
+
+replicated_seeds_schema_yml = """
+version: 2
+
+seeds:
+  - name: empty
+    config:
+      engine: ReplicatedMergeTree('/clickhouse/tables/replicated_seeds_schema/one_shard', '{server_index}' )
+      column_types:
+        val2: Nullable(UInt32)
+        str1: Nullable(String)
+"""
+
+base_seeds_schema_yml = """
+version: 2
+
+seeds:
+  - name: base
+    config:
+      engine: ReplicatedMergeTree('/clickhouse/tables/{uuid}/one_shard', '{server_index}' )
 """
 
 
@@ -138,6 +159,23 @@ class TestCSVSeed:
         assert columns[3][1] == 'Nullable(String)'
 
 
+class TestReplicatedCSVSeed:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "schema.yml": replicated_seeds_schema_yml,
+            "empty.csv": seeds_empty_csv,
+        }
+
+    def test_seed(self, project):
+        # seed command
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        columns = project.run_sql("DESCRIBE TABLE empty", fetch='all')
+        assert columns[2][1] == 'Nullable(UInt32)'
+        assert columns[3][1] == 'Nullable(String)'
+
+
 class TestDistributedMaterializations(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
@@ -153,6 +191,14 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
             "distributed.sql": config_distributed_table + model_base,
             "schema.yml": schema_base_yml,
         }
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "schema.yml": base_seeds_schema_yml,
+            "base.csv": seeds_base_csv,
+        }
+
 
     def assert_total_count_correct(self, project):
         cluster = project.test_config['cluster']

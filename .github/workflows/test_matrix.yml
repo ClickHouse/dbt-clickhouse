@@ -59,7 +59,7 @@ jobs:
 
       - name: Run HTTP tests
         env:
-          DBT_CH_TEST_CLUSTER: test_replica
+          DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
           pytest tests
