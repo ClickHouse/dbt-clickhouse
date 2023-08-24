@@ -57,7 +57,7 @@ version: 2
 seeds:
   - name: empty
     config:
-      engine: ReplicatedMergeTree('/clickhouse/tables/replicated_seeds_schema/one_shard', '{server_index}' )
+      engine: ReplicatedMergeTree('/clickhouse/tables/{uuid}/one_shard', '{server_index}' )
       column_types:
         val2: Nullable(UInt32)
         str1: Nullable(String)
@@ -167,6 +167,9 @@ class TestReplicatedCSVSeed:
             "empty.csv": seeds_empty_csv,
         }
 
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
     def test_seed(self, project):
         # seed command
         results = run_dbt(["seed"])
@@ -198,7 +201,6 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
             "schema.yml": base_seeds_schema_yml,
             "base.csv": seeds_base_csv,
         }
-
 
     def assert_total_count_correct(self, project):
         cluster = project.test_config['cluster']
