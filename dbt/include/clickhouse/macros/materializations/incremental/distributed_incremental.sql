@@ -14,8 +14,8 @@
      {% do exceptions.raise_compiler_error('To use distributed materializations cluster setting in dbt profile must be set') %}
   {% endif %}
 
-  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if existing_relation is not none else none %}
-  {% set target_relation_local = target_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if target_relation is not none else none %}
+  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if existing_relation is not none else none %}
+  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if target_relation is not none else none %}
 
   {%- set unique_key = config.get('unique_key') -%}
   {% if unique_key is not none and unique_key|length == 0 %}
@@ -105,7 +105,7 @@
       {% endif %}
 
       -- Structure could have changed, need to update distributed table from replaced local table
-      {% set target_relation_new = target_relation.incorporate(path={"identifier": model['name'] + '_temp'}) %}
+      {% set target_relation_new = target_relation.incorporate(path={"identifier": target_relation.identifier + '_temp'}) %}
       {{ drop_relation_if_exists(target_relation_new) }}
       {% do run_query(create_distributed_table(target_relation_new, target_relation_local)) %}
 

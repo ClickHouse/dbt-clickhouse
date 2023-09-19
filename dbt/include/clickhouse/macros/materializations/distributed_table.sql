@@ -14,8 +14,8 @@
      {% do exceptions.raise_compiler_error('To use distributed materialization cluster setting in dbt profile must be set') %}
   {% endif %}
 
-  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if existing_relation is not none else none %}
-  {% set target_relation_local = target_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if target_relation is not none else none %}
+  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if existing_relation is not none else none %}
+  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if target_relation is not none else none %}
 
   {%- set backup_relation = none -%}
   {%- set preexisting_backup_relation = none -%}
