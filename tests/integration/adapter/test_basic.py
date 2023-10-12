@@ -180,6 +180,8 @@ class TestReplicatedCSVSeed:
 
 
 class TestDistributedMaterializations(BaseSimpleMaterializations):
+    '''Test distributed materializations and check if data is properly distributed/replicated'''
+
     @pytest.fixture(scope="class")
     def models(self):
         config_distributed_table = """
@@ -203,11 +205,12 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         }
 
     def assert_total_count_correct(self, project):
+        '''Check if data is properly distributed'''
         cluster = project.test_config['cluster']
-        # check if data is properly distributed/replicated
         table_relation = relation_from_name(project.adapter, "distributed")
         cluster_info = project.run_sql(
-            f"select shard_num,max(host_name) as host_name,count(distinct replica_num) as replica_counts from system.clusters where cluster='{cluster}' group by shard_num",
+            f"select shard_num,max(host_name) as host_name, count(distinct replica_num) as replica_counts "
+            f"from system.clusters where cluster='{cluster}' group by shard_num",
             fetch="all",
         )
         sum_count = project.run_sql(
@@ -285,6 +288,8 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
 
 
 class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
+    '''Test ReplicatedMergeTree table with table materialization'''
+
     @pytest.fixture(scope="class")
     def models(self):
         config_replicated_table = """
@@ -302,10 +307,12 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
         }
 
     def assert_total_count_correct(self, project):
+        '''Check if table is created on cluster and data is properly replicated'''
         cluster = project.test_config['cluster']
         # check if data is properly distributed/replicated
         table_relation = relation_from_name(project.adapter, "replicated")
-        # ClickHouse cluster in the docker-compose file under tests/integration is configured with 3 nodes
+        # ClickHouse cluster in the docker-compose file
+        # under tests/integration is configured with 3 nodes
         host_count = project.run_sql(
             f"select count(host_name) as host_count from system.clusters where cluster='{cluster}'",
             fetch="one",
@@ -313,7 +320,8 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
         assert host_count[0] == 3
 
         table_count = project.run_sql(
-            f"select count() From clusterAllReplicas('{cluster}', system.tables) where database='{table_relation.schema}' and name='{table_relation.identifier}'",
+            f"select count() From clusterAllReplicas('{cluster}', system.tables) "
+            f"where database='{table_relation.schema}' and name='{table_relation.identifier}'",
             fetch="one",
         )
         assert table_count[0] == host_count[0]

@@ -85,7 +85,7 @@
    {%- set cluster = cluster[1:-1] -%}
    {%- set sharding = config.get('sharding_key') -%}
 
-    CREATE TABLE {{ relation }} {{ on_cluster_clause(relation) }} AS {{ local_relation }}
+    create table {{ relation }} {{ on_cluster_clause(relation) }} as {{ local_relation }}
     ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
     {%- if sharding is not none and sharding.strip() != '' -%}
         , {{ sharding }}
