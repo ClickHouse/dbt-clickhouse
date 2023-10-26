@@ -1,3 +1,12 @@
+### Release [1.4.9], 2023-10-27
+#### Improvement
+- Lots of work on Distributed table materializations.  Big thanks to [gfunc](https://github.com/gfunc) for the additional PR
+and [Zhenbang](https://github.com/zli06160) for code review and suggestions.  See the README for details on how to
+use the new functionality.
+#### Bug Fix
+- dbt would fail if a cluster name contained a dash.  This has been fixed.  Thanks to [Andy](https://github.com/the4thamigo-uk
+for the PR
+
 ### Release [1.4.8], 2023-08-22
 #### Bug Fix
 - Fixed issues with experimental Distributed table materializations.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/179.
