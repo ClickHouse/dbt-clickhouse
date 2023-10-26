@@ -150,7 +150,11 @@ class ChClientWrapper(ABC):
             db_exists = self.command(check_db)
             if not db_exists:
                 engine_clause = f' ENGINE {database_engine} ' if database_engine else ''
-                cluster_clause = f' ON CLUSTER "{cluster_name}" ' if cluster_name is not None else ''
+                cluster_clause = (
+                    f' ON CLUSTER {cluster_name} '
+                    if cluster_name is not None and cluster_name.strip() != ''
+                    else ''
+                )
                 self.command(f'CREATE DATABASE {self.database}{cluster_clause}{engine_clause}')
                 db_exists = self.command(check_db)
                 if not db_exists:
