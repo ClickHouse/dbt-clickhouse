@@ -65,7 +65,7 @@ your_profile_name:
       port: [8123]  # If not set, defaults to 8123, 8443, 9000, 9440 depending on the secure and driver settings 
       user: [default] # User for all database operations
       password: [<empty string>] # Password for the user
-      cluster: [<empty string>] If set, DDL/table operations will be executed with the `ON CLUSTER` clause using this cluster
+      cluster: [<empty string>] If set, certain DDL/table operations will be executed with the `ON CLUSTER` clause using this cluster. Distributed materializations require this setting to work. See the following ClickHouse Cluster section for more details.
       verify: [True] # Validate TLS certificate if using TLS/SSL
       secure: [False] # Use TLS (native protocol) or HTTPS (http protocol)
       retries: [1] # Number of times to retry a "retriable" database exception (such as a 503 'Service Unavailable' error)
@@ -75,7 +75,7 @@ your_profile_name:
       cluster_mode: [False] # Use specific settings designed to improve operation on Replicated databases (recommended for ClickHouse Cloud)
       use_lw_deletes: [False] Use the strategy `delete+insert` as the default incremental strategy.
       check_exchange: [True] # Validate that clickhouse support the atomic EXCHANGE TABLES command.  (Not needed for most ClickHouse versions)
-      local_suffix [local] # Table suffix of local tables on shards for distributed materializations 
+      local_suffix [_local] # Table suffix of local tables on shards for distributed materializations.
       custom_settings: [{}] # A dictionary/mapping of custom ClickHouse settings for the connection - default is empty.
       
       # Native (clickhouse-driver) connection settings
@@ -91,14 +91,35 @@ your_profile_name:
 | engine                 | The table engine (type of table) to use when creating tables                                                                                                                                                                                           | Optional (default: `MergeTree()`) |
 | order_by               | A tuple of column names or arbitrary expressions. This allows you to create a small sparse index that helps find data faster.                                                                                                                          | Optional (default: `tuple()`)     |
 | partition_by           | A partition is a logical combination of records in a table by a specified criterion. The partition key can be any expression from the table columns.                                                                                                   | Optional                          |
+| sharding_key           | Sharding key determines the destination server when inserting into distributed engine table.  The sharding key can be random or as an output of a hash function   | Optional (default: `rand()`)      |
 | primary_key            | Like order_by, a ClickHouse primary key expression.  If not specified, ClickHouse will use the order by expression as the primary key                                                                                                                  |
 | unique_key             | A tuple of column names that uniquely identify rows.  Used with incremental models for updates.                                                                                                                                                        | Optional                          |
 | inserts_only           | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way | Optional                          |
 | incremental_strategy   | Incremental model update strategy of `delete+insert` or `append`.  See the following Incremental Model Strategies                                                                                                                                      | Optional (default: `default`)     |
 | incremental_predicates | Additional conditions to be applied to the incremental materialization (only applied to `delete+insert` strategy                                                                                                                                       |
+## ClickHouse Cluster 
+
+`cluster` setting in profile enables dbt-clickhouse to run against a ClickHouse cluster.
+
+### Effective Scope
+
+
+if `cluster` is set in profile, `on_cluster_clause` now will return cluster info for:
+- Database creation
+- View materialization
+- Distributed materializations
+- Models with Replicated engines
+
+table and incremental materializations with non-replicated engine will not be affected by `cluster` setting (model would be created on the connected node only).
+
+### Compatibility
+
+
+If a model has been created without a `cluster` setting, dbt-clickhouse will detect the situation and run all DDL/DML without `on cluster` clause for this model.
+
+
 ## Known Limitations
 
-* Replicated tables (combined with the `cluster` profile setting) are available using the `on_cluster_clause` macro but are not included in the test suite and not formally tested. 
 * Ephemeral models/CTEs don't work if placed before the "INSERT INTO" in a ClickHouse insert statement, see https://github.com/ClickHouse/ClickHouse/issues/30323.  This
 should not affect most models, but care should be taken where an ephemeral model is placed in model definitions and other SQL statements.
 
@@ -143,7 +164,7 @@ The following macros are included to facilitate creating ClickHouse specific tab
 - `partition_cols` -- Uses the `partition_by` model configuration property to assign a ClickHouse partition key.  No partition key is assigned by default.
 - `order_cols` -- Uses the `order_by` model configuration to assign a ClickHouse order by/sorting key.  If not specified ClickHouse will use an empty tuple() and the table will be unsorted
 - `primary_key_clause` -- Uses the `primary_key` model configuration property to assign a ClickHouse primary key.  By default, primary key is set and ClickHouse will use the order by clause as the primary key. 
-- `on_cluster_clause` -- Uses the `cluster` profile property to add an `ON CLUSTER` clause to all dbt-operations
+- `on_cluster_clause` -- Uses the `cluster` profile property to add an `ON CLUSTER` clause to certain dbt-operations: distributed materializations, views creation, database creation.
 
 ### s3Source Helper Macro
 
@@ -168,7 +189,6 @@ See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/te
 
 Notes:
 
-- Distributed materializations are experimental and are not currently included in the automated test suite.
 - dbt-clickhouse queries now automatically include the setting `insert_distributed_sync = 1` in order to ensure that downstream incremental
 materialization operations execute correctly.  This could cause some distributed table inserts to run more slowly than expected.
 
@@ -281,6 +301,7 @@ configuration file (this file should not be checked into git).  The following en
 8. DBT_CH_TEST_CH_VERSION - ClickHouse docker image to use.  Defaults to `latest`
 9. DBT_CH_TEST_INCLUDE_S3 - Include S3 tests.  Default=False since these are currently dependent on a specific ClickHouse S3 bucket/test dataset
 10. DBT_CH_TEST_CLUSTER_MODE - Use the profile value
+11. DBT_CH_TEST_CLUSTER - ClickHouse cluster name, if DBT_CH_TEST_USE_DOCKER set to true, only `test_replica` and `test_shard` is valid (see tests/test_config.xml for cluster settings)
 
 
 ## Original Author

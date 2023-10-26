@@ -35,6 +35,7 @@ def test_config(ch_test_users, ch_test_version):
     test_driver = 'native' if test_port in (10900, 9000, 9440) else 'http'
     test_user = os.environ.get('DBT_CH_TEST_USER', 'default')
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
+    test_cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '')
     test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', '')
     test_secure = test_port in (8443, 9440)
     test_cluster_mode = os.environ.get('DBT_CH_TEST_CLUSTER_MODE', '').lower() in (
@@ -53,6 +54,7 @@ def test_config(ch_test_users, ch_test_version):
         try:
             run_cmd(['docker-compose', '-f', compose_file, 'down', '-v'])
             sys.stderr.write('Starting docker compose')
+            os.environ['PROJECT_ROOT'] = '.'
             up_result = run_cmd(['docker-compose', '-f', compose_file, 'up', '-d'])
             if up_result[0]:
                 raise Exception(f'Failed to start docker: {up_result[2]}')
@@ -74,8 +76,12 @@ def test_config(ch_test_users, ch_test_version):
         secure=test_secure,
     )
     for dbt_user in ch_test_users:
+        cmd = 'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s'
+        if test_cluster != '':
+            cmd = f'CREATE USER IF NOT EXISTS %s ON CLUSTER "{test_cluster}"  IDENTIFIED WITH sha256_hash BY %s'
+
         test_client.command(
-            'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s',
+            cmd,
             (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
         )
     yield {
@@ -84,6 +90,7 @@ def test_config(ch_test_users, ch_test_version):
         'port': test_port,
         'user': test_user,
         'password': test_password,
+        'cluster': test_cluster,
         'db_engine': test_db_engine,
         'secure': test_secure,
         'cluster_mode': test_cluster_mode,
@@ -111,6 +118,7 @@ def dbt_profile_target(test_config):
         'user': test_config['user'],
         'password': test_config['password'],
         'port': test_config['port'],
+        'cluster': test_config['cluster'],
         'database_engine': test_config['db_engine'],
         'cluster_mode': test_config['cluster_mode'],
         'secure': test_config['secure'],

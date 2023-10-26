@@ -9,8 +9,13 @@
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
-  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if existing_relation is not none else none %}
-  {% set target_relation_local = target_relation.incorporate(path={"identifier": model['name'] + local_suffix}) if target_relation is not none else none %}
+  {% set on_cluster = on_cluster_clause(target_relation) %}
+  {% if on_cluster.strip() == '' %}
+     {% do exceptions.raise_compiler_error('To use distributed materialization cluster setting in dbt profile must be set') %}
+  {% endif %}
+
+  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if existing_relation is not none else none %}
+  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if target_relation is not none else none %}
 
   {%- set backup_relation = none -%}
   {%- set preexisting_backup_relation = none -%}
@@ -59,6 +64,7 @@
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
+  {% do apply_grants(target_relation_local, grant_config, should_revoke=should_revoke) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
@@ -79,11 +85,13 @@
    {%- set cluster = cluster[1:-1] -%}
    {%- set sharding = config.get('sharding_key') -%}
 
-    CREATE TABLE {{ relation }} {{ on_cluster_clause() }} AS {{ local_relation }}
+    create table {{ relation }} {{ on_cluster_clause(relation) }} as {{ local_relation }}
     ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
-    {% if sharding is not none %}
+    {%- if sharding is not none and sharding.strip() != '' -%}
         , {{ sharding }}
-    {% endif %}
+    {%- else %}
+        , rand()
+    {% endif -%}
     )
  {% endmacro %}
 
@@ -98,7 +106,7 @@
   {{ sql_header if sql_header is not none }}
 
   create table {{ relation.include(database=False) }}
-  {{ on_cluster_clause() }} (
+  {{ on_cluster_clause(relation) }} (
       {{col_list | join(', ')}}
   )
 

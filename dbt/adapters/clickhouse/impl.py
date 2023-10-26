@@ -30,6 +30,7 @@ class ClickHouseConfig(AdapterConfig):
     engine: str = 'MergeTree()'
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None
+    sharding_key: Optional[Union[List[str], str]] = 'rand()'
 
 
 class ClickHouseAdapter(SQLAdapter):
@@ -77,8 +78,11 @@ class ClickHouseAdapter(SQLAdapter):
     @available.parse(lambda *a, **k: {})
     def get_clickhouse_local_suffix(self):
         conn = self.connections.get_if_exists()
-        if conn.credentials.local_suffix:
-            return f'{conn.credentials.local_suffix}'
+        suffix = conn.credentials.local_suffix
+        if suffix:
+            if suffix.startswith('_'):
+                return f'{suffix}'
+            return f'_{suffix}'
 
     @available
     def clickhouse_db_engine_clause(self):
@@ -106,6 +110,13 @@ class ClickHouseAdapter(SQLAdapter):
             return False
         ch_db = self.get_ch_database(schema)
         return ch_db and ch_db.engine in ('Atomic', 'Replicated')
+
+    @available.parse_none
+    def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
+        conn = self.connections.get_if_exists()
+        if conn and conn.credentials.cluster:
+            return ClickHouseRelation.get_on_cluster(conn.credentials.cluster, materialized, engine)
+        return ClickHouseRelation.get_on_cluster('', materialized, engine)
 
     @available.parse_none
     def calculate_incremental_strategy(self, strategy: str) -> str:
@@ -198,19 +209,21 @@ class ClickHouseAdapter(SQLAdapter):
 
         relations = []
         for row in results:
-            name, schema, type_info, db_engine = row
+            name, schema, type_info, db_engine, on_cluster = row
             rel_type = RelationType.View if 'view' in type_info else RelationType.Table
             can_exchange = (
                 conn_supports_exchange
                 and rel_type == RelationType.Table
                 and db_engine in ('Atomic', 'Replicated')
             )
+
             relation = self.Relation.create(
                 database=None,
                 schema=schema,
                 identifier=name,
                 type=rel_type,
                 can_exchange=can_exchange,
+                can_on_cluster=(on_cluster >= 1),
             )
             relations.append(relation)
 

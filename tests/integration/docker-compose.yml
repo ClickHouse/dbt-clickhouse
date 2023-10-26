@@ -1,15 +1,51 @@
 ---
 version: '3'
 
+x-ch-common: &ch-common
+  volumes:
+    - /var/lib/clickhouse
+    - type: bind
+      source: ${PROJECT_ROOT:-.}/test_settings_${DBT_CH_TEST_SETTINGS:-latest}.xml
+      target: /etc/clickhouse-server/users.d/test_settings.xml
+    - type: bind
+      source: ${PROJECT_ROOT:-.}/test_config.xml
+      target: /etc/clickhouse-server/config.d/test_config.xml
+  ulimits:
+    nofile:
+      soft: 262144
+      hard: 262144
+
 services:
-  ch_server:
+  ch0:
     image: clickhouse/clickhouse-server:${DBT_CH_TEST_CH_VERSION:-latest}
+    environment:
+      - SERVER_INDEX=1
+      - SHARD_NUM=${SHARD_NUM:-1}
+      - REPLICA_NUM=${REPLICA_NUM:-1}
     ports:
+      - "8123:8123"
+      - "8443:8443"
+      - "9000:9000"
+      #  for local docker tests
       - "10723:8123"
       - "10743:8443"
       - "10900:9000"
-    volumes:
-      - /var/lib/clickhouse
-      - type: bind
-        source: ./test_settings_${DBT_CH_TEST_SETTINGS:-latest}.xml
-        target: /etc/clickhouse-server/users.d/test_settings.xml
+    <<: *ch-common
+  ch1:
+    image: clickhouse/clickhouse-server:${DBT_CH_TEST_CH_VERSION:-latest}
+    environment:
+      - SERVER_INDEX=2
+      - SHARD_NUM=${SHARD_NUM:-2}
+      - REPLICA_NUM=${REPLICA_NUM:-2}
+    <<: *ch-common
+  ch2:
+    image: clickhouse/clickhouse-server:${DBT_CH_TEST_CH_VERSION:-latest}
+    environment:
+      - SERVER_INDEX=3
+      - SHARD_NUM=${SHARD_NUM:-3}
+      - REPLICA_NUM=${REPLICA_NUM:-3}
+    <<: *ch-common
+
+networks:
+  default:
+    name: integration-test

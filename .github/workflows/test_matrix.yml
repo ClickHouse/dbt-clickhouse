@@ -44,16 +44,10 @@ jobs:
           echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
           echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
 
-      - name: Run ClickHouse Container
-        run: docker run
-             -d
-             -p 8123:8123
-             -p 9000:9000
-             --name clickhouse
-             -v /var/lib/clickhouse
-             -v ${{ github.workspace }}/tests/integration/test_settings_$TEST_SETTINGS_FILE.xml:/etc/clickhouse-server/users.d/test_settings.xml
-             --ulimit nofile=262144:262144
-             clickhouse/clickhouse-server:${{ matrix.clickhouse-version }}
+      - name: Run ClickHouse Cluster Containers
+        env:
+          PROJECT_ROOT: ${{ github.workspace }}/tests/integration
+        run: REPLICA_NUM=1 docker-compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -64,6 +58,8 @@ jobs:
         run: pip3 install -r dev_requirements.txt
 
       - name: Run HTTP tests
+        env:
+          DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
           pytest tests

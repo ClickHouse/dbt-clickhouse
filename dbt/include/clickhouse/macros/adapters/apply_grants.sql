@@ -1,5 +1,5 @@
 {% macro clickhouse__get_show_grant_sql(relation) %}
-    SELECT access_type as privilege_type, COALESCE(user_name, role_name) as grantee FROM system.grants WHERE table = '{{ relation.name }}'
+    SELECT access_type as privilege_type, COALESCE(user_name, role_name) as grantee from system.grants where table = '{{ relation.name }}'
     AND database = '{{ relation.schema }}'
 {%- endmacro %}
 
@@ -13,9 +13,9 @@
 
 
 {%- macro clickhouse__get_grant_sql(relation, privilege, grantees) -%}
-    grant {{ on_cluster_clause()}} {{ privilege }} on {{ relation }} to {{ grantees | join(', ') }}
+    grant {{ on_cluster_clause(relation)}} {{ privilege }} on {{ relation }} to {{ grantees | join(', ') }}
 {%- endmacro -%}
 
 {%- macro clickhouse__get_revoke_sql(relation, privilege, grantees) -%}
-    revoke {{ on_cluster_clause()}} {{ privilege }} on {{ relation }} from {{ grantees | join(', ') }}
+    revoke {{ on_cluster_clause(relation)}} {{ privilege }} on {{ relation }} from {{ grantees | join(', ') }}
 {%- endmacro -%}

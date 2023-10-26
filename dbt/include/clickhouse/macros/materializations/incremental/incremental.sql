@@ -135,7 +135,7 @@
 
 
 {% macro clickhouse__incremental_legacy(existing_relation, intermediate_relation, on_schema_change, unique_key, is_distributed=False) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_new_data'}) %}
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_new_data'}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
 
     {%- set inserted_relation = intermediate_relation -%}
@@ -144,7 +144,7 @@
     -- First create a temporary table for all of the new data
     {% if is_distributed %}
       -- Need to use distributed table to have data on all shards
-      {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_distributed_new_data'}) -%}
+      {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
       {%- set inserting_relation = distributed_new_data_relation -%}
       {{ create_distributed_local_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
     {% else %}
@@ -162,7 +162,7 @@
       {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, existing_relation) }}
     {% else %}
       {% call statement('main') %}
-          create table {{ intermediate_relation }} as {{ new_data_relation }} {{ on_cluster_clause() }}
+          create table {{ intermediate_relation }} as {{ new_data_relation }} {{ on_cluster_clause(existing_relation) }}
       {% endcall %}
     {% endif %}
 
@@ -199,10 +199,10 @@
 
 
 {% macro clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, is_distributed=False) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
-    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": model['name'] + '__dbt_distributed_new_data'}) -%}
+    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
 
     {%- set inserting_relation = new_data_relation -%}
 
@@ -217,8 +217,13 @@
     {% endif %}
 
     {% call statement('delete_existing_data') %}
-      delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+      {% if is_distributed %}
+            delete from {{ existing_relation }}{{ adapter.get_clickhouse_local_suffix() }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
                                           from {{ inserting_relation }})
+      {% else %}
+            delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                          from {{ inserting_relation }})
+      {% endif %}
       {%- if incremental_predicates %}
         {% for predicate in incremental_predicates %}
             and {{ predicate }}
