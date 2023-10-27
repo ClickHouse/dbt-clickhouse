@@ -263,20 +263,26 @@
     {%- endcall %}
     {% if execute %}
       {% set select_changed_partitions %}
-          select distinct {{ partition_by|join(', ') }}
-          from {{ intermediate_relation }}
+          SELECT DISTINCT partition_id
+          FROM system.parts
+          WHERE active
+            AND database = '{{ intermediate_relation.schema }}'
+            AND table = '{{ intermediate_relation.identifier }}'
       {% endset %}
-      {% set partitions_expressions = run_query(select_changed_partitions).rows %}
+      {% set changed_partitions = run_query(select_changed_partitions).rows %}
     {% else %}
-      {% set partitions_expressions = [] %}
+      {% set changed_partitions = [] %}
     {% endif %}
-    {% for partition_expression in partitions_expressions %}
-      {% call statement('replace_partition_' ~ loop.index) %}
+    {% if changed_partitions %}
+      {% call statement('replace_partitions') %}
           alter table {{ existing_relation }}
-          replace partition {{ partition_expression }}
-          from {{ existing_relation }}
+          {%- for partition in changed_partitions %}
+              replace partition {{ partition['partition_id'] }}
+              from {{ intermediate_relation }}
+              {{- ', ' if not loop.last }}
+          {%- endfor %}
       {% endcall %}
-    {% endfor %}
+    {% endif %}
     {% do adapter.drop_relation(intermediate_relation) %}
     {% do adapter.drop_relation(new_data_relation) %}
 {% endmacro %}
