@@ -80,6 +80,9 @@
       {% endcall %}
     {% elif incremental_strategy == 'insert_replace' %}#}
       {%- set partition_by = config.get('partition_by') -%}
+      {% if partition_by is none or partition_by|length == 0 %}
+        {% do exceptions.raise_compiler_error(incremental_strategy + ' strategy requires nonempty partition_by. Current partition_by is ' ~ partition_by) %}
+      {% endif %}
       {% if inserts_only or unique_key is not none or incremental_predicates is not none %}
       	{% do exceptions.raise_compiler_error(incremental_strategy + ' strategy does not support inserts_only, unique_key, and incremental predicates.') %}
       {% endif %}
