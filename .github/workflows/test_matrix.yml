@@ -23,15 +23,13 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - '3.8'
           - '3.9'
           - '3.10'
           - '3.11'
         clickhouse-version:
-          - '22.8'
           - '23.3'
-          - '23.5'
-          - '23.6'
+          - '23.3'
+          - '23.8'
           - latest
 
     steps:
