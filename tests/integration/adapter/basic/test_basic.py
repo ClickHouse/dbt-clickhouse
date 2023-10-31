@@ -1,9 +1,7 @@
 import os
 
 import pytest
-from dbt.tests.util import (
-    run_dbt,
-)
+from dbt.tests.util import run_dbt
 
 # CSV content with boolean column type.
 seeds_boolean_csv = """

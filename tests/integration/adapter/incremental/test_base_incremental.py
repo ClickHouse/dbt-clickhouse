@@ -146,5 +146,3 @@ class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
             "incremental.sql": incremental_sql,
             "schema.yml": schema_base_yml,
         }
-
-

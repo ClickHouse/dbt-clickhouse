@@ -3,8 +3,13 @@ import os
 import pytest
 from dbt.tests.adapter.basic.files import model_base, schema_base_yml, seeds_base_csv
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
-from dbt.tests.util import run_dbt, check_relation_types, relation_from_name, check_result_nodes_by_name, \
-    check_relations_equal
+from dbt.tests.util import (
+    check_relation_types,
+    check_relations_equal,
+    check_result_nodes_by_name,
+    relation_from_name,
+    run_dbt,
+)
 
 from tests.integration.adapter.basic.test_basic import base_seeds_schema_yml
 
