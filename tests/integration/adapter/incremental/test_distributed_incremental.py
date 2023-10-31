@@ -10,7 +10,7 @@ from dbt.tests.adapter.basic.files import (
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental, BaseIncrementalNotSchemaChange
 from dbt.tests.util import run_dbt
 
-from tests.integration.adapter.incremental.test_incremental import uniq_schema
+from tests.integration.adapter.incremental.test_base_incremental import uniq_schema
 
 uniq_source_model = """
 {{config(
