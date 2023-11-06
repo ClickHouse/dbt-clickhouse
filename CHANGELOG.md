@@ -1,3 +1,10 @@
+### Release [1.5.0], TBD
+#### Improvement
+- Compatible with dbt 1.5.x
+
+#### Bug Fix
+- Fix s3 macro when bucket includes `https://` prefix.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/192.
+
 ### Release [1.4.9], 2023-10-27
 #### Improvement
 - Lots of work on Distributed table materializations.  Big thanks to [gfunc](https://github.com/gfunc) for the additional PR
