@@ -94,6 +94,7 @@ def test_config(ch_test_users, ch_test_version):
         'db_engine': test_db_engine,
         'secure': test_secure,
         'cluster_mode': test_cluster_mode,
+        'database': '',
     }
 
     if docker:

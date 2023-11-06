@@ -7,15 +7,15 @@ from typing import Callable, Dict, List, Optional, Set, Union
 import agate
 import dbt.exceptions
 from dbt.adapters.base import AdapterConfig, available
-from dbt.adapters.base.impl import catch_as_completed
+from dbt.adapters.base.impl import BaseAdapter, catch_as_completed
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
-from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
 from dbt.utils import executor, filter_null_values
 
+from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.logger import logger
@@ -38,6 +38,10 @@ class ClickHouseAdapter(SQLAdapter):
     Column = ClickHouseColumn
     ConnectionManager = ClickHouseConnectionManager
     AdapterSpecificConfigs = ClickHouseConfig
+
+    def __init__(self, config):
+        BaseAdapter.__init__(self, config)
+        self.cache = ClickHouseRelationsCache()
 
     @classmethod
     def date_function(cls):
@@ -218,7 +222,7 @@ class ClickHouseAdapter(SQLAdapter):
             )
 
             relation = self.Relation.create(
-                database=None,
+                database='',
                 schema=schema,
                 identifier=name,
                 type=rel_type,
@@ -230,7 +234,7 @@ class ClickHouseAdapter(SQLAdapter):
         return relations
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
-        return super().get_relation(None, schema, identifier)
+        return super().get_relation('', schema, identifier)
 
     @available.parse_none
     def get_ch_database(self, schema: str):
@@ -274,15 +278,6 @@ class ClickHouseAdapter(SQLAdapter):
             )
 
         return super()._get_one_catalog(information_schema, schemas, manifest)
-
-    @classmethod
-    def _catalog_filter_table(cls, table: agate.Table, manifest: Manifest) -> agate.Table:
-        table = table_from_rows(
-            table.rows,
-            table.column_names,
-            text_only_columns=['table_schema', 'table_name'],
-        )
-        return table.where(_catalog_filter_schemas(manifest))
 
     def get_rows_different_sql(
         self,

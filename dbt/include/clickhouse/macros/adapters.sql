@@ -95,7 +95,7 @@
 
 
 {% macro clickhouse__generate_database_name(custom_database_name=none, node=none) -%}
-  {% do return(None) %}
+  {% do return('') %}
 {%- endmacro %}
 
 {% macro clickhouse__get_columns_in_query(select_sql) %}
