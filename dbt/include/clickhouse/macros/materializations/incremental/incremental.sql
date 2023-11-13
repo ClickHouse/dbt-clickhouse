@@ -263,7 +263,7 @@
     {%- endcall %}
     {% if execute %}
       {% set select_changed_partitions %}
-          SELECT DISTINCT partition_id
+          SELECT DISTINCT partition
           FROM system.parts
           WHERE active
             AND database = '{{ intermediate_relation.schema }}'
@@ -277,7 +277,7 @@
       {% call statement('replace_partitions') %}
           alter table {{ existing_relation }}
           {%- for partition in changed_partitions %}
-              replace partition {{ partition['partition_id'] }}
+              replace partition {{ partition['partition'] }}
               from {{ intermediate_relation }}
               {{- ', ' if not loop.last }}
           {%- endfor %}
