@@ -5,9 +5,7 @@ test materialized view creation
 import json
 
 import pytest
-
 from dbt.tests.util import check_relation_types, run_dbt
-
 
 PEOPLE_SEED_CSV = """
 id,name,age,department
