@@ -1,7 +1,7 @@
 import pytest
 from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture
 
-from tests.integration.adapter.constraints.contract_fixtures import (
+from tests.integration.adapter.constraints.constraint_fixtures import (
     model_schema_yml,
     my_model_wrong_name_sql,
     my_model_wrong_order_sql,
