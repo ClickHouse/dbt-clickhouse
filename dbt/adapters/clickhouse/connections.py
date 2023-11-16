@@ -1,7 +1,7 @@
 import re
 import time
 from contextlib import contextmanager
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Tuple, Union
 
 import agate
 import dbt.exceptions
@@ -141,3 +141,8 @@ class ClickHouseConnectionManager(SQLConnectionManager):
 
     def commit(self):
         pass
+
+    @classmethod
+    def data_type_code_to_name(cls, type_code: Union[int, str]) -> str:
+        assert isinstance(type_code, int)
+        return ''

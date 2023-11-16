@@ -2,15 +2,15 @@ import csv
 import io
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 import agate
-import dbt.exceptions
 from dbt.adapters.base import AdapterConfig, available
-from dbt.adapters.base.impl import BaseAdapter, catch_as_completed
+from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport, catch_as_completed
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
+from dbt.contracts.graph.nodes import ColumnLevelConstraint, ConstraintType
 from dbt.contracts.relation import RelationType
 from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
 from dbt.utils import executor, filter_null_values
@@ -19,6 +19,7 @@ from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.logger import logger
+from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
@@ -38,6 +39,14 @@ class ClickHouseAdapter(SQLAdapter):
     Column = ClickHouseColumn
     ConnectionManager = ClickHouseConnectionManager
     AdapterSpecificConfigs = ClickHouseConfig
+
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.ENFORCED,
+        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
+    }
 
     def __init__(self, config):
         BaseAdapter.__init__(self, config)
@@ -272,10 +281,9 @@ class ClickHouseAdapter(SQLAdapter):
         manifest: Manifest,
     ) -> agate.Table:
         if len(schemas) != 1:
-            dbt.exceptions.raise_compiler_error(
-                f'Expected only one schema in clickhouse _get_one_catalog, found ' f'{schemas}'
+            raise DbtRuntimeError(
+                f"Expected only one schema in clickhouse _get_one_catalog, found ' f'{schemas}'"
             )
-
         return super()._get_one_catalog(information_schema, schemas, manifest)
 
     def get_rows_different_sql(
@@ -312,6 +320,20 @@ class ClickHouseAdapter(SQLAdapter):
         )
 
         return sql
+
+    @classmethod
+    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
+
+        constraint_expression = constraint.expression or ''
+
+        rendered_column_constraint = None
+        if constraint.type == ConstraintType.check and constraint_expression:
+            rendered_column_constraint = f"CHECK ({constraint_expression})"
+
+        if rendered_column_constraint:
+            rendered_column_constraint = rendered_column_constraint.strip()
+
+        return rendered_column_constraint
 
     def update_column_sql(
         self,
@@ -362,6 +384,26 @@ class ClickHouseAdapter(SQLAdapter):
         for key in settings:
             res.append(f' {key}={settings[key]}')
         return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
+    @available.parse_none
+    def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
+        """Get a list of the Columns with names and data types from the given sql."""
+        conn = self.connections.get_if_exists()
+        return conn.handle.columns_in_query(sql)
+
+    @available.parse_none
+    def format_columns(self, columns) -> List[Dict]:
+        return [{'name': column.name, 'data_type': column.dtype} for column in columns]
+
+    @classmethod
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+        rendered_columns = []
+
+        for v in raw_columns.values():
+            rendered_columns.append(f"{quote_identifier(v['name'])} {v['data_type']}")
+            if v.get("constraints"):
+                raise DbtRuntimeError("ClickHouse does not support column level constraints")
+        return rendered_columns
 
 
 @dataclass

@@ -1,8 +1,11 @@
+from typing import List
+
 import clickhouse_connect
 from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError
 from dbt.exceptions import DbtDatabaseError
 from dbt.version import __version__ as dbt_version
 
+from dbt.adapters.clickhouse import ClickHouseColumn
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 
@@ -17,6 +20,16 @@ class ChHttpClient(ChClientWrapper):
     def command(self, sql, **kwargs):
         try:
             return self._client.command(sql, **kwargs)
+        except DatabaseError as ex:
+            raise DbtDatabaseError(str(ex).strip()) from ex
+
+    def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
+        try:
+            query_result = self._client.query(f'{sql} LIMIT 0', **kwargs)
+            return [
+                ClickHouseColumn.create(name, ch_type.name)
+                for name, ch_type in zip(query_result.column_names, query_result.column_types)
+            ]
         except DatabaseError as ex:
             raise DbtDatabaseError(str(ex).strip()) from ex
 

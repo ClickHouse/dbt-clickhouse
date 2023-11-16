@@ -89,6 +89,10 @@ class ChClientWrapper(ABC):
         pass
 
     @abstractmethod
+    def columns_in_query(self, sql: str, **kwargs):
+        pass
+
+    @abstractmethod
     def get_ch_setting(self, setting_name):
         pass
 

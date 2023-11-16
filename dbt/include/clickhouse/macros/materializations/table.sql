@@ -143,8 +143,11 @@
 
 {% macro create_table_or_empty(temporary, relation, sql) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
+    {%- set contract_config = config.get('contract') -%}
 
     {{ sql_header if sql_header is not none }}
+
+          {{ log('ENFORCED', info=True) }}
 
     {% if temporary -%}
         create temporary table {{ relation.name }}
@@ -152,21 +155,28 @@
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
+        as ( {{ sql }} )
     {%- else %}
         create table {{ relation.include(database=False) }}
         {{ on_cluster_clause(relation)}}
+        {%- if contract_config.enforced %}
+          {{ clickhouse__get_assert_columns_equivalent(sql) }}
+          {{ get_table_columns_and_constraints() }}
+        {%- endif %}
         {{ engine_clause() }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
-        {% if not adapter.is_before_version('22.7.1.2484') -%}
+
+        {%- if not contract_config.enforced %}
+          {%- if not adapter.is_before_version('22.7.1.2484') %}
             empty
+          {%- endif %}
+           as ( {{ sql }} )
         {%- endif %}
     {%- endif %}
-    as (
-        {{ sql }}
-    )
+
 {%- endmacro %}
 
 {% macro clickhouse__insert_into(target_relation, sql) %}
