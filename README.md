@@ -172,6 +172,20 @@ This strategy replaces the `inserts_only` setting in previous versions of dbt-cl
 As a result duplicate rows are not eliminated, and there is no temporary or intermediate table.  It is the fastest approach if duplicates are either permitted
 in the data or excluded by the incremental query WHERE clause/filter.
 
+### The Insert+Replace Strategy
+
+Performs the following steps:
+1. Create a staging (temporary) table with the same structure as the incremental model relation: `CREATE TABLE <staging> AS <target>`.
+2. Insert only new records (produced by `SELECT`) into the staging table.
+3. Replace only new partitions (present in the staging table) into the target table.
+
+This approach has the following advantages:
+- It is faster than the default strategy because it doesn't copy the entire table.
+- It is safer than other strategies because it doesn't modify the original table until the INSERT operation completes successfully: in case of intermediate failure, the original table is not modified.
+- It implements "partitions immutability" data engineering best practice. Which simplifies incremental and parallel data processing, rollbacks, etc.
+
+The strategy requires `partition_by` to be set in the model configuration. Ignores all other strategies-specific parameters of the model config.
+
 ## Additional ClickHouse Macros
 
 ### Model Materialization Utility Macros
