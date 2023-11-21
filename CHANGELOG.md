@@ -1,6 +1,7 @@
 ### Release [1.5.0], TBD
-#### Improvement
+#### Improvements
 - Compatible with dbt 1.5.x
+- Contract support (using exact column data types)
 
 #### Bug Fix
 - Fix s3 macro when bucket includes `https://` prefix.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/192.

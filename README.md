@@ -31,6 +31,7 @@ pip install dbt-clickhouse
 - [x] Ephemeral materialization
 - [x] Distributed table materialization (experimental)
 - [x] Distributed incremental materialization (experimental)
+- [x] Contracts
 
 # Usage Notes
 
@@ -184,6 +185,12 @@ keys used to populate the parameters of the S3 table function:
 | compression           | The compression method used with the S3 objects.  If not provided ClickHouse will attempt to determine compression based on the file name.                                                   |
 
 See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/test_s3.py) for examples of how to use this macro.
+
+# Contracts and Constraints
+
+Only exact column type contracts are supported.  For example, a contract with a UInt32 column type will fail if the model returns a UInt64 or other integer type.
+ClickHouse also support _only_ `CHECK` constraints on the entire table/model.  Primary key, foreign key, unique, and column level CHECK constraints are not supported.
+(See ClickHouse documentation on primary/order by keys.)
 
 # Distributed materializations
 

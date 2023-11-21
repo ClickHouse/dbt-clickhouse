@@ -33,7 +33,7 @@ models:
         enforced: true
     columns:
       - name: id
-        data_type: Int32
+        data_type: UInt32
         description: hello
         tests:
           - unique
@@ -66,8 +66,8 @@ my_model_wrong_order_sql = """
 
 select
   'blue' as color,
-  1 as id,
-  '2019-01-01' as date_day
+  1::UInt32 as id,
+  toDate('2019-01-01') as date_day
 """
 
 
@@ -83,4 +83,55 @@ select
   'blue' as color,
   1 as error,
   '2019-01-01' as date_day
+"""
+
+
+my_model_data_type_sql = """
+{{{{
+  config(
+    materialized = "table"
+  )
+}}}}
+
+select
+  {sql_value} as wrong_data_type_column_name
+"""
+
+
+model_data_type_schema_yml = """
+version: 2
+models:
+  - name: my_model_data_type
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: wrong_data_type_column_name
+        data_type: {data_type}
+"""
+
+my_model_view_wrong_name_sql = """
+{{
+  config(
+    materialized = "view"
+  )
+}}
+
+select
+  'blue' as color,
+  1 as error,
+  toDate('2019-01-01') as date_day
+"""
+
+my_model_view_wrong_order_sql = """
+{{
+  config(
+    materialized = "view"
+  )
+}}
+
+select
+  'blue' as color,
+  1::UInt32 as id,
+  toDate('2019-01-01') as date_day
 """
