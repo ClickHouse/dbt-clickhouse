@@ -1,8 +1,10 @@
 import pytest
-from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture, write_file
+from dbt.tests.util import get_manifest, read_file, run_dbt, run_dbt_and_capture, write_file
 from fixtures_contraints import (
     bad_column_constraint_model_sql,
     bad_foreign_key_model_sql,
+    check_constraints_model_fail_sql,
+    check_constraints_model_sql,
     constraint_model_schema_yml,
     contract_model_schema_yml,
     model_data_type_schema_yml,
@@ -153,21 +155,36 @@ class TestBadConstraints:
         }
 
     def test_invalid_column_constraint(self, project):
-        _, log_output = run_dbt_and_capture(
-            ["run", "-s", "bad_column_constraint_model"], expect_pass=True
-        )
+        _, log_output = run_dbt_and_capture(["run", "-s", "bad_column_constraint_model"])
         assert "not supported" in log_output
 
     def test_invalid_fk_constraint(self, project):
-        _, log_output = run_dbt_and_capture(
-            ["run", "-s", "bad_foreign_key_model"], expect_pass=True
-        )
+        _, log_output = run_dbt_and_capture(["run", "-s", "bad_foreign_key_model"])
         assert "not supported" in log_output
 
 
-class TestModelConstrains:
+class TestModelConstraints:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "constrains_schema.yml": constraint_model_schema_yml,
+            "check_constraints_model.sql": check_constraints_model_sql,
+            "constraints_schema.yml": constraint_model_schema_yml,
         }
+
+    def test_model_constraints_ddl(self, project):
+        run_dbt(["run", "-s", "check_constraints_model"])
+
+
+class TestModelConstraintApplied:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "check_constraints_model.sql": check_constraints_model_fail_sql,
+            "constraints_schema.yml": constraint_model_schema_yml,
+        }
+
+    def test_model_constraints_fail_ddl(self, project):
+        _, log_output = run_dbt_and_capture(
+            ["run", "-s", "check_constraints_model"], expect_pass=False
+        )
+        assert 'violated' in log_output.lower()

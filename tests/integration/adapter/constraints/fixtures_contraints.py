@@ -194,6 +194,21 @@ models:
     columns:
       - name: id
         data_type: Int32
+  - name: check_constraints_model
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: check
+        name: valid_id
+        expression: 'id > 100 and id < 200'
+    columns:
+      - name: id
+        data_type: Int32
+      - name: color
+        data_type: String
+      - name: date_day
+        data_type: Date      
 """
 
 bad_column_constraint_model_sql = """
@@ -214,4 +229,30 @@ bad_foreign_key_model_sql = """
 }}
 
 SELECT 1::Int32 as id
+"""
+
+check_constraints_model_sql = """
+{{
+  config(
+    materialized = "table",
+  )
+}}
+
+select
+  'blue' as color,
+  101::Int32 as id,
+  toDate('2019-01-01') as date_day
+"""
+
+check_constraints_model_fail_sql = """
+{{
+  config(
+    materialized = "table",
+  )
+}}
+
+select
+  'blue' as color,
+  1::Int32 as id,
+  toDate('2019-01-01') as date_day
 """

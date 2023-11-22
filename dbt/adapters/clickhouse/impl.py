@@ -10,7 +10,7 @@ from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport, catch_as_comp
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ConstraintType
+from dbt.contracts.graph.nodes import ConstraintType, ModelLevelConstraint
 from dbt.contracts.relation import RelationType
 from dbt.events.functions import warn_or_error
 from dbt.events.types import ConstraintNotSupported
@@ -391,6 +391,14 @@ class ClickHouseAdapter(SQLAdapter):
             if v.get("constraints"):
                 warn_or_error(ConstraintNotSupported(constraint='column', adapter='clickhouse'))
         return rendered_columns
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        if constraint.type == ConstraintType.check and constraint.expression:
+            if not constraint.name:
+                raise DbtRuntimeError("CHECK Constraint 'name' is required")
+            return f"CONSTRAINT {constraint.name} CHECK ({constraint.expression})"
+        return None
 
 
 @dataclass
