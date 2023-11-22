@@ -10,8 +10,10 @@ from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport, catch_as_comp
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ColumnLevelConstraint, ConstraintType
+from dbt.contracts.graph.nodes import ConstraintType
 from dbt.contracts.relation import RelationType
+from dbt.events.functions import warn_or_error
+from dbt.events.types import ConstraintNotSupported
 from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
 from dbt.utils import executor, filter_null_values
 
@@ -42,7 +44,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     CONSTRAINT_SUPPORT = {
         ConstraintType.check: ConstraintSupport.ENFORCED,
-        ConstraintType.not_null: ConstraintSupport.ENFORCED,
+        ConstraintType.not_null: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
         ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
@@ -321,20 +323,6 @@ class ClickHouseAdapter(SQLAdapter):
 
         return sql
 
-    @classmethod
-    def render_column_constraint(cls, constraint: ColumnLevelConstraint) -> Optional[str]:
-
-        constraint_expression = constraint.expression or ''
-
-        rendered_column_constraint = None
-        if constraint.type == ConstraintType.check and constraint_expression:
-            rendered_column_constraint = f"CHECK ({constraint_expression})"
-
-        if rendered_column_constraint:
-            rendered_column_constraint = rendered_column_constraint.strip()
-
-        return rendered_column_constraint
-
     def update_column_sql(
         self,
         dst_name: str,
@@ -398,11 +386,10 @@ class ClickHouseAdapter(SQLAdapter):
     @classmethod
     def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
         rendered_columns = []
-
         for v in raw_columns.values():
             rendered_columns.append(f"{quote_identifier(v['name'])} {v['data_type']}")
             if v.get("constraints"):
-                raise DbtRuntimeError("ClickHouse does not support column level constraints")
+                warn_or_error(ConstraintNotSupported(constraint='column', adapter='clickhouse'))
         return rendered_columns
 
 

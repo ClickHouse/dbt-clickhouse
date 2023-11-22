@@ -1,9 +1,14 @@
 import pytest
 from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture, write_file
 from fixtures_contraints import (
+    bad_column_constraint_model_sql,
+    bad_foreign_key_model_sql,
+    constraint_model_schema_yml,
+    contract_model_schema_yml,
     model_data_type_schema_yml,
-    model_schema_yml,
     my_model_data_type_sql,
+    my_model_incremental_wrong_name_sql,
+    my_model_incremental_wrong_order_sql,
     my_model_view_wrong_name_sql,
     my_model_view_wrong_order_sql,
     my_model_wrong_name_sql,
@@ -11,7 +16,7 @@ from fixtures_contraints import (
 )
 
 
-class ClickHouseConstraintsColumnsEqual:
+class ClickHouseContractColumnsEqual:
     """
     dbt should catch these mismatches during its "preflight" checks.
     """
@@ -29,7 +34,7 @@ class ClickHouseConstraintsColumnsEqual:
             ["'1'::Float64", "Float64", "Float64"],
         ]
 
-    def test__constraints_wrong_column_order(self, project):
+    def test__contract_wrong_column_order(self, project):
         # This no longer causes an error, since we enforce yaml column order
         run_dbt(["run", "-s", "my_model_wrong_order"], expect_pass=True)
         manifest = get_manifest(project.project_root)
@@ -39,7 +44,7 @@ class ClickHouseConstraintsColumnsEqual:
 
         assert contract_actual_config.enforced is True
 
-    def test__constraints_wrong_column_names(self, project):
+    def test__contract_wrong_column_names(self, project):
         _, log_output = run_dbt_and_capture(["run", "-s", "my_model_wrong_name"], expect_pass=False)
         run_dbt(["run", "-s", "my_model_wrong_name"], expect_pass=False)
         manifest = get_manifest(project.project_root)
@@ -52,7 +57,7 @@ class ClickHouseConstraintsColumnsEqual:
         expected = ["id", "error", "missing in definition", "missing in contract"]
         assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
-    def test__constraints_wrong_column_data_types(self, project, data_types):
+    def test__contract_wrong_column_data_types(self, project, data_types):
         for (sql_column_value, schema_data_type, error_data_type) in data_types:
             # Write parametrized data_type to sql file
             write_file(
@@ -63,7 +68,7 @@ class ClickHouseConstraintsColumnsEqual:
             write_file(
                 model_data_type_schema_yml.format(data_type='Int128'),
                 "models",
-                "constraints_schema.yml",
+                "contract_schema.yml",
             )
 
             results, log_output = run_dbt_and_capture(
@@ -83,7 +88,7 @@ class ClickHouseConstraintsColumnsEqual:
             ]
             assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
-    def test__constraints_correct_column_data_types(self, project, data_types):
+    def test__contract_correct_column_data_types(self, project, data_types):
         for (sql_column_value, schema_data_type, _) in data_types:
             # Write parametrized data_type to sql file
             write_file(
@@ -95,7 +100,7 @@ class ClickHouseConstraintsColumnsEqual:
             write_file(
                 model_data_type_schema_yml.format(data_type=schema_data_type),
                 "models",
-                "constraints_schema.yml",
+                "contract_schema.yml",
             )
 
             run_dbt(["run", "-s", "my_model_data_type"])
@@ -108,43 +113,61 @@ class ClickHouseConstraintsColumnsEqual:
             assert contract_actual_config.enforced is True
 
 
-class TestTableConstraintsColumnsEqual(ClickHouseConstraintsColumnsEqual):
+class TestTableContractColumnsEqual(ClickHouseContractColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "my_model_wrong_order.sql": my_model_wrong_order_sql,
             "my_model_wrong_name.sql": my_model_wrong_name_sql,
-            "constraints_schema.yml": model_schema_yml,
+            "contract_schema.yml": contract_model_schema_yml,
         }
 
 
-class TestViewConstraintsColumnsEqual(ClickHouseConstraintsColumnsEqual):
+class TestViewContractColumnsEqual(ClickHouseContractColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "my_model_wrong_order.sql": my_model_view_wrong_order_sql,
             "my_model_wrong_name.sql": my_model_view_wrong_name_sql,
-            "constraints_schema.yml": model_schema_yml,
+            "contract_schema.yml": contract_model_schema_yml,
         }
 
 
-# class TestViewConstraintsColumnsEqual(BaseViewConstraintsColumnsEqual):
-#     pass
-#
-#
-# class TestIncrementalConstraintsColumnsEqual(BaseIncrementalConstraintsColumnsEqual):
-#     pass
-#
-#
-# class TestTableConstraintsRuntimeDdlEnforcement(BaseConstraintsRuntimeDdlEnforcement):
-#     pass
-#
-#
-# class TestTableConstraintsRollback(BaseConstraintsRollback):
-#     pass
-#
-#
-# class TestIncrementalConstraintsRuntimeDdlEnforcement(
-#     BaseIncrementalConstraintsRuntimeDdlEnforcement
-# ):
-#     pass
+class TestIncrementalContractColumnsEqual(ClickHouseContractColumnsEqual):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_wrong_order.sql": my_model_incremental_wrong_order_sql,
+            "my_model_wrong_name.sql": my_model_incremental_wrong_name_sql,
+            "contract_schema.yml": contract_model_schema_yml,
+        }
+
+
+class TestBadConstraints:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "bad_column_constraint_model.sql": bad_column_constraint_model_sql,
+            "bad_foreign_key_model.sql": bad_foreign_key_model_sql,
+            "constraints_schema.yml": constraint_model_schema_yml,
+        }
+
+    def test_invalid_column_constraint(self, project):
+        _, log_output = run_dbt_and_capture(
+            ["run", "-s", "bad_column_constraint_model"], expect_pass=True
+        )
+        assert "not supported" in log_output
+
+    def test_invalid_fk_constraint(self, project):
+        _, log_output = run_dbt_and_capture(
+            ["run", "-s", "bad_foreign_key_model"], expect_pass=True
+        )
+        assert "not supported" in log_output
+
+
+class TestModelConstrains:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "constrains_schema.yml": constraint_model_schema_yml,
+        }

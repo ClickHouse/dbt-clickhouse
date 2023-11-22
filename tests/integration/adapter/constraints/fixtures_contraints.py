@@ -1,4 +1,4 @@
-model_schema_yml = """
+contract_model_schema_yml = """
 version: 2
 models:
   - name: my_model
@@ -134,4 +134,84 @@ select
   'blue' as color,
   1::UInt32 as id,
   toDate('2019-01-01') as date_day
+"""
+
+
+my_model_incremental_wrong_order_sql = """
+{{
+  config(
+    materialized = "incremental",
+    on_schema_change='append_new_columns'
+  )
+}}
+
+select
+  'blue' as color,
+  1::UInt32 as id,
+  toDate('2019-01-01') as date_day
+"""
+
+my_model_incremental_wrong_name_sql = """
+{{
+  config(
+    materialized = "incremental",
+    on_schema_change='append_new_columns'
+  )
+}}
+
+select
+  'blue' as color,
+  1 as error,
+  '2019-01-01' as date_day
+"""
+
+constraint_model_schema_yml = """
+version: 2
+models:
+  - name: bad_column_constraint_model
+    materialized: table
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id
+        data_type: Int32
+        constraints:
+          - type: check
+            expression: '> 0'
+      - name: color
+        data_type: String
+      - name: date_day
+        data_type: Date
+  - name: bad_foreign_key_model
+    config:
+      contract:
+        enforced: true
+    constraints:
+      - type: foreign_key
+        columns: [ id ]
+        expression: 'foreign_key_model (id)'
+    columns:
+      - name: id
+        data_type: Int32
+"""
+
+bad_column_constraint_model_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+
+SELECT 5::Int32 as id, 'black' as color, toDate('2023-01-01') as date_day
+"""
+
+bad_foreign_key_model_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+
+SELECT 1::Int32 as id
 """
