@@ -1,5 +1,5 @@
 import pytest
-from dbt.tests.util import get_manifest, read_file, run_dbt, run_dbt_and_capture, write_file
+from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture, write_file
 from fixtures_contraints import (
     bad_column_constraint_model_sql,
     bad_foreign_key_model_sql,

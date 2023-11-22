@@ -208,7 +208,7 @@ models:
       - name: color
         data_type: String
       - name: date_day
-        data_type: Date      
+        data_type: Date
 """
 
 bad_column_constraint_model_sql = """
