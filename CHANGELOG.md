@@ -1,4 +1,4 @@
-### Release [1.5.0], TBD
+### Release [1.5.0], 2023-11-23
 #### Improvements
 - Compatible with dbt 1.5.x
 - Contract support (using exact column data types)
