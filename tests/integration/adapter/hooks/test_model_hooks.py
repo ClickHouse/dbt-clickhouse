@@ -1,6 +1,5 @@
 import pytest
 from dbt.exceptions import CompilationError
-
 from dbt.tests.adapter.hooks.fixtures import models__hooks_error
 from dbt.tests.util import run_dbt
 
