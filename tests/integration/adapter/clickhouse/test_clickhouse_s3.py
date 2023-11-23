@@ -27,6 +27,10 @@ s3_taxis_source = """
 select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz') }} LIMIT 5000
 """
 
+s3_taxis_full_source = """
+select * from {{ clickhouse_s3source('taxi_s3', path='/trips_5.gz') }} LIMIT 1000
+"""
+
 s3_taxis_inc = """
 {{ config(
     materialized='incremental',
@@ -84,3 +88,28 @@ class TestS3:
         )
         assert 5000 < result[0] < 10000
         assert result[1] > 0
+
+
+class TestS3Bucket:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            'vars': {
+                'taxi_s3': {
+                    'bucket': 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
+                    'fmt': 'TabSeparatedWithNames',
+                }
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "s3_taxis_source.sql": s3_taxis_full_source,
+            "schema.yml": schema_yaml,
+        }
+
+    def test_read(self, project):
+        run_dbt(["run", "--select", "s3_taxis_source.sql"])
+        result = project.run_sql("select count() as num_rows from s3_taxis_source", fetch="one")
+        assert result[0] == 1000

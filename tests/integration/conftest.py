@@ -32,7 +32,10 @@ def test_config(ch_test_users, ch_test_version):
     compose_file = f'{Path(__file__).parent}/docker-compose.yml'
     test_host = os.environ.get('DBT_CH_TEST_HOST', 'localhost')
     test_port = int(os.environ.get('DBT_CH_TEST_PORT', 8123))
-    test_driver = 'native' if test_port in (10900, 9000, 9440) else 'http'
+    client_port = int(os.environ.get('DBT_CH_TEST_CLIENT_PORT', 0))
+    test_driver = os.environ.get('DBT_CH_TEST_DRIVER', '').lower()
+    if test_driver == '':
+        test_driver = 'native' if test_port in (10900, 9000, 9440) else 'http'
     test_user = os.environ.get('DBT_CH_TEST_USER', 'default')
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
     test_cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '')
@@ -49,7 +52,7 @@ def test_config(ch_test_users, ch_test_version):
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
 
     if docker:
-        client_port = 10723
+        client_port = client_port or 10723
         test_port = 10900 if test_driver == 'native' else client_port
         try:
             run_cmd(['docker-compose', '-f', compose_file, 'down', '-v'])
@@ -62,7 +65,7 @@ def test_config(ch_test_users, ch_test_version):
             wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
             raise Exception('Failed to run docker-compose: {}', str(e))
-    else:
+    elif not client_port:
         if test_driver == 'native':
             client_port = 8443 if test_port == 9440 else 8123
         else:
@@ -94,6 +97,7 @@ def test_config(ch_test_users, ch_test_version):
         'db_engine': test_db_engine,
         'secure': test_secure,
         'cluster_mode': test_cluster_mode,
+        'database': '',
     }
 
     if docker:

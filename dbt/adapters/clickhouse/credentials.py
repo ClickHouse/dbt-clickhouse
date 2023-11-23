@@ -16,7 +16,7 @@ class ClickHouseCredentials(Credentials):
     port: Optional[int] = None
     user: Optional[str] = 'default'
     retries: int = 1
-    database: Optional[str] = None
+    database: Optional[str] = ''
     schema: Optional[str] = 'default'
     password: str = ''
     cluster: Optional[str] = None
@@ -43,7 +43,7 @@ class ClickHouseCredentials(Credentials):
         return self.host
 
     def __post_init__(self):
-        if self.database is not None and self.database != self.schema:
+        if self.database and self.database != self.schema:
             raise DbtRuntimeError(
                 f'    schema: {self.schema} \n'
                 f'    database: {self.database} \n'
@@ -51,7 +51,7 @@ class ClickHouseCredentials(Credentials):
                 f'On Clickhouse, database must be omitted or have the same value as'
                 f' schema.'
             )
-        self.database = None
+        self.database = ''
 
     def _connection_keys(self):
         return (

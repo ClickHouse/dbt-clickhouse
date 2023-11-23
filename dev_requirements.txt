@@ -1,9 +1,9 @@
-dbt-core~=1.4.1
-clickhouse-connect>=0.5.24
+dbt-core~=1.5.8
+clickhouse-connect>=0.6.18
 clickhouse-driver>=0.2.3
 pytest>=7.2.0
 pytest-dotenv==0.5.2
-dbt-tests-adapter~=1.4.1
+dbt-tests-adapter~=1.5.8
 black==22.3.0
 isort==5.10.1
 mypy==0.991

@@ -2,23 +2,26 @@ import csv
 import io
 from concurrent.futures import Future
 from dataclasses import dataclass
-from typing import Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Union
 
 import agate
-import dbt.exceptions
 from dbt.adapters.base import AdapterConfig, available
-from dbt.adapters.base.impl import catch_as_completed
+from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport, catch_as_completed
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.sql import SQLAdapter
-from dbt.clients.agate_helper import table_from_rows
 from dbt.contracts.graph.manifest import Manifest
+from dbt.contracts.graph.nodes import ConstraintType, ModelLevelConstraint
 from dbt.contracts.relation import RelationType
+from dbt.events.functions import warn_or_error
+from dbt.events.types import ConstraintNotSupported
 from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
 from dbt.utils import executor, filter_null_values
 
+from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.logger import logger
+from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
@@ -38,6 +41,18 @@ class ClickHouseAdapter(SQLAdapter):
     Column = ClickHouseColumn
     ConnectionManager = ClickHouseConnectionManager
     AdapterSpecificConfigs = ClickHouseConfig
+
+    CONSTRAINT_SUPPORT = {
+        ConstraintType.check: ConstraintSupport.ENFORCED,
+        ConstraintType.not_null: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.unique: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.primary_key: ConstraintSupport.NOT_SUPPORTED,
+        ConstraintType.foreign_key: ConstraintSupport.NOT_SUPPORTED,
+    }
+
+    def __init__(self, config):
+        BaseAdapter.__init__(self, config)
+        self.cache = ClickHouseRelationsCache()
 
     @classmethod
     def date_function(cls):
@@ -163,13 +178,12 @@ class ClickHouseAdapter(SQLAdapter):
         fmt = fmt or s3config.get('fmt')
         bucket = bucket or s3config.get('bucket', '')
         path = path or s3config.get('path', '')
-        url = bucket
+        url = bucket.replace('https://', '')
         if path:
             if bucket and path and not bucket.endswith('/') and not bucket.startswith('/'):
                 path = f'/{path}'
             url = f'{url}{path}'.replace('//', '/')
-        if not url.startswith('http'):
-            url = f'https://{url}'
+        url = f'https://{url}'
         access = ''
         if aws_access_key_id and not aws_secret_access_key:
             raise DbtRuntimeError('S3 aws_access_key_id specified without aws_secret_access_key')
@@ -218,7 +232,7 @@ class ClickHouseAdapter(SQLAdapter):
             )
 
             relation = self.Relation.create(
-                database=None,
+                database='',
                 schema=schema,
                 identifier=name,
                 type=rel_type,
@@ -230,7 +244,7 @@ class ClickHouseAdapter(SQLAdapter):
         return relations
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
-        return super().get_relation(None, schema, identifier)
+        return super().get_relation('', schema, identifier)
 
     @available.parse_none
     def get_ch_database(self, schema: str):
@@ -269,20 +283,10 @@ class ClickHouseAdapter(SQLAdapter):
         manifest: Manifest,
     ) -> agate.Table:
         if len(schemas) != 1:
-            dbt.exceptions.raise_compiler_error(
-                f'Expected only one schema in clickhouse _get_one_catalog, found ' f'{schemas}'
+            raise DbtRuntimeError(
+                f"Expected only one schema in clickhouse _get_one_catalog, found ' f'{schemas}'"
             )
-
         return super()._get_one_catalog(information_schema, schemas, manifest)
-
-    @classmethod
-    def _catalog_filter_table(cls, table: agate.Table, manifest: Manifest) -> agate.Table:
-        table = table_from_rows(
-            table.rows,
-            table.column_names,
-            text_only_columns=['table_schema', 'table_name'],
-        )
-        return table.where(_catalog_filter_schemas(manifest))
 
     def get_rows_different_sql(
         self,
@@ -368,6 +372,33 @@ class ClickHouseAdapter(SQLAdapter):
         for key in settings:
             res.append(f' {key}={settings[key]}')
         return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
+    @available.parse_none
+    def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
+        """Get a list of the Columns with names and data types from the given sql."""
+        conn = self.connections.get_if_exists()
+        return conn.handle.columns_in_query(sql)
+
+    @available.parse_none
+    def format_columns(self, columns) -> List[Dict]:
+        return [{'name': column.name, 'data_type': column.dtype} for column in columns]
+
+    @classmethod
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+        rendered_columns = []
+        for v in raw_columns.values():
+            rendered_columns.append(f"{quote_identifier(v['name'])} {v['data_type']}")
+            if v.get("constraints"):
+                warn_or_error(ConstraintNotSupported(constraint='column', adapter='clickhouse'))
+        return rendered_columns
+
+    @classmethod
+    def render_model_constraint(cls, constraint: ModelLevelConstraint) -> Optional[str]:
+        if constraint.type == ConstraintType.check and constraint.expression:
+            if not constraint.name:
+                raise DbtRuntimeError("CHECK Constraint 'name' is required")
+            return f"CONSTRAINT {constraint.name} CHECK ({constraint.expression})"
+        return None
 
 
 @dataclass

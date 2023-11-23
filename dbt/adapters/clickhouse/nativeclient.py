@@ -1,10 +1,12 @@
+from typing import List
+
 import clickhouse_driver
 import pkg_resources
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
 from dbt.exceptions import DbtDatabaseError
 from dbt.version import __version__ as dbt_version
 
-from dbt.adapters.clickhouse import ClickHouseCredentials
+from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 from dbt.adapters.clickhouse.logger import logger
@@ -27,6 +29,13 @@ class ChNativeClient(ChClientWrapper):
             result = self._client.execute(sql, **kwargs)
             if len(result) and len(result[0]):
                 return result[0][0]
+        except clickhouse_driver.errors.Error as ex:
+            raise DbtDatabaseError(str(ex).strip()) from ex
+
+    def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
+        try:
+            _, columns = self._client.execute(f'{sql} LIMIT 0', with_column_types=True)
+            return [ClickHouseColumn.create(column[0], column[1]) for column in columns]
         except clickhouse_driver.errors.Error as ex:
             raise DbtDatabaseError(str(ex).strip()) from ex
 

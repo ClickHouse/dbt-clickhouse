@@ -130,18 +130,19 @@
 {%- endmacro -%}
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
-    {% set create_table = create_table_or_empty(temporary, relation, sql) %}
+    {% set has_contract = config.get('contract').enforced %}
+    {% set create_table = create_table_or_empty(temporary, relation, sql, has_contract) %}
     {% if adapter.is_before_version('22.7.1.2484') -%}
         {{ create_table }}
     {%- else %}
         {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
-        {{ clickhouse__insert_into(relation.include(database=False), sql) }}
+        {{ clickhouse__insert_into(relation.include(database=False), sql, has_contract) }}
     {%- endif %}
 {%- endmacro %}
 
-{% macro create_table_or_empty(temporary, relation, sql) -%}
+{% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
     {{ sql_header if sql_header is not none }}
@@ -152,27 +153,39 @@
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
+        as ( {{ sql }} )
     {%- else %}
         create table {{ relation.include(database=False) }}
         {{ on_cluster_clause(relation)}}
+        {%- if has_contract%}
+          {{ get_assert_columns_equivalent(sql) }}
+          {{ get_table_columns_and_constraints() }}
+        {%- endif %}
         {{ engine_clause() }}
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
-        {% if not adapter.is_before_version('22.7.1.2484') -%}
+
+        {%- if not has_contract %}
+          {%- if not adapter.is_before_version('22.7.1.2484') %}
             empty
+          {%- endif %}
+           as ( {{ sql }} )
         {%- endif %}
     {%- endif %}
-    as (
-        {{ sql }}
-    )
+
 {%- endmacro %}
 
-{% macro clickhouse__insert_into(target_relation, sql) %}
+{% macro clickhouse__insert_into(target_relation, sql, has_contract) %}
   {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
   insert into {{ target_relation }} ({{ dest_cols_csv }})
-  {{ sql }}
+  {%- if has_contract -%}
+    -- Use a subquery to get columns in the right order
+          SELECT {{ dest_cols_csv }} FROM ( {{ sql }} )
+  {%- else -%}
+      {{ sql }}
+  {%- endif -%}
 {%- endmacro %}

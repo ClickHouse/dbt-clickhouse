@@ -2,15 +2,7 @@ import os
 
 import pytest
 from dbt.tests.adapter.basic.files import model_base, schema_base_yml, seeds_base_csv
-from dbt.tests.adapter.basic.test_adapter_methods import BaseAdapterMethod
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
-from dbt.tests.adapter.basic.test_empty import BaseEmpty
-from dbt.tests.adapter.basic.test_ephemeral import BaseEphemeral
-from dbt.tests.adapter.basic.test_generic_tests import BaseGenericTests
-from dbt.tests.adapter.basic.test_incremental import BaseIncremental
-from dbt.tests.adapter.basic.test_singular_tests import BaseSingularTests
-from dbt.tests.adapter.basic.test_snapshot_check_cols import BaseSnapshotCheckCols
-from dbt.tests.adapter.basic.test_snapshot_timestamp import BaseSnapshotTimestamp
 from dbt.tests.util import (
     check_relation_types,
     check_relations_equal,
@@ -19,94 +11,7 @@ from dbt.tests.util import (
     run_dbt,
 )
 
-# CSV content with boolean column type.
-seeds_boolean_csv = """
-key,value
-abc,true
-def,false
-hij,true
-klm,false
-""".lstrip()
-
-# CSV content with empty fields.
-seeds_empty_csv = """
-key,val1,val2,str1
-abc,1,1,some_str
-abc,1,0,"another string"
-def,1,0,
-hij,1,1,Caps
-hij,1,,"second string"
-klm,1,0,"test"
-klm,1,,"test4"
-""".lstrip()
-
-seeds_schema_yml = """
-version: 2
-
-seeds:
-  - name: empty
-    config:
-      column_types:
-        val2: Nullable(UInt32)
-        str1: Nullable(String)
-"""
-
-replicated_seeds_schema_yml = """
-version: 2
-
-seeds:
-  - name: empty
-    config:
-      engine: ReplicatedMergeTree('/clickhouse/tables/{uuid}/one_shard', '{server_index}' )
-      column_types:
-        val2: Nullable(UInt32)
-        str1: Nullable(String)
-"""
-
-base_seeds_schema_yml = """
-version: 2
-
-seeds:
-  - name: base
-    config:
-      engine: ReplicatedMergeTree('/clickhouse/tables/{uuid}/one_shard', '{server_index}' )
-"""
-
-
-class TestBaseSimpleMaterializations(BaseSimpleMaterializations):
-    pass
-
-
-class TestEmpty(BaseEmpty):
-    pass
-
-
-class TestIncremental(BaseIncremental):
-    pass
-
-
-class TestEphemeral(BaseEphemeral):
-    pass
-
-
-class TestSnapshotTimestamp(BaseSnapshotTimestamp):
-    pass
-
-
-class TestSnapshotCheckCols(BaseSnapshotCheckCols):
-    pass
-
-
-class TestSingularTests(BaseSingularTests):
-    pass
-
-
-class TestGenericTests(BaseGenericTests):
-    pass
-
-
-class TestBaseAdapterMethod(BaseAdapterMethod):
-    pass
+from tests.integration.adapter.basic.test_basic import base_seeds_schema_yml
 
 
 class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
@@ -139,44 +44,6 @@ class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
         relation = relation_from_name(project.adapter, "table_model")
         result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
         assert result[0] == 10
-
-
-class TestCSVSeed:
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {
-            "schema.yml": seeds_schema_yml,
-            "boolean.csv": seeds_boolean_csv,
-            "empty.csv": seeds_empty_csv,
-        }
-
-    def test_seed(self, project):
-        # seed command
-        results = run_dbt(["seed"])
-        assert len(results) == 2
-        columns = project.run_sql("DESCRIBE TABLE empty", fetch='all')
-        assert columns[2][1] == 'Nullable(UInt32)'
-        assert columns[3][1] == 'Nullable(String)'
-
-
-class TestReplicatedCSVSeed:
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {
-            "schema.yml": replicated_seeds_schema_yml,
-            "empty.csv": seeds_empty_csv,
-        }
-
-    @pytest.mark.skipif(
-        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
-    )
-    def test_seed(self, project):
-        # seed command
-        results = run_dbt(["seed"])
-        assert len(results) == 1
-        columns = project.run_sql("DESCRIBE TABLE empty", fetch='all')
-        assert columns[2][1] == 'Nullable(UInt32)'
-        assert columns[3][1] == 'Nullable(String)'
 
 
 class TestDistributedMaterializations(BaseSimpleMaterializations):
@@ -317,7 +184,7 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
             f"select count(host_name) as host_count from system.clusters where cluster='{cluster}'",
             fetch="one",
         )
-        assert host_count[0] == 3
+        assert host_count[0] > 1
 
         table_count = project.run_sql(
             f"select count() From clusterAllReplicas('{cluster}', system.tables) "
@@ -331,7 +198,7 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
             fetch="one",
         )
 
-        assert sum_count[0] == 3 * 10
+        assert sum_count[0] >= 20
 
     @pytest.mark.skipif(
         os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'

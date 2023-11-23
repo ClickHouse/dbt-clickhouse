@@ -1,14 +1,3 @@
-{% macro clickhouse__create_view_as(relation, sql) -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
-
-  {{ sql_header if sql_header is not none }}
-
-  create view {{ relation.include(database=False) }} {{ on_cluster_clause(relation)}}
-  as (
-    {{ sql }}
-  )
-{%- endmacro %}
-
 {% macro clickhouse__list_schemas(database) %}
   {% call statement('list_schemas', fetch_result=True, auto_begin=False) %}
     select name from system.databases
@@ -95,7 +84,7 @@
 
 
 {% macro clickhouse__generate_database_name(custom_database_name=none, node=none) -%}
-  {% do return(None) %}
+  {% do return('') %}
 {%- endmacro %}
 
 {% macro clickhouse__get_columns_in_query(select_sql) %}

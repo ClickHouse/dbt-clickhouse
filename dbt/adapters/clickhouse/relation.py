@@ -33,6 +33,7 @@ class ClickHouseRelation(BaseRelation):
     def __post_init__(self):
         if self.database != self.schema and self.database:
             raise DbtRuntimeError(f'Cannot set database {self.database} in clickhouse!')
+        self.path.database = ''
 
     def render(self):
         if self.include_policy.database and self.include_policy.schema:
@@ -44,7 +45,7 @@ class ClickHouseRelation(BaseRelation):
 
     def matches(
         self,
-        database: Optional[str] = None,
+        database: Optional[str] = '',
         schema: Optional[str] = None,
         identifier: Optional[str] = None,
     ):
@@ -86,7 +87,7 @@ class ClickHouseRelation(BaseRelation):
             schema = source.database
 
         return cls.create(
-            database=source.database,
+            database='',
             schema=schema,
             identifier=source.identifier,
             quote_policy=quote_policy,
@@ -112,7 +113,7 @@ class ClickHouseRelation(BaseRelation):
         can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
 
         return cls.create(
-            database=node.database,
+            database='',
             schema=node.schema,
             identifier=node.alias,
             quote_policy=quote_policy,

@@ -1,7 +1,7 @@
 {% macro clickhouse__get_catalog(information_schema, schemas) -%}
   {%- call statement('catalog', fetch_result=True) -%}
     select
-      null as table_database,
+      '' as table_database,
       columns.database as table_schema,
       columns.table as table_name,
       if(tables.engine not in ('MaterializedView', 'View'), 'table', 'view') as table_type,
