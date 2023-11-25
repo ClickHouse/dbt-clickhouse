@@ -1,3 +1,7 @@
+### Release [1.6.0], TBD
+#### Improvement
+- Compatible with dbt 1.6.x
+
 ### Release [1.5.0], 2023-11-23
 #### Improvements
 - Compatible with dbt 1.5.x

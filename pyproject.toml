@@ -1,7 +1,7 @@
 [tool.black]
 line-length = 100
 skip-string-normalization = true
-target-version = ['py38', 'py39']
+target-version = ['py310', 'py311']
 exclude = '(\.eggs|\.git|\.mypy_cache|\.venv|venv|env|_build|build|build|dist|)'
 
 [tool.isort]
