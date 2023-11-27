@@ -1,3 +1,7 @@
+### Release [1.5.1], 2023-11-27
+#### Bug Fix
+- Fix table materialization for compatibility with SQLFluff.  Thanks to [Kristof Szaloki](https://github.com/kris947) for the PR!
+
 ### Release [1.5.0], 2023-11-23
 #### Improvements
 - Compatible with dbt 1.5.x
