@@ -58,7 +58,7 @@ setup(
         'clickhouse-connect>=0.6.21',
         'clickhouse-driver>=0.2.6',
     ],
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     platforms='any',
     classifiers=[
         'Development Status :: 5 - Production/Stable',
