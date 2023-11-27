@@ -153,7 +153,9 @@
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
-        as ( {{ sql }} )
+        as (
+          {{ sql }}
+        )
     {%- else %}
         create table {{ relation.include(database=False) }}
         {{ on_cluster_clause(relation)}}
@@ -171,7 +173,9 @@
           {%- if not adapter.is_before_version('22.7.1.2484') %}
             empty
           {%- endif %}
-           as ( {{ sql }} )
+          as (
+            {{ sql }}
+          )
         {%- endif %}
     {%- endif %}
 
