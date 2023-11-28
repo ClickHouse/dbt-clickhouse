@@ -1,9 +1,26 @@
 ### Release [1.5.2], 2023-11-28
-#### Bug Fix
+#### Bug Fixes
 - The `ON CLUSTER` clause was in the incorrect place for legacy incremental materializations.  This has been fixed.  Thanks to
 [Steven Reitsma](https://github.com/StevenReitsma) for the fix!
 - The `ON CLUSTER` DDL for drop tables did not include a SYNC modifier, which might be the cause of some "table already exists"
-errors
+errors.  The `SYNC` modifier has been added to the `on_cluster` macro when dropping relations.
+- Fixed a bug where using table settings such as `allow_nullable_key` would break "legacy" incremental materializations.  Closes
+https://github.com/ClickHouse/dbt-clickhouse/issues/209.  Also see the new model `config` property `insert_settings` described
+below.
+- Fixed an issue where incremental materializations would incorrectly exclude duplicated inserted elements due to "automatic"
+ClickHouse deduplication on replicated tables.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/213.  The fix consists
+of always sending a `replicated_deduplication_window=0` table setting when creating the incremental relations.  This
+behavior can be overridden by setting the new profile parameter `allow_automatic_deduplication` to `True`, although for
+general dbt operations this is probably not necessary and not recommended.  Finally thanks to Andy(https://github.com/andy-miracl)
+for the report and debugging help!
+
+#### Improvements
+- Added a new profile property `allow_automatic_deduplication`, which defaults to `False`.  ClickHouse Replicated deduplication is
+now disable for incremental inserts, but this property can be set to true if for some reason the default ClickHouse behavior
+for inserted blocks is desired.
+- Added a new model `config` property `query_settings` for any ClickHouse settings that should be sent with the `INSERT INTO`
+or `DELETE_FROM` queries used with materializations.  Note this is distinct from the existing property `settings` which is
+used for ClickHouse "table" settings in DDL statements like `CREATE TABLE ... AS`.
 
 ### Release [1.5.1], 2023-11-27
 #### Bug Fix

@@ -4,7 +4,7 @@
 
   {% set sql -%}
     insert into {{ this.render() }} ({{ cols_sql }})
-    {{ adapter.get_model_settings(model) }}
+    {{ adapter.get_model_query_settings(model) }}
     format CSV
     {{ data_sql }}
   {%- endset %}

@@ -18,8 +18,13 @@ class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_table = """
-          {{ config(order_by='(some_date, id, name)', engine='MergeTree()', materialized='table',
-                     settings={'allow_nullable_key': 1}) }}
+          {{ config(
+            order_by='(some_date, id, name)',
+            engine='MergeTree()',
+            materialized='table',
+            settings={'allow_nullable_key': 1},
+            query_settings={'allow_nondeterministic_mutations': 1})
+        }}
         """
         base_table_sql = config_materialized_table + model_base
         return {
@@ -204,7 +209,7 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
         os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
     )
     def test_base(self, project):
-        # cluster setting must exists
+        # cluster setting must exist
         cluster = project.test_config['cluster']
         assert cluster
 

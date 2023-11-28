@@ -33,6 +33,8 @@ seeds:
       column_types:
         val2: Nullable(UInt32)
         str1: Nullable(String)
+      settings:
+        allow_nullable_key: 1
 """
 
 replicated_seeds_schema_yml = """

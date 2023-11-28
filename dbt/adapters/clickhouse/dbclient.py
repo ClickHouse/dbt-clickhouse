@@ -1,5 +1,6 @@
 import uuid
 from abc import ABC, abstractmethod
+from typing import Dict
 
 from dbt.exceptions import DbtDatabaseError, FailedToConnectError
 
@@ -8,6 +9,7 @@ from dbt.adapters.clickhouse.logger import logger
 
 LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
+DEDUP_WINDOW_SETTING = 'replicated_deduplication_window'
 
 
 def get_db_client(credentials: ClickHouseCredentials):
@@ -79,6 +81,9 @@ class ChClientWrapper(ABC):
         except Exception as ex:
             self.close()
             raise ex
+        self._model_settings = {}
+        if not credentials.allow_automatic_deduplication:
+            self._model_settings[DEDUP_WINDOW_SETTING] = '0'
 
     @abstractmethod
     def query(self, sql: str, **kwargs):
@@ -114,6 +119,11 @@ class ChClientWrapper(ABC):
     @abstractmethod
     def _server_version(self):
         pass
+
+    def update_model_settings(self, model_settings: Dict[str, str]):
+        for key, value in self._model_settings.items():
+            if key not in model_settings:
+                model_settings[key] = value
 
     def _check_lightweight_deletes(self, requested: bool):
         lw_deletes = self.get_ch_setting(LW_DELETE_SETTING)
