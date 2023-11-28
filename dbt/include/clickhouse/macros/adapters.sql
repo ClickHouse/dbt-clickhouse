@@ -56,7 +56,7 @@
 {% macro clickhouse__drop_relation(relation, obj_type='table') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
     {# drop relation on cluster by default if cluster is set #}
-    drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause(relation.without_identifier())}}
+    drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause(relation.without_identifier(), True)}}
   {%- endcall %}
 {% endmacro %}
 

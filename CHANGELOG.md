@@ -1,3 +1,10 @@
+### Release [1.5.2], 2023-11-28
+#### Bug Fix
+- The `ON CLUSTER` clause was in the incorrect place for legacy incremental materializations.  This has been fixed.  Thanks to
+[Steven Reitsma](https://github.com/StevenReitsma) for the fix!
+- The `ON CLUSTER` DDL for drop tables did not include a SYNC modifier, which might be the cause of some "table already exists"
+errors
+
 ### Release [1.5.1], 2023-11-27
 #### Bug Fix
 - Fix table materialization for compatibility with SQLFluff.  Thanks to [Kristof Szaloki](https://github.com/kris947) for the PR!
