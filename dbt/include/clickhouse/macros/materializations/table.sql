@@ -188,11 +188,13 @@
   {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
-  insert into {{ target_relation }} ({{ dest_cols_csv }})
+  insert into {{ target_relation }}
+        ({{ dest_cols_csv }})
   {%- if has_contract -%}
     -- Use a subquery to get columns in the right order
           SELECT {{ dest_cols_csv }} FROM ( {{ sql }} )
   {%- else -%}
       {{ sql }}
+  {{ adapter.get_model_query_settings(model) }}
   {%- endif -%}
 {%- endmacro %}

@@ -60,7 +60,7 @@ class ClickHouseContractColumnsEqual:
         assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
     def test__contract_wrong_column_data_types(self, project, data_types):
-        for (sql_column_value, schema_data_type, error_data_type) in data_types:
+        for sql_column_value, schema_data_type, error_data_type in data_types:
             # Write parametrized data_type to sql file
             write_file(
                 my_model_data_type_sql.format(sql_value=sql_column_value),
@@ -91,7 +91,7 @@ class ClickHouseContractColumnsEqual:
             assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
     def test__contract_correct_column_data_types(self, project, data_types):
-        for (sql_column_value, schema_data_type, _) in data_types:
+        for sql_column_value, schema_data_type, _ in data_types:
             # Write parametrized data_type to sql file
             write_file(
                 my_model_data_type_sql.format(sql_value=sql_column_value),
