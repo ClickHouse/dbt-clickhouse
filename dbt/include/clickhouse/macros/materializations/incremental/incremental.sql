@@ -162,7 +162,7 @@
       {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, existing_relation) }}
     {% else %}
       {% call statement('main') %}
-          create table {{ intermediate_relation }} as {{ new_data_relation }} {{ on_cluster_clause(existing_relation) }}
+          create table {{ intermediate_relation }} {{ on_cluster_clause(existing_relation) }} as {{ new_data_relation }}
       {% endcall %}
     {% endif %}
 
@@ -178,7 +178,7 @@
             select {{ unique_key }}
             from {{ inserting_relation }}
           )
-       {{ adapter.get_model_settings(model) }}
+       {{ adapter.get_model_query_settings(model) }}
     {% endcall %}
 
     -- Insert all of the new data into the temporary table
@@ -186,7 +186,7 @@
      insert into {{ inserted_relation }} ({{ dest_cols_csv }})
         select {{ dest_cols_csv }}
         from {{ inserting_relation }}
-      {{ adapter.get_model_settings(model) }}
+      {{ adapter.get_model_query_settings(model) }}
     {% endcall %}
 
     {% do adapter.drop_relation(new_data_relation) %}
@@ -228,13 +228,14 @@
         {% for predicate in incremental_predicates %}
             and {{ predicate }}
         {% endfor %}
-      {%- endif -%};
+      {%- endif -%}
+      {{ adapter.get_model_query_settings(model) }}
     {% endcall %}
 
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
     {% call statement('insert_new_data') %}
-        insert into {{ existing_relation }} select {{ dest_cols_csv }} from {{ inserting_relation }}
+        insert into {{ existing_relation }} {{ adapter.get_model_query_settings(model) }} select {{ dest_cols_csv }} from {{ inserting_relation }}
     {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
     {{ drop_relation_if_exists(distributed_new_data_relation) }}

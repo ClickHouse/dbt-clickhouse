@@ -121,11 +121,14 @@
   {%- endif %}
 {%- endmacro -%}
 
-{% macro on_cluster_clause(relation) %}
+{% macro on_cluster_clause(relation, force_sync) %}
   {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
   {%- if active_cluster is not none and relation.should_on_cluster %}
     {# Add trailing whitespace to avoid problems when this clause is not last #}
     ON CLUSTER {{ active_cluster + ' ' }}
+    {%- if force_sync %}
+    SYNC
+    {%- endif %}
   {%- endif %}
 {%- endmacro -%}
 
@@ -153,7 +156,9 @@
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
         {{ adapter.get_model_settings(model) }}
-        as ( {{ sql }} )
+        as (
+          {{ sql }}
+        )
     {%- else %}
         create table {{ relation.include(database=False) }}
         {{ on_cluster_clause(relation)}}
@@ -171,7 +176,9 @@
           {%- if not adapter.is_before_version('22.7.1.2484') %}
             empty
           {%- endif %}
-           as ( {{ sql }} )
+          as (
+            {{ sql }}
+          )
         {%- endif %}
     {%- endif %}
 
@@ -181,11 +188,13 @@
   {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
-  insert into {{ target_relation }} ({{ dest_cols_csv }})
+  insert into {{ target_relation }}
+        ({{ dest_cols_csv }})
   {%- if has_contract -%}
     -- Use a subquery to get columns in the right order
           SELECT {{ dest_cols_csv }} FROM ( {{ sql }} )
   {%- else -%}
       {{ sql }}
+  {{ adapter.get_model_query_settings(model) }}
   {%- endif -%}
 {%- endmacro %}

@@ -66,6 +66,7 @@ jobs:
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9000
+          DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
           pytest tests
