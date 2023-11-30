@@ -7,7 +7,7 @@
 
   {%- set target_relation = this.incorporate(type='table') -%}
   {%- set mv_name = target_relation.name + '_mv' -%}
-  {%- set target_mv = api.Relation.create(identifier=mv_name, schema=schema, database=database, type='materializedview') -%}
+  {%- set target_mv = api.Relation.create(identifier=mv_name, schema=schema, database=database, type='materialized_view') -%}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
 
   {# look for an existing relation for the target table and create backup relations if necessary #}

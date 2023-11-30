@@ -22,6 +22,7 @@ pip install dbt-clickhouse
 - [x] Table materialization
 - [x] View materialization
 - [x] Incremental materialization
+- [x] Materialized View materializations (uses the `TO` form of MATERIALIZED VIEW, experimental)
 - [x] Seeds
 - [x] Sources
 - [x] Docs generate
@@ -102,16 +103,9 @@ your_profile_name:
 | settings               | A map/dictionary of "TABLE" settings to be used to DDL statements like 'CREATE TABLE' with this model                                                                                                                                                  |                |
 | query_settings         | A map/dictionary of ClickHouse user level settings to be used with `INSERT` or `DELETE` statements in conjunction with this model                                                                                                                      |                |
 
-## A Note on Model Settings
-ClickHouse has several types/levels of "settings".  In the model configuration above, two types of these are configurable.  `settings` means the `SETTINGS`
-clause used in `CREATE TABLE/VIEW` types of DDL statements, so this is generally settings that are specific to the specific ClickHouse table engine.  The new
-`query_settings` is use to add a `SETTINGS` clause to the `INSERT` and `DELETE` queries used for model materialization (including incremental materializations).
-There are hundreds of ClickHouse settings, and it's not always clear which is a "table" setting and which is a "user" setting (although the latter are generally
-available in the `system.settings` table.)  In general the defaults are recommended, and any use of these properties should be carefully researched and tested.
-
 ## ClickHouse Cluster 
 
-`cluster` setting in profile enables dbt-clickhouse to run against a ClickHouse cluster.
+The `cluster` setting in profile enables dbt-clickhouse to run against a ClickHouse cluster.
 
 ### Effective Scope
 
@@ -128,6 +122,15 @@ table and incremental materializations with non-replicated engine will not be af
 
 
 If a model has been created without a `cluster` setting, dbt-clickhouse will detect the situation and run all DDL/DML without `on cluster` clause for this model.
+
+
+## A Note on Model Settings
+
+ClickHouse has several types/levels of "settings".  In the model configuration above, two types of these are configurable.  `settings` means the `SETTINGS`
+clause used in `CREATE TABLE/VIEW` types of DDL statements, so this is generally settings that are specific to the specific ClickHouse table engine.  The new
+`query_settings` is use to add a `SETTINGS` clause to the `INSERT` and `DELETE` queries used for model materialization (including incremental materializations).
+There are hundreds of ClickHouse settings, and it's not always clear which is a "table" setting and which is a "user" setting (although the latter are generally
+available in the `system.settings` table.)  In general the defaults are recommended, and any use of these properties should be carefully researched and tested.
 
 
 ## Known Limitations
@@ -192,16 +195,24 @@ keys used to populate the parameters of the S3 table function:
 | fmt                   | The expected ClickHouse input format (such as `TSV` or `CSVWithNames`) of the referenced S3 objects.                                                                                         |
 | structure             | The column structure of the data in bucket, as a list of name/datatype pairs, such as `['id UInt32', 'date DateTime', 'value String']`  If not provided ClickHouse will infer the structure. |
 | aws_access_key_id     | The S3 access key id.                                                                                                                                                                        |
-| aws_secret_access_key | The S3 secrete key.                                                                                                                                                                          |
+| aws_secret_access_key | The S3 secret key.                                                                                                                                                                           |
 | compression           | The compression method used with the S3 objects.  If not provided ClickHouse will attempt to determine compression based on the file name.                                                   |
 
-See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/test_s3.py) for examples of how to use this macro.
+See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/clickhouse/test_clickhouse_s3.py) for examples of how to use this macro.
 
 # Contracts and Constraints
 
 Only exact column type contracts are supported.  For example, a contract with a UInt32 column type will fail if the model returns a UInt64 or other integer type.
 ClickHouse also support _only_ `CHECK` constraints on the entire table/model.  Primary key, foreign key, unique, and column level CHECK constraints are not supported.
 (See ClickHouse documentation on primary/order by keys.)
+
+# Materialized Views (Experimental)
+A `materialized_view` materialization should be a `SELECT` from an existing (source) table.  The adapter will create a target table with the model name
+and a ClickHouse MATERIALIZED VIEW with the name `<model_name>_mv`.  Unlike PostgreSQL, a ClickHouse materialized view is not "static" (and has
+no corresponding REFRESH operation).  Instead, it acts as an "insert trigger", and will insert new rows into the target table using the defined `SELECT`
+"transformation" in the view definition on rows inserted into the source table.  See the [test file]
+(https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)  for an introductory example
+of how to use this functionality.
 
 # Distributed materializations
 

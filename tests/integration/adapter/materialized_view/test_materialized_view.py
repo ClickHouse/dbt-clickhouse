@@ -1,5 +1,6 @@
 """
-test materialized view creation
+test materialized view creation.  This is ClickHouse specific, which has a significantly different implementation
+of materialized views from PostgreSQL or Oracle
 """
 
 import json
