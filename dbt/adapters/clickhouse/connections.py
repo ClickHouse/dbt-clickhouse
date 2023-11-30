@@ -73,7 +73,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         return dbt.clients.agate_helper.table_from_data_flat(data, column_names)
 
     def execute(
-        self, sql: str, auto_begin: bool = False, fetch: bool = False
+        self, sql: str, auto_begin: bool = False, fetch: bool = False, limit: Optional[int] = None
     ) -> Tuple[AdapterResponse, agate.Table]:
         # Don't try to fetch result of clustered DDL responses, we don't know what to do with them
         if fetch and ddl_re.match(sql):

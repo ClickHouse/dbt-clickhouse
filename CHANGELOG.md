@@ -1,3 +1,13 @@
+### Release [1.6.0], 2023-11-30
+#### Improvements 
+- Compatible with dbt 1.6.x.  Note that dbt new `clone` feature is not supported, as ClickHouse has no native "light weight"
+clone functionality, and copying tables without actual data transfer is not possible in ClickHouse (barring file manipulation
+outside ClickHouse itself).
+- A new ClickHouse specific Materialized View materialization contributed by [Rory Sawyer](https://github.com/SoryRawyer).
+This creates a ClickHouse Materialized view using the `TO` form with the name `<model_name>_mv` and the associated target
+table `<model_name>`.  It's highly recommended to fully understand how ClickHouse materialized views work before using
+this materialization.
+
 ### Release [1.5.2], 2023-11-28
 #### Bug Fixes
 - The `ON CLUSTER` clause was in the incorrect place for legacy incremental materializations.  This has been fixed.  Thanks to

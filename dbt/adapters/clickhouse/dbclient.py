@@ -169,7 +169,9 @@ class ChClientWrapper(ABC):
                     if cluster_name is not None and cluster_name.strip() != ''
                     else ''
                 )
-                self.command(f'CREATE DATABASE {self.database}{cluster_clause}{engine_clause}')
+                self.command(
+                    f'CREATE DATABASE IF NOT EXISTS {self.database}{cluster_clause}{engine_clause}'
+                )
                 db_exists = self.command(check_db)
                 if not db_exists:
                     raise FailedToConnectError(
