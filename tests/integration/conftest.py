@@ -143,7 +143,7 @@ def prefix():
 @pytest.fixture(scope="class")
 def unique_schema(request, prefix) -> str:
     test_file = request.module.__name__.split(".")[-1]
-    return f"{prefix}_{test_file}_{int(time.time() * 1000)}"
+    return f"{prefix}-{test_file}-{int(time.time() * 1000)}"
 
 
 def run_cmd(cmd):

@@ -3,9 +3,11 @@ from typing import Any, Dict, Optional, Type
 
 from dbt.adapters.base.relation import BaseRelation, Policy, Self
 from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt.contracts.relation import HasQuoting
+from dbt.contracts.relation import HasQuoting, RelationType
 from dbt.exceptions import DbtRuntimeError
 from dbt.utils import deep_merge, merge
+
+from dbt.adapters.clickhouse.query import quote_identifier
 
 
 @dataclass
@@ -26,7 +28,7 @@ class ClickHouseIncludePolicy(Policy):
 class ClickHouseRelation(BaseRelation):
     quote_policy: Policy = field(default_factory=lambda: ClickHouseQuotePolicy())
     include_policy: Policy = field(default_factory=lambda: ClickHouseIncludePolicy())
-    quote_character: str = ''
+    quote_character: str = '`'
     can_exchange: bool = False
     can_on_cluster: bool = False
 
@@ -35,13 +37,15 @@ class ClickHouseRelation(BaseRelation):
             raise DbtRuntimeError(f'Cannot set database {self.database} in clickhouse!')
         self.path.database = ''
 
-    def render(self):
-        if self.include_policy.database and self.include_policy.schema:
-            raise DbtRuntimeError(
-                'Got a clickhouse relation with schema and database set to '
-                'include, but only one can be set'
-            )
-        return super().render()
+    def render(self) -> str:
+        return ".".join(quote_identifier(part) for _, part in self._render_iterator() if part)
+
+    def derivative(self, suffix:str = '__tmp') -> BaseRelation:
+        return ClickHouseRelation(type=RelationType.Table,
+                                  include_policy=self.include_policy,
+                                  quote_policy=self.quote_policy,
+                                  identifer=self.identifier + suffix,
+                                  schema=self.schema)
 
     def matches(
         self,

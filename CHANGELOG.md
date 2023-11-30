@@ -1,3 +1,6 @@
+### Release [1.6.1], TBD
+
+
 ### Release [1.6.0], 2023-11-30
 #### Improvements 
 - Compatible with dbt 1.6.x.  Note that dbt new `clone` feature is not supported, as ClickHouse has no native "light weight"
