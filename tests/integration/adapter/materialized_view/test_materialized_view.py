@@ -8,6 +8,8 @@ import json
 import pytest
 from dbt.tests.util import check_relation_types, run_dbt
 
+from dbt.adapters.clickhouse.query import quote_identifier
+
 PEOPLE_SEED_CSV = """
 id,name,age,department
 1231,Dade,33,engineering
@@ -116,7 +118,7 @@ class TestBasicMV:
         # insert some data and make sure it reaches the target table
         project.run_sql(
             f"""
-        insert into {project.test_schema}.people ("id", "name", "age", "department")
+        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
             values (1232,'Dade',16,'engineering'), (9999,'eugene',40,'malware');
         """
         )
@@ -153,7 +155,7 @@ class TestUpdateMV:
 
         project.run_sql(
             f"""
-        insert into {project.test_schema}.people ("id", "name", "age", "department")
+        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
             values (1232,'Dade',11,'engineering'), (9999,'eugene',40,'malware');
         """
         )

@@ -141,7 +141,7 @@
         {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
-        {{ clickhouse__insert_into(relation.include(database=False), sql, has_contract) }}
+        {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
 {%- endmacro %}
 
@@ -151,7 +151,7 @@
     {{ sql_header if sql_header is not none }}
 
     {% if temporary -%}
-        create temporary table {{ relation.name }}
+        create temporary table {{ relation }}
         engine Memory
         {{ order_cols(label="order by") }}
         {{ partition_cols(label="partition by") }}
@@ -160,7 +160,7 @@
           {{ sql }}
         )
     {%- else %}
-        create table {{ relation.include(database=False) }}
+        create table {{ relation }}
         {{ on_cluster_clause(relation)}}
         {%- if has_contract%}
           {{ get_assert_columns_equivalent(sql) }}

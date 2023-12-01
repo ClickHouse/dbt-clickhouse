@@ -1,5 +1,10 @@
 ### Release [1.6.1], TBD
-
+#### Bug Fixes
+- Identifier quoting was disabled for tables/databases etc.  This would cause failures for schemas or tables using reserved words
+or containing special characters.  This has been fixed and some macros have been updated to correctly handle such identifiers.
+Note that there still may be untested edge cases where nonstandard identifiers cause issues, so they are still not recommended.
+Closes https://github.com/ClickHouse/dbt-clickhouse/issues/144. Thanks to [Alexandru Pisarenco](https://github.com/apisarenco) for the
+report and initial PR!
 
 ### Release [1.6.0], 2023-11-30
 #### Improvements 

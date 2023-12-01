@@ -200,9 +200,6 @@ class ClickHouseAdapter(SQLAdapter):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
         return schema in (row[0] for row in results)
 
-    def create_schema(self, relation: BaseRelation) -> None:
-        super().create_schema(relation)
-
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
         conn = self.connections.get_if_exists()
