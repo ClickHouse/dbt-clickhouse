@@ -83,17 +83,17 @@ class TestDistributedAliases(BaseAliases):
         assert len(results) == 4
 
         cluster = project.test_config['cluster']
-        relation = relation_from_name(project.adapter, "foo")
+        local_relation = relation_from_name(project.adapter, "foo_local")
 
         result = project.run_sql(
-            f"select max(tablename) AS tablename From clusterAllReplicas('{cluster}', {relation}_local) ",
+            f"select max(tablename) AS tablename From clusterAllReplicas('{cluster}', {local_relation}) ",
             fetch="one",
         )
         assert result[0] == "foo"
 
-        relation = relation_from_name(project.adapter, "ref_foo_alias")
+        local_relation = relation_from_name(project.adapter, "ref_foo_alias_local")
         result = project.run_sql(
-            f"select max(tablename) AS tablename From clusterAllReplicas('{cluster}', {relation}_local) ",
+            f"select max(tablename) AS tablename From clusterAllReplicas('{cluster}', {local_relation}) ",
             fetch="one",
         )
         assert result[0] == "ref_foo_alias"

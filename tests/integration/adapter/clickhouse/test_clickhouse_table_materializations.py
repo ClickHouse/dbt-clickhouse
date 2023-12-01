@@ -77,23 +77,23 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         }
 
     def assert_total_count_correct(self, project):
-        '''Check if data is properly distributed'''
+        # Check if data is properly distributed
         cluster = project.test_config['cluster']
-        table_relation = relation_from_name(project.adapter, "distributed")
+        table_relation = relation_from_name(project.adapter, "distributed_local")
         cluster_info = project.run_sql(
             f"select shard_num,max(host_name) as host_name, count(distinct replica_num) as replica_counts "
             f"from system.clusters where cluster='{cluster}' group by shard_num",
             fetch="all",
         )
         sum_count = project.run_sql(
-            f"select count() From clusterAllReplicas('{cluster}',{table_relation}_local)",
+            f"select count() From clusterAllReplicas('{cluster}',{table_relation})",
             fetch="one",
         )
         total_count = 0
         # total count should be equal to sum(count of each shard * replica_counts)
         for shard_num, host_name, replica_counts in cluster_info:
             count = project.run_sql(
-                f"select count() From remote('{host_name}',{table_relation}_local)",
+                f"select count() From remote('{host_name}',{table_relation})",
                 fetch="one",
             )
             total_count += count[0] * replica_counts
@@ -103,7 +103,7 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
     )
     def test_base(self, project):
-        # cluster setting must exists
+        # cluster setting must exist
         cluster = project.test_config['cluster']
         assert cluster
 
