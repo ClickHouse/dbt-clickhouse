@@ -1,4 +1,4 @@
-from dbt.adapters.clickhouse.impl import compare_versions
+from dbt.adapters.clickhouse.util import compare_versions
 
 
 def test_is_before_version():

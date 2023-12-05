@@ -23,6 +23,7 @@ from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
+from dbt.adapters.clickhouse.util import compare_versions
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
@@ -436,18 +437,6 @@ def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
         return (table_database, table_schema) in schemas
 
     return test
-
-
-def compare_versions(v1: str, v2: str) -> int:
-    v1_parts = v1.split('.')
-    v2_parts = v2.split('.')
-    for part1, part2 in zip(v1_parts, v2_parts):
-        try:
-            if int(part1) != int(part2):
-                return 1 if int(part1) > int(part2) else -1
-        except ValueError:
-            raise DbtRuntimeError("Version must consist of only numbers separated by '.'")
-    return 0
 
 
 COLUMNS_EQUAL_SQL = '''

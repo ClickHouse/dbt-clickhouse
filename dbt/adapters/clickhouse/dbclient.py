@@ -7,6 +7,7 @@ from dbt.exceptions import DbtDatabaseError, FailedToConnectError
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
+from dbt.adapters.clickhouse.util import compare_versions
 
 LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
@@ -83,7 +84,10 @@ class ChClientWrapper(ABC):
             self.close()
             raise ex
         self._model_settings = {}
-        if not credentials.allow_automatic_deduplication:
+        if (
+            not credentials.allow_automatic_deduplication
+            and compare_versions(self._server_version(), '22.7.1.2484') >= 0
+        ):
             self._model_settings[DEDUP_WINDOW_SETTING] = '0'
 
     @abstractmethod

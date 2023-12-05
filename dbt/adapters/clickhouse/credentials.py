@@ -33,7 +33,7 @@ class ClickHouseCredentials(Credentials):
     custom_settings: Optional[Dict[str, Any]] = None
     use_lw_deletes: bool = False
     local_suffix: str = 'local'
-    allow_automatic_deduplication = False
+    allow_automatic_deduplication: bool = False
 
     @property
     def type(self):
