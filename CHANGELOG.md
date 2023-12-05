@@ -1,3 +1,15 @@
+### Release [1.6.1], 2023-12-04
+#### Bug Fixes
+- Identifier quoting was disabled for tables/databases etc.  This would cause failures for schemas or tables using reserved words
+or containing special characters.  This has been fixed and some macros have been updated to correctly handle such identifiers.
+Note that there still may be untested edge cases where nonstandard identifiers cause issues, so they are still not recommended.
+Closes https://github.com/ClickHouse/dbt-clickhouse/issues/144. Thanks to [Alexandru Pisarenco](https://github.com/apisarenco) for the
+report and initial PR!
+- The new `allow_automatic_deduplication` setting was not being correctly propagated to the adapter, so setting it to `True`
+did not have the intended affect.  In addition, this setting is now ignored for older ClickHouse versions that
+do not support `CREATE TABLE AS SELECT ... EMPTY`, since the automatic deduplication window is required to allow correct
+inserts in Replicated tables on those older versions.  Fixes https://github.com/ClickHouse/dbt-clickhouse/issues/216.
+
 ### Release [1.6.0], 2023-11-30
 #### Improvements 
 - Compatible with dbt 1.6.x.  Note that dbt new `clone` feature is not supported, as ClickHouse has no native "light weight"

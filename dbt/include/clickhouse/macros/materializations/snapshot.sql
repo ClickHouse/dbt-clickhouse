@@ -25,7 +25,7 @@
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
   {%- set valid_to_col = adapter.quote('dbt_valid_to') -%}
 
-  {%- set upsert = target ~ '__snapshot_upsert' -%}
+  {%- set upsert = target.derivative('__snapshot_upsert') -%}
   {% call statement('create_upsert_relation') %}
     create table if not exists {{ upsert }} as {{ target }}
   {% endcall %}

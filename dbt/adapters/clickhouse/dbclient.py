@@ -6,6 +6,8 @@ from dbt.exceptions import DbtDatabaseError, FailedToConnectError
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.logger import logger
+from dbt.adapters.clickhouse.query import quote_identifier
+from dbt.adapters.clickhouse.util import compare_versions
 
 LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
@@ -82,7 +84,10 @@ class ChClientWrapper(ABC):
             self.close()
             raise ex
         self._model_settings = {}
-        if not credentials.allow_automatic_deduplication:
+        if (
+            not credentials.allow_automatic_deduplication
+            and compare_versions(self._server_version(), '22.7.1.2484') >= 0
+        ):
             self._model_settings[DEDUP_WINDOW_SETTING] = '0'
 
     @abstractmethod
@@ -159,7 +164,7 @@ class ChClientWrapper(ABC):
     def _ensure_database(self, database_engine, cluster_name) -> None:
         if not self.database:
             return
-        check_db = f'EXISTS DATABASE {self.database}'
+        check_db = f'EXISTS DATABASE {quote_identifier(self.database)}'
         try:
             db_exists = self.command(check_db)
             if not db_exists:
@@ -170,7 +175,7 @@ class ChClientWrapper(ABC):
                     else ''
                 )
                 self.command(
-                    f'CREATE DATABASE IF NOT EXISTS {self.database}{cluster_clause}{engine_clause}'
+                    f'CREATE DATABASE IF NOT EXISTS {quote_identifier(self.database)}{cluster_clause}{engine_clause}'
                 )
                 db_exists = self.command(check_db)
                 if not db_exists:
@@ -194,7 +199,7 @@ class ChClientWrapper(ABC):
             table_id = str(uuid.uuid1()).replace('-', '')
             swap_tables = [f'__dbt_exchange_test_{x}_{table_id}' for x in range(0, 2)]
             for table in swap_tables:
-                self.command(create_cmd.format(table))
+                self.command(create_cmd.format(quote_identifier(table)))
             try:
                 self.command('EXCHANGE TABLES {} AND {}'.format(*swap_tables))
                 return True
