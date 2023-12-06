@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from dbt.exceptions import DbtRuntimeError
 
 
@@ -11,3 +13,9 @@ def compare_versions(v1: str, v2: str) -> int:
         except ValueError:
             raise DbtRuntimeError("Version must consist of only numbers separated by '.'")
     return 0
+
+
+@dataclass
+class NewColumnDataType:
+    column_name: str
+    new_type: str

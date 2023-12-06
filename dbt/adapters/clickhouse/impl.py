@@ -20,10 +20,15 @@ from dbt.utils import executor, filter_null_values
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.clickhouse.errors import (
+    schema_change_datatype_error,
+    schema_change_fail_error,
+    schema_change_missing_source_error,
+)
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
-from dbt.adapters.clickhouse.util import compare_versions
+from dbt.adapters.clickhouse.util import NewColumnDataType, compare_versions
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
@@ -150,6 +155,39 @@ class ClickHouseAdapter(SQLAdapter):
             )
             strategy = 'legacy'
         return strategy
+
+    @available.parse_none
+    def check_incremental_schema_changes(
+        self, on_schema_change, existing, target_sql
+    ) -> List[ClickHouseColumn]:
+        if on_schema_change not in ('fail', 'ignore', 'append_new_columns'):
+            raise DbtRuntimeError(
+                "Only `fail`, `ignore`, and `append_new_columns` supported for `on_schema_change`"
+            )
+        source = self.get_columns_in_relation(existing)
+        source_map = {column.name: column for column in source}
+        target = self.get_column_schema_from_query(target_sql)
+        target_map = {column.name: column for column in source}
+        source_not_in_target = [column for column in source if column.name not in target_map.keys()]
+        target_not_in_source = [column for column in target if column.name not in source_map.keys()]
+        new_column_data_types = []
+        for target_column in target:
+            source_column = source_map.get(target_column.name)
+            if source_column and source_column.dtype != target_column.dtype:
+                new_column_data_types.append(
+                    NewColumnDataType(source_column.name, target_column.dtype)
+                )
+        if new_column_data_types:
+            raise DbtRuntimeError(schema_change_datatype_error.format(new_column_data_types))
+        if source_not_in_target:
+            raise DbtRuntimeError(schema_change_missing_source_error.format(source_not_in_target))
+        if target_not_in_source and on_schema_change == 'fail':
+            raise DbtRuntimeError(
+                schema_change_fail_error.format(
+                    source_not_in_target, target_not_in_source, new_column_data_types
+                )
+            )
+        return target_not_in_source
 
     @available.parse_none
     def s3source_clause(
