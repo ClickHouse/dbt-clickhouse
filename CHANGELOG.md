@@ -5,10 +5,11 @@ with a very limited implementation.  Closes https://github.com/ClickHouse/dbt-cl
 ORDER BY/SORT BY/PARTITION BY/PRIMARY KEYS work in ClickHouse, plus the complexities of correctly transforming ClickHouse data types,
 `sync_all_columns` is not currently supported (although an implementation that works for non-key columns is theoretically possible,
 such an enhancement is not currently planned).  Accordingly, only `ignore`, `fail`, and `append_new_columns` values are supported
-for `on_schema_change`.  Note that actually appending new columns requires a fallback to the `legacy` incremental strategy, which is quite inefficient,
+for `on_schema_change`.  It is also not currently supported for Distributed tables.
+
+Note that actually appending new columns requires a fallback to the `legacy` incremental strategy, which is quite inefficient,
 so while theoretically possible, using `append_new_columns` is not recommended except for very small data volumes.
 
-  
 ### Release [1.6.1], 2023-12-04
 #### Bug Fixes
 - Identifier quoting was disabled for tables/databases etc.  This would cause failures for schemas or tables using reserved words
