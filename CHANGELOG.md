@@ -1,3 +1,10 @@
+### Release [1.7.0], 2023-12-07
+#### Improvements
+- Minimal compatibility with dbt 1.7.x.  The date_spine macro and additional automated tests have not been implemented,
+but are planned for a future patch release.
+- DBT 1.7 introduces a (complex) optimization mechanism for retrieving a dbt catalog which is overkill for ClickHouse
+(which has no separate schema/database level), so this release includes some internal catalog changes to simplify that process.
+
 ### Release [1.6.2], 2023-12-06
 #### Bug Fix
 - The dbt `on_schema_change` configuration value for incremental models was effectively being ignored.  This has been fixed
