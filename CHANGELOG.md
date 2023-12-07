@@ -1,3 +1,5 @@
+### Release [1.7.0], TBD
+
 ### Release [1.6.2], 2023-12-06
 #### Bug Fix
 - The dbt `on_schema_change` configuration value for incremental models was effectively being ignored.  This has been fixed
