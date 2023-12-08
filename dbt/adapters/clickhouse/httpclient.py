@@ -35,7 +35,7 @@ class ChHttpClient(ChClientWrapper):
 
     def get_ch_setting(self, setting_name):
         setting = self._client.server_settings.get(setting_name)
-        return setting.value if setting else None
+        return (setting.value, setting.readonly) if setting else (None, 0)
 
     def database_dropped(self, database: str):
         # This is necessary for the http client to avoid exceptions when ClickHouse doesn't recognize the database

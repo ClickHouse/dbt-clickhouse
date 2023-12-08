@@ -42,12 +42,12 @@ class ChNativeClient(ChClientWrapper):
     def get_ch_setting(self, setting_name):
         try:
             result = self._client.execute(
-                f"SELECT value FROM system.settings WHERE name = '{setting_name}'"
+                f"SELECT value, readonly FROM system.settings WHERE name = '{setting_name}'"
             )
         except clickhouse_driver.errors.Error as ex:
             logger.warn('Unexpected error retrieving ClickHouse server setting', ex)
             return None
-        return result[0][0] if result else None
+        return (result[0][0], result[0][1]) if result else (None, 0)
 
     def close(self):
         self._client.disconnect()

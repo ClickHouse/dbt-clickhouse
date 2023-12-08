@@ -1,3 +1,12 @@
+### Release [1.7.1], TBD
+#### Bug Fix
+- It was possible for incremental models with the delete+insert strategy to fail if ClickHouse "light weight deletes" were
+not enabled or the required setting `allow_nondetermistic_mutations` was not enabled and the user did not have permission
+to apply it.  This condition is now detected on startup, and an exception will be thrown if `use_lw_deletes` is configured
+in the profile.  Otherwise, a warning will be logged that incremental models will be slower (because such models will
+be downgraded to use the `legacy` incremental strategy).  This should prevent the confusing behavior in
+https://github.com/ClickHouse/dbt-clickhouse/issues/197 by throwing an early exception for an unsupported configuration.
+
 ### Release [1.7.0], 2023-12-07
 #### Improvements
 - Minimal compatibility with dbt 1.7.x.  The date_spine macro and additional automated tests have not been implemented,

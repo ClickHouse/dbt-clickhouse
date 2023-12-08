@@ -22,3 +22,24 @@ The target schema in on this incremental model contains a column not in the sour
 
    Source columns not in target: {0}
 """
+
+lw_deletes_not_enabled_error = """
+Attempting to apply the configuration `use_lw_deletes` to enable the delete+insert incremental strategy, but
+`light weight deletes` are either not available or not enabled on this ClickHouse server.
+"""
+
+lw_deletes_not_enabled_warning = """
+`light weight deletes` are either not available or not enabled on this ClickHouse server.  This prevents the use
+of the delete+insert incremental strategy, which may negatively affect performance for incremental models.
+"""
+
+nd_mutations_not_enabled_error = """
+Attempting to apply the configuration `use_lw_deletes` to enable the delete+insert incremental strategy, but
+the required `allow_nondeterministic_mutations` is not enabled and is `read_only` for this user
+"""
+
+nd_mutations_not_enabled_warning = """
+The setting `allow_nondeterministic_mutations` is not enabled and is `read_only` for this user` This prevents the use
+of `light weight deletes` and therefore the delete+insert incremental strategy.  This may negatively affect performance
+for incremental models
+"""
