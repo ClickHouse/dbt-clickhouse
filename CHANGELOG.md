@@ -1,5 +1,7 @@
-### Release [1.7.1], TBD
-#### Bug Fix
+### Release [1.7.1], 2023-12-13
+#### Bug Fixes
+- Some models with LIMIT clauses were broken in recent releases.  This has been fixed.  Thanks to
+[ptemarvelde](https://github.com/ptemarvelde) for the PR!
 - It was possible for incremental models with the delete+insert strategy to fail if ClickHouse "light weight deletes" were
 not enabled or the required setting `allow_nondetermistic_mutations` was not enabled and the user did not have permission
 to apply it.  This condition is now detected on startup, and an exception will be thrown if `use_lw_deletes` is configured
