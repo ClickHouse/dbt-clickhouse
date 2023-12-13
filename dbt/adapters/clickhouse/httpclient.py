@@ -25,7 +25,7 @@ class ChHttpClient(ChClientWrapper):
 
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
-            query_result = self._client.query(f'{sql} LIMIT 0', **kwargs)
+            query_result = self._client.query(f"SELECT * FROM ({sql}) LIMIT 0", **kwargs)
             return [
                 ClickHouseColumn.create(name, ch_type.name)
                 for name, ch_type in zip(query_result.column_names, query_result.column_types)
