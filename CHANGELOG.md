@@ -1,3 +1,7 @@
+### Release [1.7.2], 2024-XX-XX
+#### Bug Fixes
+- A few tests with LIMIT clause were broken due to parsing error when having settings in the query ([issue](https://github.com/ClickHouse/dbt-clickhouse/issues/223)). We added a dedicated limit placer, that takes into account the settings section (using a comment flag `-- settings_section` within the query).
+
 ### Release [1.7.1], 2023-12-13
 #### Bug Fixes
 - Some models with LIMIT clauses were broken in recent releases.  This has been fixed.  Thanks to
