@@ -1,3 +1,8 @@
+### Release [1.7.2], 2024-02-09
+#### Bug Fix
+- Fixed an issue where Materialize Views would break with a custom schema.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer)
+for the PR!
+
 ### Release [1.7.1], 2023-12-13
 #### Bug Fixes
 - Some models with LIMIT clauses were broken in recent releases.  This has been fixed.  Thanks to
