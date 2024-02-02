@@ -41,7 +41,7 @@
       {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql) }}
     {%- endcall %}
   {% elif existing_relation.can_exchange %}
-    {{ log('Replacing existing materialized view' + target_relation.name) }}
+    {{ log('Replacing existing materialized view ' + target_relation.name) }}
     {% call statement('drop existing materialized view') %}
       drop view if exists {{ mv_relation }} {{ cluster_clause }}
     {% endcall %}
@@ -50,10 +50,10 @@
     {%- endcall %}
     {% do exchange_tables_atomic(backup_relation, existing_relation) %}
     {% call statement('create new materialized view') %}
-      {{ clickhouse__create_mv_sql(mv_relation, existing_relation.name, cluster_clause, sql) }}
+      {{ clickhouse__create_mv_sql(mv_relation, existing_relation, cluster_clause, sql) }}
     {% endcall %}
   {% else %}
-    {{ log('Replacing existing materialized view' + target_relation.name) }}
+    {{ log('Replacing existing materialized view ' + target_relation.name) }}
     {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql) }}
   {% endif %}
 
