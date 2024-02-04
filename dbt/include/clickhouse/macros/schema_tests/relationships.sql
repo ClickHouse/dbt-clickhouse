@@ -19,7 +19,6 @@ left join parent
     on child.from_field = parent.to_field
 
 where parent.to_field is null
--- end_of_sql
 settings join_use_nulls = 1
 
 {% endmacro %}

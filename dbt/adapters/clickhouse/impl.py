@@ -412,14 +412,7 @@ class ClickHouseAdapter(SQLAdapter):
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')
-        if len(res) == 0:
-            return ''
-        else:
-            settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
-            return f"""
-                        -- end_of_sql
-                        {settings_str}
-                        """
+        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
 
     @available
     def get_model_query_settings(self, model):
@@ -427,15 +420,7 @@ class ClickHouseAdapter(SQLAdapter):
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')
-
-        if len(res) == 0:
-            return ''
-        else:
-            settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
-            return f"""
-            -- settings_section
-            {settings_str}
-            """
+        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
 
     @available.parse_none
     def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
