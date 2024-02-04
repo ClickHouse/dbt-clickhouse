@@ -417,7 +417,7 @@ class ClickHouseAdapter(SQLAdapter):
         else:
             settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
             return f"""
-                        -- settings_section
+                        -- end_of_sql
                         {settings_str}
                         """
 

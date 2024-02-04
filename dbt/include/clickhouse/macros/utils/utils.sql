@@ -15,12 +15,12 @@
 -- When multiple queries are nested, the limit will be attached to the outer query
 {% macro clickhouse__place_limit(query, limit) -%}
    {% if 'settings' in query.lower()%}
-        {% if '-- settings_section' not in query.lower()%}
-            {{exceptions.raise_compiler_error("-- settings_section must be set when using ClickHouse settings")}}
+        {% if '-- end_of_sql' not in query.lower()%}
+            {{exceptions.raise_compiler_error("-- end_of_sql must be set when using ClickHouse settings")}}
         {% endif %}
-        {% set split_by_settings_sections = query.split("-- settings_section")%}
+        {% set split_by_settings_sections = query.split("-- end_of_sql")%}
         {% set split_by_settings_sections_with_limit = split_by_settings_sections[-2] + "\n LIMIT " + limit|string  + "\n" %}
-        {% set query_with_limit = "-- settings_section".join(split_by_settings_sections[:-2] + [split_by_settings_sections_with_limit, split_by_settings_sections[-1]])%}
+        {% set query_with_limit = "-- end_of_sql".join(split_by_settings_sections[:-2] + [split_by_settings_sections_with_limit, split_by_settings_sections[-1]])%}
         {{query_with_limit}}
     {% else %}
     {{query}}
