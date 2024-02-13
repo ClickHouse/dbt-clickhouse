@@ -79,5 +79,6 @@
   as (
     {{ sql }}
   )
+    {{ adapter.get_model_settings(model) }}
 {%- endmacro %}
 
