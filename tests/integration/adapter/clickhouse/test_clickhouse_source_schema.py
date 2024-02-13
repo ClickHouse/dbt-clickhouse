@@ -16,7 +16,10 @@ class TestSourceSchema:
     @pytest.fixture(scope="class")
     def models(self):
         sys_tables_sql = """
-                {{ config(order_by='(database, name)', engine='MergeTree()', materialized='table') }}
+                {{ config(order_by='(database, name)',
+                 engine='MergeTree()',
+                  materialized='table',
+                  settings={'allow_nullable_key': 1}) }}
 
                select database, name, engine, total_rows from {{ source('system_source', 'tables') }}
               """
