@@ -412,14 +412,11 @@ class ClickHouseAdapter(SQLAdapter):
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')
-        if len(res) == 0:
-            return ''
-        else:
-            settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
-            return f"""
-                        -- end_of_sql
-                        {settings_str}
-                        """
+        settings_str = '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+        return f"""
+                    -- end_of_sql
+                    {settings_str}
+                    """
 
     @available
     def get_model_query_settings(self, model):
