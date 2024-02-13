@@ -1,4 +1,5 @@
 import uuid
+import copy
 from abc import ABC, abstractmethod
 from typing import Dict
 
@@ -18,7 +19,7 @@ from dbt.adapters.clickhouse.util import compare_versions
 LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
 DEDUP_WINDOW_SETTING = 'replicated_deduplication_window'
-
+DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = ["table", "incremental", "ephemeral", "materialized_view"]
 
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
@@ -89,12 +90,20 @@ class ChClientWrapper(ABC):
         except Exception as ex:
             self.close()
             raise ex
-        self._model_settings = {}
+        self._model_settings = {
+            "table": {},
+            "view": {},
+            "incremental": {},
+            "ephemeral": {},
+            "materialized_view": {},
+            "general": {}
+        }
         if (
-            not credentials.allow_automatic_deduplication
-            and compare_versions(self._server_version(), '22.7.1.2484') >= 0
+                not credentials.allow_automatic_deduplication
+                and compare_versions(self._server_version(), '22.7.1.2484') >= 0
         ):
-            self._model_settings[DEDUP_WINDOW_SETTING] = '0'
+            for materialization in DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION:
+                self._model_settings[materialization][DEDUP_WINDOW_SETTING] = '0'
 
     @abstractmethod
     def query(self, sql: str, **kwargs):
@@ -131,8 +140,10 @@ class ChClientWrapper(ABC):
     def _server_version(self):
         pass
 
-    def update_model_settings(self, model_settings: Dict[str, str]):
-        for key, value in self._model_settings.items():
+    def update_model_settings(self, model_settings: Dict[str, str], materialization_type: str):
+        model_settings_to_add = copy.deepcopy(self._model_settings[materialization_type])
+        model_settings_to_add.update(self._model_settings['general'])
+        for key, value in model_settings_to_add.items():
             if key not in model_settings:
                 model_settings[key] = value
 

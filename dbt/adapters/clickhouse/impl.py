@@ -407,8 +407,9 @@ class ClickHouseAdapter(SQLAdapter):
     @available
     def get_model_settings(self, model):
         settings = model['config'].get('settings', {})
+        materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
-        conn.handle.update_model_settings(settings)
+        conn.handle.update_model_settings(settings, materialization_type)
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')
