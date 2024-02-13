@@ -1,3 +1,6 @@
+### Release [1.7.3], 2024-XX-XX
+#### Bug Fix
+- Fixed an [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/231) where passing settings to on view creation didn't work. 
 ### Release [1.7.2], 2024-02-09
 #### Bug Fix
 - Fixed an issue where Materialize Views would break with a custom schema.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer)
