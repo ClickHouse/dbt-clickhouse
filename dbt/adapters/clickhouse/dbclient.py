@@ -23,8 +23,9 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
     "table",
     "incremental",
     "ephemeral",
-    "materialized_view"
+    "materialized_view",
 ]
+
 
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
@@ -101,11 +102,11 @@ class ChClientWrapper(ABC):
             "incremental": {},
             "ephemeral": {},
             "materialized_view": {},
-            "general": {}
+            "general": {},
         }
         if (
-                not credentials.allow_automatic_deduplication
-                and compare_versions(self._server_version(), '22.7.1.2484') >= 0
+            not credentials.allow_automatic_deduplication
+            and compare_versions(self._server_version(), '22.7.1.2484') >= 0
         ):
             for materialization in DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION:
                 self._model_settings[materialization][DEDUP_WINDOW_SETTING] = '0'
