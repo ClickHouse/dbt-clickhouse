@@ -96,7 +96,7 @@ class ChClientWrapper(ABC):
         except Exception as ex:
             self.close()
             raise ex
-        self._model_settings = {
+        self._model_settings: Dict = {
             "table": {},
             "view": {},
             "incremental": {},
