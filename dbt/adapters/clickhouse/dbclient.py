@@ -19,7 +19,12 @@ from dbt.adapters.clickhouse.util import compare_versions
 LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
 DEDUP_WINDOW_SETTING = 'replicated_deduplication_window'
-DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = ["table", "incremental", "ephemeral", "materialized_view"]
+DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
+    "table",
+    "incremental",
+    "ephemeral",
+    "materialized_view"
+]
 
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
