@@ -102,6 +102,7 @@ class ChClientWrapper(ABC):
             "incremental": {},
             "ephemeral": {},
             "materialized_view": {},
+            "snapshot": {},
             "general": {},
         }
         if (
