@@ -1,8 +1,6 @@
-### Release [1.7.4], 2024-XX-XX
-#### Bug Fix
-- Fixed an [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/231) where passing settings to on view creation didn't work. 
-
-### Release [1.7.3], 2024-02-13
+### Release [1.7.3], 2024-03-11
+#### Bug Fixes
+- Fixed an [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/231) where passing settings to on view creation didn't work.
 - The `dbt test` command with a LIMIT clause were broken due to parsing error when having settings in the query ([issue](https://github.com/ClickHouse/dbt-clickhouse/issues/223)).
 We added a dedicated limit placer, that takes into account the settings section (using a comment flag `-- end_of_sql` within the query).
 
