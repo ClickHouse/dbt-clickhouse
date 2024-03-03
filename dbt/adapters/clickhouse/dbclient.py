@@ -103,6 +103,8 @@ class ChClientWrapper(ABC):
             "ephemeral": {},
             "materialized_view": {},
             "snapshot": {},
+            "distributed_table": {},
+            "distributed_incremental": {},
             "general": {},
         }
         if (
