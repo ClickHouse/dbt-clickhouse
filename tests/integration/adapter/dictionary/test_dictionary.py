@@ -141,7 +141,7 @@ class TestQueryDictionary:
 
         # insert some data and make sure it reaches the target dictionary
         project.run_sql(
-            f"""
+            """
         insert into people ("id", "name", "age", "department")
             values (1232,'Dade',11,'engineering'), (9999,'Eugene',40,'malware');
         """
