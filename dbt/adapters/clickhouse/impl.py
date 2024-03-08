@@ -11,7 +11,7 @@ from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySuppor
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ConstraintType, ModelLevelConstraint
-from dbt.contracts.relation import Path, RelationType
+from dbt.contracts.relation import Path
 from dbt.events.functions import warn_or_error
 from dbt.events.types import ConstraintNotSupported
 from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
@@ -28,7 +28,7 @@ from dbt.adapters.clickhouse.errors import (
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.clickhouse.relation import ClickHouseRelation
+from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
 from dbt.adapters.clickhouse.util import NewColumnDataType, compare_versions
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
@@ -271,10 +271,15 @@ class ClickHouseAdapter(SQLAdapter):
         relations = []
         for row in results:
             name, schema, type_info, db_engine, on_cluster = row
-            rel_type = RelationType.View if 'view' in type_info else RelationType.Table
+            if 'view' in type_info:
+                rel_type = ClickHouseRelationType.View
+            elif type_info == 'dictionary':
+                rel_type = ClickHouseRelationType.Dictionary
+            else:
+                rel_type = ClickHouseRelationType.Table
             can_exchange = (
                 conn_supports_exchange
-                and rel_type == RelationType.Table
+                and rel_type == ClickHouseRelationType.Table
                 and db_engine in ('Atomic', 'Replicated')
             )
 
@@ -444,6 +449,19 @@ class ClickHouseAdapter(SQLAdapter):
     @available.parse_none
     def format_columns(self, columns) -> List[Dict]:
         return [{'name': column.name, 'data_type': column.dtype} for column in columns]
+
+    @available
+    def get_credentials(self) -> Dict:
+        conn = self.connections.get_if_exists()
+        if conn is None or conn.credentials is None:
+            return dict()
+        return {
+            'user': conn.credentials.user,
+            'password': conn.credentials.password,
+            'database': conn.credentials.database,
+            'host': conn.credentials.host,
+            'port': conn.credentials.port,
+        }
 
     @classmethod
     def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:

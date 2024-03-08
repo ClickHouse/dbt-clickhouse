@@ -24,7 +24,11 @@
     select
       t.name as name,
       t.database as schema,
-      if(engine not in ('MaterializedView', 'View'), 'table', 'view') as type,
+      multiIf(
+        engine in ('MaterializedView', 'View'), 'view',
+        engine = 'Dictionary', 'dictionary',
+        'table'
+      ) as type,
       db.engine as db_engine,
       {%- if adapter.get_clickhouse_cluster_name() -%}
         count(distinct _shard_num) > 1  as  is_on_cluster
