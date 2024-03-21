@@ -3,7 +3,8 @@ from typing import Any, Dict, Optional, Type
 
 from dbt.adapters.base.relation import BaseRelation, Policy, Self
 from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt.contracts.relation import HasQuoting, Path, RelationType
+from dbt.contracts.relation import HasQuoting, Path
+from dbt.dataclass_schema import StrEnum
 from dbt.exceptions import DbtRuntimeError
 from dbt.utils import deep_merge, merge
 
@@ -24,8 +25,19 @@ class ClickHouseIncludePolicy(Policy):
     identifier: bool = True
 
 
+class ClickHouseRelationType(StrEnum):
+    Table = "table"
+    View = "view"
+    CTE = "cte"
+    MaterializedView = "materialized_view"
+    External = "external"
+    Ephemeral = "ephemeral"
+    Dictionary = "dictionary"
+
+
 @dataclass(frozen=True, eq=False, repr=False)
 class ClickHouseRelation(BaseRelation):
+    type: Optional[ClickHouseRelationType] = None
     quote_policy: Policy = field(default_factory=lambda: ClickHouseQuotePolicy())
     include_policy: Policy = field(default_factory=lambda: ClickHouseIncludePolicy())
     quote_character: str = '`'
@@ -42,7 +54,7 @@ class ClickHouseRelation(BaseRelation):
 
     def derivative(self, suffix: str, relation_type: Optional[str] = None) -> BaseRelation:
         path = Path(schema=self.path.schema, database='', identifier=self.path.identifier + suffix)
-        derivative_type = RelationType[relation_type] if relation_type else self.type
+        derivative_type = ClickHouseRelationType(relation_type) if relation_type else self.type
         return ClickHouseRelation(type=derivative_type, path=path)
 
     def matches(
