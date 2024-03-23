@@ -213,6 +213,10 @@ no corresponding REFRESH operation).  Instead, it acts as an "insert trigger", a
 (https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)  for an introductory example
 of how to use this functionality.
 
+# Dictionary materializations (experimental)
+See the tests in https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py for examples of how to
+implement materializations for ClickHouse dictionaries 
+
 # Distributed materializations
 
 Notes:
