@@ -1,3 +1,9 @@
+### Release [1.7.4], 2024-03-23
+#### Improvement
+- Adds support for materializing ClickHouse dictionaries.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer) for the contribution!
+See his excellent [tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py) 
+for example usage.
+
 ### Release [1.7.3], 2024-03-11
 #### Bug Fixes
 - Fixed an [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/231) where passing settings to on view creation didn't work.
