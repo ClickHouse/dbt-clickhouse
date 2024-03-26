@@ -35,7 +35,10 @@ class ChNativeClient(ChClientWrapper):
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
             _, columns = self._client.execute(
-                f"SELECT * FROM ({sql}) LIMIT 0", with_column_types=True
+                f"SELECT * FROM ( \n"
+                f"{sql} \n"
+                f") LIMIT 0",
+                with_column_types=True,
             )
             return [ClickHouseColumn.create(column[0], column[1]) for column in columns]
         except clickhouse_driver.errors.Error as ex:
