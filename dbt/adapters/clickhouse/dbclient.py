@@ -53,20 +53,20 @@ def get_db_client(credentials: ClickHouseCredentials):
             from dbt.adapters.clickhouse.nativeclient import ChNativeClient
 
             return ChNativeClient(credentials)
-        except ImportError:
+        except ImportError as ex:
             raise FailedToConnectError(
                 'Native adapter required but package clickhouse-driver is not installed'
-            )
+            ) from ex
     try:
         import clickhouse_connect  # noqa
 
         from dbt.adapters.clickhouse.httpclient import ChHttpClient
 
         return ChHttpClient(credentials)
-    except ImportError:
+    except ImportError as ex:
         raise FailedToConnectError(
             'HTTP adapter required but package clickhouse-connect is not installed'
-        )
+        ) from ex
 
 
 class ChRetryableException(Exception):
