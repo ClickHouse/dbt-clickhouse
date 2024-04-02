@@ -1,3 +1,9 @@
+### Release [1.7.5], 2024-04-02
+#### Bug Fixes
+- Requirements and tests upgraded to include Python 3.12.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/264
+- Model settings were not working correctly for customer materializations.  Thanks to original dbt-clickhouse [silentsokolov](https://github.com/silentsokolov)
+for the PR!
+
 ### Release [1.7.4], 2024-03-23
 #### Improvement
 - Adds support for materializing ClickHouse dictionaries.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer) for the contribution!
