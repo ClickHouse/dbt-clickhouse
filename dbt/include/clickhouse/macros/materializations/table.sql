@@ -135,7 +135,7 @@
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
     {% set create_table = create_table_or_empty(temporary, relation, sql, has_contract) %}
-    {% if adapter.is_before_version('22.7.1.2484') -%}
+    {% if adapter.is_before_version('22.7.1.2484') or 'Dictionary' in config.get('engine', '') -%}
         {{ create_table }}
     {%- else %}
         {% call statement('create_table_empty') %}
