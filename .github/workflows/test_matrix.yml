@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set environment variables
         if: ${{ matrix.clickhouse-version == '22.3' }}
@@ -50,7 +50,7 @@ jobs:
         run: REPLICA_NUM=1 docker-compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
       - name: Setup Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
