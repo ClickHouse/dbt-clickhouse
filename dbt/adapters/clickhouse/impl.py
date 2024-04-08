@@ -1,7 +1,7 @@
 import csv
 import io
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport

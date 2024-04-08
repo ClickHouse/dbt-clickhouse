@@ -1,7 +1,7 @@
 import re
 import time
 from contextlib import contextmanager
-from typing import Any, Optional, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import dbt.exceptions
 from dbt.adapters.sql import SQLConnectionManager
