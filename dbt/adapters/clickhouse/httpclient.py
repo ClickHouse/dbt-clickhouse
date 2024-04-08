@@ -26,9 +26,7 @@ class ChHttpClient(ChClientWrapper):
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
             query_result = self._client.query(
-                f"SELECT * FROM ( \n"
-                f"{sql} \n"
-                f") LIMIT 0",
+                f"SELECT * FROM ( \n" f"{sql} \n" f") LIMIT 0",
                 **kwargs,
             )
             return [
