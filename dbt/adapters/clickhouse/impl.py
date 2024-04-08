@@ -1,9 +1,8 @@
 import csv
 import io
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union, TYPE_CHECKING
 
-import agate
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -30,6 +29,9 @@ from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
 from dbt.adapters.clickhouse.util import NewColumnDataType, compare_versions
+
+if TYPE_CHECKING:
+    import agate
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
@@ -73,29 +75,31 @@ class ClickHouseAdapter(SQLAdapter):
         return 'now()'
 
     @classmethod
-    def convert_text_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_text_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'String'
 
     @classmethod
-    def convert_number_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_number_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        import agate
+
         decimals = agate_table.aggregate(agate.MaxPrecision(col_idx))
         # We match these type to the Column.TYPE_LABELS for consistency
         return 'Float32' if decimals else 'Int32'
 
     @classmethod
-    def convert_boolean_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_boolean_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'Bool'
 
     @classmethod
-    def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_datetime_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'DateTime'
 
     @classmethod
-    def convert_date_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_date_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'Date'
 
     @classmethod
-    def convert_time_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         raise NotImplementedError('`convert_time_type` is not implemented for this adapter!')
 
     @available.parse(lambda *a, **k: {})
@@ -308,13 +312,15 @@ class ClickHouseAdapter(SQLAdapter):
         except DbtRuntimeError:
             return None
 
-    def get_catalog(self, manifest) -> Tuple[agate.Table, List[Exception]]:
+    def get_catalog(self, manifest) -> Tuple["agate.Table", List[Exception]]:
+        from dbt.clients.agate_helper import empty_table
+
         relations = self._get_catalog_relations(manifest)
         schemas = set(relation.schema for relation in relations)
         if schemas:
             catalog = self._get_one_catalog(InformationSchema(Path()), schemas, manifest)
         else:
-            catalog = dbt.clients.agate_helper.empty_table()
+            catalog = empty_table()
         return catalog, []
 
     def get_filtered_catalog(
@@ -324,7 +330,7 @@ class ClickHouseAdapter(SQLAdapter):
         if relations and catalog:
             relation_map = {(r.schema, r.identifier) for r in relations}
 
-            def in_map(row: agate.Row):
+            def in_map(row: "agate.Row"):
                 s = _expect_row_value("table_schema", row)
                 i = _expect_row_value("table_name", row)
                 return (s, i) in relation_map
@@ -488,17 +494,17 @@ class ClickHouseDatabase:
     comment: str
 
 
-def _expect_row_value(key: str, row: agate.Row):
+def _expect_row_value(key: str, row: "agate.Row"):
     if key not in row.keys():
         raise DbtInternalError(f'Got a row without \'{key}\' column, columns: {row.keys()}')
 
     return row[key]
 
 
-def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
+def _catalog_filter_schemas(manifest: Manifest) -> Callable[["agate.Row"], bool]:
     schemas = frozenset((None, s) for d, s in manifest.get_used_schemas())
 
-    def test(row: agate.Row) -> bool:
+    def test(row: "agate.Row") -> bool:
         table_database = _expect_row_value('table_database', row)
         table_schema = _expect_row_value('table_schema', row)
         if table_schema is None:
