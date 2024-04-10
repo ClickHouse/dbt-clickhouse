@@ -79,7 +79,7 @@
 
 
 {% macro clickhouse_source(sql) %}
-  {%- set credentials = adapter.get_credentials() -%}
+  {%- set credentials = adapter.get_credentials(config.get("connection_overrides", {})) -%}
   {%- set table = config.get('table') -%}
   CLICKHOUSE(
       user '{{ credentials.get("user") }}'

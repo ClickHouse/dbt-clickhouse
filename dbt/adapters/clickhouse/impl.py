@@ -458,17 +458,24 @@ class ClickHouseAdapter(SQLAdapter):
         return [{'name': column.name, 'data_type': column.dtype} for column in columns]
 
     @available
-    def get_credentials(self) -> Dict:
+    def get_credentials(self, connection_overrides) -> Dict:
         conn = self.connections.get_if_exists()
         if conn is None or conn.credentials is None:
             return dict()
-        return {
+        credentials = {
             'user': conn.credentials.user,
             'password': conn.credentials.password,
             'database': conn.credentials.database,
             'host': conn.credentials.host,
             'port': conn.credentials.port,
         }
+        credentials.update(connection_overrides)
+
+        for key in connection_overrides.keys():
+            if not credentials[key]:
+                credentials.pop(key)
+
+        return credentials
 
     @classmethod
     def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
