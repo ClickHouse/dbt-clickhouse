@@ -58,8 +58,8 @@
     {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
-    {{ create_distributed_table(target_relation, target_relation_local) }}
-  {% endif %}
+  {% endif %}  
+    {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
   {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
@@ -85,7 +85,7 @@
    {%- set cluster = cluster[1:-1] -%}
    {%- set sharding = config.get('sharding_key') -%}
 
-    create table {{ relation }} {{ on_cluster_clause(relation) }} as {{ local_relation }}
+    create or replace table {{ relation }} {{ on_cluster_clause(relation) }} as {{ local_relation }}
     ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
     {%- if sharding is not none and sharding.strip() != '' -%}
         , {{ sharding }}
@@ -98,6 +98,7 @@
 {% macro create_empty_table_from_relation(relation, source_relation) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
   {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
+   
 
   {%- set col_list = [] -%}
   {% for col in columns %}
@@ -109,7 +110,7 @@
   {{ on_cluster_clause(relation) }} (
       {{col_list | join(', ')}}
   )
-
+  
   {{ engine_clause() }}
   {{ order_cols(label="order by") }}
   {{ primary_key_clause(label="primary key") }}
