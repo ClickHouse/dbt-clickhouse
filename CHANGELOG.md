@@ -1,7 +1,24 @@
+### Release [1.7.6], 2024-04-12
+#### Bug Fix
+- A bug in (experimental) Distributed Table model creation could lead to errors when there was a change in the model definition (see, e.g.,
+https://github.com/ClickHouse/dbt-clickhouse/issues/226).  Thanks to [Thomas Schmidt](https://github.com/Somtom) for the Fix!
+- A comment at the end of a model would break the query used to retrieve the result column datatypes.  Thanks to [triou](https://github.com/tevariou)
+for the bug report and the fix.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/256
+
+#### Improvements
+- The new materialization for ClickHouse dictionaries now takes an optional "credentials dictionary" argument that overrides the
+global credentials values for user, password, database, host, and port (including removing any of those values by adding empty values if not needed).
+This allows better control over creating dictionaries on different server.  Thanks to [Cristhian Garcia](https://github.com/Ian2012)
+for the PR!
+- A new `ttl` setting has been added to model configuration that will insert the provided ClickHouse TTL expression in the appropriate place.
+Thanks to [Evan Rusackas](https://github.com/rusackas) for the contribution!
+- The Agate library should now be lazy loaded.  This should modestly improve dbt startup times (after dbt-clickhouse is upgraded to dbt 1.8.x).
+Thanks to [Daniel Reeves](https://github.com/dwreeves) for PR.
+
 ### Release [1.7.5], 2024-04-02
 #### Bug Fixes
 - Requirements and tests upgraded to include Python 3.12.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/264
-- Model settings were not working correctly for customer materializations.  Thanks to original dbt-clickhouse [silentsokolov](https://github.com/silentsokolov)
+- Model settings were not working correctly for custom materializations.  Thanks to original dbt-clickhouse [silentsokolov](https://github.com/silentsokolov)
 for the PR!
 
 ### Release [1.7.4], 2024-03-23
