@@ -1,9 +1,8 @@
 import csv
 import io
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
-import agate
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
@@ -11,7 +10,7 @@ from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySuppor
 from dbt.adapters.sql import SQLAdapter
 from dbt.contracts.graph.manifest import Manifest
 from dbt.contracts.graph.nodes import ConstraintType, ModelLevelConstraint
-from dbt.contracts.relation import Path, RelationType
+from dbt.contracts.relation import Path
 from dbt.events.functions import warn_or_error
 from dbt.events.types import ConstraintNotSupported
 from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
@@ -28,8 +27,11 @@ from dbt.adapters.clickhouse.errors import (
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.clickhouse.relation import ClickHouseRelation
+from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
 from dbt.adapters.clickhouse.util import NewColumnDataType, compare_versions
+
+if TYPE_CHECKING:
+    import agate
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
@@ -41,6 +43,7 @@ class ClickHouseConfig(AdapterConfig):
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None
     sharding_key: Optional[Union[List[str], str]] = 'rand()'
+    ttl: Optional[Union[List[str], str]] = None
 
 
 class ClickHouseAdapter(SQLAdapter):
@@ -73,29 +76,31 @@ class ClickHouseAdapter(SQLAdapter):
         return 'now()'
 
     @classmethod
-    def convert_text_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_text_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'String'
 
     @classmethod
-    def convert_number_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_number_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
+        import agate
+
         decimals = agate_table.aggregate(agate.MaxPrecision(col_idx))
         # We match these type to the Column.TYPE_LABELS for consistency
         return 'Float32' if decimals else 'Int32'
 
     @classmethod
-    def convert_boolean_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_boolean_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'Bool'
 
     @classmethod
-    def convert_datetime_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_datetime_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'DateTime'
 
     @classmethod
-    def convert_date_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_date_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         return 'Date'
 
     @classmethod
-    def convert_time_type(cls, agate_table: agate.Table, col_idx: int) -> str:
+    def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         raise NotImplementedError('`convert_time_type` is not implemented for this adapter!')
 
     @available.parse(lambda *a, **k: {})
@@ -271,10 +276,15 @@ class ClickHouseAdapter(SQLAdapter):
         relations = []
         for row in results:
             name, schema, type_info, db_engine, on_cluster = row
-            rel_type = RelationType.View if 'view' in type_info else RelationType.Table
+            if 'view' in type_info:
+                rel_type = ClickHouseRelationType.View
+            elif type_info == 'dictionary':
+                rel_type = ClickHouseRelationType.Dictionary
+            else:
+                rel_type = ClickHouseRelationType.Table
             can_exchange = (
                 conn_supports_exchange
-                and rel_type == RelationType.Table
+                and rel_type == ClickHouseRelationType.Table
                 and db_engine in ('Atomic', 'Replicated')
             )
 
@@ -303,13 +313,15 @@ class ClickHouseAdapter(SQLAdapter):
         except DbtRuntimeError:
             return None
 
-    def get_catalog(self, manifest) -> Tuple[agate.Table, List[Exception]]:
+    def get_catalog(self, manifest) -> Tuple["agate.Table", List[Exception]]:
+        from dbt.clients.agate_helper import empty_table
+
         relations = self._get_catalog_relations(manifest)
         schemas = set(relation.schema for relation in relations)
         if schemas:
             catalog = self._get_one_catalog(InformationSchema(Path()), schemas, manifest)
         else:
-            catalog = dbt.clients.agate_helper.empty_table()
+            catalog = empty_table()
         return catalog, []
 
     def get_filtered_catalog(
@@ -319,7 +331,7 @@ class ClickHouseAdapter(SQLAdapter):
         if relations and catalog:
             relation_map = {(r.schema, r.identifier) for r in relations}
 
-            def in_map(row: agate.Row):
+            def in_map(row: "agate.Row"):
                 s = _expect_row_value("table_schema", row)
                 i = _expect_row_value("table_name", row)
                 return (s, i) in relation_map
@@ -407,12 +419,17 @@ class ClickHouseAdapter(SQLAdapter):
     @available
     def get_model_settings(self, model):
         settings = model['config'].get('settings', {})
+        materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
-        conn.handle.update_model_settings(settings)
+        conn.handle.update_model_settings(settings, materialization_type)
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')
-        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+        settings_str = '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+        return f"""
+                    -- end_of_sql
+                    {settings_str}
+                    """
 
     @available
     def get_model_query_settings(self, model):
@@ -420,7 +437,15 @@ class ClickHouseAdapter(SQLAdapter):
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')
-        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
+        if len(res) == 0:
+            return ''
+        else:
+            settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
+            return f"""
+            -- settings_section
+            {settings_str}
+            """
 
     @available.parse_none
     def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
@@ -431,6 +456,26 @@ class ClickHouseAdapter(SQLAdapter):
     @available.parse_none
     def format_columns(self, columns) -> List[Dict]:
         return [{'name': column.name, 'data_type': column.dtype} for column in columns]
+
+    @available
+    def get_credentials(self, connection_overrides) -> Dict:
+        conn = self.connections.get_if_exists()
+        if conn is None or conn.credentials is None:
+            return dict()
+        credentials = {
+            'user': conn.credentials.user,
+            'password': conn.credentials.password,
+            'database': conn.credentials.database,
+            'host': conn.credentials.host,
+            'port': conn.credentials.port,
+        }
+        credentials.update(connection_overrides)
+
+        for key in connection_overrides.keys():
+            if not credentials[key]:
+                credentials.pop(key)
+
+        return credentials
 
     @classmethod
     def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
@@ -457,17 +502,17 @@ class ClickHouseDatabase:
     comment: str
 
 
-def _expect_row_value(key: str, row: agate.Row):
+def _expect_row_value(key: str, row: "agate.Row"):
     if key not in row.keys():
         raise DbtInternalError(f'Got a row without \'{key}\' column, columns: {row.keys()}')
 
     return row[key]
 
 
-def _catalog_filter_schemas(manifest: Manifest) -> Callable[[agate.Row], bool]:
+def _catalog_filter_schemas(manifest: Manifest) -> Callable[["agate.Row"], bool]:
     schemas = frozenset((None, s) for d, s in manifest.get_used_schemas())
 
-    def test(row: agate.Row) -> bool:
+    def test(row: "agate.Row") -> bool:
         table_database = _expect_row_value('table_database', row)
         table_schema = _expect_row_value('table_schema', row)
         if table_schema is None:

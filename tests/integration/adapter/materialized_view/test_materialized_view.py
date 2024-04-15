@@ -25,6 +25,7 @@ MV_MODEL = """
        materialized='materialized_view',
        engine='MergeTree()',
        order_by='(id)',
+       schema='custom_schema',
 ) }}
 
 {% if var('run_type', '') == '' %}
@@ -92,6 +93,7 @@ class TestBasicMV:
         2. create a model as a materialized view, selecting from the table created in (1)
         3. insert data into the base table and make sure it's there in the target table created in (2)
         """
+        schema = quote_identifier(project.test_schema + "_custom_schema")
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
@@ -101,10 +103,10 @@ class TestBasicMV:
         results = run_dbt()
         assert len(results) == 1
 
-        columns = project.run_sql("DESCRIBE TABLE hackers", fetch="all")
+        columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
         assert columns[0][1] == "Int32"
 
-        columns = project.run_sql("DESCRIBE hackers_mv", fetch="all")
+        columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
         assert columns[0][1] == "Int32"
 
         check_relation_types(
@@ -123,7 +125,7 @@ class TestBasicMV:
         """
         )
 
-        result = project.run_sql("select count(*) from hackers", fetch="all")
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
         assert result[0][0] == 4
 
 
@@ -145,6 +147,7 @@ class TestUpdateMV:
         }
 
     def test_update(self, project):
+        schema = quote_identifier(project.test_schema + "_custom_schema")
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
@@ -162,6 +165,6 @@ class TestUpdateMV:
 
         # assert that we now have both of Dade's aliases in our hackers table
         result = project.run_sql(
-            "select distinct hacker_alias from hackers where name = 'Dade'", fetch="all"
+            f"select distinct hacker_alias from {schema}.hackers where name = 'Dade'", fetch="all"
         )
         assert len(result) == 2

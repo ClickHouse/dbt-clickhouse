@@ -1,3 +1,43 @@
+### Release [1.7.6], 2024-04-12
+#### Bug Fix
+- A bug in (experimental) Distributed Table model creation could lead to errors when there was a change in the model definition (see, e.g.,
+https://github.com/ClickHouse/dbt-clickhouse/issues/226).  Thanks to [Thomas Schmidt](https://github.com/Somtom) for the Fix!
+- A comment at the end of a model would break the query used to retrieve the result column datatypes.  Thanks to [triou](https://github.com/tevariou)
+for the bug report and the fix.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/256
+
+#### Improvements
+- The new materialization for ClickHouse dictionaries now takes an optional "credentials dictionary" argument that overrides the
+global credentials values for user, password, database, host, and port (including removing any of those values by adding empty values if not needed).
+This allows better control over creating dictionaries on different server.  Thanks to [Cristhian Garcia](https://github.com/Ian2012)
+for the PR!
+- A new `ttl` setting has been added to model configuration that will insert the provided ClickHouse TTL expression in the appropriate place.
+Thanks to [Evan Rusackas](https://github.com/rusackas) for the contribution!
+- The Agate library should now be lazy loaded.  This should modestly improve dbt startup times (after dbt-clickhouse is upgraded to dbt 1.8.x).
+Thanks to [Daniel Reeves](https://github.com/dwreeves) for PR.
+
+### Release [1.7.5], 2024-04-02
+#### Bug Fixes
+- Requirements and tests upgraded to include Python 3.12.  Closes https://github.com/ClickHouse/dbt-clickhouse/issues/264
+- Model settings were not working correctly for custom materializations.  Thanks to original dbt-clickhouse [silentsokolov](https://github.com/silentsokolov)
+for the PR!
+
+### Release [1.7.4], 2024-03-23
+#### Improvement
+- Adds support for materializing ClickHouse dictionaries.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer) for the contribution!
+See his excellent [tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py) 
+for example usage.
+
+### Release [1.7.3], 2024-03-11
+#### Bug Fixes
+- Fixed an [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/231) where passing settings to on view creation didn't work.
+- The `dbt test` command with a LIMIT clause were broken due to parsing error when having settings in the query ([issue](https://github.com/ClickHouse/dbt-clickhouse/issues/223)).
+We added a dedicated limit placer, that takes into account the settings section (using a comment flag `-- end_of_sql` within the query).
+
+### Release [1.7.2], 2024-02-09
+#### Bug Fix
+- Fixed an issue where Materialize Views would break with a custom schema.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer)
+for the PR!
+
 ### Release [1.7.1], 2023-12-13
 #### Bug Fixes
 - Some models with LIMIT clauses were broken in recent releases.  This has been fixed.  Thanks to
