@@ -188,11 +188,6 @@
           )
         {%- endif %}
     {%- endif %}
-    
-    {% set comment = config.get('comment') %}
-    {% if comment %}
-      COMMENT '{{ comment }}'
-    {%- endif %}
 
 {%- endmacro %}
 

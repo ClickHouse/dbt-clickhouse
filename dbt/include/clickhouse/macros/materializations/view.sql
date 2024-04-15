@@ -79,12 +79,6 @@
   as (
     {{ sql }}
   )
-
-    {% set comment = config.get('comment') %}
-    {% if comment %}
-      COMMENT '{{ comment }}'
-    {%- endif %}
-    
       {% if model.get('config').get('materialized') == 'view' %}
       {{ adapter.get_model_settings(model) }}
     {%- endif %}
