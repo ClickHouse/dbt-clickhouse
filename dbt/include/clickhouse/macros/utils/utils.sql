@@ -34,7 +34,7 @@
 
 
 {% macro clickhouse__bool_or(expression) -%}
-    any({{ expression }}) > 0
+    max({{ expression }}) > 0
 {%- endmacro %}
 
 
