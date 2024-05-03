@@ -81,7 +81,10 @@ class ClickHouseRelation(BaseRelation):
         cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = ''
     ) -> bool:
         if cluster.strip():
-            return 'view' == materialized or 'distributed' in materialized or 'Replicated' in engine
+            return materialized in ('view', 'dictionary') or \
+                'distributed' in materialized or \
+                'Replicated' in engine
+
         else:
             return False
 
