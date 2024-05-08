@@ -121,6 +121,12 @@
   {%- endif %}
 {%- endmacro -%}
 
+{% macro ttl_config(label) %}
+  {%- if config.get("ttl")%}
+    {{ label }} {{ config.get("ttl") }}
+  {%- endif %}
+{%- endmacro -%}
+
 {% macro on_cluster_clause(relation, force_sync) %}
   {% set active_cluster = adapter.get_clickhouse_cluster_name() %}
   {%- if active_cluster is not none and relation.should_on_cluster %}
@@ -170,6 +176,7 @@
         {{ order_cols(label="order by") }}
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
+        {{ ttl_config(label="ttl")}}
         {{ adapter.get_model_settings(model) }}
 
         {%- if not has_contract %}

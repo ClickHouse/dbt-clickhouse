@@ -102,6 +102,7 @@ your_profile_name:
 | incremental_predicates | Additional conditions to be applied to the incremental materialization (only applied to `delete+insert` strategy                                                                                                                                       |                |
 | settings               | A map/dictionary of "TABLE" settings to be used to DDL statements like 'CREATE TABLE' with this model                                                                                                                                                  |                |
 | query_settings         | A map/dictionary of ClickHouse user level settings to be used with `INSERT` or `DELETE` statements in conjunction with this model                                                                                                                      |                |
+| ttl                    | A TTL expression to be used with the table.  The TTL expression is a string that can be used to specify the TTL for the table.                                                                                                                         |                |
 
 ## ClickHouse Cluster 
 
@@ -179,6 +180,7 @@ The following macros are included to facilitate creating ClickHouse specific tab
 - `order_cols` -- Uses the `order_by` model configuration to assign a ClickHouse order by/sorting key.  If not specified ClickHouse will use an empty tuple() and the table will be unsorted
 - `primary_key_clause` -- Uses the `primary_key` model configuration property to assign a ClickHouse primary key.  By default, primary key is set and ClickHouse will use the order by clause as the primary key. 
 - `on_cluster_clause` -- Uses the `cluster` profile property to add an `ON CLUSTER` clause to certain dbt-operations: distributed materializations, views creation, database creation.
+- `ttl_config` -- Uses the `ttl` model configuration property to assign a ClickHouse table TTL expression.  No TTL is assigned by default.
 
 ### s3Source Helper Macro
 
@@ -212,6 +214,10 @@ no corresponding REFRESH operation).  Instead, it acts as an "insert trigger", a
 "transformation" in the view definition on rows inserted into the source table.  See the [test file]
 (https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)  for an introductory example
 of how to use this functionality.
+
+# Dictionary materializations (experimental)
+See the tests in https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py for examples of how to
+implement materializations for ClickHouse dictionaries 
 
 # Distributed materializations
 
