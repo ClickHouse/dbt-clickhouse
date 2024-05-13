@@ -202,6 +202,6 @@
           SELECT {{ dest_cols_csv }} FROM ( {{ sql }} )
   {%- else -%}
       {{ sql }}
-  {{ adapter.get_model_query_settings(model) }}
   {%- endif -%}
+  {{ adapter.get_model_query_settings(model) }}
 {%- endmacro %}
