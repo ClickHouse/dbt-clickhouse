@@ -82,16 +82,18 @@
   {%- set credentials = adapter.get_credentials(config.get("connection_overrides", {})) -%}
   {%- set table = config.get('table') -%}
   CLICKHOUSE(
+      {% if credentials.get("user") -%}
       user '{{ credentials.get("user") }}'
-      {% if credentials.get("password") != '' -%}
+      {%- endif %}
+      {% if credentials.get("password") -%}
       password '{{ credentials.get("password") }}'
       {%- endif %}
-      {% if credentials.get("database") != '' -%}
+      {% if credentials.get("database") -%}
       db '{{ credentials.get("database") }}'
       {%- endif %}
-      {% if credentials.get("host") != '' and credentials.get("host") != 'localhost' -%}
+      {% if credentials.get("host") and credentials.get("host") != 'localhost' -%}
       host '{{ credentials.get("host") }}'
-      {% if credentials.get("port") != '' -%}
+      {% if credentials.get("port") -%}
       port '{{ credentials.get("port") }}'
       {%- endif %}
       {%- endif %}
