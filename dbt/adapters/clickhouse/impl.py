@@ -455,7 +455,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available.parse_none
     def format_columns(self, columns) -> List[Dict]:
-        return [{'name': column.name, 'data_type': column.dtype} for column in columns]
+        return [{'name': column.name, 'data_type': column.data_type} for column in columns]
 
     @available
     def get_credentials(self, connection_overrides) -> Dict:

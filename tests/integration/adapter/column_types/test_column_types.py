@@ -52,10 +52,16 @@ class TestColumn:
     def test_low_cardinality_nullable_type(self):
         col = ClickHouseColumn(column='name', dtype='LowCardinality(Nullable(String))')
         verify_column_types(col, True, False, False, False)
-        assert repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
+        assert (
+            repr(col)
+            == '<ClickhouseColumn name (LowCardinality(Nullable(String)), is nullable: True)>'
+        )
         col = ClickHouseColumn(column='name', dtype='LowCardinality(Nullable(FixedString(16)))')
         verify_column_types(col, True, False, False, False)
-        assert repr(col) == '<ClickhouseColumn name (Nullable(String), is nullable: True)>'
+        assert (
+            repr(col)
+            == '<ClickhouseColumn name (LowCardinality(Nullable(String)), is nullable: True)>'
+        )
 
     def test_map_type(self):
         col = ClickHouseColumn(column='name', dtype='Map(String, UInt64)')
@@ -88,7 +94,8 @@ def verify_column(
     low_cardinality_col = ClickHouseColumn(column=name, dtype=f'LowCardinality({dtype})')
     verify_column_types(low_cardinality_col, is_string, is_numeric, is_float, is_int)
     assert (
-        repr(low_cardinality_col) == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
+        repr(low_cardinality_col)
+        == f'<ClickhouseColumn {name} (LowCardinality({data_type}), is nullable: False)>'
     )
     return col
 
