@@ -5,6 +5,7 @@
   {% endif %}
 
   {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
+  {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
 
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
@@ -14,8 +15,8 @@
      {% do exceptions.raise_compiler_error('To use distributed materialization cluster setting in dbt profile must be set') %}
   {% endif %}
 
-  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if existing_relation is not none else none %}
-  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix}) if target_relation is not none else none %}
+  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
+  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if target_relation is not none else none %}
 
   {%- set backup_relation = none -%}
   {%- set preexisting_backup_relation = none -%}
@@ -86,7 +87,7 @@
    {%- set sharding = config.get('sharding_key') -%}
 
     create or replace table {{ relation }} {{ on_cluster_clause(relation) }} as {{ local_relation }}
-    ENGINE = Distributed('{{ cluster}}', '{{ relation.schema }}', '{{ local_relation.name }}'
+    ENGINE = Distributed('{{ cluster}}', '{{ local_relation.schema }}', '{{ local_relation.name }}'
     {%- if sharding is not none and sharding.strip() != '' -%}
         , {{ sharding }}
     {%- else %}

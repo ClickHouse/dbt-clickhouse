@@ -129,6 +129,16 @@ class ClickHouseAdapter(SQLAdapter):
                 return f'{suffix}'
             return f'_{suffix}'
 
+    @available.parse(lambda *a, **k: {})
+    def get_clickhouse_local_db_prefix(self):
+        conn = self.connections.get_if_exists()
+        prefix = conn.credentials.local_db_prefix
+        if prefix:
+            if prefix.endswith('_'):
+                return f'{prefix}'
+            return f'{prefix}_'
+        return ''
+
     @available
     def clickhouse_db_engine_clause(self):
         conn = self.connections.get_if_exists()
