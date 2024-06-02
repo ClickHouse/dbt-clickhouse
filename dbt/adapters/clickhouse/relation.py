@@ -6,6 +6,12 @@ from dbt_common.dataclass_schema import StrEnum
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
 from dbt.adapters.clickhouse.query import quote_identifier
+from dbt.adapters.contracts.relation import (
+    HasQuoting,
+    RelationConfig
+)
+
+NODE_TYPE_SOURCE = 'source'
 
 
 @dataclass
@@ -82,52 +88,36 @@ class ClickHouseRelation(BaseRelation):
             return False
 
     @classmethod
-    def create_from_source(cls: Type[Self], source: SourceDefinition, **kwargs: Any) -> Self:
-        source_quoting = source.quoting.to_dict(omit_none=True)
-        source_quoting.pop("column", None)
+    def create_from(
+            cls: Type[Self],
+            quoting: HasQuoting,
+            relation_config: RelationConfig,
+            **kwargs: Any,
+    ) -> Self:
+        quote_policy = kwargs.pop("quote_policy", {})
+
+        config_quoting = relation_config.quoting_dict
+        config_quoting.pop("column", None)
+        # precedence: kwargs quoting > relation config quoting > base quoting > default quoting
         quote_policy = deep_merge(
             cls.get_default_quote_policy().to_dict(omit_none=True),
-            source_quoting,
-            kwargs.get("quote_policy", {}),
+            quoting.quoting,
+            config_quoting,
+            quote_policy,
         )
 
         # If the database is set, and the source schema is "defaulted" to the source.name, override the
         # schema with the database instead, since that's presumably what's intended for clickhouse
-        schema = source.schema
-        if schema == source.source_name and source.database:
-            schema = source.database
+        schema = relation_config.schema
+        # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
+        if relation_config.resource_type == NODE_TYPE_SOURCE:
+            if schema == relation_config.source_name and relation_config.database:
+                schema = relation_config.database
 
         return cls.create(
             database='',
             schema=schema,
-            identifier=source.identifier,
+            identifier=relation_config.identifier,
             quote_policy=quote_policy,
-            **kwargs,
-        )
-
-    @classmethod
-    def create_from_node(
-        cls: Type[Self],
-        config: HasQuoting,
-        node: ManifestNode,
-        quote_policy: Optional[Dict[str, bool]] = None,
-        **kwargs: Any,
-    ) -> Self:
-        if quote_policy is None:
-            quote_policy = {}
-
-        quote_policy = merge(config.quoting, quote_policy)
-
-        cluster = config.credentials.cluster if config.credentials.cluster else ''
-        materialized = node.get_materialization() if node.get_materialization() else ''
-        engine = node.config.get('engine') if node.config.get('engine') else ''
-        can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
-
-        return cls.create(
-            database='',
-            schema=node.schema,
-            identifier=node.alias,
-            quote_policy=quote_policy,
-            can_on_cluster=can_on_cluster,
             **kwargs,
         )
