@@ -1,7 +1,8 @@
 import csv
 import io
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union, FrozenSet, Iterable
+from multiprocessing.context import SpawnContext
 
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
@@ -68,8 +69,8 @@ class ClickHouseAdapter(SQLAdapter):
         }
     )
 
-    def __init__(self, config):
-        BaseAdapter.__init__(self, config)
+    def __init__(self, config, mp_context: SpawnContext):
+        BaseAdapter.__init__(self, config, mp_context)
         self.cache = ClickHouseRelationsCache()
 
     @classmethod
