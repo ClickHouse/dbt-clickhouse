@@ -325,9 +325,9 @@ class ClickHouseAdapter(SQLAdapter):
             return None
 
     def get_catalog(
-            self,
-            relation_configs: Iterable[RelationConfig],
-            used_schemas: FrozenSet[Tuple[str, str]],
+        self,
+        relation_configs: Iterable[RelationConfig],
+        used_schemas: FrozenSet[Tuple[str, str]],
     ) -> Tuple["agate.Table", List[Exception]]:
         from dbt_common.clients.agate_helper import empty_table
 
@@ -341,9 +341,9 @@ class ClickHouseAdapter(SQLAdapter):
 
     def get_filtered_catalog(
         self,
-            relation_configs: Iterable[RelationConfig],
-            used_schemas: FrozenSet[Tuple[str, str]],
-            relations: Optional[Set[BaseRelation]] = None,
+        relation_configs: Iterable[RelationConfig],
+        used_schemas: FrozenSet[Tuple[str, str]],
+        relations: Optional[Set[BaseRelation]] = None,
     ):
         catalog, exceptions = self.get_catalog(relation_configs, used_schemas)
         if relations and catalog:
@@ -530,10 +530,12 @@ def _expect_row_value(key: str, row: "agate.Row"):
     return row[key]
 
 
-def _catalog_filter_schemas(used_schemas: FrozenSet[Tuple[str, str]]) -> Callable[["agate.Row"], bool]:
+def _catalog_filter_schemas(
+        used_schemas: FrozenSet[Tuple[str, str]]
+) -> Callable[["agate.Row"], bool]:
     """Return a function that takes a row and decides if the row should be
-      included in the catalog output.
-      """
+    included in the catalog output.
+    """
     schemas = frozenset((d.lower(), s.lower()) for d, s in used_schemas)
 
     def test(row: "agate.Row") -> bool:

@@ -158,9 +158,9 @@ class ClickHouseRelationsCache:
         self.log_cache_events = log_cache_events
 
     def add_schema(
-            self,
-            _database: Optional[str],
-            schema: Optional[str],
+        self,
+        _database: Optional[str],
+        schema: Optional[str],
     ) -> None:
         """Add a schema to the set of known schemas (case-insensitive)
 
@@ -170,9 +170,9 @@ class ClickHouseRelationsCache:
         self.schemas.add(schema)
 
     def drop_schema(
-            self,
-            _database: Optional[str],
-            schema: Optional[str],
+        self,
+        _database: Optional[str],
+        schema: Optional[str],
     ) -> None:
         """Drop the given schema and remove it from the set of known schemas.
 
