@@ -1,22 +1,31 @@
 import csv
 import io
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set, Tuple, Union, FrozenSet, Iterable
 from multiprocessing.context import SpawnContext
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
-from dbt.adapters.sql import SQLAdapter
-from dbt.adapters.contracts.relation import RelationConfig
-from dbt_common.contracts.constraints import ConstraintType
-from dbt_common.contracts.constraints import ModelLevelConstraint
-from dbt.adapters.contracts.relation import Path
-from dbt_common.events.functions import warn_or_error
+from dbt.adapters.contracts.relation import Path, RelationConfig
 from dbt.adapters.events.types import ConstraintNotSupported
-from dbt_common.exceptions import DbtInternalError, DbtRuntimeError
-from dbt_common.exceptions import NotImplementedError
+from dbt.adapters.sql import SQLAdapter
+from dbt_common.contracts.constraints import ConstraintType, ModelLevelConstraint
+from dbt_common.events.functions import warn_or_error
+from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
 from dbt_common.utils import filter_null_values
 
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache

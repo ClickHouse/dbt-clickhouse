@@ -2,9 +2,9 @@ from typing import List
 
 import clickhouse_connect
 from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError
+from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt_common.exceptions import DbtDatabaseError
 
-from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt.adapters.clickhouse import ClickHouseColumn
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException

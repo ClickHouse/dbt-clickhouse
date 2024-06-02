@@ -4,8 +4,8 @@ import clickhouse_driver
 import pkg_resources
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
 from dbt.adapters.__about__ import version as dbt_adapters_version
-
 from dbt_common.exceptions import DbtDatabaseError
+
 from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException

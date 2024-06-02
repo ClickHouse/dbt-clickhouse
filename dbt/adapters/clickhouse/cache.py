@@ -3,13 +3,13 @@ from collections import namedtuple
 from copy import deepcopy
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
-from dbt_common.events.functions import fire_event, fire_event_if
 from dbt.adapters.events.types import CacheAction, CacheDumpGraph
 from dbt.adapters.exceptions import (
     NewNameAlreadyInCacheError,
     NoneRelationFoundError,
     TruncatedModelNameCausedCollisionError,
 )
+from dbt_common.events.functions import fire_event, fire_event_if
 
 ReferenceKey = namedtuple("ReferenceKey", "schema identifier")
 
