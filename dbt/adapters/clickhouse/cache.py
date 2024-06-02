@@ -10,7 +10,6 @@ from dbt.adapters.exceptions import (
     NoneRelationFoundError,
     TruncatedModelNameCausedCollisionError,
 )
-from dbt.flags import get_flags
 
 ReferenceKey = namedtuple("ReferenceKey", "schema identifier")
 
@@ -152,15 +151,16 @@ class ClickHouseRelationsCache:
     :attr Set[str] schemas: The set of known/cached schemas
     """
 
-    def __init__(self) -> None:
+    def __init__(self, log_cache_events: bool = False) -> None:
         self.relations: Dict[ReferenceKey, CachedRelation] = {}
         self.lock = threading.RLock()
         self.schemas: Set[Optional[str]] = set()
+        self.log_cache_events = log_cache_events
 
     def add_schema(
-        self,
-        _database: Optional[str],
-        schema: Optional[str],
+            self,
+            _database: Optional[str],
+            schema: Optional[str],
     ) -> None:
         """Add a schema to the set of known schemas (case-insensitive)
 
@@ -170,9 +170,9 @@ class ClickHouseRelationsCache:
         self.schemas.add(schema)
 
     def drop_schema(
-        self,
-        _database: Optional[str],
-        schema: Optional[str],
+            self,
+            _database: Optional[str],
+            schema: Optional[str],
     ) -> None:
         """Drop the given schema and remove it from the set of known schemas.
 
@@ -233,10 +233,9 @@ class ClickHouseRelationsCache:
 
         :param BaseRelation relation: The underlying relation.
         """
-        flags = get_flags()
         cached = CachedRelation(relation)
         fire_event_if(
-            flags.LOG_CACHE_EVENTS,
+            self.log_cache_events,
             lambda: CacheDumpGraph(before_after="before", action="adding", dump=self.dump_graph()),
         )
         fire_event(CacheAction(action="add_relation", ref_key=_make_ref_key_dict(cached)))
@@ -244,7 +243,7 @@ class ClickHouseRelationsCache:
         with self.lock:
             self._setdefault(cached)
         fire_event_if(
-            flags.LOG_CACHE_EVENTS,
+            self.log_cache_events,
             lambda: CacheDumpGraph(before_after="after", action="adding", dump=self.dump_graph()),
         )
 
@@ -368,9 +367,8 @@ class ClickHouseRelationsCache:
                 ref_key_2=new_key._asdict(),
             )
         )
-        flags = get_flags()
         fire_event_if(
-            flags.LOG_CACHE_EVENTS,
+            self.log_cache_events,
             lambda: CacheDumpGraph(before_after="before", action="rename", dump=self.dump_graph()),
         )
 
@@ -381,7 +379,7 @@ class ClickHouseRelationsCache:
                 self._setdefault(CachedRelation(new))
 
         fire_event_if(
-            flags.LOG_CACHE_EVENTS,
+            self.log_cache_events,
             lambda: CacheDumpGraph(before_after="after", action="rename", dump=self.dump_graph()),
         )
 
