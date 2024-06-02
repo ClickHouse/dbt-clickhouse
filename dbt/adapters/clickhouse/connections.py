@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import dbt.exceptions
 from dbt.adapters.sql import SQLConnectionManager
-from dbt.contracts.connection import AdapterResponse, Connection
+from dbt.adapters.contracts.connection import AdapterResponse, Connection
 
 from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
 from dbt.adapters.clickhouse.logger import logger
@@ -68,7 +68,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         :param response: ClickHouse query result
         :param column_names: Table column names
         """
-        from dbt.clients.agate_helper import table_from_data_flat
+        from dbt_common.clients.agate_helper import table_from_data_flat
 
         data = []
         for row in response:
@@ -101,7 +101,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
                     query_result.result_set, query_result.column_names
                 )
             else:
-                from dbt.clients.agate_helper import empty_table
+                from dbt_common.clients.agate_helper import empty_table
 
                 table = empty_table()
             return AdapterResponse(_message=status), table

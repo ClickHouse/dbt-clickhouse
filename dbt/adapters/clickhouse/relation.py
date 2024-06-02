@@ -1,13 +1,10 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Type
 
-from dbt.adapters.base.relation import BaseRelation, Policy, Self
-from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt.contracts.relation import HasQuoting, Path
-from dbt.dataclass_schema import StrEnum
-from dbt.exceptions import DbtRuntimeError
-from dbt.utils import deep_merge, merge
-
+from dbt.adapters.base.relation import BaseRelation, Policy, Self, Path
+from dbt_common.dataclass_schema import StrEnum
+from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.utils import deep_merge
 from dbt.adapters.clickhouse.query import quote_identifier
 
 

@@ -2,8 +2,7 @@ from typing import List
 
 import clickhouse_connect
 from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError
-from dbt.exceptions import DbtDatabaseError
-from dbt.version import __version__ as dbt_version
+from dbt_common.exceptions import DbtDatabaseError
 
 from dbt.adapters.clickhouse import ClickHouseColumn
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version

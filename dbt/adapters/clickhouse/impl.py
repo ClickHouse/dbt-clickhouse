@@ -8,15 +8,16 @@ from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 from dbt.adapters.sql import SQLAdapter
-from dbt.contracts.graph.manifest import Manifest
-from dbt.contracts.graph.nodes import ConstraintType, ModelLevelConstraint
-from dbt.contracts.relation import Path
-from dbt.events.functions import warn_or_error
-from dbt.events.types import ConstraintNotSupported
-from dbt.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
-from dbt.utils import filter_null_values
+from dbt.adapters.contracts.relation import RelationConfig
+from dbt_common.contracts.constraints import ConstraintType
+from dbt_common.contracts.constraints import ModelLevelConstraint
+from dbt.adapters.contracts.relation import Path
+from dbt_common.events.functions import warn_or_error
+from dbt.adapters.events.types import ConstraintNotSupported
+from dbt_common.exceptions import DbtInternalError, DbtRuntimeError
+from dbt_common.exceptions import NotImplementedError
+from dbt_common.utils import filter_null_values
 
-import dbt
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
