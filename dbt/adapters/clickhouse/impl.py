@@ -315,21 +315,28 @@ class ClickHouseAdapter(SQLAdapter):
         except DbtRuntimeError:
             return None
 
-    def get_catalog(self, manifest) -> Tuple["agate.Table", List[Exception]]:
-        from dbt.clients.agate_helper import empty_table
+    def get_catalog(
+            self,
+            relation_configs: Iterable[RelationConfig],
+            used_schemas: FrozenSet[Tuple[str, str]],
+    ) -> Tuple["agate.Table", List[Exception]]:
+        from dbt_common.clients.agate_helper import empty_table
 
-        relations = self._get_catalog_relations(manifest)
+        relations = self._get_catalog_relations(relation_configs)
         schemas = set(relation.schema for relation in relations)
         if schemas:
-            catalog = self._get_one_catalog(InformationSchema(Path()), schemas, manifest)
+            catalog = self._get_one_catalog(InformationSchema(Path()), schemas, used_schemas)
         else:
             catalog = empty_table()
         return catalog, []
 
     def get_filtered_catalog(
-        self, manifest: Manifest, relations: Optional[Set[BaseRelation]] = None
+        self,
+            relation_configs: Iterable[RelationConfig],
+            used_schemas: FrozenSet[Tuple[str, str]],
+            relations: Optional[Set[BaseRelation]] = None,
     ):
-        catalog, exceptions = self.get_catalog(manifest)
+        catalog, exceptions = self.get_catalog(relation_configs, used_schemas)
         if relations and catalog:
             relation_map = {(r.schema, r.identifier) for r in relations}
 
@@ -514,8 +521,11 @@ def _expect_row_value(key: str, row: "agate.Row"):
     return row[key]
 
 
-def _catalog_filter_schemas(manifest: Manifest) -> Callable[["agate.Row"], bool]:
-    schemas = frozenset((None, s) for d, s in manifest.get_used_schemas())
+def _catalog_filter_schemas(used_schemas: FrozenSet[Tuple[str, str]]) -> Callable[["agate.Row"], bool]:
+    """Return a function that takes a row and decides if the row should be
+      included in the catalog output.
+      """
+    schemas = frozenset((d.lower(), s.lower()) for d, s in used_schemas)
 
     def test(row: "agate.Row") -> bool:
         table_database = _expect_row_value('table_database', row)
