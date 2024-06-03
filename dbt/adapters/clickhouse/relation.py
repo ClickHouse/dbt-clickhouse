@@ -115,8 +115,12 @@ class ClickHouseRelation(BaseRelation):
 
         else:
             cluster = quoting.credentials.cluster if quoting.credentials.cluster else ''
-            materialized = relation_config.config.materialized if relation_config.config.materialized else ''
-            engine = relation_config.config.get('engine') if relation_config.config.get('engine') else ''
+            materialized = (
+                relation_config.config.materialized if relation_config.config.materialized else ''
+            )
+            engine = (
+                relation_config.config.get('engine') if relation_config.config.get('engine') else ''
+            )
             can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
 
         return cls.create(
