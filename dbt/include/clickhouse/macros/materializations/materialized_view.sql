@@ -45,9 +45,17 @@
     {% call statement('drop existing materialized view') %}
       drop view if exists {{ mv_relation }} {{ cluster_clause }}
     {% endcall %}
-    {% call statement('main') -%}
-      {{ get_create_table_as_sql(False, backup_relation, sql) }}
-    {%- endcall %}
+    {% if should_full_refresh() %}
+      {% call statement('main') -%}
+        {{ get_create_table_as_sql(False, backup_relation, sql) }}
+      {%- endcall %}
+      {% do exchange_tables_atomic(backup_relation, existing_relation) %}
+    {% else %}
+      -- we need to have a 'main' statement
+      {% call statement('main') -%}
+        select 1
+      {%- endcall %}
+    {% endif %}
     {% do exchange_tables_atomic(backup_relation, existing_relation) %}
     {% call statement('create new materialized view') %}
       {{ clickhouse__create_mv_sql(mv_relation, existing_relation, cluster_clause, sql) }}
