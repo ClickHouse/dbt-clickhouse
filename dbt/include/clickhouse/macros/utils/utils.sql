@@ -63,11 +63,15 @@
 {% endmacro %}
 
 
-{% macro clickhouse__listagg(measure, delimiter_text, order_by_clause, limit_num) %}
-  {{ exceptions.raise_compiler_error(
-    'ClickHouse does not support the listagg function.  See the groupArray function instead')
-    }}
-{% endmacro %}
+{% macro clickhouse__listagg(measure, delimiter_text, order_by_clause, limit_num) -%}
+    {% set arr = "array_agg({})".format(measure) %}
+    {% set arr = "arraySort({}, {})".format(arr, order_by_clause) if order_by_clause else arr %}
+    {% if limit_num -%}
+      arrayStringConcat('{{delimiter_text}}', arraySlice({{ arr }}, 1, {{ limit_num }}))
+    {% else -%}
+      arrayStringConcat('{{delimiter_text}}', {{ arr }})
+    {%- endif %}
+{%- endmacro %}
 
 
 {% macro clickhouse__array_construct(inputs, data_type) -%}
