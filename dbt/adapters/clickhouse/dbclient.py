@@ -3,7 +3,8 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Dict
 
-from dbt.exceptions import DbtConfigError, DbtDatabaseError, FailedToConnectError
+from dbt.adapters.exceptions import FailedToConnectError
+from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.errors import (

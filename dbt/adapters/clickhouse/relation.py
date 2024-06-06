@@ -1,14 +1,15 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, Optional, Type
 
-from dbt.adapters.base.relation import BaseRelation, Policy, Self
-from dbt.contracts.graph.nodes import ManifestNode, SourceDefinition
-from dbt.contracts.relation import HasQuoting, Path
-from dbt.dataclass_schema import StrEnum
-from dbt.exceptions import DbtRuntimeError
-from dbt.utils import deep_merge, merge
+from dbt.adapters.base.relation import BaseRelation, Path, Policy, Self
+from dbt.adapters.contracts.relation import HasQuoting, RelationConfig
+from dbt_common.dataclass_schema import StrEnum
+from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.utils import deep_merge
 
 from dbt.adapters.clickhouse.query import quote_identifier
+
+NODE_TYPE_SOURCE = 'source'
 
 
 @dataclass
@@ -85,51 +86,47 @@ class ClickHouseRelation(BaseRelation):
             return False
 
     @classmethod
-    def create_from_source(cls: Type[Self], source: SourceDefinition, **kwargs: Any) -> Self:
-        source_quoting = source.quoting.to_dict(omit_none=True)
-        source_quoting.pop("column", None)
+    def create_from(
+        cls: Type[Self],
+        quoting: HasQuoting,
+        relation_config: RelationConfig,
+        **kwargs: Any,
+    ) -> Self:
+        quote_policy = kwargs.pop("quote_policy", {})
+
+        config_quoting = relation_config.quoting_dict
+        config_quoting.pop("column", None)
+        # precedence: kwargs quoting > relation config quoting > base quoting > default quoting
         quote_policy = deep_merge(
             cls.get_default_quote_policy().to_dict(omit_none=True),
-            source_quoting,
-            kwargs.get("quote_policy", {}),
+            quoting.quoting,
+            config_quoting,
+            quote_policy,
         )
 
         # If the database is set, and the source schema is "defaulted" to the source.name, override the
         # schema with the database instead, since that's presumably what's intended for clickhouse
-        schema = source.schema
-        if schema == source.source_name and source.database:
-            schema = source.database
+        schema = relation_config.schema
+        can_on_cluster = None
+        # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
+        if relation_config.resource_type == NODE_TYPE_SOURCE:
+            if schema == relation_config.source_name and relation_config.database:
+                schema = relation_config.database
+
+        else:
+            cluster = quoting.credentials.cluster if quoting.credentials.cluster else ''
+            materialized = (
+                relation_config.config.materialized if relation_config.config.materialized else ''
+            )
+            engine = (
+                relation_config.config.get('engine') if relation_config.config.get('engine') else ''
+            )
+            can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
 
         return cls.create(
             database='',
             schema=schema,
-            identifier=source.identifier,
-            quote_policy=quote_policy,
-            **kwargs,
-        )
-
-    @classmethod
-    def create_from_node(
-        cls: Type[Self],
-        config: HasQuoting,
-        node: ManifestNode,
-        quote_policy: Optional[Dict[str, bool]] = None,
-        **kwargs: Any,
-    ) -> Self:
-        if quote_policy is None:
-            quote_policy = {}
-
-        quote_policy = merge(config.quoting, quote_policy)
-
-        cluster = config.credentials.cluster if config.credentials.cluster else ''
-        materialized = node.get_materialization() if node.get_materialization() else ''
-        engine = node.config.get('engine') if node.config.get('engine') else ''
-        can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
-
-        return cls.create(
-            database='',
-            schema=node.schema,
-            identifier=node.alias,
+            identifier=relation_config.identifier,
             quote_policy=quote_policy,
             can_on_cluster=can_on_cluster,
             **kwargs,
