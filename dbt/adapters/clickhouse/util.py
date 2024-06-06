@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from dbt.exceptions import DbtRuntimeError
+from dbt_common.exceptions import DbtRuntimeError
 
 
 def compare_versions(v1: str, v2: str) -> int:

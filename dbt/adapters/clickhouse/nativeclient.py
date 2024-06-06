@@ -3,8 +3,8 @@ from typing import List
 import clickhouse_driver
 import pkg_resources
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
-from dbt.exceptions import DbtDatabaseError
-from dbt.version import __version__ as dbt_version
+from dbt.adapters.__about__ import version as dbt_adapters_version
+from dbt_common.exceptions import DbtDatabaseError
 
 from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
@@ -61,7 +61,7 @@ class ChNativeClient(ChClientWrapper):
             port=credentials.port,
             user=credentials.user,
             password=credentials.password,
-            client_name=f'dbt/{dbt_version} dbt-clickhouse/{dbt_clickhouse_version} clickhouse-driver/{driver_version}',
+            client_name=f'dbt-adapters/{dbt_adapters_version} dbt-clickhouse/{dbt_clickhouse_version} clickhouse-driver/{driver_version}',
             secure=credentials.secure,
             verify=credentials.verify,
             connect_timeout=credentials.connect_timeout,

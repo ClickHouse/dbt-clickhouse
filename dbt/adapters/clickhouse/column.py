@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import Any, TypeVar
 
 from dbt.adapters.base.column import Column
-from dbt.exceptions import DbtRuntimeError
+from dbt_common.exceptions import DbtRuntimeError
 
 Self = TypeVar('Self', bound='ClickHouseColumn')
 
