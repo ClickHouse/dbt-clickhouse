@@ -67,9 +67,9 @@
     {% set arr = "array_agg({})".format(measure) %}
     {% set arr = "arraySort({}, {})".format(arr, order_by_clause) if order_by_clause else arr %}
     {% if limit_num -%}
-      arrayStringConcat('{{delimiter_text}}', arraySlice({{ arr }}, 1, {{ limit_num }}))
+      arrayStringConcat(arraySlice({{ arr }}, 1, {{ limit_num }}), {{delimiter_text}})
     {% else -%}
-      arrayStringConcat('{{delimiter_text}}', {{ arr }})
+      arrayStringConcat({{ arr }}, {{delimiter_text}})
     {%- endif %}
 {%- endmacro %}
 
