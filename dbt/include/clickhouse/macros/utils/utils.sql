@@ -64,8 +64,12 @@
 
 
 {% macro clickhouse__listagg(measure, delimiter_text, order_by_clause, limit_num) -%}
-    {% set arr = "array_agg({})".format(measure) %}
-    {% set arr = "arraySort({}, {})".format(arr, order_by_clause) if order_by_clause else arr %}
+    {% if order_by_clause -%}
+      {% set arr = "arrayMap(x -> x.1, arraySort(x -> x.2, arrayZip(array_agg({}), array_agg({}))))".format(arr, order_by_clause) %}
+    {% else -%}
+      {% set arr = "array_agg({})".format(measure) %}
+    {%- endif %}
+
     {% if limit_num -%}
       arrayStringConcat(arraySlice({{ arr }}, 1, {{ limit_num }}), {{delimiter_text}})
     {% else -%}
