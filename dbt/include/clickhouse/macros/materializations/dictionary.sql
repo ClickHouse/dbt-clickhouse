@@ -91,12 +91,6 @@
       {% if credentials.get("database") -%}
       db '{{ credentials.get("database") }}'
       {%- endif %}
-      {% if credentials.get("host") and credentials.get("host") != 'localhost' -%}
-      host '{{ credentials.get("host") }}'
-      {% if credentials.get("port") -%}
-      port '{{ credentials.get("port") }}'
-      {%- endif %}
-      {%- endif %}
       {%- if table is not none %}
         table '{{ table }}'
       {% else %}

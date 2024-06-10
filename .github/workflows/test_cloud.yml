@@ -8,23 +8,23 @@ on:  # yamllint disable-line rule:truthy
   workflow_dispatch:
 
 jobs:
-  cloud_tests:
-    name: ClickHouse Cloud Tests
+  cloud_smt_tests:
+    name: ClickHouse Cloud SharedMergeTree Tests
     runs-on: ubuntu-latest
 
     env:
       PYTHONPATH: dbt
-      DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST }}
-      DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD }}
+      DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST_SMT }}
+      DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD_SMT }}
       DBT_CH_TEST_CLUSTER_MODE: true
       DBT_CH_TEST_CLOUD: true
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Python 3.11
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 

@@ -179,6 +179,9 @@ class BasePersistDocsCommentOnQuotedColumn:
 
     @pytest.fixture(scope="class")
     def run_has_comments(self, project):
+        if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
+            pytest.skip('Not running comment test for cloud')
+
         def fixt():
             run_dbt()
             run_dbt(["docs", "generate"])
