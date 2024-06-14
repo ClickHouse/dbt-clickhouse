@@ -230,7 +230,7 @@
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
     {% call statement('insert_new_data') %}
         insert into {{ existing_relation }} select {{ dest_cols_csv }} from {{ inserting_relation }} {{ adapter.get_model_query_settings(model) }}
-            {% endcall %}
+    {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
 {% endmacro %}
