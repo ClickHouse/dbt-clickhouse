@@ -69,6 +69,7 @@ class ChNativeClient(ChClientWrapper):
             sync_request_timeout=credentials.sync_request_timeout,
             compress_block_size=credentials.compress_block_size,
             compression=False if credentials.compression == '' else credentials.compression,
+            tcp_keepalive=credentials.tcp_keepalive,
             settings=self._conn_settings,
         )
         try:

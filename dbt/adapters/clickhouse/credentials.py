@@ -34,6 +34,7 @@ class ClickHouseCredentials(Credentials):
     use_lw_deletes: bool = False
     local_suffix: str = 'local'
     allow_automatic_deduplication: bool = False
+    tcp_keepalive: Optional[bool | tuple[int, int, int]] = False
 
     @property
     def type(self):
@@ -53,6 +54,10 @@ class ClickHouseCredentials(Credentials):
                 f' schema.'
             )
         self.database = ''
+
+        # clickhouse_driver expects tcp_keepalive to be a tuple if it's not a boolean
+        if isinstance(self.tcp_keepalive, list):
+            self.tcp_keepalive = tuple(self.tcp_keepalive)
 
     def _connection_keys(self):
         return (
@@ -75,4 +80,5 @@ class ClickHouseCredentials(Credentials):
             'custom_settings',
             'use_lw_deletes',
             'allow_automatic_deduplication',
+            'tcp_keepalive',
         )

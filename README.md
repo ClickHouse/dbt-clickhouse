@@ -79,6 +79,7 @@ your_profile_name:
       check_exchange: [True] # Validate that clickhouse support the atomic EXCHANGE TABLES command.  (Not needed for most ClickHouse versions)
       local_suffix [_local] # Table suffix of local tables on shards for distributed materializations.
       allow_automatic_deduplication [False] # Enable ClickHouse automatic deduplication for Replicated tables
+      tcp_keepalive [False]: # Native client only, specify TCP keepalive configuration. Specify custom keepalive settings as [idle_time_sec, interval_sec, probes].
       custom_settings: [{}] # A dictionary/mapping of custom ClickHouse settings for the connection - default is empty.
       
       # Native (clickhouse-driver) connection settings
