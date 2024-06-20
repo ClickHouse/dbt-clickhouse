@@ -146,7 +146,7 @@ class TestUpdateMV:
             "hackers.sql": MV_MODEL,
         }
 
-    def test_update(self, project):
+    def test_update_incremental(self, project):
         schema = quote_identifier(project.test_schema + "_custom_schema")
         # create our initial materialized view
         run_dbt(["seed"])
@@ -155,6 +155,29 @@ class TestUpdateMV:
         # re-run dbt but this time with the new MV SQL
         run_vars = {"run_type": "extended_schema"}
         run_dbt(["run", "--vars", json.dumps(run_vars)])
+
+        project.run_sql(
+            f"""
+        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+            values (1232,'Dade',11,'engineering'), (9999,'eugene',40,'malware');
+        """
+        )
+
+        # assert that we now have both of Dade's aliases in our hackers table
+        result = project.run_sql(
+            f"select distinct hacker_alias from {schema}.hackers where name = 'Dade'", fetch="all"
+        )
+        assert len(result) == 2
+
+    def test_update_full_refresh(self, project):
+        schema = quote_identifier(project.test_schema + "_custom_schema")
+        # create our initial materialized view
+        run_dbt(["seed"])
+        run_dbt()
+
+        # re-run dbt but this time with the new MV SQL
+        run_vars = {"run_type": "extended_schema"}
+        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
             f"""
