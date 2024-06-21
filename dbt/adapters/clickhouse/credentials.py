@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from dbt.adapters.contracts.connection import Credentials
 from dbt_common.exceptions import DbtRuntimeError
@@ -34,7 +34,7 @@ class ClickHouseCredentials(Credentials):
     use_lw_deletes: bool = False
     local_suffix: str = 'local'
     allow_automatic_deduplication: bool = False
-    tcp_keepalive: Optional[bool | tuple[int, int, int]] = False
+    tcp_keepalive: Union[bool, tuple[int, int, int], list[int]] = False
 
     @property
     def type(self):
