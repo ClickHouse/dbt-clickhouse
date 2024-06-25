@@ -122,6 +122,7 @@
 {% macro create_distributed_local_table(distributed_relation, shard_relation, structure_relation, sql_query=none) -%}
   {{ drop_relation_if_exists(shard_relation) }}
   {{ drop_relation_if_exists(distributed_relation) }}
+  {{ create_schema(shard_relation) }}
   {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
   {% if sql_query is not none %}

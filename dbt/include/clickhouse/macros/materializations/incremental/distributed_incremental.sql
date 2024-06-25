@@ -30,6 +30,8 @@
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
   {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
 
+
+  {{ create_schema(target_relation_local) }}
   {%- set intermediate_relation = make_intermediate_relation(target_relation_local)-%}
   {%- set distributed_intermediate_relation = make_intermediate_relation(target_relation)-%}
   {%- set backup_relation_type = 'table' if existing_relation is none else existing_relation.type -%}
