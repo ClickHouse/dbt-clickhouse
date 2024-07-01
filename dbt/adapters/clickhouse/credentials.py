@@ -33,6 +33,7 @@ class ClickHouseCredentials(Credentials):
     custom_settings: Optional[Dict[str, Any]] = None
     use_lw_deletes: bool = False
     local_suffix: str = 'local'
+    local_db_prefix: str = ''
     allow_automatic_deduplication: bool = False
     tcp_keepalive: Union[bool, tuple[int, int, int], list[int]] = False
 
