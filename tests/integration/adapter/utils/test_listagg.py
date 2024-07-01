@@ -36,4 +36,3 @@ class TestListagg:
         assert results[0] == (3, 'g_|_g_|_g', 'bottom_ordered')
         assert results[1] == (2, '1_|_a_|_p', 'bottom_ordered')
         assert results[2] == (1, 'a_|_b_|_c', 'bottom_ordered')
-
