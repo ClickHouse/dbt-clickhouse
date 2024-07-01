@@ -8,7 +8,7 @@ from dbt.tests.util import run_dbt
 models__test_listagg_sql = """
   select
   group_col,
-  {{listagg('string_text', "'_|_'", "order by order_col")}} as actual,
+  {{listagg('string_text', "'_|_'", "order_col")}} as actual,
   'bottom_ordered' as version
 from {{ ref('data_listagg') }} group by group_col
 """
@@ -29,4 +29,11 @@ class TestListagg:
         }
 
     def test_listagg_run(self, project):
-        run_dbt(["build"], False)
+        run_dbt(["seed"])
+        run_dbt()
+        results = project.run_sql("select * from test_listagg", fetch="all")
+        assert len(results) == 3
+        assert results[0] == (3, 'g_|_g_|_g', 'bottom_ordered')
+        assert results[1] == (2, '1_|_a_|_p', 'bottom_ordered')
+        assert results[2] == (1, 'a_|_b_|_c', 'bottom_ordered')
+
