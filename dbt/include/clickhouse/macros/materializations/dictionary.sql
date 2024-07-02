@@ -7,20 +7,21 @@
   {%- set backup_relation_type = 'dictionary' if existing_relation is none else existing_relation.type -%}
   {%- set backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set existing_backup_relation = load_cached_relation(backup_relation) -%}
+  {%- set cluster_clause = on_cluster_clause(target_relation) -%}
 
   {%- set grant_config = config.get('grants') -%}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
-  {{ drop_dictionary_if_exists(existing_backup_relation) }}
-  {{ drop_dictionary_if_exists(existing_intermediate_relation) }}
+  {{ drop_dictionary_if_exists(existing_backup_relation, cluster_clause) }}
+  {{ drop_dictionary_if_exists(existing_intermediate_relation, cluster_clause) }}
 
 
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   {# create our new dictionary #}
   {% call statement('main') -%}
-    {{ clickhouse__get_create_dictionary_as_sql(intermediate_relation, sql) }}
+    {{ clickhouse__get_create_dictionary_as_sql(intermediate_relation, cluster_clause, sql) }}
   {%- endcall %}
 
   {# cleanup #}
@@ -50,11 +51,11 @@
 {%- endmaterialization -%}
 
 
-{% macro clickhouse__get_create_dictionary_as_sql(relation, sql) %}
+{% macro clickhouse__get_create_dictionary_as_sql(relation, cluster_clause, sql) %}
   {%- set fields = config.get('fields') -%}
   {%- set source_type = config.get('source_type') -%}
 
-  CREATE DICTIONARY {{ relation }} {{ on_cluster_clause(relation) }}
+  CREATE DICTIONARY {{ relation }} {{ cluster_clause }}
   (
   {%- for (name, data_type) in fields -%}
     {{ name }} {{ data_type }}{%- if not loop.last -%},{%- endif -%}
@@ -100,13 +101,13 @@
 {% endmacro %}
 
 
-{% macro drop_dictionary_if_exists(relation) %}
+{% macro drop_dictionary_if_exists(relation, cluster_clause) %}
   {% if relation.type != 'dictionary' %}
     {{ log(relation ~ ' is not a dictionary; defaulting to drop_relation_if_exists') }}
     {{ drop_relation_if_exists(relation) }}
   {% else %}
     {% call statement('drop_dictionary_if_exists') %}
-      drop dictionary if exists {{ relation }}
+      drop dictionary if exists {{ relation }} {{ cluster_clause }}
     {% endcall %}
   {% endif %}
 {% endmacro %}
