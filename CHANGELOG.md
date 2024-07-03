@@ -1,3 +1,7 @@
+### Unreleased
+#### Bug Fix
+- ClickHouse dictionaries are now correctly created "on cluster" when a cluster is defined.
+
 ### Release [1.7.6], 2024-04-12
 #### Bug Fix
 - A bug in (experimental) Distributed Table model creation could lead to errors when there was a change in the model definition (see, e.g.,
