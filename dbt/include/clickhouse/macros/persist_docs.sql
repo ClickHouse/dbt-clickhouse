@@ -18,6 +18,12 @@
     {% do alter_comments.append("modify comment {comment}".format(comment=escaped_comment)) %}
   {%- endif -%}
 
+  {%- if alter_comments | length > 0 -%}
+    {% do run_query(one_alter_relation(relation, alter_comments|join(', '))) %}
+  {%- endif -%}
+
+  {%- set alter_comments = [] %}
+  
   {%- if for_columns and config.persist_column_docs() and model.columns -%}
     {% set existing_columns = adapter.get_columns_in_relation(relation) | map(attribute="name") | list %}
     {% for column_name in model.columns if (column_name in existing_columns) %}
