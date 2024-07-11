@@ -106,6 +106,13 @@ your_profile_name:
 | query_settings         | A map/dictionary of ClickHouse user level settings to be used with `INSERT` or `DELETE` statements in conjunction with this model                                                                                                                      |                |
 | ttl                    | A TTL expression to be used with the table.  The TTL expression is a string that can be used to specify the TTL for the table.                                                                                                                         |                |
 
+
+## Column Configuration
+
+| Option | Description                                                                                                                                                | Default if any |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be interpreted as `CODEC(Delta, ZSTD)`. |                |
+
 ## ClickHouse Cluster 
 
 The `cluster` setting in profile enables dbt-clickhouse to run against a ClickHouse cluster.
