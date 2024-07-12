@@ -64,7 +64,7 @@
 
 
 {% macro clickhouse__listagg(measure, delimiter_text, order_by_clause, limit_num) -%}
-    {% if order_by_clause and 'order by' == ' '.join(order_by_clause.split()[:2]) -%}
+    {% if order_by_clause and 'order by' == ' '.join(order_by_clause.split()[:2]).lower() -%}
       {% set order_by_clause_tokens = order_by_clause.split() %}
       {% if ',' in order_by_clause_tokens %}
         {{ exceptions.raise_compiler_error(
@@ -72,13 +72,13 @@
         }}
       {%- endif  %}
       {% set order_by_clause_tokens = order_by_clause_tokens[2:] %}
-      {% set sort_direction = 'Reverse' %}
-      {% if 'asc' in order_by_clause_tokens[1:] %}
-        {% set sort_direction = '' %}
+      {% set sort_direction = '' %}
+      {% if 'asc' in ''.join(order_by_clause_tokens[1:]).lower() %}
+        {% set sort_direction = 'Reverse' %}
       {% endif %}
       {% set order_by_field = order_by_clause_tokens[0] %}
 
-      {% set arr = "arrayMap(x -> x.1, array{}Sort(x -> x.2, arrayZip(array_agg({}), array_agg({}))))".format(sort_direction, arr, order_by_field) %}
+      {% set arr = "arrayMap(x -> x.1, array{}Sort(x -> x.2, arrayZip(array_agg({}), array_agg({}))))".format(sort_direction, measure, order_by_field) %}
     {% else -%}
       {% set arr = "array_agg({})".format(measure) %}
     {%- endif %}
