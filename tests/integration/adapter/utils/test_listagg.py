@@ -1,12 +1,10 @@
 import pytest
-
-from dbt.tests.adapter.utils.test_listagg import BaseListagg
 from dbt.tests.adapter.utils.fixture_listagg import (
     models__test_listagg_yml,
     seeds__data_listagg_csv,
 )
+from dbt.tests.adapter.utils.test_listagg import BaseListagg
 from dbt.tests.util import run_dbt
-
 
 models__test_listagg_custom_sql = """
 select
