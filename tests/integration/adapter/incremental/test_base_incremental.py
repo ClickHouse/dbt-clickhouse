@@ -214,7 +214,10 @@ class TestInsertReplaceIncremental:
 
     def test_insert_overwrite_incremental(self, project):
         run_dbt()
-        result = project.run_sql("select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey", fetch="all")
+        result = project.run_sql(
+            "select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey",
+            fetch="all",
+        )
         assert result == [
             (1, 'p1', 1, 'a'),
             (1, 'p1', 1, 'b'),
@@ -222,7 +225,10 @@ class TestInsertReplaceIncremental:
             (2, 'p2', 1, 'd'),
         ]
         run_dbt()
-        result = project.run_sql("select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey", fetch="all")
+        result = project.run_sql(
+            "select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey",
+            fetch="all",
+        )
         assert result == [
             (1, 'p1', 2, 'e'),
             (2, 'p1', 1, 'c'),
