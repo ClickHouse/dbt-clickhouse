@@ -100,7 +100,7 @@ your_profile_name:
 | primary_key            | Like order_by, a ClickHouse primary key expression.  If not specified, ClickHouse will use the order by expression as the primary key                                                                                                                                                                                |                |
 | unique_key             | A tuple of column names that uniquely identify rows.  Used with incremental models for updates.                                                                                                                                                                                                                      |                |
 | inserts_only           | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way. If `inserts_only` is set, `incremental_strategy` is ignored. |                |
-| incremental_strategy   | Incremental model update strategy: `delete+insert`, `append`, or `insert+replace`.  See the following Incremental Model Strategies                                                                                                                                                                                   | `default`      |
+| incremental_strategy   | Incremental model update strategy: `delete+insert`, `append`, or `insert_overwrite`.  See the following Incremental Model Strategies                                                                                                                                                                                 | `default`      |
 | incremental_predicates | Additional conditions to be applied to the incremental materialization (only applied to `delete+insert` strategy                                                                                                                                                                                                     |                |
 | settings               | A map/dictionary of "TABLE" settings to be used to DDL statements like 'CREATE TABLE' with this model                                                                                                                                                                                                                |                |
 | query_settings         | A map/dictionary of ClickHouse user level settings to be used with `INSERT` or `DELETE` statements in conjunction with this model                                                                                                                                                                                    |                |
@@ -172,7 +172,7 @@ This strategy replaces the `inserts_only` setting in previous versions of dbt-cl
 As a result duplicate rows are not eliminated, and there is no temporary or intermediate table.  It is the fastest approach if duplicates are either permitted
 in the data or excluded by the incremental query WHERE clause/filter.
 
-### The Insert+Replace Strategy
+### The insert_overwrite Strategy
 
 Performs the following steps:
 1. Create a staging (temporary) table with the same structure as the incremental model relation: `CREATE TABLE <staging> AS <target>`.

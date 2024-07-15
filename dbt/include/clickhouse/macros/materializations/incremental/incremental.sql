@@ -44,11 +44,11 @@
   {% elif
       inserts_only
       or unique_key is none
-      and config.get('incremental_strategy', none) != 'insert+replace' -%}
+      and config.get('incremental_strategy', none) != 'insert_overwrite' -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
-    -- Insert+replace strategy does not require unique_key => is an exception.
+    -- insert_overwrite strategy does not require unique_key => is an exception.
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
     {% endcall %}
@@ -78,7 +78,7 @@
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
       {% endcall %}
-    {% elif incremental_strategy == 'insert_replace' %}#}
+    {% elif incremental_strategy == 'insert_overwrite' %}#}
       {%- set partition_by = config.get('partition_by') -%}
       {% if partition_by is none or partition_by|length == 0 %}
         {% do exceptions.raise_compiler_error(incremental_strategy + ' strategy requires nonempty partition_by. Current partition_by is ' ~ partition_by) %}
@@ -86,7 +86,7 @@
       {% if inserts_only or unique_key is not none or incremental_predicates is not none %}
       	{% do exceptions.raise_compiler_error(incremental_strategy + ' strategy does not support inserts_only, unique_key, and incremental predicates.') %}
       {% endif %}
-      {% do clickhouse__incremental_insert_replace(existing_relation, intermediate_relation, partition_by) %} %}
+      {% do clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %} %}
     {% endif %}
   {% endif %}
 
@@ -248,7 +248,7 @@
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
 {% endmacro %}
 
-{% macro clickhouse__incremental_insert_replace(existing_relation, intermediate_relation, partition_by) %}
+{% macro clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %}
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}

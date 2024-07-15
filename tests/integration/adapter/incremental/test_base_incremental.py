@@ -183,10 +183,10 @@ class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
         }
 
 
-insert_replace_inc = """
+insert_overwrite_inc = """
 {{ config(
         materialized='incremental',
-        incremental_strategy='insert+replace',
+        incremental_strategy='insert_overwrite',
         partition_by=['partitionKey1', 'partitionKey2'],
         order_by=['orderKey'],
     )
@@ -210,11 +210,11 @@ insert_replace_inc = """
 class TestInsertReplaceIncremental:
     @pytest.fixture(scope="class")
     def models(self):
-        return {"insert_replace_inc.sql": insert_replace_inc}
+        return {"insert_overwrite_inc.sql": insert_overwrite_inc}
 
-    def test_insert_replace_incremental(self, project):
+    def test_insert_overwrite_incremental(self, project):
         run_dbt()
-        result = project.run_sql("select * from insert_replace_inc order by partitionKey1, partitionKey2, orderKey", fetch="all")
+        result = project.run_sql("select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey", fetch="all")
         assert result == [
             (1, 'p1', 1, 'a'),
             (1, 'p1', 1, 'b'),
@@ -222,7 +222,7 @@ class TestInsertReplaceIncremental:
             (2, 'p2', 1, 'd'),
         ]
         run_dbt()
-        result = project.run_sql("select * from insert_replace_inc order by partitionKey1, partitionKey2, orderKey", fetch="all")
+        result = project.run_sql("select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey", fetch="all")
         assert result == [
             (1, 'p1', 2, 'e'),
             (2, 'p1', 1, 'c'),

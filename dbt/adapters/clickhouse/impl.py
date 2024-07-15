@@ -179,7 +179,7 @@ class ClickHouseAdapter(SQLAdapter):
         if not strategy or strategy == 'default':
             strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
         strategy = strategy.replace('+', '_')
-        if strategy not in ['legacy', 'append', 'delete_insert', 'insert_replace']:
+        if strategy not in ['legacy', 'append', 'delete_insert', 'insert_overwrite']:
             raise DbtRuntimeError(
                 f"The incremental strategy '{strategy}' is not valid for ClickHouse"
             )
