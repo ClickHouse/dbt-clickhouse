@@ -64,8 +64,21 @@
 
 
 {% macro clickhouse__listagg(measure, delimiter_text, order_by_clause, limit_num) -%}
-    {% if order_by_clause -%}
-      {% set arr = "arrayMap(x -> x.1, arraySort(x -> x.2, arrayZip(array_agg({}), array_agg({}))))".format(measure, order_by_clause) %}
+    {% if order_by_clause and 'order by' == ' '.join(order_by_clause.split()[:2]).lower() -%}
+      {% set order_by_clause_tokens = order_by_clause.split() %}
+      {% if ',' in order_by_clause_tokens %}
+        {{ exceptions.raise_compiler_error(
+          'ClickHouse does not support multiple order by fields.')
+        }}
+      {%- endif  %}
+      {% set order_by_clause_tokens = order_by_clause_tokens[2:] %}
+      {% set sort_direction = '' %}
+      {% if 'desc' in ''.join(order_by_clause_tokens[1:]).lower() %}
+        {% set sort_direction = 'Reverse' %}
+      {% endif %}
+      {% set order_by_field = order_by_clause_tokens[0] %}
+
+      {% set arr = "arrayMap(x -> x.1, array{}Sort(x -> x.2, arrayZip(array_agg({}), array_agg({}))))".format(sort_direction, measure, order_by_field) %}
     {% else -%}
       {% set arr = "array_agg({})".format(measure) %}
     {%- endif %}
