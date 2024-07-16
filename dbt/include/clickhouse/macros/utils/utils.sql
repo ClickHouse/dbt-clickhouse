@@ -73,7 +73,7 @@
       {%- endif  %}
       {% set order_by_clause_tokens = order_by_clause_tokens[2:] %}
       {% set sort_direction = '' %}
-      {% if 'asc' in ''.join(order_by_clause_tokens[1:]).lower() %}
+      {% if 'desc' in ''.join(order_by_clause_tokens[1:]).lower() %}
         {% set sort_direction = 'Reverse' %}
       {% endif %}
       {% set order_by_field = order_by_clause_tokens[0] %}

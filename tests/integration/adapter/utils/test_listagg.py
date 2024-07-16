@@ -9,7 +9,7 @@ from dbt.tests.util import run_dbt
 models__test_listagg_custom_sql = """
 select
   group_col,
-  {{ listagg('string_text', "'_|_'", "ORDER BY order_col ASC", 2) }} as actual,
+  {{ listagg('string_text', "'_|_'", "ORDER BY order_col DESC", 2) }} as actual,
   'top_ordered_limited' as version
 from {{ ref('data_listagg') }} group by group_col
 """
