@@ -154,12 +154,23 @@
     -- table.
     {%- set source_columns = adapter.get_columns_in_relation(existing_relation) -%}
     {%- set source_columns_csv = source_columns | map(attribute='quoted') | join(', ') -%}
+
+    -- Existing table does not have any of the new columns that have been added to the unique_key, so we remove them
+    {% set old_unique_key = [] %}
+    {%- for source_column in source_columns -%}
+        {%- if source_column.name in ( unique_key.split(',') | map('trim') ) -%}
+            {{ old_unique_key.append(source_column.quoted) }}
+        {%- endif -%}
+    {%- endfor -%}
+
+    {%- set old_unique_key_csv = old_unique_key | join(', ') -%}
+
     {% call statement('insert_existing_data') %}
         insert into {{ inserted_relation }} ({{ source_columns_csv }})
         select {{ source_columns_csv }}
         from {{ existing_relation }}
-          where ({{ unique_key }}) not in (
-            select {{ unique_key }}
+          where ({{ old_unique_key_csv }}) not in (
+            select {{ old_unique_key_csv }}
             from {{ inserting_relation }}
           )
        {{ adapter.get_model_query_settings(model) }}
