@@ -78,6 +78,7 @@
     {%- endif %}
   as (
     {{ sql }}
+    {{ adapter.get_model_query_settings(model) }}
   )
       {% if model.get('config').get('materialized') == 'view' %}
       {{ adapter.get_model_settings(model) }}
