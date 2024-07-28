@@ -1,6 +1,31 @@
-### Unreleased
+### Release [1.8.1], 2024-07-11
 #### Bug Fix
-- ClickHouse dictionaries are now correctly created "on cluster" when a cluster is defined.
+* Refresh materialized_view table only if `--full-refresh` is specified.
+* Fix temporary table creation to support dbt unit tests.
+* ClickHouse dictionaries are now correctly created "on cluster" when a cluster is defined.
+#### Improvements
+* Added database prefix option for local tables of distributed tables (until this change, only a suffix was supported).
+* You can now customize tcp_keepalive configuration for native connections.
+* Implement listagg ([groupArray](https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/grouparray)) macro.
+
+### Release [1.8.0], 2024-06-13
+#### Improvements
+- Upgrade the connector to use dbt-core 1.8.0. More info about this upgrade can be found [here](https://github.com/dbt-labs/dbt-adapters/discussions/87).
+
+Beginning in v1.8, dbt-core and adapters are decoupled. Going forward, your installations should explicitly include both dbt-core and the desired adapter. The new pip installation command should look like this:
+
+```pip install dbt-core dbt-clickhouse```
+
+
+### Release [1.7.7], 2024-05-31
+#### Bug Fix
+- Fix bool_or behavior (a cross-database dbt macro ).
+- Fix query_settings for models with contracts.
+- Fix the option to use Nullable and LowCardinality in column constraints.
+- Specifying an empty or null value for a connection_overrides field produces invalid DDL for the dictionary materialization. A fix was introduced in this release.
+
+#### Improvements
+- The connector is now supporting [column codecs](https://clickhouse.com/blog/optimize-clickhouse-codecs-compression-schema#specialized-codecs).
 
 ### Release [1.7.6], 2024-04-12
 #### Bug Fix

@@ -12,6 +12,12 @@ Replicated tables or the related `ON CLUSTER` functionality.
 ## Installation
 
 Use your favorite Python package manager to install the app from PyPI, e.g.
+```bash
+pip install dbt-core dbt-clickhouse
+```
+
+> **_NOTE:_**  Beginning in v1.8, dbt-core and adapters are decoupled. Therefore, the installation mentioned above explicitly includes both dbt-core and the desired adapter.If you use a version prior to 1.8.0 the pip installation command should look like this:
+ 
 
 ```bash
 pip install dbt-clickhouse
