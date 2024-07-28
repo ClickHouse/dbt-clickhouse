@@ -126,7 +126,17 @@ if `cluster` is set in profile, `on_cluster_clause` now will return cluster info
 - Distributed materializations
 - Models with Replicated engines
 
-table and incremental materializations with non-replicated engine will not be affected by `cluster` setting (model would be created on the connected node only).
+By default, tables and incremental materializations with non-replicated engines will not be affected by the `cluster` setting (model would be created on the connected node only).
+
+To force relations to be created on a cluster regardless of their engine or materialization, use the `force_on_cluster` argument:
+```sql
+{{ config(
+        engine='Null',
+        materialized='materialized_view',
+        force_on_cluster='true'
+    )
+}}
+```
 
 ### Compatibility
 
