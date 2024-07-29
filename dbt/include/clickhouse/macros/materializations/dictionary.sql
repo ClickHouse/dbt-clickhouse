@@ -42,7 +42,7 @@
 
   {{ adapter.commit() }}
 
-  {{ drop_dictionary_if_exists(backup_relation) }}
+  {{ drop_dictionary_if_exists(backup_relation, cluster_clause) }}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
