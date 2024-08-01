@@ -55,11 +55,9 @@
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
-      {%- if column_changes %}
-        {%- if incremental_strategy in ('append', 'delete_insert') %}
-          {% set incremental_strategy = 'legacy' %}
-          {{ log('Schema changes detected, switching to legacy incremental strategy') }}
-        {%- endif %}
+      {% if column_changes and incremental_strategy != 'legacy' %}
+        {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
+        {% set existing_relation = load_cached_relation(this) %}
       {% endif %}
     {% endif %}
     {% if incremental_strategy != 'delete_insert' and incremental_predicates %}

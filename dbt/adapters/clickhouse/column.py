@@ -1,6 +1,6 @@
 import re
-from dataclasses import dataclass
-from typing import Any, TypeVar
+from dataclasses import dataclass, field
+from typing import Any, TypeVar, Literal, List
 
 from dbt.adapters.base.column import Column
 from dbt_common.exceptions import DbtRuntimeError
@@ -134,3 +134,33 @@ class ClickHouseColumn(Column):
             inner_dtype = null_match.group(1)
 
         return inner_dtype
+
+
+@dataclass(frozen=True)
+class ClickHouseColumnChanges:
+    on_schema_change: Literal['ignore', 'fail', 'append_new_columns', 'sync_all_columns']
+    columns_to_add: List[Column] = field(default_factory=list)
+    columns_to_drop: List[Column] = field(default_factory=list)
+    columns_to_modify: List[Column] = field(default_factory=list)
+
+    def __bool__(self) -> bool:
+        return bool(self.columns_to_add or self.columns_to_drop or self.columns_to_modify)
+
+    @property
+    def has_schema_changes(self) -> bool:
+        return bool(self)
+
+    @property
+    def has_sync_changes(self) -> bool:
+        return bool(self.columns_to_drop or self.columns_to_modify)
+
+    @property
+    def has_conflicting_changes(self) -> bool:
+        if self.on_schema_change == 'fail' and self.has_schema_changes:
+            return True
+
+        if self.on_schema_change != 'sync_all_columns' and self.has_sync_changes:
+            return True
+
+        return False
+
