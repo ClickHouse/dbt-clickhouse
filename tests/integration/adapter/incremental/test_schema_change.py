@@ -142,3 +142,45 @@ class TestComplexSchemaChange:
         assert result_types[0] == 'Float32'
         assert result[0][1] == 0
         assert result[3][1] == 5
+
+
+out_of_order_columns_sql = """
+{{
+    config(
+        materialized='%s',
+        unique_key='col_1',
+        on_schema_change='fail'
+    )
+}}
+
+{%% if not is_incremental() %%}
+select
+    number as col_1,
+    number + 1 as col_2
+from numbers(3)
+{%% else %%}
+select
+    number + 1 as col_2,
+    number as col_1
+from numbers(2, 3)
+{%% endif %%}
+"""
+
+
+class TestReordering:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "out_of_order_columns.sql": out_of_order_columns_sql % "incremental",
+            "out_of_order_columns_distributed.sql": out_of_order_columns_sql % "distributed_incremental",
+        }
+
+    @pytest.mark.parametrize("model", ("out_of_order_columns", "out_of_order_columns_distributed"))
+    def test_reordering(self, project, model):
+        run_dbt(["run", "--select", model])
+        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+        assert result[0][1] == 1
+        run_dbt(["run", "--select", model])
+        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+        assert result[0][1] == 1
+        assert result[3][1] == 4
