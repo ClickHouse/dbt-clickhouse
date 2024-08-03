@@ -5,7 +5,7 @@ schema_change_sql = """
 {{
     config(
         materialized='incremental',
-        unique_key='col_1',
+        unique_key='col_1' + var('extra_unique_keys',''),
         on_schema_change='%schema_change%'
     )
 }}
@@ -61,11 +61,30 @@ class TestOnSchemaChange:
         assert 'out of sync' in log_output.lower()
 
     def test_append(self, project):
-        run_dbt(["run", "--select", "schema_change_append"])
+        run_dbt(["run", "--full-refresh", "--select", "schema_change_append"])
         result = project.run_sql("select * from schema_change_append order by col_1", fetch="all")
         assert len(result) == 3
         assert result[0][1] == 1
         run_dbt(["--debug", "run", "--select", "schema_change_append"])
+        result = project.run_sql("select * from schema_change_append order by col_1", fetch="all")
+        assert result[0][2] == 0
+        assert result[3][2] == 5
+
+    def test_append_unique_key(self, project):
+        run_dbt(["run", "--full-refresh", "--select", "schema_change_append"])
+        result = project.run_sql("select * from schema_change_append order by col_1", fetch="all")
+        assert len(result) == 3
+        assert result[0][1] == 1
+        run_dbt(
+            [
+                "--debug",
+                "run",
+                "--select",
+                "schema_change_append",
+                "--vars",
+                '{"extra_unique_keys": ",col_3"}',
+            ]
+        )
         result = project.run_sql("select * from schema_change_append order by col_1", fetch="all")
         assert result[0][2] == 0
         assert result[3][2] == 5
