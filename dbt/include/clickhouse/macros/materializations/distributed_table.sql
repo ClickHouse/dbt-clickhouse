@@ -96,11 +96,13 @@
     )
  {% endmacro %}
 
-{% macro create_empty_table_from_relation(relation, source_relation) -%}
+{% macro create_empty_table_from_relation(relation, source_relation, sql=none) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
-  {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
-   
-
+  {%- if sql -%}
+    {%- set columns = adapter.get_column_schema_from_query(sql) | list -%}
+  {%- else -%}
+    {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
+  {%- endif -%}
   {%- set col_list = [] -%}
   {% for col in columns %}
     {{col_list.append(col.name + ' ' + col.data_type) or '' }}
@@ -123,7 +125,7 @@
   {{ drop_relation_if_exists(shard_relation) }}
   {{ drop_relation_if_exists(distributed_relation) }}
   {{ create_schema(shard_relation) }}
-  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation)) or '' %}
+  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
   {% if sql_query is not none %}
     {% do run_query(clickhouse__insert_into(distributed_relation, sql_query)) or '' %}

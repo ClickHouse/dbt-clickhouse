@@ -76,18 +76,18 @@
   {% else %}
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
-    {% if on_schema_change != 'ignore' %}
-      {%- set schema_changes = check_for_schema_changes(existing_relation, target_relation) -%}
-      {% if schema_changes['schema_changed'] and incremental_strategy in ('append', 'delete_insert') %}
-        {% set incremental_strategy = 'legacy' %}
-        {% do log('Schema changes detected, switching to legacy incremental strategy') %}
+    {%- if on_schema_change != 'ignore' %}
+      {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql) -%}
+      {% if local_column_changes and incremental_strategy != 'legacy' %}
+        {% do clickhouse__apply_column_changes(local_column_changes, existing_relation, True) %}
+        {% set existing_relation = load_cached_relation(this) %}
       {% endif %}
     {% endif %}
     {% if incremental_strategy != 'delete_insert' and incremental_predicates %}
       {% do exceptions.raise_compiler_error('Cannot apply incremental predicates with ' + incremental_strategy + ' strategy.') %}
     {% endif %}
     {% if incremental_strategy == 'legacy' %}
-      {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, schema_changes, unique_key, True) %}
+      {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, local_column_changes, unique_key, True) %}
       {% set need_swap = true %}
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
