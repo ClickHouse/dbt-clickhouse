@@ -194,6 +194,11 @@ class ClickHouseAdapter(SQLAdapter):
     def check_incremental_schema_changes(
         self, on_schema_change, existing, target_sql
     ) -> ClickHouseColumnChanges:
+        if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
+            raise DbtRuntimeError(
+                "Only `fail`, `ignore`, `append_new_columns`, and `sync_all_columns` supported for `on_schema_change`."
+            )
+
         source = self.get_columns_in_relation(existing)
         source_map = {column.name: column for column in source}
         target = self.get_column_schema_from_query(target_sql)

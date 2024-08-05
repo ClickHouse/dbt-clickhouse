@@ -1,5 +1,6 @@
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
+from functools import reduce
 
 schema_change_sql = """
 {{
@@ -138,10 +139,11 @@ class TestComplexSchemaChange:
         assert result[0][1] == 1
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
-        result_types = project.run_sql(f"select toColumnTypeName(col_1) from {model}", fetch="one")
-        assert result_types[0] == 'Float32'
+        assert all(len(row) == 2 for row in result)
         assert result[0][1] == 0
         assert result[3][1] == 5
+        result_types = project.run_sql(f"select toColumnTypeName(col_1) from {model}", fetch="one")
+        assert result_types[0] == 'Float32'
 
 
 out_of_order_columns_sql = """
