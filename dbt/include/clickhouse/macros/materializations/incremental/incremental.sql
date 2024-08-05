@@ -191,7 +191,6 @@
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
     {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
-    {{ drop_relation_if_exists(distributed_new_data_relation) }}
 
     {%- set inserting_relation = new_data_relation -%}
 
@@ -231,4 +230,5 @@
         insert into {{ existing_relation }} select {{ dest_cols_csv }} from {{ inserting_relation }} {{ adapter.get_model_query_settings(model) }}
     {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
+    {{ drop_relation_if_exists(distributed_new_data_relation) }}
 {% endmacro %}
