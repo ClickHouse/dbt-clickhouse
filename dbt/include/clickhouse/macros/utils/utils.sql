@@ -49,12 +49,12 @@
 
 
 {% macro clickhouse__cast_bool_to_text(field) %}
-    multiif({{ field }} > 0, 'true', {{ field }} = 0, 'false', null)
+    multiIf({{ field }} > 0, 'true', {{ field }} = 0, 'false', NULL)
 {% endmacro %}
 
 
 {% macro clickhouse__hash(field) -%}
-    lower(hex(md5(tostring({{ field }}))))
+    lower(hex(MD5(toString({{ field }}))))
 {%- endmacro %}
 
 
@@ -68,12 +68,12 @@
 
 
 {% macro clickhouse__split_part(string_text, delimiter_text, part_number) %}
-    splitbychar({{ delimiter_text }}, {{ string_text }})[{{ part_number }}]
+    splitByChar({{ delimiter_text }}, {{ string_text }})[{{ part_number }}]
 {% endmacro %}
 
 
 {% macro clickhouse__replace(field, old_chars, new_chars) %}
-    replaceall({{ field }}, '{{ old_chars }}', '{{ new_chars }}')
+    replaceAll({{ field }}, '{{ old_chars }}', '{{ new_chars }}')
 {% endmacro %}
 
 
@@ -103,26 +103,26 @@
     {%- endif %}
 
     {% if limit_num -%}
-        arraystringconcat(
-            arrayslice({{ arr }}, 1, {{ limit_num }}), {{ delimiter_text }}
+        arrayStringConcat(
+            arraySlice({{ arr }}, 1, {{ limit_num }}), {{ delimiter_text }}
         )
-    {% else -%} arraystringconcat({{ arr }}, {{ delimiter_text }})
+    {% else -%} arrayStringConcat({{ arr }}, {{ delimiter_text }})
     {%- endif %}
 {%- endmacro %}
 
 
 {% macro clickhouse__array_construct(inputs, data_type) -%}
     {% if inputs | length > 0 %}[{{ inputs | join(" , ") }}]
-    {% else %} emptyarray{{ data_type }} ()
+    {% else %} emptyArray{{ data_type }} ()
     {% endif %}
 {%- endmacro %}
 
 
 {% macro clickhouse__array_append(array, new_element) -%}
-    arraypushback({{ array }}, {{ new_element }})
+    arrayPushBack({{ array }}, {{ new_element }})
 {% endmacro %}
 
 
 {% macro clickhouse__array_concat(array_1, array_2) -%}
-    arrayconcat({{ array_1 }}, {{ array_2 }})
+    arrayConcat({{ array_1 }}, {{ array_2 }})
 {% endmacro %}
