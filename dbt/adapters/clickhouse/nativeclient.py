@@ -30,7 +30,8 @@ class ChNativeClient(ChClientWrapper):
             if len(result) and len(result[0]):
                 return result[0][0]
         except clickhouse_driver.errors.Error as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = str(ex).strip().split("Stack trace")[0]
+            raise DbtDatabaseError(err_msg) from ex
 
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:

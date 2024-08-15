@@ -21,7 +21,8 @@ class ChHttpClient(ChClientWrapper):
         try:
             return self._client.command(sql, **kwargs)
         except DatabaseError as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = str(ex).strip().split("Stack trace")[0]
+            raise DbtDatabaseError(err_msg) from ex
 
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
