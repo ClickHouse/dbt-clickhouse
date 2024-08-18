@@ -181,3 +181,57 @@ class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
             "incremental.sql": incremental_sql,
             "schema.yml": schema_base_yml,
         }
+
+
+insert_overwrite_inc = """
+{{ config(
+        materialized='incremental',
+        incremental_strategy='insert_overwrite',
+        partition_by=['partitionKey1', 'partitionKey2'],
+        order_by=['orderKey'],
+    )
+}}
+{% if not is_incremental() %}
+    SELECT partitionKey1, partitionKey2, orderKey, value
+    FROM VALUES(
+        'partitionKey1 UInt8, partitionKey2 String, orderKey UInt8, value String',
+        (1, 'p1', 1, 'a'), (1, 'p1', 1, 'b'), (2, 'p1', 1, 'c'), (2, 'p2', 1, 'd')
+    )
+{% else %}
+    SELECT partitionKey1, partitionKey2, orderKey, value
+    FROM VALUES(
+        'partitionKey1 UInt8, partitionKey2 String, orderKey UInt8, value String',
+        (1, 'p1', 2, 'e'), (3, 'p1', 2, 'f')
+    )
+{% endif %}
+"""
+
+
+class TestInsertReplaceIncremental:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"insert_overwrite_inc.sql": insert_overwrite_inc}
+
+    def test_insert_overwrite_incremental(self, project):
+        run_dbt()
+        result = project.run_sql(
+            "select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey",
+            fetch="all",
+        )
+        assert result == [
+            (1, 'p1', 1, 'a'),
+            (1, 'p1', 1, 'b'),
+            (2, 'p1', 1, 'c'),
+            (2, 'p2', 1, 'd'),
+        ]
+        run_dbt()
+        result = project.run_sql(
+            "select * from insert_overwrite_inc order by partitionKey1, partitionKey2, orderKey",
+            fetch="all",
+        )
+        assert result == [
+            (1, 'p1', 2, 'e'),
+            (2, 'p1', 1, 'c'),
+            (2, 'p2', 1, 'd'),
+            (3, 'p1', 2, 'f'),
+        ]
