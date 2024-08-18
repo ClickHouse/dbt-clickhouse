@@ -105,7 +105,9 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' ORDER BY query_start_time DESC",
+            f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' "
+            f"and query not like '%system.query_log%'"
+            f"ORDER BY query_start_time DESC",
             fetch="all",
         )
         assert len(result) > 0
