@@ -1,5 +1,5 @@
 import time
-
+import os
 import pytest
 from dbt.tests.util import run_dbt, relation_from_name
 
@@ -42,7 +42,7 @@ sources:
 """
 
 
-class TestTableWithProjections:
+class TestProjections:
     @pytest.fixture(scope="class")
     def seeds(self):
         return {
@@ -57,12 +57,11 @@ class TestTableWithProjections:
             "distributed_people_with_projection.sql": PEOPLE_MODEL_WITH_PROJECTION % "distributed_table",
         }
 
-    @pytest.mark.parametrize("materialization", ("table", "distributed"))
-    def test_create_and_verify_projection(self, project, materialization):
+    def test_create_and_verify_projection(self, project):
         run_dbt(["seed"])
         run_dbt()
-        model_name = "people_with_projection" if materialization == "table" else "distributed_people_with_projection"
-        relation = relation_from_name(project.adapter, model_name)
+
+        relation = relation_from_name(project.adapter, "people_with_projection")
 
         query = f"SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY department ORDER BY department"
 
@@ -82,7 +81,33 @@ class TestTableWithProjections:
         assert len(result) > 0
         assert query in result[0][0]
 
-        projection_name = f'{project.test_schema}.{relation.name}.projection_avg_age' if materialization == "table" \
-            else f'{project.test_schema}.{relation.name}_local.projection_avg_age'
+        assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
 
-        assert result[0][1] == [projection_name]
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+def test_create_and_verify_distributed_projection(self, project):
+    run_dbt(["seed"])
+    run_dbt()
+    relation = relation_from_name(project.adapter, "distributed_people_with_projection")
+
+    query = f"SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY department ORDER BY department"
+
+    # Check that the projection works as expected
+    result = project.run_sql(query,
+                             fetch="all")
+    assert len(result) == 3  # We expect 3 departments in the result
+    assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
+
+    # waiting for system.log table to be created
+    time.sleep(10)
+
+    # check that the latest query used the projection
+    result = project.run_sql(
+        f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' ORDER BY query_start_time DESC",
+        fetch="all")
+    assert len(result) > 0
+    assert query in result[0][0]
+
+    assert result[0][1] == [f'{project.test_schema}.{relation.name}_local.projection_avg_age']
