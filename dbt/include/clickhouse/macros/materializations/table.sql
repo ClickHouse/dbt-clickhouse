@@ -147,8 +147,26 @@
         {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
+         {% if config.get('projections') is not none%}
+             {% call statement('add_projections') %}
+                {{ projection_statement(relation) }}
+            {%endcall  %}
+         {% endif %}
+
+
         {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
+{%- endmacro %}
+
+{% macro projection_statement(relation) %}
+    {%- set projections = config.get('projections', default=[]) -%}
+
+    {%- for projection in projections %}
+        ALTER TABLE {{ relation }} ADD PROJECTION {{ projection.get('name') }}
+        (
+            {{ projection.get('query') }}
+        )
+    {%- endfor %}
 {%- endmacro %}
 
 {% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
