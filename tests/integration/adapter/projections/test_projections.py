@@ -54,7 +54,8 @@ class TestProjections:
     def models(self):
         return {
             "people_with_projection.sql": PEOPLE_MODEL_WITH_PROJECTION % "table",
-            "distributed_people_with_projection.sql": PEOPLE_MODEL_WITH_PROJECTION % "distributed_table",
+            "distributed_people_with_projection.sql": PEOPLE_MODEL_WITH_PROJECTION
+            % "distributed_table",
         }
 
     def test_create_and_verify_projection(self, project):
@@ -66,8 +67,7 @@ class TestProjections:
         query = f"SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY department ORDER BY department"
 
         # Check that the projection works as expected
-        result = project.run_sql(query,
-                                 fetch="all")
+        result = project.run_sql(query, fetch="all")
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
@@ -77,7 +77,8 @@ class TestProjections:
         # check that the latest query used the projection
         result = project.run_sql(
             f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' ORDER BY query_start_time DESC",
-            fetch="all")
+            fetch="all",
+        )
         assert len(result) > 0
         assert query in result[0][0]
 
@@ -95,8 +96,7 @@ def test_create_and_verify_distributed_projection(self, project):
     query = f"SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY department ORDER BY department"
 
     # Check that the projection works as expected
-    result = project.run_sql(query,
-                             fetch="all")
+    result = project.run_sql(query, fetch="all")
     assert len(result) == 3  # We expect 3 departments in the result
     assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
@@ -106,7 +106,8 @@ def test_create_and_verify_distributed_projection(self, project):
     # check that the latest query used the projection
     result = project.run_sql(
         f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' ORDER BY query_start_time DESC",
-        fetch="all")
+        fetch="all",
+    )
     assert len(result) > 0
     assert query in result[0][0]
 
