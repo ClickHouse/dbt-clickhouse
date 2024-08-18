@@ -1,3 +1,19 @@
+### Release [1.8.2], xxxx-xx-xx
+#### Improvements
+* You can now add projections to tables (distributed and non-distributed). The projection config should be added to the model config, for instance:
+```python
+{{ config(
+       materialized='%s',
+       projections=[
+           {
+               'name': 'your_projection_name',
+               'query': 'your_projection_query'
+           }
+       ]
+) }}
+```
+
+
 ### Release [1.8.1], 2024-07-11
 #### Bug Fix
 * Refresh materialized_view table only if `--full-refresh` is specified.
