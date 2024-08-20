@@ -147,7 +147,7 @@
         {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
-         {% if config.get('projections') is not none%}
+         {% if config.get('projections')%}
              {% call statement('add_projections') %}
                 {{ projection_statement(relation) }}
             {%endcall  %}
