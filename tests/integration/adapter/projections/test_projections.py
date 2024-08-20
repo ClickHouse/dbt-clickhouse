@@ -1,5 +1,6 @@
 import os
 import time
+import uuid
 
 import pytest
 from dbt.tests.util import relation_from_name, run_dbt
@@ -64,8 +65,10 @@ class TestProjections:
         run_dbt()
 
         relation = relation_from_name(project.adapter, "people_with_projection")
-
-        query = f"SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY department ORDER BY department"
+        unique_query_identifier = str(uuid.uuid4())
+        query = f""" -- {unique_query_identifier}
+        SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name}
+        GROUP BY department ORDER BY department"""
 
         # Check that the projection works as expected
         result = project.run_sql(query, fetch="all")
@@ -77,7 +80,9 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' ORDER BY query_start_time DESC",
+            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
+            f"WHERE query like '%{unique_query_identifier}%' "
+            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
         )
         assert len(result) > 0
@@ -92,8 +97,10 @@ class TestProjections:
         run_dbt(["seed"])
         run_dbt()
         relation = relation_from_name(project.adapter, "distributed_people_with_projection")
-
-        query = f"SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY department ORDER BY department"
+        unique_query_identifier = str(uuid.uuid4())
+        query = f"""-- {unique_query_identifier}
+                 SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY 
+                 department ORDER BY department"""
 
         # Check that the projection works as expected
         result = project.run_sql(query, fetch="all")
@@ -105,9 +112,9 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM system.query_log WHERE query like '%{query}%' "
-            f"and query not like '%system.query_log%'"
-            f"ORDER BY query_start_time DESC",
+            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
+            f"WHERE query like '%{unique_query_identifier}%' "
+            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
         )
         assert len(result) > 0
