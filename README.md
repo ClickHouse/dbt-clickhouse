@@ -187,7 +187,7 @@ in the data or excluded by the incremental query WHERE clause/filter.
 
 ### The insert_overwrite Strategy (Experimental)
 > [IMPORTANT]  
-> The insert_overwrite strategy wasn't tested and verified with a cluster setup. 
+> Currently, the insert_overwrite strategy is not fully functional with distributed materializations. 
  
 Performs the following steps:
 1. Create a staging (temporary) table with the same structure as the incremental model relation: `CREATE TABLE <staging> AS <target>`.
