@@ -1,5 +1,5 @@
-from functools import reduce
 import os
+from functools import reduce
 
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
