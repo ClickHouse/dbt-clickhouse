@@ -1,3 +1,8 @@
+### Release XXXXX
+#### Improvements
+* Added a new *experimental* incremental strategy - `insert_overwrite` was added which replaces existing data in a target table partition by partition, ensuring only the specified partitions are overwritten with new data, which helps maintain performance and data consistency. This feature was not tested with distribution models and might not work with such materializations.  
+
+
 ### Release [1.8.1], 2024-07-11
 #### Bug Fix
 * Refresh materialized_view table only if `--full-refresh` is specified.
