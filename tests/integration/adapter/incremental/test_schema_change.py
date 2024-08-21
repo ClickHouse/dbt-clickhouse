@@ -1,4 +1,5 @@
 from functools import reduce
+import os
 
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
@@ -44,6 +45,8 @@ class TestOnSchemaChange:
 
     @pytest.mark.parametrize("model", ("schema_change_ignore", "schema_change_distributed_ignore"))
     def test_ignore(self, project, model):
+        if model == "schema_change_distributed_ignore" and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
@@ -54,6 +57,8 @@ class TestOnSchemaChange:
 
     @pytest.mark.parametrize("model", ("schema_change_fail", "schema_change_distributed_fail"))
     def test_fail(self, project, model):
+        if model == "schema_change_distributed_fail" and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
@@ -70,6 +75,8 @@ class TestOnSchemaChange:
 
     @pytest.mark.parametrize("model", ("schema_change_append", "schema_change_distributed_append"))
     def test_append(self, project, model):
+        if model == "schema_change_distributed_append" and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
@@ -131,6 +138,8 @@ class TestComplexSchemaChange:
         ),
     )
     def test_fail(self, project, model):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
@@ -149,6 +158,8 @@ class TestComplexSchemaChange:
         "model", ("complex_schema_change_sync", "complex_schema_change_distributed_sync")
     )
     def test_sync(self, project, model):
+        if model == "complex_schema_change_distributed_sync" and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
@@ -196,6 +207,8 @@ class TestReordering:
 
     @pytest.mark.parametrize("model", ("out_of_order_columns", "out_of_order_columns_distributed"))
     def test_reordering(self, project, model):
+        if model == "out_of_order_columns_distributed" and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert result[0][1] == 1
