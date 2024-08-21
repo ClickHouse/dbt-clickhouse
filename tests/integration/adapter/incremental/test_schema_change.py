@@ -1,6 +1,7 @@
+from functools import reduce
+
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
-from functools import reduce
 
 schema_change_sql = """
 {{
