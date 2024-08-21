@@ -82,8 +82,8 @@ class TestOnSchemaChange:
     @pytest.mark.parametrize("model", ("schema_change_append", "schema_change_distributed_append"))
     def test_append(self, project, model):
         if (
-                model == "schema_change_distributed_append"
-                and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
+            model == "schema_change_distributed_append"
+            and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
         ):
             pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
@@ -168,8 +168,8 @@ class TestComplexSchemaChange:
     )
     def test_sync(self, project, model):
         if (
-                model == "complex_schema_change_distributed_sync"
-                and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
+            model == "complex_schema_change_distributed_sync"
+            and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
         ):
             pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
@@ -219,7 +219,10 @@ class TestReordering:
 
     @pytest.mark.parametrize("model", ("out_of_order_columns", "out_of_order_columns_distributed"))
     def test_reordering(self, project, model):
-        if model == "out_of_order_columns_distributed" and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+        if (
+            model == "out_of_order_columns_distributed"
+            and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
+        ):
             pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
