@@ -163,4 +163,3 @@ class ClickHouseColumnChanges:
             return True
 
         return False
-

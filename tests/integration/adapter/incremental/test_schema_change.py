@@ -33,9 +33,12 @@ class TestOnSchemaChange:
             "schema_change_ignore.sql": schema_change_sql % ("incremental", "ignore"),
             "schema_change_fail.sql": schema_change_sql % ("incremental", "fail"),
             "schema_change_append.sql": schema_change_sql % ("incremental", "append_new_columns"),
-            "schema_change_distributed_ignore.sql": schema_change_sql % ("distributed_incremental", "ignore"),
-            "schema_change_distributed_fail.sql": schema_change_sql % ("distributed_incremental", "fail"),
-            "schema_change_distributed_append.sql": schema_change_sql % ("distributed_incremental", "append_new_columns"),
+            "schema_change_distributed_ignore.sql": schema_change_sql
+            % ("distributed_incremental", "ignore"),
+            "schema_change_distributed_fail.sql": schema_change_sql
+            % ("distributed_incremental", "fail"),
+            "schema_change_distributed_append.sql": schema_change_sql
+            % ("distributed_incremental", "append_new_columns"),
         }
 
     @pytest.mark.parametrize("model", ("schema_change_ignore", "schema_change_distributed_ignore"))
@@ -105,17 +108,27 @@ class TestComplexSchemaChange:
     def models(self):
         return {
             "complex_schema_change_fail.sql": complex_schema_change_sql % ("incremental", "fail"),
-            "complex_schema_change_append.sql": complex_schema_change_sql % ("incremental", "append_new_columns"),
-            "complex_schema_change_sync.sql": complex_schema_change_sql % ("incremental", "sync_all_columns"),
-            "complex_schema_change_distributed_fail.sql": complex_schema_change_sql % ("distributed_incremental", "fail"),
-            "complex_schema_change_distributed_append.sql": complex_schema_change_sql % ("distributed_incremental", "append_new_columns"),
-            "complex_schema_change_distributed_sync.sql": complex_schema_change_sql % ("distributed_incremental", "sync_all_columns"),
+            "complex_schema_change_append.sql": complex_schema_change_sql
+            % ("incremental", "append_new_columns"),
+            "complex_schema_change_sync.sql": complex_schema_change_sql
+            % ("incremental", "sync_all_columns"),
+            "complex_schema_change_distributed_fail.sql": complex_schema_change_sql
+            % ("distributed_incremental", "fail"),
+            "complex_schema_change_distributed_append.sql": complex_schema_change_sql
+            % ("distributed_incremental", "append_new_columns"),
+            "complex_schema_change_distributed_sync.sql": complex_schema_change_sql
+            % ("distributed_incremental", "sync_all_columns"),
         }
 
-    @pytest.mark.parametrize("model", ("complex_schema_change_fail",
-                                       "complex_schema_change_distributed_fail",
-                                       "complex_schema_change_append",
-                                       "complex_schema_change_distributed_append"))
+    @pytest.mark.parametrize(
+        "model",
+        (
+            "complex_schema_change_fail",
+            "complex_schema_change_distributed_fail",
+            "complex_schema_change_append",
+            "complex_schema_change_distributed_append",
+        ),
+    )
     def test_fail(self, project, model):
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
@@ -131,7 +144,9 @@ class TestComplexSchemaChange:
         )
         assert 'out of sync' in log_output.lower()
 
-    @pytest.mark.parametrize("model", ("complex_schema_change_sync", "complex_schema_change_distributed_sync"))
+    @pytest.mark.parametrize(
+        "model", ("complex_schema_change_sync", "complex_schema_change_distributed_sync")
+    )
     def test_sync(self, project, model):
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
@@ -174,7 +189,8 @@ class TestReordering:
     def models(self):
         return {
             "out_of_order_columns.sql": out_of_order_columns_sql % "incremental",
-            "out_of_order_columns_distributed.sql": out_of_order_columns_sql % "distributed_incremental",
+            "out_of_order_columns_distributed.sql": out_of_order_columns_sql
+            % "distributed_incremental",
         }
 
     @pytest.mark.parametrize("model", ("out_of_order_columns", "out_of_order_columns_distributed"))

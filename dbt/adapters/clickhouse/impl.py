@@ -207,8 +207,11 @@ class ClickHouseAdapter(SQLAdapter):
         source_not_in_target = [column for column in source if column.name not in target_map.keys()]
         target_not_in_source = [column for column in target if column.name not in source_map.keys()]
         target_in_source = [column for column in target if column.name in source_map.keys()]
-        changed_data_types = [column for column in target_in_source
-                              if column.dtype != source_map.get(column.name).dtype]
+        changed_data_types = [
+            column
+            for column in target_in_source
+            if column.dtype != source_map.get(column.name).dtype
+        ]
 
         clickhouse_column_changes = ClickHouseColumnChanges(
             columns_to_add=target_not_in_source,
