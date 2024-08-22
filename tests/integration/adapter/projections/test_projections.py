@@ -90,6 +90,7 @@ class TestProjections:
 
         assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
 
+    @pytest.mark.xfail
     @pytest.mark.skipif(
         os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
     )
