@@ -112,6 +112,15 @@
   create table {{ relation.include(database=False) }}
   {{ on_cluster_clause(relation) }} (
       {{col_list | join(', ')}}
+
+    {% if config.get('projections') %}
+      {% set projections = config.get('projections') %}
+      {% for projection in projections %}
+        , PROJECTION {{ projection.get("name") }} (
+            {{ projection.get("query") }}
+        )
+      {% endfor %}
+  {% endif %}
   )
   
   {{ engine_clause() }}

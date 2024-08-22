@@ -1,6 +1,19 @@
-### Release XXXXX
+### Release [1.8.2], xxxx-xx-xx
 #### Improvements
-* Added a new *experimental* incremental strategy - `insert_overwrite` was added which replaces existing data in a target table partition by partition, ensuring only the specified partitions are overwritten with new data, which helps maintain performance and data consistency. This feature was not tested with distribution models and might not work with such materializations.  
+* You can now add projections to tables. The projection config should be added to the model config, for instance:
+```python
+{{ config(
+       materialized='%s',
+       projections=[
+           {
+               'name': 'your_projection_name',
+               'query': 'your_projection_query'
+           }
+       ]
+) }}
+```
+Please be aware that this feature was added to distributed materialization as well, but might not fully function.
+* Added a new *experimental* incremental strategy - `insert_overwrite` was added which replaces existing data in a target table partition by partition, ensuring only the specified partitions are overwritten with new data, which helps maintain performance and data consistency. This feature was not tested with distribution models and might not work with such materializations. 
 
 
 ### Release [1.8.1], 2024-07-11
