@@ -185,8 +185,10 @@ This strategy replaces the `inserts_only` setting in previous versions of dbt-cl
 As a result duplicate rows are not eliminated, and there is no temporary or intermediate table.  It is the fastest approach if duplicates are either permitted
 in the data or excluded by the incremental query WHERE clause/filter.
 
-### The insert_overwrite Strategy
-
+### The insert_overwrite Strategy (Experimental)
+> [IMPORTANT]  
+> Currently, the insert_overwrite strategy is not fully functional with distributed materializations. 
+ 
 Performs the following steps:
 1. Create a staging (temporary) table with the same structure as the incremental model relation: `CREATE TABLE <staging> AS <target>`.
 2. Insert only new records (produced by `SELECT`) into the staging table.
