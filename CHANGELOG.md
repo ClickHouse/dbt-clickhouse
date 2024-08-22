@@ -1,4 +1,7 @@
-### Release [1.8.2], xxxx-xx-xx
+### Release [1.8.2], 2024-08-22
+### Bug Fix
+* It is now possible to add sn empty seed without rows.
+* Fix `__dbt_backup` dropping when working on cluster.
 #### Improvements
 * You can now add projections to tables. The projection config should be added to the model config, for instance:
 ```python
@@ -13,7 +16,12 @@
 ) }}
 ```
 Please be aware that this feature was added to distributed materialization as well, but might not fully function.
-* Added a new *experimental* incremental strategy - `insert_overwrite` was added which replaces existing data in a target table partition by partition, ensuring only the specified partitions are overwritten with new data, which helps maintain performance and data consistency. This feature was not tested with distribution models and might not work with such materializations. 
+* Added a new *experimental* incremental strategy - `insert_overwrite` was added which replaces existing data in a target table partition by partition, ensuring only the specified partitions are overwritten with new data, which helps maintain performance and data consistency. This feature was not tested with distribution models and might not work with such materializations.
+[Anton Bryzgalov](https://github.com/bryzgaloff) Thank you for your contribution!
+* Schema changes for incremental models were improved and now include a `sync_all_column` option. For more information please [review this PR](https://github.com/ClickHouse/dbt-clickhouse/pull/332).
+[Can Bekleyici](https://github.com/canbekley) huge thanks for your contribution. 
+* Support query settings in `view` materialization.
+* Improve `listagg` macro. [PR](https://github.com/ClickHouse/dbt-clickhouse/pull/318).
 
 
 ### Release [1.8.1], 2024-07-11
