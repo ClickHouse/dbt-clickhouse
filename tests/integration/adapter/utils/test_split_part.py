@@ -10,7 +10,7 @@ with data as (
 )
 
 select
-    {{ split_part('parts', '|', 1) }} as actual,
+    {{ split_part('parts', "'|'", 1) }} as actual,
     result_1 as expected
 
 from data
@@ -18,7 +18,7 @@ from data
 union all
 
 select
-    {{ split_part('parts', '|', 2) }} as actual,
+    {{ split_part('parts', "'|'", 2) }} as actual,
     result_2 as expected
 
 from data
@@ -26,7 +26,7 @@ from data
 union all
 
 select
-    {{ split_part('parts', '|', 3) }} as actual,
+    {{ split_part('parts', "'|'", 3) }} as actual,
     result_3 as expected
 
 from data
