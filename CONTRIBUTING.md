@@ -13,7 +13,7 @@ Start by forking the repository on GitHub. This will create a copy of the reposi
 
 ### 2. Set Up Environment
 
-* Make sure Python is installed locally.
+* Make sure Python is installed locally, please refer to [dbt's python compatibility](https://docs.getdbt.com/faqs/Core/install-python-compatibility) (We recommend using version 3.12+).
 * Create a dedicated virtual environment (optional but recommended)
 * Install all the development requirements:
     ```bash
@@ -41,6 +41,7 @@ git checkout -b my-new-feature
 
 Make the necessary changes in your branch. Ensure that your code follows the existing style and conventions used in the
 project.
+We strongly recommend to stick to [this](https://www.conventionalcommits.org/en/v1.0.0/) official commit message conventions.
 
 ### 5. Add or Adjust Tests
 
@@ -54,7 +55,12 @@ See [Running Tests](#running-tests) for more information.
 > **Important:** Please make sure the tests are running successfully before pushing your code.
 
 ### 7. Create a PR
-Create a pull request from your forked repository to the main one. In case this is your first contribution, make sure to sign ClickHouse's CLA.
+Create a pull request from your forked repository to the main one, include the following:
+* In case this is your first contribution, make sure to sign ClickHouse's CLA.
+* Link the related issue to your PR.
+* Add a sensible description of the feature/issue and detail the use case.
+* Make sure to update [CHANGELOG.md](CHANGELOG.md).
+
 
 # Running Tests
 
