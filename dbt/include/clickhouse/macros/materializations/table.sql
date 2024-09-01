@@ -148,9 +148,7 @@
             {{ create_table }}
         {% endcall %}
          {% if config.get('projections')%}
-             {% call statement('add_projections') %}
                 {{ projection_statement(relation) }}
-            {%endcall  %}
          {% endif %}
 
 
@@ -162,10 +160,12 @@
     {%- set projections = config.get('projections', default=[]) -%}
 
     {%- for projection in projections %}
-        ALTER TABLE {{ relation }} ADD PROJECTION {{ projection.get('name') }}
+         {% call statement('add_projections') %}
+                ALTER TABLE {{ relation }} ADD PROJECTION {{ projection.get('name') }}
         (
             {{ projection.get('query') }}
         )
+            {%endcall  %}
     {%- endfor %}
 {%- endmacro %}
 
