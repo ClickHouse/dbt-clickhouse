@@ -1,3 +1,10 @@
+### Release [1.8.3], 2024-09-01
+### Bug Fixes
+* An [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/348) was detected when using multiple projections. We solved it and added a test to cover that use case. ([#349](https://github.com/ClickHouse/dbt-clickhouse/pull/349))
+
+### Documentation
+* A [CONTRIBUTING.md](CONTRIBUTING.md) file was added to the repo. Please follow the instructions prior contributing.
+
 ### Release [1.8.2], 2024-08-22
 #### New Features
 * [ClickHouse projections](https://clickhouse.com/docs/en/sql-reference/statements/alter/projection) are now fully supported for `table` materialization, and partly supported for `distributed_table` materialization.
