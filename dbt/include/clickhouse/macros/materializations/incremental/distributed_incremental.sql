@@ -39,7 +39,7 @@
   {%- set distributed_backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp') -%}
+  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp' + invocation_id.replace('-', '_')) -%}
 
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
