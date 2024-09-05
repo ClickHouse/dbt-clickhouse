@@ -206,7 +206,7 @@
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
     {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
-       + '__dbt_distributed_new_data' + invocation_id.replace('-', '_')}) -%}
+       + '__dbt_distributed_new_data_' + invocation_id.replace('-', '_')}) -%}
 
     {%- set inserting_relation = new_data_relation -%}
 
