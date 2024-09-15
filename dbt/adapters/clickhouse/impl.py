@@ -240,6 +240,7 @@ class ClickHouseAdapter(SQLAdapter):
         structure: Union[str, list, dict],
         aws_access_key_id: str,
         aws_secret_access_key: str,
+        role_arn: str,
         compression: str = '',
     ) -> str:
         s3config = self.config.vars.vars.get(config_name, {})
@@ -273,7 +274,10 @@ class ClickHouseAdapter(SQLAdapter):
         comp = compression or s3config.get('compression', '')
         if comp:
             comp = f"', {comp}'"
-        return f"s3('{url}'{access}, '{fmt}'{struct}{comp})"
+        extra_credentials = ''
+        if role_arn:
+            extra_credentials = f", extra_credentials(role_arn='{role_arn}')"
+        return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})

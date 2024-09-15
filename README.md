@@ -228,8 +228,8 @@ keys used to populate the parameters of the S3 table function:
 | structure             | The column structure of the data in bucket, as a list of name/datatype pairs, such as `['id UInt32', 'date DateTime', 'value String']`  If not provided ClickHouse will infer the structure. |
 | aws_access_key_id     | The S3 access key id.                                                                                                                                                                        |
 | aws_secret_access_key | The S3 secret key.                                                                                                                                                                           |
+| role_arn              | The ARN of a ClickhouseAccess IAM role to use to securely access the S3 objects. See this [documentation](https://clickhouse.com/docs/en/cloud/security/secure-s3) for more information.     |
 | compression           | The compression method used with the S3 objects.  If not provided ClickHouse will attempt to determine compression based on the file name.                                                   |
-
 See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/clickhouse/test_clickhouse_s3.py) for examples of how to use this macro.
 
 # Contracts and Constraints
