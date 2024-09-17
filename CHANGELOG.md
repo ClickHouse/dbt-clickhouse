@@ -1,3 +1,8 @@
+### Release [1.8.4], 2024-09-17
+### Improvement
+* The S3 help macro now support a `role_arn` parameter as an alternative way to provide authentication for S3 based models.  Thanks to
+[Mitchell Bregman](https://github.com/mitchbregs) for the contribution!
+
 ### Release [1.8.3], 2024-09-01
 ### Bug Fixes
 * An [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/348) was detected when using multiple projections. We solved it and added a test to cover that use case. ([#349](https://github.com/ClickHouse/dbt-clickhouse/pull/349))
