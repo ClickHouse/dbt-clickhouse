@@ -249,3 +249,105 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
         assert len(results) == 1
 
         self.assert_total_count_correct(project)
+
+
+class TestMergeTreeForceClusterMaterialization(BaseSimpleMaterializations):
+    '''Test MergeTree materialized view is created across a cluster using the
+    `force_on_cluster` config argument
+    '''
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        config_force_on_cluster = """
+            {{ config(
+                engine='MergeTree',
+                materialized='materialized_view',
+                force_on_cluster='true'
+                )
+            }}
+        """
+
+        return {
+            "force_on_cluster.sql": config_force_on_cluster + model_base,
+            "schema.yml": schema_base_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "schema.yml": base_seeds_schema_yml,
+            "base.csv": seeds_base_csv,
+        }
+
+    def assert_total_count_correct(self, project):
+        '''Check if table is created on cluster'''
+        cluster = project.test_config['cluster']
+
+        # check if data is properly distributed/replicated
+        table_relation = relation_from_name(project.adapter, "force_on_cluster")
+        # ClickHouse cluster in the docker-compose file
+        # under tests/integration is configured with 3 nodes
+        host_count = project.run_sql(
+            f"select count(host_name) as host_count from system.clusters where cluster='{cluster}'",
+            fetch="one",
+        )
+        assert host_count[0] > 1
+
+        table_count = project.run_sql(
+            f"select count() From clusterAllReplicas('{cluster}', system.tables) "
+            f"where database='{table_relation.schema}' and name='{table_relation.identifier}'",
+            fetch="one",
+        )
+
+        assert table_count[0] == 3
+
+        mv_count = project.run_sql(
+            f"select count() From clusterAllReplicas('{cluster}', system.tables) "
+            f"where database='{table_relation.schema}' and name='{table_relation.identifier}_mv'",
+            fetch="one",
+        )
+
+        assert mv_count[0] == 3
+
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
+    def test_base(self, project):
+        # cluster setting must exist
+        cluster = project.test_config['cluster']
+        assert cluster
+
+        # seed command
+        results = run_dbt(["seed"])
+        # seed result length
+        assert len(results) == 1
+
+        # run command
+        results = run_dbt()
+        # run result length
+        assert len(results) == 1
+
+        # names exist in result nodes
+        check_result_nodes_by_name(results, ["force_on_cluster"])
+
+        # check relation types
+        expected = {
+            "base": "table",
+            "replicated": "table",
+        }
+        check_relation_types(project.adapter, expected)
+
+        relation = relation_from_name(project.adapter, "base")
+        # table rowcount
+        result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
+        assert result[0] == 10
+
+        # relations_equal
+        self.assert_total_count_correct(project)
+
+        # run full refresh
+        results = run_dbt(['--debug', 'run', '--full-refresh'])
+        # run result length
+        assert len(results) == 1
+
+        self.assert_total_count_correct(project)
