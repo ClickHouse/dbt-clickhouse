@@ -203,6 +203,7 @@
             {{ sql }}
           )
         {%- endif %}
+        {{ adapter.get_model_query_settings(model) }}
     {%- endif %}
 
 {%- endmacro %}
