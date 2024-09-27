@@ -26,9 +26,11 @@ class TestNullableColumnJoin:
 
     def test_nullable_column_join(self, project):
         run_dbt(["run", "--select", "nullable_column_model"])
-        result = project.run_sql("select isNullable(test_id) as is_nullable_column from nullable_column_model", fetch="one")
+        result = project.run_sql(
+            "select isNullable(test_id) as is_nullable_column from nullable_column_model",
+            fetch="one",
+        )
         assert result[0] == 1
-
 
 
 not_nullable_column_model = """
@@ -56,5 +58,8 @@ class TestNotNullableColumnJoin:
 
     def test_nullable_column_join(self, project):
         run_dbt(["run", "--select", "not_nullable_column_model"])
-        result = project.run_sql("select isNullable(test_id) as is_nullable_column from not_nullable_column_model", fetch="one")
+        result = project.run_sql(
+            "select isNullable(test_id) as is_nullable_column from not_nullable_column_model",
+            fetch="one",
+        )
         assert result[0] == 0
