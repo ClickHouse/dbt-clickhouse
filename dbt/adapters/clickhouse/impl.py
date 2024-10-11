@@ -131,24 +131,16 @@ ENGINE_SETTINGS = {
         "lightweight_mutation_projection_mode",
         "deduplicate_merge_projection_mode",
         "min_free_disk_bytes_to_perform_insert",
-        "min_free_disk_ratio_to_perform_insert"
+        "min_free_disk_ratio_to_perform_insert",
     ],
-    'Memory': [
-        'min_bytes_to_keep',
-        'max_bytes_to_keep',
-        'min_rows_to_keep',
-        'max_rows_to_keep'
-    ],
-    'URL': [
-        'engine_url_skip_empty_files',
-        'enable_url_encoding'
-    ],
+    'Memory': ['min_bytes_to_keep', 'max_bytes_to_keep', 'min_rows_to_keep', 'max_rows_to_keep'],
+    'URL': ['engine_url_skip_empty_files', 'enable_url_encoding'],
     'File': [
         'engine_file_empty_if_not_exists',
         'engine_file_truncate_on_insert',
         'engine_file_allow_create_multiple_files',
         'engine_file_skip_empty_files',
-        'storage_file_read_method'
+        'storage_file_read_method',
     ],
     'Distributed': [
         "fsync_after_insert",
@@ -161,7 +153,7 @@ ENGINE_SETTINGS = {
         "background_insert_split_batch_on_failure",
         "background_insert_sleep_time_ms",
         "background_insert_max_sleep_time_ms",
-        "flush_on_detach"
+        "flush_on_detach",
     ],
     'MySQL': [
         'connection_pool_size',
@@ -169,7 +161,7 @@ ENGINE_SETTINGS = {
         'connection_wait_timeout',
         'connection_auto_close',
         'connection_timeout',
-        'read_write_timeout'
+        'read_write_timeout',
     ],
     'S3': [
         's3_truncate_on_insert',
@@ -203,9 +195,10 @@ ENGINE_SETTINGS = {
         'max_put_rps',
         'max_put_burst',
         'max_get_rps',
-        'max_get_burst'
-    ]
+        'max_get_burst',
+    ],
 }
+
 
 @dataclass
 class ClickHouseConfig(AdapterConfig):
@@ -628,7 +621,7 @@ class ClickHouseAdapter(SQLAdapter):
                     -- end_of_sql
                     {settings_str}
                     """
-    
+
     @available
     def filter_settings_by_engine(self, settings, engine):
         filtered_settings = {}
@@ -648,7 +641,7 @@ class ClickHouseAdapter(SQLAdapter):
                 filtered_settings[key] = value
             else:
                 logger.warning(f"Setting {key} not available for engine {engine}, ignoring.")
-        
+
         return filtered_settings
 
     @available
