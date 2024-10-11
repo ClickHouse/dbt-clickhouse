@@ -1,3 +1,7 @@
+### Release [x.x.x]
+### Improvements
+* Ignores incompatible settings based on the configured Engine.
+
 ### Release [1.8.4], 2024-09-17
 ### Improvement
 * The S3 help macro now support a `role_arn` parameter as an alternative way to provide authentication for S3 based models.  Thanks to
