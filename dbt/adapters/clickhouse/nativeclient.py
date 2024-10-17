@@ -20,9 +20,7 @@ except pkg_resources.ResolutionError:
 class ChNativeClient(ChClientWrapper):
     def query(self, sql, **kwargs):
         try:
-            return NativeClientResult(
-                self._client.execute(sql, with_column_types=True, **kwargs)
-            )
+            return NativeClientResult(self._client.execute(sql, with_column_types=True, **kwargs))
         except clickhouse_driver.errors.Error as ex:
             raise DbtDatabaseError(str(ex).strip()) from ex
 
@@ -89,7 +87,9 @@ class ChNativeClient(ChClientWrapper):
 
     def _server_version(self):
         server_info = self._client.connection.server_info
-        return f"{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}"
+        return (
+            f"{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}"
+        )
 
 
 class NativeClientResult:
