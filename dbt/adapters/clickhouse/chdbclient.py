@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import List
 
 import pkg_resources
-from chdb import session
+from chdb import session, ChdbError
 from chdb.dbapi import converters
 from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt_common.exceptions import DbtDatabaseError
@@ -29,7 +29,10 @@ class ChDBClient(ChClientWrapper):
             result = CHDBResult(result=result)
             result.read()
             return result
-        # TODO: update to correct execption
+        except CHDBResultError as ex:
+            raise DbtDatabaseError(f"reading result from chdb query using json failed: {str(ex).strip()}") from ex
+        except ChdbError as ex:
+            raise DbtDatabaseError(f"chdb query failed with exception: {str(ex).strip()}") from ex
         except Exception as ex:
             raise DbtDatabaseError(str(ex).strip()) from ex
 
@@ -44,7 +47,8 @@ class ChDBClient(ChClientWrapper):
                 result = int(result.data())
             return result
         except Exception as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            raise DbtDatabaseError(f"chdb command failed with exception: {str(ex).strip()}") from ex
+
 
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
@@ -56,7 +60,8 @@ class ChDBClient(ChClientWrapper):
                 ClickHouseColumn.create(name, ch_type.name)
                 for name, ch_type in zip(query_result.column_names, query_result.column_types)
             ]
-        # TODO: update to correct execption
+        except ChdbError as ex:
+            raise DbtDatabaseError(f"chdb columns_in_query failed with exception: {str(ex).strip()}") from ex
         except Exception as ex:
             raise DbtDatabaseError(str(ex).strip()) from ex
 
@@ -73,7 +78,6 @@ class ChDBClient(ChClientWrapper):
                 result = result["data"][0]
                 return (result["value"], int(result["readonly"])) if result else (None, 0)
         except Exception as ex:
-            # TODO: update other driver logging
             logger.warning("Unexpected error retrieving ClickHouse server setting", ex)
             return None
 
@@ -83,14 +87,10 @@ class ChDBClient(ChClientWrapper):
 
     def _create_client(self, credentials: ClickHouseCredentials):
         chdb_state_dir = Path(credentials.chdb_state_dir)
-        if not chdb_state_dir.exists():
-            chdb_state_dir.mkdir(parents=True, exist_ok=True)
 
         if not chdb_state_dir.exists():
             logger.debug(f"Provided chdb_state_dir doesn't exist: {chdb_state_dir}")
             chdb_state_dir.mkdir(parents=True, exist_ok=True)
-
-        # TODO: should we allow to load an old session
 
         session_dir = chdb_state_dir / f"{self._conn_settings['session_id']}"
         logger.info(f"Provided session_dir: {session_dir}")
@@ -104,11 +104,10 @@ class ChDBClient(ChClientWrapper):
 
         for chdb_dump_file in chdb_dump_files:
             sql_content = chdb_dump_file.read_text()
-            client.query(sql_content)
-        # try:
-        #     client.connection.connect()
-        # except (SocketTimeoutError, NetworkError) as ex:
-        #     raise ChRetryableException(str(ex)) from ex
+            try:
+                client.query(sql_content)
+            except ChdbError as ex:
+                raise DbtDatabaseError(f"client creation failed with exception: {str(ex).strip()}") from ex
         return client
 
     def _set_client_database(self):
