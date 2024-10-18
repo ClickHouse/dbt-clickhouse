@@ -42,8 +42,10 @@ def get_db_client(credentials: ClickHouseCredentials):
     elif driver == 'native':
         if not port:
             port = 9440 if credentials.secure else 9000
+    elif driver == "chdb":
+        logger.debug(f"using chdb driver with {credentials}")
     else:
-        raise FailedToConnectError(f'Unrecognized ClickHouse driver {driver}')
+        raise FailedToConnectError(f"Unrecognized ClickHouse driver {driver}")
 
     credentials.driver = driver
     credentials.port = port
@@ -56,8 +58,20 @@ def get_db_client(credentials: ClickHouseCredentials):
             return ChNativeClient(credentials)
         except ImportError as ex:
             raise FailedToConnectError(
-                'Native adapter required but package clickhouse-driver is not installed'
+                "Native adapter required but package clickhouse-driver is not installed"
             ) from ex
+    elif driver == "chdb":
+        try:
+            import chdb
+
+            from dbt.adapters.clickhouse.chdbclient import ChDBClient
+
+            return ChDBClient(credentials)
+        except ImportError as ex:
+            raise FailedToConnectError(
+                "chDB adapter required but package chdb is not installed"
+            ) from ex
+
     try:
         import clickhouse_connect  # noqa
 
