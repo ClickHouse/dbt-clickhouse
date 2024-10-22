@@ -470,8 +470,11 @@ class ClickHouseAdapter(SQLAdapter):
                     """
 
     @available
-    def get_model_query_settings(self, model):
+    def get_model_query_settings(self, model, additional_settings: dict = None):
         settings = model['config'].get('query_settings', {})
+        if additional_settings:
+            settings = {**settings, **additional_settings}
+
         res = []
         for key in settings:
             res.append(f' {key}={settings[key]}')

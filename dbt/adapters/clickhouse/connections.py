@@ -96,6 +96,8 @@ class ClickHouseConnectionManager(SQLConnectionManager):
                 query_result = client.command(sql)
             status = self.get_status(client)
             logger.debug(f'SQL status: {status} in {(time.time() - pre):.2f} seconds')
+            if hasattr(query_result, 'summary'):
+                logger.info(f'ClickHouse query summary: {query_result.summary}')
             if fetch:
                 table = self.get_table_from_response(
                     query_result.result_set, query_result.column_names

@@ -15,7 +15,7 @@
      {% do exceptions.raise_compiler_error('To use distributed materializations cluster setting in dbt profile must be set') %}
   {% endif %}
 
-  {% set existing_relation_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
+  {% set existing_relation_local = load_cached_relation(this.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema})) %}
   {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if target_relation is not none else none %}
 
   {%- set unique_key = config.get('unique_key') -%}
@@ -39,7 +39,7 @@
   {%- set distributed_backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp') -%}
+  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp_' + invocation_id.replace('-', '_')) -%}
 
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
@@ -55,7 +55,7 @@
     {{ create_view_as(view_relation, sql) }}
   {% endcall %}
 
-  {% if existing_relation is none %}
+  {% if existing_relation_local is none %}
     -- No existing table, simply create a new one
     {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql) }}
 
@@ -74,6 +74,12 @@
     {% endcall %}
 
   {% else %}
+    {% if existing_relation is none %}
+      {{ drop_relation_if_exists(existing_relation) }}
+      {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
+      {% set existing_relation = target_relation %}
+    {% endif %}
+
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {%- if on_schema_change != 'ignore' %}
@@ -123,6 +129,8 @@
       {% do to_drop.append(backup_relation) %}
       {% do to_drop.append(distributed_backup_relation) %}
   {% endif %}
+
+  {{ drop_relation_if_exists(view_relation) }}
 
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
