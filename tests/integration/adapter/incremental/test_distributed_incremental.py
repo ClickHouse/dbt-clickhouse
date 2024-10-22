@@ -96,6 +96,8 @@ LW_DELETE_UNIQUE_KEY_COMPILATION = """
     )
 }}
 SELECT 1 as key
+UNION ALL
+SELECT 1 as key
 """
 
 LW_DELETE_COMPOSITE_UNIQUE_KEY_COMPILATION = """
@@ -106,6 +108,8 @@ LW_DELETE_COMPOSITE_UNIQUE_KEY_COMPILATION = """
         incremental_strategy='delete+insert'
     )
 }}
+SELECT 1 as key, toDate('2024-10-21') as date
+UNION ALL
 SELECT 1 as key, toDate('2024-10-21') as date
 """
 

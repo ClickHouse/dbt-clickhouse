@@ -236,7 +236,7 @@
       {% set unique_key_count = run_query(unique_key_query).rows[0].values()[0] %}
       {% if unique_key_count == 1 %}
         {% set query %}
-          select toString(tuple({{ unique_key }})) from {{ inserting_relation }}
+          select toString(any(tuple({{ unique_key }}))) from {{ inserting_relation }}
         {% endset %}
         {% set delete_filter = run_query(query).rows[0].values()[0] %}
         {{ log('Delete filter: ' ~ delete_filter) }}
