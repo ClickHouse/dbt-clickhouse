@@ -219,22 +219,22 @@
       {% endcall %}
     {% endif %}
 
-      {% call statement('delete_existing_data') %}
-        {% if is_distributed %}
-            {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
-            delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }})
-        {% else %}
-            delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }})
-        {% endif %}
-        {%- if incremental_predicates %}
-          {% for predicate in incremental_predicates %}
-              and {{ predicate }}
-          {% endfor %}
-        {%- endif -%}
-      {{ adapter.get_model_query_settings(model) }}
-      {% endcall %}
+    {% call statement('delete_existing_data') %}
+      {% if is_distributed %}
+          {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
+          delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                        from {{ inserting_relation }})
+      {% else %}
+          delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                        from {{ inserting_relation }})
+      {% endif %}
+      {%- if incremental_predicates %}
+        {% for predicate in incremental_predicates %}
+            and {{ predicate }}
+        {% endfor %}
+      {%- endif -%}
+    {{ adapter.get_model_query_settings(model) }}
+    {% endcall %}
 
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
