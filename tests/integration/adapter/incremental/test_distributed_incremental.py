@@ -96,6 +96,8 @@ LW_DELETE_UNIQUE_KEY_COMPILATION = """
     )
 }}
 SELECT 1 as key
+UNION ALL
+SELECT 1 as key
 """
 
 LW_DELETE_COMPOSITE_UNIQUE_KEY_COMPILATION = """
@@ -106,6 +108,8 @@ LW_DELETE_COMPOSITE_UNIQUE_KEY_COMPILATION = """
         incremental_strategy='delete+insert'
     )
 }}
+SELECT 1 as key, toDate('2024-10-21') as date
+UNION ALL
 SELECT 1 as key, toDate('2024-10-21') as date
 """
 
@@ -153,7 +157,7 @@ class TestLWDeleteDistributedIncremental:
         _, log = run_dbt_and_capture(["run", "--select", model, "--log-level", "debug"])
         result = project.run_sql(f"select count(*) as num_rows from {model}", fetch="one")
         assert delete_filter_log in log
-        assert result[0] == 1
+        assert result[0] == 2
 
 
 compound_key_schema = """

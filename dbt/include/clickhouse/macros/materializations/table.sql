@@ -208,7 +208,7 @@
 {%- endmacro %}
 
 {% macro clickhouse__insert_into(target_relation, sql, has_contract) %}
-  {%- set dest_columns = adapter.get_columns_in_relation(target_relation) -%}
+  {%- set dest_columns = adapter.get_column_schema_from_query(sql) -%}
   {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
 
   insert into {{ target_relation }}
