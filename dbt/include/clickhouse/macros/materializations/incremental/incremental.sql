@@ -219,44 +219,23 @@
       {% endcall %}
     {% endif %}
 
-    {% set delete_filter %}
-      select distinct {{ unique_key }} from {{ inserting_relation }}
-    {% endset %}
-    {% set data_to_delete_count_query %}
-      select count(*) from {{ existing_relation }} where ({{ unique_key }}) global in ({{ delete_filter }})
-    {% endset %}
-    {% set data_to_delete_count = run_query(data_to_delete_count_query).rows[0].values()[0] %}
-    {% if data_to_delete_count > 0 %}
-      {{ log(data_to_delete_count ~ " rows to be deleted.", info=True) }}
-      {% set unique_key_query %}
-        {# https://github.com/ClickHouse/ClickHouse/issues/69559 #}
-        select count(distinct {{ unique_key }}) from {{ inserting_relation }}
-      {% endset %}
-      {% set unique_key_count = run_query(unique_key_query).rows[0].values()[0] %}
-      {% if unique_key_count == 1 %}
-        {% set query %}
-          select any(toString(tuple({{ unique_key }}))) from {{ inserting_relation }}
-        {% endset %}
-        {% set delete_filter = run_query(query).rows[0].values()[0] %}
-        {{ log('Delete filter: ' ~ delete_filter) }}
-      {% endif %}
       {% call statement('delete_existing_data') %}
         {% if is_distributed %}
             {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
-              delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in ({{ delete_filter }})
+            delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                          from {{ inserting_relation }})
         {% else %}
-              delete from {{ existing_relation }} where ({{ unique_key }}) in ({{ delete_filter }})
+            delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                          from {{ inserting_relation }})
         {% endif %}
         {%- if incremental_predicates %}
           {% for predicate in incremental_predicates %}
               and {{ predicate }}
           {% endfor %}
         {%- endif -%}
-        {{ adapter.get_model_query_settings(model, {'allow_nondeterministic_mutations': 1}) }}
+      {{ adapter.get_model_query_settings(model) }}
       {% endcall %}
-    {% else %}
-      {{ log("No data to be deleted, skip lightweight delete.", info=True) }}
-    {% endif %}
+
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
     {% call statement('insert_new_data') %}

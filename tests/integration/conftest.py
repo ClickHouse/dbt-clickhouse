@@ -55,16 +55,16 @@ def test_config(ch_test_users, ch_test_version):
         client_port = client_port or 10723
         test_port = 10900 if test_driver == 'native' else client_port
         try:
-            run_cmd(['docker', 'compose', '-f', compose_file, 'down', '-v'])
+            run_cmd(['docker-compose', '-f', compose_file, 'down', '-v'])
             sys.stderr.write('Starting docker compose')
             os.environ['PROJECT_ROOT'] = '.'
-            up_result = run_cmd(['docker', 'compose', '-f', compose_file, 'up', '-d'])
+            up_result = run_cmd(['docker-compose', '-f', compose_file, 'up', '-d'])
             if up_result[0]:
                 raise Exception(f'Failed to start docker: {up_result[2]}')
             url = f"http://{test_host}:{client_port}"
             wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
-            raise Exception('Failed to run docker compose: {}', str(e))
+            raise Exception('Failed to run docker-compose: {}', str(e))
     elif not client_port:
         if test_driver == 'native':
             client_port = 8443 if test_port == 9440 else 8123
@@ -102,9 +102,9 @@ def test_config(ch_test_users, ch_test_version):
 
     if docker:
         try:
-            run_cmd(['docker', 'compose', '-f', compose_file, 'down', '-v'])
+            run_cmd(['docker-compose', '-f', compose_file, 'down', '-v'])
         except Exception as e:
-            raise Exception('Failed to run docker compose while cleaning up: {}', str(e))
+            raise Exception('Failed to run docker-compose while cleaning up: {}', str(e))
     else:
         for test_user in ch_test_users:
             test_client.command('DROP USER %s', (test_user,))
