@@ -200,11 +200,9 @@
 
 
 {% macro clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, is_distributed=False) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
-       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
+    {%- set new_data_relation = make_intermediate_relation(existing_relation, '__dbt_new_data') -%}
     {{ drop_relation_if_exists(new_data_relation) }}
-    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
-       + '__dbt_distributed_new_data_' + invocation_id.replace('-', '_')}) -%}
+    {%- set distributed_new_data_relation = make_intermediate_relation(existing_relation, '__dbt_distributed_new_data') -%}
 
     {%- set inserting_relation = new_data_relation -%}
 
@@ -231,13 +229,13 @@
     {% if data_to_delete_count > 0 %}
       {{ log(data_to_delete_count ~ " rows to be deleted.", info=True) }}
       {% set unique_key_query %}
-        -- https://github.com/ClickHouse/ClickHouse/issues/69559
+        {# https://github.com/ClickHouse/ClickHouse/issues/69559 #}
         select count(distinct {{ unique_key }}) from {{ inserting_relation }}
       {% endset %}
       {% set unique_key_count = run_query(unique_key_query).rows[0].values()[0] %}
       {% if unique_key_count == 1 %}
         {% set query %}
-          select toString(tuple({{ unique_key }})) from {{ inserting_relation }}
+          select any(toString(tuple({{ unique_key }}))) from {{ inserting_relation }}
         {% endset %}
         {% set delete_filter = run_query(query).rows[0].values()[0] %}
         {{ log('Delete filter: ' ~ delete_filter) }}
@@ -269,8 +267,7 @@
 {% endmacro %}
 
 {% macro clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
-       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
+    {%- set new_data_relation = make_intermediate_relation(existing_relation, '__dbt_new_data') -%}
     {{ drop_relation_if_exists(new_data_relation) }}
     {% call statement('create_new_data_temp') -%}
       {{ get_create_table_as_sql(False, new_data_relation, sql) }}
