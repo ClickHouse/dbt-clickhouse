@@ -6,7 +6,6 @@
 {%- materialization materialized_view, adapter='clickhouse' -%}
 
   {%- set target_relation = this.incorporate(type='table') -%}
-  {%- set mv_relation = target_relation.derivative('_mv', 'materialized_view') -%}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
 
   {# look for an existing relation for the target table and create backup relations if necessary #}
@@ -35,16 +34,26 @@
   -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
+  -- extract the names of the materialized views from the sql
+  {% set view_names = modules.re.findall('--([^:]+):begin', sql) %}
+
+  -- extract the sql for each of the materialized view into a map
+  {% set views = {} %}
+  {% if view_names %}
+    {% for view_name in view_names %}
+      {% set view_sql = modules.re.findall('--' + view_name + ':begin(.*)--' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
+      {%- set _ = views.update({view_name: view_sql}) -%}
+    {% endfor %}
+  {% else %}
+    {%- set _ = views.update({"mv": sql}) -%}
+  {% endif %}
+
   {% if backup_relation is none %}
     {{ log('Creating new materialized view ' + target_relation.name )}}
-    {% call statement('main') -%}
-      {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql) }}
-    {%- endcall %}
+    {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views) }}
   {% elif existing_relation.can_exchange %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
-    {% call statement('drop existing materialized view') %}
-      drop view if exists {{ mv_relation }} {{ cluster_clause }}
-    {% endcall %}
+    {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
     {% if should_full_refresh() %}
       {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
@@ -56,12 +65,10 @@
         select 1
       {%- endcall %}
     {% endif %}
-    {% call statement('create new materialized view') %}
-      {{ clickhouse__create_mv_sql(mv_relation, existing_relation, cluster_clause, sql) }}
-    {% endcall %}
+    {{ clickhouse__create_mvs(existing_relation, cluster_clause, views) }}
   {% else %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
-    {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql) }}
+    {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) }}
   {% endif %}
 
   -- cleanup
@@ -78,7 +85,12 @@
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {{ return({'relations': [target_relation, mv_relation]}) }}
+  {% set relations = [target_relation] %}
+  {% for view in views %}
+    {{ relations.append(target_relation.derivative('_' + view, 'materialized_view')) }}
+  {% endfor %}
+
+  {{ return({'relations': relations}) }}
 
 {%- endmaterialization -%}
 
@@ -89,30 +101,47 @@
   2. Create a materialized view using the SQL in the model that inserts
   data into the table creating during step 1
 #}
-{% macro clickhouse__get_create_materialized_view_as_sql(relation, sql) -%}
-  {% call statement('create_target_table') %}
+{% macro clickhouse__get_create_materialized_view_as_sql(relation, sql, views) -%}
+  {% call statement('main') %}
     {{ get_create_table_as_sql(False, relation, sql) }}
   {% endcall %}
   {%- set cluster_clause = on_cluster_clause(relation) -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
-  {{ clickhouse__create_mv_sql(mv_relation, relation, cluster_clause, sql) }}
+  {{ clickhouse__create_mvs(relation, cluster_clause, views) }}
 {%- endmacro %}
 
+{% macro clickhouse__drop_mv(mv_relation, cluster_clause)  -%}
+    drop view if exists {{ mv_relation }} {{ cluster_clause }}
+{%- endmacro %}u
 
-{% macro clickhouse__create_mv_sql(mv_relation, target_table, cluster_clause, sql)  -%}
+{% macro clickhouse__create_mv(mv_relation, target_table, cluster_clause, sql)  -%}
   create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
   to {{ target_table }}
   as {{ sql }}
 {%- endmacro %}
 
+{% macro clickhouse__drop_mvs(target_relation, cluster_clause, views)  -%}
+    {% for view in views.keys() %}
+      {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+      {% call statement('drop existing mv: ' + view) -%}
+        {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
+      {% endcall %}
+    {% endfor %}
+{%- endmacro %}
 
-{% macro clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql) %}
+{% macro clickhouse__create_mvs(target_relation, cluster_clause, views)  -%}
+    {% for view, view_sql in views.items() %}
+      {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+      {% call statement('create existing mv: ' + view) -%}
+        {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, view_sql) }};
+      {% endcall %}
+    {% endfor %}
+{%- endmacro %}
+
+{% macro clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) %}
   {# drop existing materialized view while we recreate the target table #}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
-  {%- set mv_relation = target_relation.derivative('_mv', 'materialized_view') -%}
-  {% call statement('drop existing mv') -%}
-    drop view if exists {{ mv_relation }} {{ cluster_clause }}
-  {%- endcall %}
+  {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
 
   {# recreate the target table #}
   {% call statement('main') -%}
@@ -122,5 +151,5 @@
   {{ adapter.rename_relation(intermediate_relation, target_relation) }}
 
   {# now that the target table is recreated, we can finally create our new view #}
-  {{ clickhouse__create_mv_sql(mv_relation, target_relation, cluster_clause, sql) }}
+  {{ clickhouse__create_mvs(target_relation, cluster_clause, views) }}
 {% endmacro %}
