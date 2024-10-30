@@ -97,7 +97,7 @@ class ChDBClient(ChClientWrapper):
         client = session.Session(path=session_dir.as_posix())
 
         chdb_dump_dir = Path(credentials.chdb_dump_dir)
-        chdb_dump_files = list(chdb_dump_dir.glob("*.sql"))
+        chdb_dump_files = list(chdb_dump_dir.glob("**/*.sql"))
         if len(chdb_dump_files) == 0:
             logger.warning(f"Provided chdb_dump_files is empty: {chdb_dump_files}")
             return
