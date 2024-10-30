@@ -127,7 +127,7 @@
   {{ order_cols(label="order by") }}
   {{ primary_key_clause(label="primary key") }}
   {{ partition_cols(label="partition by") }}
-  {{ adapter.get_model_settings(model) }}
+  {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 {%- endmacro %}
 
 {% macro create_distributed_local_table(distributed_relation, shard_relation, structure_relation, sql_query=none) -%}
