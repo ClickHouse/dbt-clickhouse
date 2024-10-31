@@ -7,6 +7,7 @@ from dbt_common.dataclass_schema import StrEnum
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
 
+from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 
 NODE_TYPE_SOURCE = 'source'
@@ -127,6 +128,11 @@ class ClickHouseRelation(BaseRelation):
                 relation_config.config.get('engine') if relation_config.config.get('engine') else ''
             )
             can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
+            if quoting.credentials.driver == "chdb":
+                logger.debug("Driver is chDB, forcing engine to be MergeTree")
+                engine = "MergeTree"
+                relation_config.config.engine = engine
+                can_on_cluster = False
 
         return cls.create(
             database='',

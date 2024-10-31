@@ -1,0 +1,23 @@
+taxis:
+  outputs:
+    dev:
+      type: clickhouse
+      threads: 4
+      host: localhost
+      port: 8123
+      user: dbt_test
+      password: dbt_password
+      use_lw_deletes: true
+      schema: taxis_dbt
+
+    chdb-dev:
+      type: clickhouse
+      driver: chdb
+      chdb_state_dir: "chdb_state"
+      chdb_dump_dir: "dump"
+      threads: 1
+      user: dbt_test
+      password: dbt_password
+      schema: taxis_dbt
+
+  target: dev
