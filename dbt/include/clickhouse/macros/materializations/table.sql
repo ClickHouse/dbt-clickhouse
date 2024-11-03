@@ -86,10 +86,18 @@
 {%- endmacro -%}
 
 {% macro primary_key_clause(label) %}
-  {%- set primary_key = config.get('primary_key', validator=validation.any[basestring]) -%}
+  {%- set cols = config.get('primary_key', validator=validation.any[list, basestring]) -%}
 
-  {%- if primary_key is not none %}
-    {{ label }} {{ primary_key }}
+  {%- if cols is not none %}
+    {%- if cols is string -%}
+      {%- set cols = [cols] -%}
+    {%- endif -%}
+    {{ label }} (
+    {%- for item in cols -%}
+      {{ item }}
+      {%- if not loop.last -%},{%- endif -%}
+    {%- endfor -%}
+    )
   {%- endif %}
 {%- endmacro -%}
 
