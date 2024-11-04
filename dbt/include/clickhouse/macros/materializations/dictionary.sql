@@ -71,6 +71,9 @@
   )
   LAYOUT({{ config.get('layout') }})
   LIFETIME({{ config.get('lifetime') }})
+  {%- if config.get('range') %}
+  RANGE({{ config.get('range') }})
+  {%- endif %}
 {% endmacro %}
 
 
