@@ -1,6 +1,7 @@
 ### Unreleased
 ### Improvement
 * Added support for [range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#range_hashed) and [complex_key_range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#complex_key_range_hashed) layouts to the dictionary materialization. ([#361](https://github.com/ClickHouse/dbt-clickhouse/pull/361))
+* Add unique invocation id to temporary distributed tables and views in `distributed_incremental` materialization mode to avoid naming conflicts with parallel dbt runs. ([#353](https://github.com/ClickHouse/dbt-clickhouse/pull/353))
 
 ### Release [1.8.4], 2024-09-17
 ### Improvement
