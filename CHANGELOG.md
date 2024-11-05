@@ -2,6 +2,7 @@
 ### Improvement
 
 * Enhance the `primary_key` macro to accept a list of columns, allowing for primary keys with multiple columns. ([#337](https://github.com/ClickHouse/dbt-clickhouse/pull/337))
+* Added support for [range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#range_hashed) and [complex_key_range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#complex_key_range_hashed) layouts to the dictionary materialization. ([#361](https://github.com/ClickHouse/dbt-clickhouse/pull/361))
 
 ### Release [1.8.4], 2024-09-17
 ### Improvement
