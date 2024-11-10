@@ -74,12 +74,11 @@
       {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
       {% set existing_relation = target_relation %}
     {% endif %}
-
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql) -%}
-      {% if local_column_changes and incremental_strategy != 'legacy' %}
+      {% if local_column_changes %}
         {% do clickhouse__apply_column_changes(local_column_changes, existing_relation, True) %}
         {% set existing_relation = load_cached_relation(this) %}
       {% endif %}
@@ -87,10 +86,7 @@
     {% if incremental_strategy != 'delete_insert' and incremental_predicates %}
       {% do exceptions.raise_compiler_error('Cannot apply incremental predicates with ' + incremental_strategy + ' strategy.') %}
     {% endif %}
-    {% if incremental_strategy == 'legacy' %}
-      {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, local_column_changes, unique_key, True) %}
-      {% set need_swap = true %}
-    {% elif incremental_strategy == 'delete_insert' %}
+    {% if incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
