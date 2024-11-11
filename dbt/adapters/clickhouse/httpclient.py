@@ -15,7 +15,8 @@ class ChHttpClient(ChClientWrapper):
         try:
             return self._client.query(sql, **kwargs)
         except DatabaseError as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = str(ex).strip().split("Stack trace")[0]
+            raise DbtDatabaseError(err_msg) from ex
 
     def command(self, sql, **kwargs):
         try:
@@ -35,7 +36,8 @@ class ChHttpClient(ChClientWrapper):
                 for name, ch_type in zip(query_result.column_names, query_result.column_types)
             ]
         except DatabaseError as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = str(ex).strip().split("Stack trace")[0]
+            raise DbtDatabaseError(err_msg) from ex
 
     def get_ch_setting(self, setting_name):
         setting = self._client.server_settings.get(setting_name)
