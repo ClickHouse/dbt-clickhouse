@@ -22,7 +22,8 @@ class ChNativeClient(ChClientWrapper):
         try:
             return NativeClientResult(self._client.execute(sql, with_column_types=True, **kwargs))
         except clickhouse_driver.errors.Error as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = str(ex).strip().split("Stack trace")[0]
+            raise DbtDatabaseError(err_msg) from ex
 
     def command(self, sql, **kwargs):
         try:
@@ -41,7 +42,8 @@ class ChNativeClient(ChClientWrapper):
             )
             return [ClickHouseColumn.create(column[0], column[1]) for column in columns]
         except clickhouse_driver.errors.Error as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = str(ex).strip().split("Stack trace")[0]
+            raise DbtDatabaseError(err_msg) from ex
 
     def get_ch_setting(self, setting_name):
         try:
