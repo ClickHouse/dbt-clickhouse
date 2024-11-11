@@ -185,8 +185,10 @@ This strategy replaces the `inserts_only` setting in previous versions of dbt-cl
 As a result duplicate rows are not eliminated, and there is no temporary or intermediate table.  It is the fastest approach if duplicates are either permitted
 in the data or excluded by the incremental query WHERE clause/filter.
 
-### The insert_overwrite Strategy
-
+### The insert_overwrite Strategy (Experimental)
+> [IMPORTANT]  
+> Currently, the insert_overwrite strategy is not fully functional with distributed materializations. 
+ 
 Performs the following steps:
 1. Create a staging (temporary) table with the same structure as the incremental model relation: `CREATE TABLE <staging> AS <target>`.
 2. Insert only new records (produced by `SELECT`) into the staging table.
@@ -226,8 +228,8 @@ keys used to populate the parameters of the S3 table function:
 | structure             | The column structure of the data in bucket, as a list of name/datatype pairs, such as `['id UInt32', 'date DateTime', 'value String']`  If not provided ClickHouse will infer the structure. |
 | aws_access_key_id     | The S3 access key id.                                                                                                                                                                        |
 | aws_secret_access_key | The S3 secret key.                                                                                                                                                                           |
+| role_arn              | The ARN of a ClickhouseAccess IAM role to use to securely access the S3 objects. See this [documentation](https://clickhouse.com/docs/en/cloud/security/secure-s3) for more information.     |
 | compression           | The compression method used with the S3 objects.  If not provided ClickHouse will attempt to determine compression based on the file name.                                                   |
-
 See the [S3 test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/clickhouse/test_clickhouse_s3.py) for examples of how to use this macro.
 
 # Contracts and Constraints
@@ -347,25 +349,10 @@ CREATE TABLE db.table on cluster cluster
 ENGINE = Distributed('cluster', 'db', 'table_local', cityHash64(id));
 ```
 
-# Running Tests
+## Contributing
+We welcome contributions from the community to help improve the dbt-ClickHouse adapter. Whether you’re fixing a bug, adding a new feature, or enhancing documentation, your efforts are greatly appreciated!
 
-This adapter passes all of dbt basic tests as presented in dbt's official docs: https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter.
-Use `pytest tests` to run tests.
-
-You can customize the test environment via environment variables. We recommend doing so with the pytest `pytest-dotenv` plugin combined with root level `test.env`
-configuration file (this file should not be checked into git).  The following environment variables are recognized:
-
-1. DBT_CH_TEST_HOST - Default=`localhost`
-2. DBT_CH_TEST_USER - your ClickHouse username. Default=`default`
-3. DBT_CH_TEST_PASSWORD - your ClickHouse password. Default=''
-4. DBT_CH_TEST_PORT - ClickHouse client port. Default=8123 (The default is automatically changed to the correct port if DBT_CH_TEST_USE_DOCKER is enabled)
-6. DBT_CH_TEST_DB_ENGINE - Database engine used to create schemas.  Defaults to '' (server default)
-7. DBT_CH_TEST_USE_DOCKER - Set to True to run clickhouse-server docker image (see tests/docker-compose.yml).  Requires docker-compose. Default=False
-8. DBT_CH_TEST_CH_VERSION - ClickHouse docker image to use.  Defaults to `latest`
-9. DBT_CH_TEST_INCLUDE_S3 - Include S3 tests.  Default=False since these are currently dependent on a specific ClickHouse S3 bucket/test dataset
-10. DBT_CH_TEST_CLUSTER_MODE - Use the profile value
-11. DBT_CH_TEST_CLUSTER - ClickHouse cluster name, if DBT_CH_TEST_USE_DOCKER set to true, only `test_replica` and `test_shard` is valid (see tests/test_config.xml for cluster settings)
-
+Please take a moment to read our [Contribution Guide](CONTRIBUTING.md) to get started. The guide provides detailed instructions on setting up your environment, running tests, and submitting pull requests.
 
 ## Original Author
 ClickHouse wants to thank @[silentsokolov](https://github.com/silentsokolov) for creating this connector and for their valuable contributions.
