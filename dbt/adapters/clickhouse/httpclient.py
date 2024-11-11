@@ -8,6 +8,7 @@ from dbt_common.exceptions import DbtDatabaseError
 from dbt.adapters.clickhouse import ClickHouseColumn
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
+from dbt.adapters.clickhouse.util import hide_stack_trace
 
 
 class ChHttpClient(ChClientWrapper):
@@ -15,14 +16,14 @@ class ChHttpClient(ChClientWrapper):
         try:
             return self._client.query(sql, **kwargs)
         except DatabaseError as ex:
-            err_msg = str(ex).strip().split("Stack trace")[0]
+            err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
     def command(self, sql, **kwargs):
         try:
             return self._client.command(sql, **kwargs)
         except DatabaseError as ex:
-            err_msg = str(ex).strip().split("Stack trace")[0]
+            err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
@@ -36,7 +37,7 @@ class ChHttpClient(ChClientWrapper):
                 for name, ch_type in zip(query_result.column_names, query_result.column_types)
             ]
         except DatabaseError as ex:
-            err_msg = str(ex).strip().split("Stack trace")[0]
+            err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
     def get_ch_setting(self, setting_name):
