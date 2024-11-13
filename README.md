@@ -246,6 +246,21 @@ no corresponding REFRESH operation).  Instead, it acts as an "insert trigger", a
 (https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)  for an introductory example
 of how to use this functionality.
 
+Clickhouse provides the ability for more than one materialized view to write records to the same target table. To support this in dbt-clickhouse, you can construct a `UNION` in your model file, such that the SQL for each of your materialized views is wrapped with comments of the form `--my_mv_name:begin` and `--my_mv_name:end`.
+
+For example the following will build two materialized views both writing data to the same destination table of the model. The names of the materialized views will take the form `<model_name>_mv1` and `<model_name>_mv2` :
+
+```
+--mv1:begin
+select a,b,c from {{ source('raw', 'table_1') }}
+--mv1:end
+union all
+--mv2:begin
+select a,b,c from {{ source('raw', 'table_2') }}
+--mv2:end
+```
+
+
 # Dictionary materializations (experimental)
 See the tests in https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py for examples of how to
 implement materializations for ClickHouse dictionaries 
