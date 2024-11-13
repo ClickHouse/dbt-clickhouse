@@ -72,6 +72,9 @@
   {{ sql_header if sql_header is not none }}
   create view {{ relation.include(database=False) }} {{ on_cluster_clause(relation)}} as (
     {% set contract_config = config.get('contract') %}
+    {% if contract_config.enforced %}
+      {{ get_assert_columns_equivalent(sql) }}
+    {%- endif %}
     {% if sql is none %}
       {{clickhouse__create_view_columns_from_schema()}}
     {%- else -%}
