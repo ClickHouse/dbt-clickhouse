@@ -1,5 +1,6 @@
-{% materialization distributed_incremental, adapter='clickhouse' %}
+{% materialization distributed_incremental, adapter='clickhouse', supported_languages=['python', 'sql'] %}
   {% set insert_distributed_sync = run_query("SELECT value FROM system.settings WHERE name = 'insert_distributed_sync'")[0][0] %}
+  {%- set language = model['language'] -%}
   {% if insert_distributed_sync != '1' %}
      {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
   {% endif %}
@@ -64,10 +65,13 @@
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
-    {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql) }}
-    {% endcall %}
-
+    {%- if language == 'python' -%}
+      {%- call statement('main', language=language) -%}
+        {{- py_write(compiled_code, target_relation) }}
+      {%- endcall %}
+    {%- elif language == 'sql' -%}
+      {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+    {%- endif -%}
   {% else %}
     {% if existing_relation is none %}
       {{ drop_relation_if_exists(existing_relation) }}
@@ -89,9 +93,13 @@
     {% if incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
     {% elif incremental_strategy == 'append' %}
-      {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql) }}
-      {% endcall %}
+      {%- if language == 'python' -%}
+        {%- call statement('main', language=language) -%}
+          {{- py_write(compiled_code, target_relation) }}
+        {%- endcall %}
+      {%- elif language == 'sql' -%}
+        {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+      {%- endif -%}
     {% endif %}
   {% endif %}
 
