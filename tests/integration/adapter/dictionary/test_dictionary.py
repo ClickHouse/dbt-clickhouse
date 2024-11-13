@@ -6,7 +6,6 @@ import json
 import os
 
 import pytest
-
 from dbt.tests.util import run_dbt
 
 testing_s3 = os.environ.get('DBT_CH_TEST_INCLUDE_S3', '').lower() in ('1', 'true', 'yes')
