@@ -146,7 +146,11 @@
   {{ create_schema(shard_relation) }}
   {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
-  {% if sql_query is not none %}
+  {%- set language = model['language'] -%}
+  {% if language == 'sql' and sql_query is not none %}
     {% do run_query(clickhouse__insert_into(distributed_relation, sql_query)) or '' %}
+  {%- elif language == 'python' -%}
+      {%- set code = py_write(compiled_code, distributed_relation) %}
+      {{ adapter.submit_python_job(model, code) }}
   {% endif %}
 {%- endmacro %}
