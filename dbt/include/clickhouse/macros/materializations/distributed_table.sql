@@ -61,8 +61,15 @@
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
   {% endif %}  
-    {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
-  {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+  {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
+  {%- set language = model['language'] -%}
+  {%- if language == 'python' -%}
+    {%- call statement('main', language=language) -%}
+      {{- py_write(compiled_code, target_relation) }}
+    {%- endcall %}
+  {%- elif language == 'sql' -%}
+    {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+  {%- endif -%}
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
