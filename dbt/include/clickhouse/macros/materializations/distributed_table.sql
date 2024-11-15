@@ -63,7 +63,7 @@
   {% endif %}  
   {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
   {%- set language = model['language'] -%}
-  {%- if language == 'python' -%}
+  {%- if language == 'python' and backup_relation is not none -%}
     {%- call statement('main', language=language) -%}
       {{- py_write(compiled_code, target_relation) }}
     {%- endcall %}
