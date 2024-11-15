@@ -64,6 +64,7 @@
   {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
   {%- set language = model['language'] -%}
   {%- if language == 'python' and backup_relation is not none -%}
+    {# if backup_relation is none, data is already inserted when calling create_distributed_local_table  #}
     {%- call statement('main', language=language) -%}
       {{- py_write(compiled_code, target_relation) }}
     {%- endcall %}
@@ -149,6 +150,8 @@
     {% do run_query(clickhouse__insert_into(distributed_relation, sql_query)) or '' %}
   {%- elif language == 'python' -%}
       {%- set code = py_write(compiled_code, distributed_relation) %}
+      {# dbt core's submit_python_job doesn't allow macro call stack > 2, this hack bypass core's submit_python_job
+      and call python adapter's submit_python_job directly #}
       {{ adapter.submit_python_job(model, code) }}
   {% endif %}
 {%- endmacro %}
