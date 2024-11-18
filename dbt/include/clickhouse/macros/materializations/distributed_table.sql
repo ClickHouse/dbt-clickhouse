@@ -1,4 +1,5 @@
-{% materialization distributed_table, adapter='clickhouse' %}
+{% materialization distributed_table, adapter='clickhouse', supported_languages=['python', 'sql'] -%}
+
   {% set insert_distributed_sync = run_query("SELECT value FROM system.settings WHERE name = 'insert_distributed_sync'")[0][0] %}
   {% if insert_distributed_sync != '1' %}
      {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
@@ -60,8 +61,16 @@
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
   {% endif %}  
-    {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
-  {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+  {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
+  {%- set language = model['language'] -%}
+  {%- if language == 'python' and backup_relation is not none -%}
+    {# if backup_relation is none, data is already inserted when calling create_distributed_local_table  #}
+    {%- call statement('main', language=language) -%}
+      {{- py_write(compiled_code, target_relation) }}
+    {%- endcall %}
+  {%- elif language == 'sql' -%}
+    {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+  {%- endif -%}
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
@@ -136,7 +145,13 @@
   {{ create_schema(shard_relation) }}
   {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
-  {% if sql_query is not none %}
+  {%- set language = model['language'] -%}
+  {% if language == 'sql' and sql_query is not none %}
     {% do run_query(clickhouse__insert_into(distributed_relation, sql_query)) or '' %}
+  {%- elif language == 'python' -%}
+      {%- set code = py_write(compiled_code, distributed_relation) %}
+      {# dbt core's submit_python_job doesn't allow macro call stack > 2, this hack bypass core's submit_python_job
+      and call python adapter's submit_python_job directly #}
+      {{ adapter.submit_python_job(model, code) }}
   {% endif %}
 {%- endmacro %}

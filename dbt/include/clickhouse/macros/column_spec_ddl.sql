@@ -38,3 +38,17 @@
 
 {% endmacro %}
 
+{% macro clickhouse__create_view_columns_from_schema() -%}
+  {%- set user_defined_columns = model['columns'] -%}
+
+  {%- if not user_defined_columns -%}
+      {{ exceptions.raise_contract_error([], []) }}
+  {%- endif -%}
+
+  {%- set yaml_columns = user_defined_columns.values() -%}
+  SELECT
+  {%- for col in yaml_columns %}
+      defaultValueOfTypeName('{{col['data_type']}}') AS {{col['name']}}{% if not loop.last %},{% endif %}
+  {%- endfor -%}
+
+{% endmacro %}
