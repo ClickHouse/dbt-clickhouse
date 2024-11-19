@@ -51,6 +51,7 @@ LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 @dataclass
 class ClickHouseConfig(AdapterConfig):
     engine: str = 'MergeTree()'
+    force_on_cluster: Optional[bool] = False
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None
     sharding_key: Optional[Union[List[str], str]] = 'rand()'
