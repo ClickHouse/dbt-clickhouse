@@ -78,7 +78,7 @@
         {{ log('Model mvs to replace ' + mv_names | string) }}
         {% for table in tables %}
             {% if table not in mv_names %}
-                {{ log('Warning - Table "' + table + '" was detected with the same pattern as model name "' + target_relation.name + '" but was not found this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)') }}
+                {{ log('Warning - Table "' + table + '" was detected with the same pattern as model name "' + target_relation.name + '" but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)') }}
             {% endif %}
         {% endfor %}
     {% else %}
