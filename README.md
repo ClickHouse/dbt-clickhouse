@@ -260,6 +260,12 @@ select a,b,c from {{ source('raw', 'table_2') }}
 --mv2:end
 ```
 
+> IMPORTANT!  
+> 
+> When updating a model with multiple materialized views (MVs), especially when renaming one of the MV names, dbt-clickhouse does not automatically drop the old MV. Instead,
+> you will encounter the following warning: `Warning - Table <previous table name> was detected with the same pattern as model name <your model name> but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!) `
+ 
+
 
 # Dictionary materializations (experimental)
 See the tests in https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py for examples of how to
