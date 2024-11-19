@@ -53,6 +53,37 @@
     {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views) }}
   {% elif existing_relation.can_exchange %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
+    -- in this section, we look for mvs that has the same pattern as this model, but for some reason,
+    -- are not listed in the model. This might happen when using multiple mv, and renaming one of the mv in the model.
+    -- In case such mv found, we raise a warning to the user, that they might need to drop the mv manually.
+    {{ log('Searching for existing materialized views with the pattern of ' + target_relation.name) }}
+    {{ log('Views dictionary contents: ' + views | string) }}
+
+        {% set tables_query %}
+            select table_name
+            from information_schema.tables
+            where table_schema = '{{ existing_relation.schema }}'
+              and table_name like '%{{ target_relation.name }}%'
+              and table_type = 'VIEW'
+        {% endset %}
+
+    {% set tables_result = run_query(tables_query) %}
+    {% if tables_result is not none %}
+        {% set tables = tables_result.columns[0].values() %}
+        {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
+        {% set mv_names = [] %}
+        {% for key in views.keys() %}
+            {% do mv_names.append(target_relation.name ~ "_" ~ key) %}
+        {% endfor %}
+        {{ log('Model mvs to replace ' + mv_names | string) }}
+        {% for table in tables %}
+            {% if table not in mv_names %}
+                {{ log('Warning - Table "' + table + '" was detected with the same pattern as model name "' + target_relation.name + '" but was not found this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)') }}
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
+    {% endif %}
     {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
     {% if should_full_refresh() %}
       {% call statement('main') -%}
@@ -153,3 +184,4 @@
   {# now that the target table is recreated, we can finally create our new view #}
   {{ clickhouse__create_mvs(target_relation, cluster_clause, views) }}
 {% endmacro %}
+
