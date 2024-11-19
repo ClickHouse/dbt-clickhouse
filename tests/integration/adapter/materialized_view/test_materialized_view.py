@@ -372,7 +372,8 @@ class TestUpdateMultipleMV:
 
         # assert that we now have both of Dade's aliases in our hackers table
         result = project.run_sql(
-            f"select distinct hacker_alias from {schema}.hackers where name = 'Dade' order by hacker_alias", fetch="all"
+            f"select distinct hacker_alias from {schema}.hackers where name = 'Dade' order by hacker_alias",
+            fetch="all",
         )
         assert len(result) == 2
         assert result[0][0] == "crash_override"
@@ -397,7 +398,8 @@ class TestUpdateMultipleMV:
 
         # assert that we now have both of Dade's aliases in our hackers table
         result = project.run_sql(
-            f"select distinct hacker_alias from {schema}.hackers where name = 'Dade' order by hacker_alias", fetch="all"
+            f"select distinct hacker_alias from {schema}.hackers where name = 'Dade' order by hacker_alias",
+            fetch="all",
         )
         print(result)
         assert len(result) == 2
