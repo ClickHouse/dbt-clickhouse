@@ -32,7 +32,7 @@ CREATE TABLE taxis.trips (
 )
 ENGINE = MergeTree
 ORDER BY trip_id;
-  
+
 SET input_format_skip_unknown_fields = 1;
 
 INSERT INTO taxis.trips
@@ -62,26 +62,25 @@ FROM s3(
 
 ## Create a dbt profile entry
 
-Use the following profile to create the associated dbt profile in the  dbt_profiles.yml in ~/.dbt
+Use the following profile to create the associated dbt profile in the dbt_profiles.yml in ~/.dbt
+
 ```yml
 taxis:
   outputs:
-
     dev:
       type: clickhouse
-      threads: 4 
+      threads: 4
       host: localhost
-      port: 8123 
+      port: 8123
       user: dbt_test
       password: dbt_password
       use_lw_deletes: true
-      schema: taxis_dbt 
+      schema: taxis_dbt
 
   target: dev
-
 ```
 
 ## Run the model
 
-`dbt run` in this directory should execute the model.  Each run will create a somewhat larger dataset (by adding
+`dbt run` in this directory should execute the model. Each run will create a somewhat larger dataset (by adding
 additional random trip_ids).

@@ -13,9 +13,9 @@ from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.util import hide_stack_trace
 
 try:
-    driver_version = pkg_resources.get_distribution('clickhouse-driver').version
+    driver_version = pkg_resources.get_distribution("clickhouse-driver").version
 except pkg_resources.ResolutionError:
-    driver_version = 'unknown'
+    driver_version = "unknown"
 
 
 class ChNativeClient(ChClientWrapper):
@@ -52,7 +52,7 @@ class ChNativeClient(ChClientWrapper):
                 f"SELECT value, readonly FROM system.settings WHERE name = '{setting_name}'"
             )
         except clickhouse_driver.errors.Error as ex:
-            logger.warn('Unexpected error retrieving ClickHouse server setting', ex)
+            logger.warning("Unexpected error retrieving ClickHouse server setting", ex)
             return None
         return (result[0][0], result[0][1]) if result else (None, 0)
 
@@ -92,7 +92,7 @@ class ChNativeClient(ChClientWrapper):
     def _server_version(self):
         server_info = self._client.connection.server_info
         return (
-            f'{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}'
+            f"{server_info.version_major}.{server_info.version_minor}.{server_info.version_patch}"
         )
 
 

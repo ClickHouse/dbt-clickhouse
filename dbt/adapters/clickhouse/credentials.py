@@ -36,6 +36,8 @@ class ClickHouseCredentials(Credentials):
     local_db_prefix: str = ''
     allow_automatic_deduplication: bool = False
     tcp_keepalive: Union[bool, tuple[int, int, int], list[int]] = False
+    chdb_state_dir: str = ""
+    chdb_dump_dir: str = ""
 
     @property
     def type(self):

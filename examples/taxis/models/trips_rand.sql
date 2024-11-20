@@ -1,1 +1,0 @@
-SELECT now64() as date_time, rand() % 512 as start, rand() % (1023 - start) + start as end
