@@ -1,3 +1,8 @@
+### Unreleased
+
+### Improvement
+* Materialized view now attempts to use `ALTER TABLE...MODIFY QUERY` to update existing materialized views. This is an atomic operation so data is not lost. ([#390](https://github.com/ClickHouse/dbt-clickhouse/pull/390))
+
 ### Release [1.8.5], 2024-11-19
 
 ### New Features
