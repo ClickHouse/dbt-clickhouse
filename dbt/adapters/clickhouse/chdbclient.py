@@ -1,19 +1,15 @@
 import json
-import uuid
 from pathlib import Path
 from typing import List
 
 import pkg_resources
-from chdb import session, ChdbError
+from chdb import ChdbError, session
 from chdb.dbapi import converters
-from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt_common.exceptions import DbtDatabaseError
 
 from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
-from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
-from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
+from dbt.adapters.clickhouse.dbclient import ChClientWrapper
 from dbt.adapters.clickhouse.logger import logger
-from dbt.adapters.clickhouse.query import quote_identifier
 
 try:
     driver_version = pkg_resources.get_distribution("chdb").version
@@ -30,7 +26,9 @@ class ChDBClient(ChClientWrapper):
             result.read()
             return result
         except CHDBResultError as ex:
-            raise DbtDatabaseError(f"reading result from chdb query using json failed: {str(ex).strip()}") from ex
+            raise DbtDatabaseError(
+                f"reading result from chdb query using json failed: {str(ex).strip()}"
+            ) from ex
         except ChdbError as ex:
             raise DbtDatabaseError(f"chdb query failed with exception: {str(ex).strip()}") from ex
         except Exception as ex:
@@ -49,7 +47,6 @@ class ChDBClient(ChClientWrapper):
         except Exception as ex:
             raise DbtDatabaseError(f"chdb command failed with exception: {str(ex).strip()}") from ex
 
-
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
             query_result = self._client.query(
@@ -61,7 +58,9 @@ class ChDBClient(ChClientWrapper):
                 for name, ch_type in zip(query_result.column_names, query_result.column_types)
             ]
         except ChdbError as ex:
-            raise DbtDatabaseError(f"chdb columns_in_query failed with exception: {str(ex).strip()}") from ex
+            raise DbtDatabaseError(
+                f"chdb columns_in_query failed with exception: {str(ex).strip()}"
+            ) from ex
         except Exception as ex:
             raise DbtDatabaseError(str(ex).strip()) from ex
 
@@ -86,6 +85,7 @@ class ChDBClient(ChClientWrapper):
         # self._client.cleanup()
 
     def _create_client(self, credentials: ClickHouseCredentials):
+        # We want to append the path below to target_dir to have relative paths implementation in the configuration
         chdb_state_dir = Path(credentials.chdb_state_dir)
 
         if not chdb_state_dir.exists():
@@ -96,7 +96,8 @@ class ChDBClient(ChClientWrapper):
         logger.info(f"Provided session_dir: {session_dir}")
         client = session.Session(path=session_dir.as_posix())
 
-        chdb_dump_dir = Path(credentials.chdb_dump_dir)
+        # We want to append the path below to target_dir to have relative paths implementation in the configuration
+        chdb_dump_dir = Path.cwd() / credentials.chdb_dump_dir
         chdb_dump_files = list(chdb_dump_dir.glob("**/*.sql"))
         if len(chdb_dump_files) == 0:
             logger.warning(f"Provided chdb_dump_files is empty: {chdb_dump_files}")
@@ -107,7 +108,9 @@ class ChDBClient(ChClientWrapper):
             try:
                 client.query(sql_content)
             except ChdbError as ex:
-                raise DbtDatabaseError(f"client creation failed with exception: {str(ex).strip()}") from ex
+                raise DbtDatabaseError(
+                    f"client creation failed with exception: {str(ex).strip()}"
+                ) from ex
         return client
 
     def _set_client_database(self):

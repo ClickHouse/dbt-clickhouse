@@ -97,3 +97,5 @@ dbt-tut
 dev/
 .python-version
 *_project/
+.user.yml
+chdb_state

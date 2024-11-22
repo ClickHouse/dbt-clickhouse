@@ -68,7 +68,7 @@ your_profile_name:
       schema: [default] # ClickHouse database for dbt models
 
       # optional
-      driver: [http] # http or native.  If not set this will be autodetermined based on port setting
+      driver: [http] # http, native or chdb.  If not set this will be autodetermined based on port setting
       host: [localhost] 
       port: [8123]  # If not set, defaults to 8123, 8443, 9000, 9440 depending on the secure and driver settings 
       user: [default] # User for all database operations
@@ -92,6 +92,10 @@ your_profile_name:
       # Native (clickhouse-driver) connection settings
       sync_request_timeout: [5] # Timeout for server ping
       compress_block_size: [1048576] # Compression block size if compression is enabled
+
+      # chDB (clikchouse-driver) path settings
+      chdb_state_dir: [<empty string>] # The path where chdb will leave it's states
+      chdb_dump_dir: [<empty string>] # The path where dbt-clickhouse will find the dumps to initialise chdb
       
 ```
 
