@@ -20,9 +20,14 @@
   {%- set backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-
-  {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
-  {{ drop_relation_if_exists(preexisting_backup_relation) }}
+  {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
+  
+  {% if not full_refresh_mode and incremental_strategy == 'append' %}
+    -- skip dropping tables for incremental append runs.
+  {% else %}
+    {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
+    {{ drop_relation_if_exists(preexisting_backup_relation) }}
+  {% endif %}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
@@ -55,7 +60,6 @@
 
   {% else %}
     {% set column_changes = none %}
-    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
