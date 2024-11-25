@@ -14,10 +14,8 @@ taxis:
       type: clickhouse
       driver: chdb
       chdb_state_dir: "chdb_state"
-      chdb_dump_dir: "dump"
+      chdb_dump_dir: "examples/taxis/dump"
       threads: 1
-      user: dbt_test
-      password: dbt_password
       schema: taxis_dbt
 
   target: dev
