@@ -1,3 +1,10 @@
+### Unreleased
+
+### Improvement
+
+Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary (#393)
+
+
 ### Release [1.8.5], 2024-11-19
 
 ### New Features
