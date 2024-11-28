@@ -65,7 +65,7 @@
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
     {% set need_swap = true %}
 
-  {% elif inserts_only or unique_key is none -%}
+  {% elif inserts_only -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
@@ -91,6 +91,15 @@
       {% set need_swap = true %}
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
+    {% elif incremental_strategy == 'insert_overwrite' %}
+      {%- set partition_by = config.get('partition_by') -%}
+      {% if partition_by is none or partition_by|length == 0 %}
+        {% do exceptions.raise_compiler_error(incremental_strategy + ' strategy requires nonempty partition_by. Current partition_by is ' ~ partition_by) %}
+      {% endif %}
+      {% if inserts_only or unique_key is not none or incremental_predicates is not none %}
+      	{% do exceptions.raise_compiler_error(incremental_strategy + ' strategy does not support inserts_only, unique_key, and incremental predicates.') %}
+      {% endif %}
+      {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
