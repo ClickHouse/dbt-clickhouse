@@ -150,7 +150,9 @@
          {% if config.get('projections')%}
                 {{ projection_statement(relation) }}
          {% endif %}
-
+          {% if config.get('indexes') %}
+                {{ indexes_statement(relation) }}
+         {% endif %}
 
         {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
@@ -165,6 +167,16 @@
         (
             {{ projection.get('query') }}
         )
+            {%endcall  %}
+    {%- endfor %}
+{%- endmacro %}
+
+{% macro indexes_statement(relation) %}
+    {%- set indexes = config.get('indexes', default=[]) -%}
+
+    {%- for index in indexes %}
+         {% call statement('add_indexes') %}
+                ALTER TABLE {{ relation }} ADD INDEX {{ index.get('name') }} {{ index.get('definition') }}
             {%endcall  %}
     {%- endfor %}
 {%- endmacro %}
