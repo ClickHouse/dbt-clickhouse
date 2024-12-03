@@ -1,3 +1,18 @@
+### Next Version
+
+#### New Features
+* [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
+The index config should be added to the model config. for instance: 
+  ```python
+  {{ config(
+         materialized='%s',
+         indexes=[{
+            'name': 'your_index_name',
+            'definition': 'your_column TYPE minmax GRANULARITY 2'
+         }]
+  ) }}
+  ```
+
 ### Release [1.8.5], 2024-11-19
 
 ### New Features
