@@ -264,7 +264,22 @@ select a,b,c from {{ source('raw', 'table_2') }}
 > 
 > When updating a model with multiple materialized views (MVs), especially when renaming one of the MV names, dbt-clickhouse does not automatically drop the old MV. Instead,
 > you will encounter the following warning: `Warning - Table <previous table name> was detected with the same pattern as model name <your model name> but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!) `
- 
+
+## Data catchup
+Currently, when creating a materialized view (MV), the target table is first populated with historical data before the MV itself is created.
+
+In other words, dbt-clickhouse initially creates the target table and preloads it with historical data based on the query defined for the MV. Only after this step is the MV created.
+
+If you prefer not to preload historical data during MV creation, you can disable this behavior by setting the catchup config to False:
+
+```python
+{{config(
+    materialized='materialized_view',
+    engine='MergeTree()',
+    order_by='(id)',
+    catchup=False
+)}}
+```
 
 
 # Dictionary materializations (experimental)
