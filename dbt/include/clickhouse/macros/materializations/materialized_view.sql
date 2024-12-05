@@ -50,7 +50,8 @@
 
   {% if backup_relation is none %}
     {{ log('Creating new materialized view ' + target_relation.name )}}
-    {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views) }}
+    {% set catchup_data = config.get("catchup", True) %}
+    {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views, catchup_data) }}
   {% elif existing_relation.can_exchange %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
     -- in this section, we look for mvs that has the same pattern as this model, but for some reason,
@@ -132,9 +133,15 @@
   2. Create a materialized view using the SQL in the model that inserts
   data into the table creating during step 1
 #}
-{% macro clickhouse__get_create_materialized_view_as_sql(relation, sql, views) -%}
+{% macro clickhouse__get_create_materialized_view_as_sql(relation, sql, views, catchup=True ) -%}
   {% call statement('main') %}
+  {% if catchup == True %}
     {{ get_create_table_as_sql(False, relation, sql) }}
+  {% else %}
+  {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
+   {% set has_contract = config.get('contract').enforced %}
+    {{ create_table_or_empty(False, relation, sql, has_contract) }}
+  {% endif %}
   {% endcall %}
   {%- set cluster_clause = on_cluster_clause(relation) -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
