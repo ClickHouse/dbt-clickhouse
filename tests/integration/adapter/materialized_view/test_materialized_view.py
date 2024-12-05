@@ -236,5 +236,3 @@ class TestUpdateMV:
             f"select distinct hacker_alias from {schema}.hackers where name = 'Dade'", fetch="all"
         )
         assert len(result) == 2
-
-
