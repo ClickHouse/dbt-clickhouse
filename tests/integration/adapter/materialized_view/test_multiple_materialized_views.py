@@ -102,6 +102,7 @@ sources:
       - name: people
 """
 
+
 class TestMultipleMV:
     @pytest.fixture(scope="class")
     def seeds(self):
