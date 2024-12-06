@@ -150,10 +150,17 @@
          {% if config.get('projections')%}
                 {{ projection_statement(relation) }}
          {% endif %}
-
-
-        {{ clickhouse__insert_into(relation, sql, has_contract) }}
-    {%- endif %}
+        {%- set language = model['language'] -%}
+        {%- if language == 'python' -%}
+            {%- set code = py_write(compiled_code, relation) -%}
+            {# dbt core's submit_python_job doesn't allow macro call stack > 2, this hack bypass core's submit_python_job
+            and call python adapter's submit_python_job directly #}
+            {%- do adapter.submit_python_job(model, code) -%}
+            SELECT 'placeholder query for python models.';
+          {%- elif language == 'sql' -%}
+            {{ clickhouse__insert_into(relation, sql, has_contract) }}
+        {%- endif -%}
+    {%- endif -%}
 {%- endmacro %}
 
 {% macro projection_statement(relation) %}
@@ -171,9 +178,10 @@
 
 {% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
-
     {{ sql_header if sql_header is not none }}
-
+    {%- if sql is none -%}
+        {%- set sql = clickhouse__create_select_query_from_schema() -%}
+    {%- endif -%}
     {% if temporary -%}
         create temporary table {{ relation }}
         engine Memory
