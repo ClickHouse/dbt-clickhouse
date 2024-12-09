@@ -8,6 +8,7 @@ schema_change_sql = """
 {{
     config(
         materialized='%s',
+        primary_key='col_1',
         unique_key='col_1',
         on_schema_change='%s'
     )
@@ -101,6 +102,7 @@ complex_schema_change_sql = """
 {{
     config(
         materialized='%s',
+        primary_key='col_1',
         unique_key='col_1',
         on_schema_change='%s'
     )
@@ -189,6 +191,7 @@ out_of_order_columns_sql = """
 {{
     config(
         materialized='%s',
+        primary_key='col_1',
         unique_key='col_1',
         on_schema_change='fail'
     )
