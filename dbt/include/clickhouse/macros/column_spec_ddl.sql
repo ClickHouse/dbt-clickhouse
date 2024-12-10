@@ -43,7 +43,7 @@
 
   {%- if not user_defined_columns -%}
       {%- set error_message = "Schema definition missing for Python model " ~ model['name'] -%}
-      {{ exceptions.raise_compiler_error() }}
+      {{ exceptions.raise_compiler_error(error_message) }}
   {%- endif -%}
 
   {%- set yaml_columns = user_defined_columns.values() -%}
