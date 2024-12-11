@@ -76,7 +76,7 @@
       {{ get_assert_columns_equivalent(sql) }}
     {%- endif %}
     {% if sql is none %}
-      {{clickhouse__create_view_columns_from_schema()}}
+      {{clickhouse__create_select_query_from_schema()}}
     {%- else -%}
       {{ sql }}
     {%- endif -%}

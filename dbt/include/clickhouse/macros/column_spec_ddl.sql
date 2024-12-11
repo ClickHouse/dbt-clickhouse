@@ -38,11 +38,12 @@
 
 {% endmacro %}
 
-{% macro clickhouse__create_view_columns_from_schema() -%}
+{% macro clickhouse__create_select_query_from_schema() -%}
   {%- set user_defined_columns = model['columns'] -%}
 
   {%- if not user_defined_columns -%}
-      {{ exceptions.raise_contract_error([], []) }}
+      {%- set error_message = "Schema definition missing for Python model " ~ model['name'] -%}
+      {{ exceptions.raise_compiler_error(error_message) }}
   {%- endif -%}
 
   {%- set yaml_columns = user_defined_columns.values() -%}
