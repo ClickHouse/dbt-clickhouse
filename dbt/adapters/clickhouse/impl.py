@@ -208,6 +208,7 @@ class ClickHouseAdapter(SQLAdapter):
         target_not_in_source = [column for column in target if column.name not in source_map.keys()]
         target_in_source = [column for column in target if column.name in source_map.keys()]
         changed_data_types = []
+        unsafe_nullable_changes = []
         for column in target_in_source:
             source_column = source_map.get(column.name)
             if source_column is not None and (
@@ -215,8 +216,13 @@ class ClickHouseAdapter(SQLAdapter):
                 or column.is_nullable != source_column.is_nullable
                 or column.is_low_cardinality != source_column.is_low_cardinality
             ):
+                if not column.is_nullable and source_column.is_nullable:
+                    unsafe_nullable_changes.append(column)
                 changed_data_types.append(column)
-
+            if unsafe_nullable_changes:
+                raise DbtRuntimeError(
+                    schema_change_datatype_error.format(unsafe_nullable_changes)
+                )
         clickhouse_column_changes = ClickHouseColumnChanges(
             columns_to_add=target_not_in_source,
             columns_to_drop=source_not_in_target,
