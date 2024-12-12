@@ -219,10 +219,11 @@ class ClickHouseAdapter(SQLAdapter):
                 if not column.is_nullable and source_column.is_nullable:
                     unsafe_nullable_changes.append(column)
                 changed_data_types.append(column)
-            if unsafe_nullable_changes:
-                raise DbtRuntimeError(
-                    schema_change_datatype_error.format(unsafe_nullable_changes)
-                )
+        #  change column type from Nullable([dtype]) to [dtype] will fail when the column has NULL values 
+        if unsafe_nullable_changes:
+            raise DbtRuntimeError(
+                schema_change_datatype_error.format(unsafe_nullable_changes)
+            )
         clickhouse_column_changes = ClickHouseColumnChanges(
             columns_to_add=target_not_in_source,
             columns_to_drop=source_not_in_target,
