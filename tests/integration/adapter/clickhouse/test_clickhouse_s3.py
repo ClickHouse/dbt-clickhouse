@@ -36,7 +36,6 @@ s3_taxis_inc = """
     materialized='incremental',
     order_by='pickup_datetime',
     incremental_strategy='delete+insert',
-    primary_key='trip_id',
     unique_key='trip_id',
     taxi_s3={"structure":['trip_id UInt32', 'pickup_datetime DateTime', 'passenger_count UInt8']}
     )
