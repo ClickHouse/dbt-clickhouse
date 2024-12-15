@@ -17,7 +17,6 @@ uniq_source_model = """
         materialized='distributed_table',
         engine='MergeTree()',
         order_by=['ts'],
-        primary_key=['impid'],
         unique_key=['impid']
     )
 }}
@@ -30,7 +29,6 @@ uniq_incremental_model = """
     config(
         materialized='distributed_incremental',
         engine='MergeTree()',
-        primary_key=['impid'],
         order_by=['ts'],
         unique_key=['impid']
     )
@@ -71,7 +69,6 @@ lw_delete_inc = """
 {{ config(
         materialized='distributed_incremental',
         order_by=['key1'],
-        primary_key='key1',
         unique_key='key1',
         incremental_strategy='delete+insert'
     )
@@ -114,7 +111,6 @@ compound_key_inc = """
 {{ config(
         materialized='distributed_incremental',
         order_by=['key1', 'key2'],
-        primary_key=['key1', 'key2'],
         unique_key='key1, key2',
         incremental_strategy='delete+insert'
     )
@@ -162,7 +158,7 @@ class TestInsertsOnlyDistributedIncrementalMaterialization(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_incremental = """
-          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='distributed_incremental', primary_key='id', unique_key='id') }}
+          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='distributed_incremental', unique_key='id') }}
         """
         incremental_sql = config_materialized_incremental + model_incremental
         return {
@@ -186,7 +182,7 @@ class TestInsertsOnlyDistributedIncrementalMaterialization(BaseIncremental):
 
 
 incremental_not_schema_change_sql = """
-{{ config(materialized="distributed_incremental", primary_key="user_id_current_time", unique_key="user_id_current_time", on_schema_change="sync_all_columns") }}
+{{ config(materialized="distributed_incremental", unique_key="user_id_current_time",on_schema_change="sync_all_columns") }}
 select
     toString(1) || '-' || toString(now64()) as user_id_current_time,
     {% if is_incremental() %}
