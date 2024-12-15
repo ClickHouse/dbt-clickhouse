@@ -4,6 +4,11 @@
 
 Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary (#393)
 
+### Release [1.8.6], 2024-12-05
+
+### Improvement
+* Today, on mv model creation, the target table is being populated with the historical data based on the query provided in the mv creation. This catchup mechanism is now behind a config flag and enabled by default (as is today). ([#399](https://github.com/ClickHouse/dbt-clickhouse/pull/399))
+
 
 ### Release [1.8.5], 2024-11-19
 
