@@ -16,6 +16,8 @@ Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically 
 * Added support for the creation of more than one materialized view inserting records into the same target table. ([#360](https://github.com/ClickHouse/dbt-clickhouse/pull/364))
 
 ### Improvement
+
+* Enhance the `primary_key` macro to accept a list of columns, allowing for primary keys with multiple columns. ([#337](https://github.com/ClickHouse/dbt-clickhouse/pull/337))
 * Added support for [range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#range_hashed) and [complex_key_range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#complex_key_range_hashed) layouts to the dictionary materialization. ([#361](https://github.com/ClickHouse/dbt-clickhouse/pull/361))
 * Truncated stack trace for database errors for cleaner output when HIDE_STACK_TRACE variable is set to any value. ([#382](https://github.com/ClickHouse/dbt-clickhouse/pull/382))
 * It is now possible to pass query settings not only on table creation but also on query. ([#362](https://github.com/ClickHouse/dbt-clickhouse/pull/362))

@@ -20,6 +20,7 @@ uniq_source_model = """
         materialized='table',
         engine='MergeTree()',
         order_by=['ts'],
+        primary_key=['impid'],
         unique_key=['impid']
     )
 }}
@@ -33,6 +34,7 @@ uniq_incremental_model = """
         materialized='incremental',
         engine='MergeTree()',
         order_by=['ts'],
+        primary_key=['impid'],
         unique_key=['impid'],
         settings={'allow_nullable_key':'1'}
     )
@@ -62,6 +64,7 @@ lw_delete_inc = """
 {{ config(
         materialized='incremental',
         order_by=['key1'],
+        primary_key='key1',
         unique_key='key1',
         incremental_strategy='delete+insert',
         settings={'allow_nullable_key':1}
@@ -97,6 +100,7 @@ legacy_inc = """
 {{ config(
         materialized='incremental',
         order_by=['key1'],
+        primary_key='key1',
         unique_key='key1',
         incremental_strategy='legacy',
         settings={'allow_nullable_key':1}
@@ -140,6 +144,7 @@ compound_key_inc = """
 {{ config(
         materialized='incremental',
         order_by=['key1', 'key2'],
+        primary_key=['key1', 'key2'],
         unique_key='key1, key2',
         incremental_strategy='delete+insert'
     )
@@ -174,7 +179,7 @@ class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_incremental = """
-          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='incremental', unique_key='id') }}
+          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='incremental', primary_key='id', unique_key='id') }}
         """
         incremental_sql = config_materialized_incremental + model_incremental
         return {
