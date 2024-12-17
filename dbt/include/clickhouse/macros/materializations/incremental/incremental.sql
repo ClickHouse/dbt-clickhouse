@@ -76,7 +76,7 @@
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
       {% endcall %}
-    {% elif incremental_strategy == 'insert_overwrite' %}#}
+    {% elif incremental_strategy == 'insert_overwrite' %}
       {%- set partition_by = config.get('partition_by') -%}
       {% if partition_by is none or partition_by|length == 0 %}
         {% do exceptions.raise_compiler_error(incremental_strategy + ' strategy requires nonempty partition_by. Current partition_by is ' ~ partition_by) %}
@@ -84,7 +84,7 @@
       {% if inserts_only or unique_key is not none or incremental_predicates is not none %}
       	{% do exceptions.raise_compiler_error(incremental_strategy + ' strategy does not support inserts_only, unique_key, and incremental predicates.') %}
       {% endif %}
-      {% do clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %} %}
+      {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, False) %}
     {% endif %}
   {% endif %}
 
@@ -246,41 +246,58 @@
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
 {% endmacro %}
 
-{% macro clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
+{% macro clickhouse__incremental_insert_overwrite(existing_relation, partition_by, is_distributed=False) %}
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
-    {% call statement('create_new_data_temp') -%}
-      {{ get_create_table_as_sql(False, new_data_relation, sql) }}
-    {%- endcall %}
-    {% call statement('main') -%}
-        create table {{ intermediate_relation }} as {{ existing_relation }}
-    {%- endcall %}
-    {% call statement('insert_new_data') -%}
-        insert into {{ intermediate_relation }} select * from {{ new_data_relation }}
-    {%- endcall %}
+    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
+
+
+    {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
+    {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
+    {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
+
+    {% if is_distributed %}
+        {{ create_distributed_local_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
+    {% else %}
+        {% call statement('main') %}
+            {{ get_create_table_as_sql(False, new_data_relation, sql) }}
+        {% endcall %}
+    {% endif %}
+
+    {# Get the parts from the cluster table, since the partitions between shards may not overlap due to distribution #}
     {% if execute %}
       {% set select_changed_partitions %}
           SELECT DISTINCT partition_id
-          FROM system.parts
+          {% if is_distributed %}
+            FROM cluster({{ adapter.get_clickhouse_cluster_name() }}, system.parts)
+          {% else %}
+            FROM system.parts
+          {% endif %}
           WHERE active
-            AND database = '{{ intermediate_relation.schema }}'
-            AND table = '{{ intermediate_relation.identifier }}'
+            AND database = '{{ new_data_relation.schema }}'
+            AND table = '{{ new_data_relation.identifier }}'
       {% endset %}
       {% set changed_partitions = run_query(select_changed_partitions).rows %}
     {% else %}
       {% set changed_partitions = [] %}
     {% endif %}
+
     {% if changed_partitions %}
-      {% call statement('replace_partitions') %}
-          alter table {{ existing_relation }}
-          {%- for partition in changed_partitions %}
-              replace partition id '{{ partition['partition_id'] }}'
-              from {{ intermediate_relation }}
-              {{- ', ' if not loop.last }}
-          {%- endfor %}
+        {% call statement('replace_partitions') %}
+            {% if is_distributed %}
+                alter table {{ existing_local }} {{ on_cluster_clause(existing_relation) }}
+            {% else %}
+                 alter table {{ existing_relation }}
+            {% endif %}
+            {%- for partition in changed_partitions %}
+                replace partition id '{{ partition['partition_id'] }}'
+                from {{ new_data_relation }}
+                {{- ', ' if not loop.last }}
+            {%- endfor %}
       {% endcall %}
     {% endif %}
-    {% do adapter.drop_relation(intermediate_relation) %}
+
+    {% do adapter.drop_relation(distributed_new_data_relation) %}
     {% do adapter.drop_relation(new_data_relation) %}
 {% endmacro %}
