@@ -69,7 +69,7 @@
         {% endset %}
 
     {% set tables_result = run_query(tables_query) %}
-    {% if tables_result is not none %}
+    {% if tables_result is not none and tables_result.columns %}
         {% set tables = tables_result.columns[0].values() %}
         {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
         {% set mv_names = [] %}
