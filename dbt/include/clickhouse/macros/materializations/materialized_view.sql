@@ -7,6 +7,8 @@
 
   {%- set target_relation = this.incorporate(type='table') -%}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
+  {%- set refreshable_clause = refreshable_mv_clause() -%}
+
 
   {# look for an existing relation for the target table and create backup relations if necessary #}
   {%- set existing_relation = load_cached_relation(this) -%}
@@ -97,7 +99,7 @@
         select 1
       {%- endcall %}
     {% endif %}
-    {{ clickhouse__create_mvs(existing_relation, cluster_clause, views) }}
+    {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
   {% else %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
     {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) }}
@@ -144,16 +146,18 @@
   {% endif %}
   {% endcall %}
   {%- set cluster_clause = on_cluster_clause(relation) -%}
+  {%- set refreshable_clause = refreshable_mv_clause() -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
-  {{ clickhouse__create_mvs(relation, cluster_clause, views) }}
+  {{ clickhouse__create_mvs(relation, cluster_clause, refreshable_clause, views) }}
 {%- endmacro %}
 
 {% macro clickhouse__drop_mv(mv_relation, cluster_clause)  -%}
     drop view if exists {{ mv_relation }} {{ cluster_clause }}
 {%- endmacro %}u
 
-{% macro clickhouse__create_mv(mv_relation, target_table, cluster_clause, sql)  -%}
+{% macro clickhouse__create_mv(mv_relation, target_table, cluster_clause, refreshable_clause, sql)  -%}
   create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
+  {{ refreshable_clause }}
   to {{ target_table }}
   as {{ sql }}
 {%- endmacro %}
@@ -167,11 +171,11 @@
     {% endfor %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mvs(target_relation, cluster_clause, views)  -%}
+{% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
     {% for view, view_sql in views.items() %}
       {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
       {% call statement('create existing mv: ' + view) -%}
-        {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, view_sql) }};
+        {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
       {% endcall %}
     {% endfor %}
 {%- endmacro %}
@@ -179,6 +183,7 @@
 {% macro clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) %}
   {# drop existing materialized view while we recreate the target table #}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
+  {%- set refreshable_clause = refreshable_mv_clause() -%}
   {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
 
   {# recreate the target table #}
@@ -189,6 +194,109 @@
   {{ adapter.rename_relation(intermediate_relation, target_relation) }}
 
   {# now that the target table is recreated, we can finally create our new view #}
-  {{ clickhouse__create_mvs(target_relation, cluster_clause, views) }}
+  {{ clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views) }}
 {% endmacro %}
+
+{% macro refreshable_mv_clause() %}
+  {%- if config.get('refreshable') is not none -%}
+
+    {% set refreshable_config = config.get('refreshable') %}
+    {% if refreshable_config is not mapping %}
+      {% do exceptions.raise_compiler_error(
+        "The 'refreshable' configuration must be defined as a dictionary. Please review the docs for more details."
+      ) %}
+    {% endif %}
+
+    {% set refresh_interval = refreshable_config.get('interval', none) %}
+    {% set refresh_randomize = refreshable_config.get('randomize', none) %}
+    {% set depends_on = refreshable_config.get('depends_on', none) %}
+    {% set depends_on_validation = refreshable_config.get('depends_on_validation', true) %}
+    {% set append = refreshable_config.get('append', false) %}
+
+    {% if not refresh_interval %}
+      {% do exceptions.raise_compiler_error(
+        "The 'refreshable' configuration is defined, but 'interval' is missing. "
+        ~ "This is required to create a refreshable materialized view."
+      ) %}
+    {% endif %}
+
+    {% if refresh_interval %}
+      REFRESH {{ refresh_interval }}
+      {%- if refresh_randomize -%}
+        RANDOMIZE FOR {{ refresh_randomize }}
+      {%- endif -%}
+    {% endif %}
+
+    {% if depends_on %}
+      {% set depends_on_list = [] %}
+
+      {% if depends_on is string %}
+        {% set depends_on_list = [depends_on] %}
+      {% elif depends_on is iterable %}
+        {% set temp_list = depends_on_list %}
+        {%- for dep in depends_on %}
+          {% if dep is string %}
+            {% do temp_list.append(dep) %}
+          {% else %}
+            {% do exceptions.raise_compiler_error(
+              "The 'depends_on' configuration must be either a string or a list of strings."
+            ) %}
+          {% endif %}
+        {% endfor %}
+        {% set depends_on_list = temp_list %}
+      {% else %}
+        {% do exceptions.raise_compiler_error(
+          "The 'depends_on' configuration must be either a string or a list of strings."
+        ) %}
+      {% endif %}
+
+      {% if depends_on_validation and depends_on_list | length > 0 %}
+        {%- for dep in depends_on_list %}
+          {% do validate_refreshable_mv_existence(dep) %}
+        {%- endfor %}
+      {% endif %}
+
+      DEPENDS ON {{ depends_on_list | join(', ') }}
+    {% endif %}
+
+    {%- if append -%}
+      APPEND
+    {%- endif -%}
+
+  {%- endif -%}
+{% endmacro %}
+
+
+{% macro validate_refreshable_mv_existence(mv) %}
+  {{ log(mv + ' was recognized as a refreshable mv dependency, checking its existence') }}
+  {% set default_database = "default" %}
+
+  {%- set parts = mv.split('.') %}
+  {%- if parts | length == 2 %}
+    {%- set database = parts[0] %}
+    {%- set table = parts[1] %}
+  {%- else %}
+    {%- set database = default_database %}
+    {%- set table = parts[0] %}
+  {%- endif %}
+
+  {%- set condition = "database='" + database + "' and view='" + table + "'" %}
+
+  {% set query %}
+    select database, view
+    from system.view_refreshes
+    where {{ condition }}
+  {% endset %}
+
+  {% set tables_result = run_query(query) %}
+  {% if tables_result is not none and tables_result.columns %}
+    {{ log('MV ' + mv + ' exists.') }}
+  {% else %}
+    {% do exceptions.raise_compiler_error(
+      'No existing MV found matching MV: ' + mv
+    ) %}
+  {% endif %}
+{% endmacro %}
+
+
 
