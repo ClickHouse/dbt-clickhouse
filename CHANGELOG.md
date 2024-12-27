@@ -23,6 +23,9 @@ Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically 
 ### Bug Fixes
 * Before this version, `split_part` macro used to add an extra quotation. that was fixed in ([#338](https://github.com/ClickHouse/dbt-clickhouse/pull/338))
 
+### Bug Fixes
+* Existing local tables are no longer dropped/recreated in case of missing distributed tables in `distributed_incremental` materialization mode. ([#363](https://github.com/ClickHouse/dbt-clickhouse/pull/363))
+
 ### Release [1.8.4], 2024-09-17
 ### Improvement
 * The S3 help macro now support a `role_arn` parameter as an alternative way to provide authentication for S3 based models.  Thanks to
