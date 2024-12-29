@@ -374,8 +374,11 @@ A config example for refreshable materialized view:
 }}
 ```
 
-> [!IMPORTANT]
-> The refreshable feature was not tested with multiple mvs directing to the same target model.
+### Limitations
+* When creating a refreshable materialized view (MV) in ClickHouse that has a dependency, ClickHouse does not throw an error if the specified dependency does not exist at the time of creation. Instead, the refreshable MV remains in an inactive state, waiting for the dependency to be satisfied before it starts processing updates or refreshing.
+This behavior is by design, but it may lead to delays in data availability if the required dependency is not addressed promptly. Users are advised to ensure all dependencies are correctly defined and exist before creating a refreshable materialized view.
+* As of today, there is no actual "dbt linkage" between the mv and its dependencies, therefore the creation order is not guaranteed.
+* The refreshable feature was not tested with multiple mvs directing to the same target model.
 
 # Dictionary materializations (experimental)
 
