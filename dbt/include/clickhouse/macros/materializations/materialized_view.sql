@@ -210,7 +210,7 @@
     {% set refresh_interval = refreshable_config.get('interval', none) %}
     {% set refresh_randomize = refreshable_config.get('randomize', none) %}
     {% set depends_on = refreshable_config.get('depends_on', none) %}
-    {% set depends_on_validation = refreshable_config.get('depends_on_validation', true) %}
+    {% set depends_on_validation = refreshable_config.get('depends_on_validation', false) %}
     {% set append = refreshable_config.get('append', false) %}
 
     {% if not refresh_interval %}
