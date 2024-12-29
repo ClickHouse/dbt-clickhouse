@@ -101,7 +101,10 @@ class TestBasicRefreshableMV:
             },
         )
 
-        result = project.run_sql(f"select database, view, status from system.view_refreshes where database= '{project.test_schema}' and view='hackers_mv'", fetch="all")
+        result = project.run_sql(
+            f"select database, view, status from system.view_refreshes where database= '{project.test_schema}' and view='hackers_mv'",
+            fetch="all"
+        )
         assert result[0][2] == 'Scheduled'
 
     def test_validate_dependency(self, project):
