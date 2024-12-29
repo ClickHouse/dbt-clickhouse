@@ -103,7 +103,7 @@ class TestBasicRefreshableMV:
 
         result = project.run_sql(
             f"select database, view, status from system.view_refreshes where database= '{project.test_schema}' and view='hackers_mv'",
-            fetch="all"
+            fetch="all",
         )
         assert result[0][2] == 'Scheduled'
 
