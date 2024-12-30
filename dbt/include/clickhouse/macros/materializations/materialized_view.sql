@@ -222,6 +222,7 @@
 
     {% if refresh_interval %}
       REFRESH {{ refresh_interval }}
+      {# This is a comment to force a new line between REFRESH and RANDOMIZE clauses #}
       {%- if refresh_randomize -%}
         RANDOMIZE FOR {{ refresh_randomize }}
       {%- endif -%}
