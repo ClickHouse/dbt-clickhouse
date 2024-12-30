@@ -289,7 +289,8 @@
   {% endset %}
 
   {% set tables_result = run_query(query) %}
-  {% if tables_result is not none and tables_result.columns %}
+    {{ log(tables_result.columns[0].values()[0]) }}
+  {% if tables_result.columns[0].values()[0] > 0 %}
     {{ log('MV ' + mv + ' exists.') }}
   {% else %}
     {% do exceptions.raise_compiler_error(
