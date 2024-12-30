@@ -283,7 +283,7 @@
   {%- set condition = "database='" + database + "' and view='" + table + "'" %}
 
   {% set query %}
-    select database, view
+    select count(*)
     from system.view_refreshes
     where {{ condition }}
   {% endset %}
