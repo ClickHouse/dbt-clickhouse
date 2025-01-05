@@ -1,8 +1,9 @@
 ### Unreleased
 
+### New Features
+* Added support for [refreshable materialized view](https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view) ([#401](https://github.com/ClickHouse/dbt-clickhouse/pull/401))
 ### Improvement
-
-Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary (#393)
+* Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary ([#393](https://github.com/ClickHouse/dbt-clickhouse/pull/393))
 
 ### Release [1.8.6], 2024-12-05
 
