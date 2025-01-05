@@ -1,9 +1,15 @@
-### Unreleased
+### Release [1.8.7], 2025-01-05
 
 ### New Features
 * Added support for [refreshable materialized view](https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view) ([#401](https://github.com/ClickHouse/dbt-clickhouse/pull/401))
+
 ### Improvement
 * Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary ([#393](https://github.com/ClickHouse/dbt-clickhouse/pull/393))
+* Removed support in python 3.8 as it is no longer supported by dbt ([#402](https://github.com/ClickHouse/dbt-clickhouse/pull/402)
+
+### Bug Fixes
+* Remove python 3.8 leftovers from the project ([#402](https://github.com/ClickHouse/dbt-clickhouse/pull/402))
+* Fix a minor bug related to validating existence of an old hanging mv ([#396]()) 
 
 ### Release [1.8.6], 2024-12-05
 
