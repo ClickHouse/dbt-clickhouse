@@ -12,6 +12,24 @@ The index config should be added to the model config. for instance:
          }]
   ) }}
   ```
+ 
+### Release [1.8.7], 2025-01-05
+
+### New Features
+* Added support for [refreshable materialized view](https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view) ([#401](https://github.com/ClickHouse/dbt-clickhouse/pull/401))
+
+### Improvement
+* Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary ([#393](https://github.com/ClickHouse/dbt-clickhouse/pull/393))
+* Removed support in python 3.8 as it is no longer supported by dbt ([#402](https://github.com/ClickHouse/dbt-clickhouse/pull/402)
+
+### Bug Fixes
+* Fix a minor bug related to validating existence of an old hanging mv ([#396]()) 
+
+### Release [1.8.6], 2024-12-05
+
+### Improvement
+* Today, on mv model creation, the target table is being populated with the historical data based on the query provided in the mv creation. This catchup mechanism is now behind a config flag and enabled by default (as is today). ([#399](https://github.com/ClickHouse/dbt-clickhouse/pull/399))
+
 
 ### Release [1.8.5], 2024-11-19
 
