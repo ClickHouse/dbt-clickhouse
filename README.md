@@ -117,6 +117,7 @@ your_profile_name:
 | settings               | A map/dictionary of "TABLE" settings to be used to DDL statements like 'CREATE TABLE' with this model                                                                                                                                                                                                                |                |
 | query_settings         | A map/dictionary of ClickHouse user level settings to be used with `INSERT` or `DELETE` statements in conjunction with this model                                                                                                                                                                                    |                |
 | ttl                    | A TTL expression to be used with the table.  The TTL expression is a string that can be used to specify the TTL for the table.                                                                                                                                                                                       |                |
+| indexes                | A list of indexes to create, available only for `table` materialization. For examples look at ([#397](https://github.com/ClickHouse/dbt-clickhouse/pull/397))                                                                                                                                                        |                |
 
 ## Column Configuration
 
@@ -359,25 +360,32 @@ refreshable config object):
 | depends_on_validation | Whether to validate the existence of the dependencies provided in `depends_on`. In case a dependency doesn't contain a schema, the validation occurs on schema `default` |          | False         |
 
 A config example for refreshable materialized view:
+
 ```python
 {{
     config(
         materialized='materialized_view',
         refreshable={
-                "interval": "EVERY 5 MINUTE",
-                "randomize": "1 MINUTE",
-                "append": True,
-                "depends_on": ['schema.depend_on_model'],
-                "depends_on_validation": True
+            "interval": "EVERY 5 MINUTE",
+            "randomize": "1 MINUTE",
+            "append": True,
+            "depends_on": ['schema.depend_on_model'],
+            "depends_on_validation": True
         }
-        )
+    )
 }}
 ```
 
 ### Limitations
-* When creating a refreshable materialized view (MV) in ClickHouse that has a dependency, ClickHouse does not throw an error if the specified dependency does not exist at the time of creation. Instead, the refreshable MV remains in an inactive state, waiting for the dependency to be satisfied before it starts processing updates or refreshing.
-This behavior is by design, but it may lead to delays in data availability if the required dependency is not addressed promptly. Users are advised to ensure all dependencies are correctly defined and exist before creating a refreshable materialized view.
-* As of today, there is no actual "dbt linkage" between the mv and its dependencies, therefore the creation order is not guaranteed.
+
+* When creating a refreshable materialized view (MV) in ClickHouse that has a dependency, ClickHouse does not throw an
+  error if the specified dependency does not exist at the time of creation. Instead, the refreshable MV remains in an
+  inactive state, waiting for the dependency to be satisfied before it starts processing updates or refreshing.
+  This behavior is by design, but it may lead to delays in data availability if the required dependency is not addressed
+  promptly. Users are advised to ensure all dependencies are correctly defined and exist before creating a refreshable
+  materialized view.
+* As of today, there is no actual "dbt linkage" between the mv and its dependencies, therefore the creation order is not
+  guaranteed.
 * The refreshable feature was not tested with multiple mvs directing to the same target model.
 
 # Dictionary materializations (experimental)
