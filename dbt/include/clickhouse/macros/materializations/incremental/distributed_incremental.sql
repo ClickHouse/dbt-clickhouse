@@ -34,17 +34,12 @@
   {{ create_schema(target_relation_local) }}
   {%- set intermediate_relation = make_intermediate_relation(target_relation_local)-%}
   {%- set distributed_intermediate_relation = make_intermediate_relation(target_relation)-%}
-  {%- set backup_relation_type = 'table' if existing_relation is none else existing_relation.type -%}
-  {%- set backup_relation = make_backup_relation(target_relation_local, backup_relation_type) -%}
-  {%- set distributed_backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
-  {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp') -%}
-
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
-  {{ drop_relation_if_exists(preexisting_backup_relation) }}
-  {{ drop_relation_if_exists(view_relation) }}
   {{ drop_relation_if_exists(distributed_intermediate_relation) }}
+  
+  {%- set view_relation = make_intermediate_relation(target_relation, '__dbt_view_tmp') -%}
+  {{ drop_relation_if_exists(view_relation) }}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
@@ -74,6 +69,12 @@
     {% endcall %}
 
   {% else %}
+    {% if existing_relation is none %}
+      {{ drop_relation_if_exists(existing_relation) }}
+      {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
+      {% set existing_relation = target_relation %}
+    {% endif %}
+
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {%- if on_schema_change != 'ignore' %}
@@ -99,6 +100,11 @@
   {% endif %}
 
   {% if need_swap %}
+      {%- set backup_relation_type = 'table' if existing_relation is none else existing_relation.type -%}
+      {%- set backup_relation = make_backup_relation(target_relation_local, backup_relation_type) -%}
+      {%- set distributed_backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
+      {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
+      {{ drop_relation_if_exists(preexisting_backup_relation) }}
       {% if False %}
         {% do adapter.rename_relation(intermediate_relation, backup_relation) %}
         {% do exchange_tables_atomic(backup_relation, target_relation_local) %}
@@ -108,7 +114,7 @@
       {% endif %}
 
       -- Structure could have changed, need to update distributed table from replaced local table
-      {% set target_relation_new = target_relation.incorporate(path={"identifier": target_relation.identifier + '_temp'}) %}
+      {%- set target_relation_new = make_intermediate_relation(target_relation) -%}
       {{ drop_relation_if_exists(target_relation_new) }}
       {% do run_query(create_distributed_table(target_relation_new, target_relation_local)) %}
 
@@ -123,6 +129,8 @@
       {% do to_drop.append(backup_relation) %}
       {% do to_drop.append(distributed_backup_relation) %}
   {% endif %}
+
+  {{ drop_relation_if_exists(view_relation) }}
 
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}

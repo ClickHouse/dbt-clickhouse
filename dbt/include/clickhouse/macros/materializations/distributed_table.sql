@@ -31,7 +31,7 @@
       {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation) -%}
     {% endif %}
   {% endif %}
-  {% set view_relation = default__make_temp_relation(target_relation, '__dbt_tmp') %}
+  {%- set view_relation = make_intermediate_relation(target_relation, '__dbt_view_tmp') -%}
   -- drop the temp relations if they exist already in the database
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}

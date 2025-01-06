@@ -79,12 +79,27 @@
   {%- endcall %}
 {% endmacro %}
 
-{% macro clickhouse__make_temp_relation(base_relation, suffix) %}
-  {% set tmp_identifier = base_relation.identifier ~ suffix %}
-  {% set tmp_relation = base_relation.incorporate(
+{% macro clickhouse__make_intermediate_relation(base_relation, suffix='__dbt_tmp') %}
+  {%- set intermediate_identifier = base_relation.identifier ~ suffix ~ '_' ~ invocation_id.replace('-', '_') -%}
+  {%- set intermediate_relation = base_relation.incorporate(path={"identifier": intermediate_identifier}) -%}
+  {{ return(intermediate_relation) }}
+{%- endmacro %}
+
+{% macro clickhouse__make_backup_relation(base_relation, backup_relation_type, suffix='__dbt_backup') %}
+    {%- set backup_identifier = base_relation.identifier ~ suffix ~ '_' ~ invocation_id.replace('-', '_') -%}
+    {%- set backup_relation = base_relation.incorporate(
+                                  path={"identifier": backup_identifier},
+                                  type=backup_relation_type
+    ) -%}
+    {{ return(backup_relation) }}
+{%- endmacro %}
+
+{% macro clickhouse__make_temp_relation(base_relation, suffix='__dbt_tmp') %}
+  {%- set tmp_identifier = base_relation.identifier ~ suffix ~ '_' ~ invocation_id.replace('-', '_') -%}
+    {%- set tmp_relation = base_relation.incorporate(
                               path={"identifier": tmp_identifier, "schema": None}) -%}
-  {% do return(tmp_relation) %}
-{% endmacro %}
+  {{ return(tmp_relation) }}
+{%- endmacro %}
 
 
 {% macro clickhouse__generate_database_name(custom_database_name=none, node=none) -%}
