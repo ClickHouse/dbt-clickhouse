@@ -47,156 +47,9 @@ if TYPE_CHECKING:
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
-ENGINE_SETTINGS = {
-    'MergeTree': [
-        "index_granularity",
-        "index_granularity_bytes",
-        "min_index_granularity_bytes",
-        "enable_mixed_granularity_parts",
-        "use_minimalistic_part_header_in_zookeeper",
-        "min_merge_bytes_to_use_direct_io",
-        "merge_with_ttl_timeout",
-        "merge_with_recompression_ttl_timeout",
-        "write_final_mark",
-        "storage_policy",
-        "min_bytes_for_wide_part",
-        "max_compress_block_size",
-        "min_compress_block_size",
-        "max_suspicious_broken_parts",
-        "parts_to_throw_insert",
-        "parts_to_delay_insert",
-        "inactive_parts_to_throw_insert",
-        "inactive_parts_to_delay_insert",
-        "max_delay_to_insert",
-        "max_parts_in_total",
-        "simultaneous_parts_removal_limit",
-        "replicated_deduplication_window",
-        "non_replicated_deduplication_window",
-        "replicated_deduplication_window_seconds",
-        "replicated_deduplication_window_for_async_inserts",
-        "replicated_deduplication_window_seconds_for_async_inserts",
-        "use_async_block_ids_cache",
-        "async_block_ids_cache_min_update_interval_ms",
-        "max_replicated_logs_to_keep",
-        "min_replicated_logs_to_keep",
-        "prefer_fetch_merged_part_time_threshold",
-        "prefer_fetch_merged_part_size_threshold",
-        "execute_merges_on_single_replica_time_threshold",
-        "remote_fs_execute_merges_on_single_replica_time_threshold",
-        "try_fetch_recompressed_part_timeout",
-        "always_fetch_merged_part",
-        "max_suspicious_broken_parts",
-        "max_suspicious_broken_parts_bytes",
-        "max_files_to_modify_in_alter_columns",
-        "max_files_to_remove_in_alter_columns",
-        "replicated_max_ratio_of_wrong_parts",
-        "replicated_max_parallel_fetches_for_host",
-        "replicated_fetches_http_connection_timeout",
-        "replicated_can_become_leader",
-        "zookeeper_session_expiration_check_period",
-        "detach_old_local_parts_when_cloning_replica",
-        "replicated_fetches_http_connection_timeout",
-        "replicated_fetches_http_send_timeout",
-        "replicated_fetches_http_receive_timeout",
-        "max_replicated_fetches_network_bandwidth",
-        "max_replicated_sends_network_bandwidth",
-        "old_parts_lifetime",
-        "max_bytes_to_merge_at_max_space_in_pool",
-        "max_bytes_to_merge_at_min_space_in_pool",
-        "merge_max_block_size",
-        "number_of_free_entries_in_pool_to_lower_max_size_of_merge",
-        "number_of_free_entries_in_pool_to_execute_mutation",
-        "max_part_loading_threads",
-        "max_partitions_to_read",
-        "min_age_to_force_merge_seconds",
-        "min_age_to_force_merge_on_partition_only",
-        "number_of_free_entries_in_pool_to_execute_optimize_entire_partition",
-        "allow_floating_point_partition_key",
-        "check_sample_column_is_correct",
-        "min_bytes_to_rebalance_partition_over_jbod",
-        "detach_not_byte_identical_parts",
-        "merge_tree_clear_old_temporary_directories_interval_seconds",
-        "merge_tree_clear_old_parts_interval_seconds",
-        "max_concurrent_queries",
-        "min_marks_to_honor_max_concurrent_queries",
-        "ratio_of_defaults_for_sparse_serialization",
-        "replace_long_file_name_to_hash",
-        "max_file_name_length",
-        "allow_experimental_block_number_column",
-        "exclude_deleted_rows_for_part_size_in_merge",
-        "load_existing_rows_count_for_old_parts",
-        "use_compact_variant_discriminators_serialization",
-        "merge_workload",
-        "mutation_workload",
-        "lightweight_mutation_projection_mode",
-        "deduplicate_merge_projection_mode",
-        "min_free_disk_bytes_to_perform_insert",
-        "min_free_disk_ratio_to_perform_insert",
-    ],
-    'Memory': ['min_bytes_to_keep', 'max_bytes_to_keep', 'min_rows_to_keep', 'max_rows_to_keep'],
-    'URL': ['engine_url_skip_empty_files', 'enable_url_encoding'],
-    'File': [
-        'engine_file_empty_if_not_exists',
-        'engine_file_truncate_on_insert',
-        'engine_file_allow_create_multiple_files',
-        'engine_file_skip_empty_files',
-        'storage_file_read_method',
-    ],
-    'Distributed': [
-        "fsync_after_insert",
-        "fsync_directories",
-        "skip_unavailable_shards",
-        "bytes_to_throw_insert",
-        "bytes_to_delay_insert",
-        "max_delay_to_insert",
-        "background_insert_batch",
-        "background_insert_split_batch_on_failure",
-        "background_insert_sleep_time_ms",
-        "background_insert_max_sleep_time_ms",
-        "flush_on_detach",
-    ],
-    'MySQL': [
-        'connection_pool_size',
-        'connection_max_tries',
-        'connection_wait_timeout',
-        'connection_auto_close',
-        'connection_timeout',
-        'read_write_timeout',
-    ],
-    'S3': [
-        's3_truncate_on_insert',
-        's3_create_new_file_on_insert',
-        's3_skip_empty_files',
-        's3_max_single_part_upload_size',
-        's3_min_upload_part_size',
-        's3_max_redirects',
-        's3_single_read_retries',
-        's3_max_put_rps',
-        's3_max_put_burst',
-        's3_max_get_rps',
-        's3_max_get_burst',
-        's3_upload_part_size_multiply_factor',
-        's3_upload_part_size_multiply_parts_count_threshold',
-        's3_max_inflight_parts_for_one_file',
-        'endpoint',
-        'access_key_id',
-        'secret_access_key',
-        'use_environment_credentials',
-        'region',
-        'use_insecure_imds_request',
-        'expiration_window_seconds',
-        'no_sign_request',
-        'header',
-        'server_side_encryption_customer_key_base64',
-        'server_side_encryption_kms_key_id',
-        'server_side_encryption_kms_encryption_context',
-        'server_side_encryption_kms_bucket_key_enabled',
-        'max_single_read_retries',
-        'max_put_rps',
-        'max_put_burst',
-        'max_get_rps',
-        'max_get_burst',
-    ],
+IGNORED_SETTINGS = {
+    'Memory': ['replicated_deduplication_window'],
+    'S3': ['replicated_deduplication_window'],
 }
 
 
@@ -626,21 +479,21 @@ class ClickHouseAdapter(SQLAdapter):
     def filter_settings_by_engine(self, settings, engine):
         filtered_settings = {}
 
-        if engine not in ENGINE_SETTINGS:
-            # If the engine has no settings it will not be in the ENGINE_SETTINGS map.
+        if engine not in IGNORED_SETTINGS:
+            # If the engine has no settings it will not be in the IGNORED_SETTINGS map.
             return filtered_settings
 
         if engine.endswith('MergeTree'):
             # Special case for MergeTree due to all its variations.
-            allowed_settings = ENGINE_SETTINGS['MergeTree']
+            ignored_settings = IGNORED_SETTINGS.get('MergeTree', [])
         else:
-            allowed_settings = ENGINE_SETTINGS[engine]
+            ignored_settings = IGNORED_SETTINGS.get(engine, [])
 
         for key, value in settings.items():
-            if key in allowed_settings:
-                filtered_settings[key] = value
-            else:
+            if key in ignored_settings:
                 logger.warning(f"Setting {key} not available for engine {engine}, ignoring.")
+            else:
+                filtered_settings[key] = value
 
         return filtered_settings
 
