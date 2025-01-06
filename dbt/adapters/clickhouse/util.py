@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+import os
 
 from dbt_common.exceptions import DbtRuntimeError
 
@@ -15,7 +15,10 @@ def compare_versions(v1: str, v2: str) -> int:
     return 0
 
 
-@dataclass
-class NewColumnDataType:
-    column_name: str
-    new_type: str
+def hide_stack_trace(ex: Exception) -> str:
+
+    if not os.getenv("HIDE_STACK_TRACE", ''):
+        return str(ex).strip()
+
+    err_msg = str(ex).split("Stack trace")[0].strip()
+    return err_msg

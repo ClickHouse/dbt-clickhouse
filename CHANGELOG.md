@@ -1,6 +1,109 @@
-### Unreleased
+### Release [1.8.7], 2025-01-05
+
+### New Features
+* Added support for [refreshable materialized view](https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view) ([#401](https://github.com/ClickHouse/dbt-clickhouse/pull/401))
+
+### Improvement
+* Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary ([#393](https://github.com/ClickHouse/dbt-clickhouse/pull/393))
+* Removed support in python 3.8 as it is no longer supported by dbt ([#402](https://github.com/ClickHouse/dbt-clickhouse/pull/402)
+
+### Bug Fixes
+* Fix a minor bug related to validating existence of an old hanging mv ([#396]()) 
+
+### Release [1.8.6], 2024-12-05
+
+### Improvement
+* Today, on mv model creation, the target table is being populated with the historical data based on the query provided in the mv creation. This catchup mechanism is now behind a config flag and enabled by default (as is today). ([#399](https://github.com/ClickHouse/dbt-clickhouse/pull/399))
+
+
+### Release [1.8.5], 2024-11-19
+
+### New Features
+* Added support for the creation of more than one materialized view inserting records into the same target table. ([#360](https://github.com/ClickHouse/dbt-clickhouse/pull/364))
+
+### Improvement
+* Added support for [range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#range_hashed) and [complex_key_range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#complex_key_range_hashed) layouts to the dictionary materialization. ([#361](https://github.com/ClickHouse/dbt-clickhouse/pull/361))
+* Truncated stack trace for database errors for cleaner output when HIDE_STACK_TRACE variable is set to any value. ([#382](https://github.com/ClickHouse/dbt-clickhouse/pull/382))
+* It is now possible to pass query settings not only on table creation but also on query. ([#362](https://github.com/ClickHouse/dbt-clickhouse/pull/362))
+
+### Bug Fixes
+* Before this version, `split_part` macro used to add an extra quotation. that was fixed in ([#338](https://github.com/ClickHouse/dbt-clickhouse/pull/338))
+
+### Release [1.8.4], 2024-09-17
+### Improvement
+* The S3 help macro now support a `role_arn` parameter as an alternative way to provide authentication for S3 based models.  Thanks to
+[Mitchell Bregman](https://github.com/mitchbregs) for the contribution!
+
+### Release [1.8.3], 2024-09-01
+### Bug Fixes
+* An [issue](https://github.com/ClickHouse/dbt-clickhouse/issues/348) was detected when using multiple projections. We solved it and added a test to cover that use case. ([#349](https://github.com/ClickHouse/dbt-clickhouse/pull/349))
+
+### Documentation
+* A [CONTRIBUTING.md](CONTRIBUTING.md) file was added to the repo. Please follow the instructions prior contributing.
+
+### Release [1.8.2], 2024-08-22
+#### New Features
+* [ClickHouse projections](https://clickhouse.com/docs/en/sql-reference/statements/alter/projection) are now fully supported for `table` materialization, and partly supported for `distributed_table` materialization.
+The projection config should be added to the model config ([#342](https://github.com/ClickHouse/dbt-clickhouse/pull/342)), for instance: 
+  ```python
+  {{ config(
+         materialized='%s',
+         projections=[
+             {
+                 'name': 'your_projection_name',
+                 'query': 'your_projection_query'
+             }
+         ]
+  ) }}
+  ```
+ 
+#### Bug Fixes
+* Until this release, when writing tests, it was not possible to pass empty seed data. ([#341](https://github.com/ClickHouse/dbt-clickhouse/pull/341))
+* When a cluster was used, the adapter left a few `__dbt_backup` tables in the schema. After the fix, these backup tables are now properly dropped. ([#326](https://github.com/ClickHouse/dbt-clickhouse/pull/326))
+* Due to [this GitHub change](https://github.com/actions/runner-images/issues/9692), we needed to adjust the `docker compose` command in our tests. ([#334](https://github.com/ClickHouse/dbt-clickhouse/pull/334))
+
+#### Improvements
+
+* Added a new **experimental** incremental strategy, `insert_overwrite`, which replaces existing data in a target table partition by partition. This ensures that only the specified partitions are overwritten, helping to maintain performance and data consistency. Note that this feature has not been tested with distributed models and may not work with such materializations.
+[Anton Bryzgalov](https://github.com/bryzgaloff) Thank you for your contribution! ([#201](https://github.com/ClickHouse/dbt-clickhouse/pull/201))
+* Schema changes for incremental models were improved and now include a `sync_all_column` option.
+[Can Bekleyici](https://github.com/canbekley) huge thanks for your contribution. ([#332](https://github.com/ClickHouse/dbt-clickhouse/pull/332))
+* Previously, view settings were only applied during view creation, not when querying the view. Starting with this release, the settings attribute will now also be applied when running queries on a view. ([#324](https://github.com/ClickHouse/dbt-clickhouse/pull/324))
+* Enhanced the clickhouse__listagg macro to support single field ordering with optional direction, ensuring compatibility with ClickHouse's sorting limitations. Added validation to prevent the use of multiple order-by fields. ([#318](https://github.com/ClickHouse/dbt-clickhouse/pull/318))
+
+#### Documentation
+* Update the docs with the new `insert_overwrite` incremental strategy. ([#331](https://github.com/ClickHouse/dbt-clickhouse/pull/331)) 
+* Add documentation for codec column configuration. ([#317](https://github.com/ClickHouse/dbt-clickhouse/pull/317))
+ 
+
+### Release [1.8.1], 2024-07-11
 #### Bug Fix
-- ClickHouse dictionaries are now correctly created "on cluster" when a cluster is defined.
+* Refresh materialized_view table only if `--full-refresh` is specified.
+* Fix temporary table creation to support dbt unit tests.
+* ClickHouse dictionaries are now correctly created "on cluster" when a cluster is defined.
+#### Improvements
+* Added database prefix option for local tables of distributed tables (until this change, only a suffix was supported).
+* You can now customize tcp_keepalive configuration for native connections.
+* Implement listagg ([groupArray](https://clickhouse.com/docs/en/sql-reference/aggregate-functions/reference/grouparray)) macro.
+
+### Release [1.8.0], 2024-06-13
+#### Improvements
+- Upgrade the connector to use dbt-core 1.8.0. More info about this upgrade can be found [here](https://github.com/dbt-labs/dbt-adapters/discussions/87).
+
+Beginning in v1.8, dbt-core and adapters are decoupled. Going forward, your installations should explicitly include both dbt-core and the desired adapter. The new pip installation command should look like this:
+
+```pip install dbt-core dbt-clickhouse```
+
+
+### Release [1.7.7], 2024-05-31
+#### Bug Fix
+- Fix bool_or behavior (a cross-database dbt macro ).
+- Fix query_settings for models with contracts.
+- Fix the option to use Nullable and LowCardinality in column constraints.
+- Specifying an empty or null value for a connection_overrides field produces invalid DDL for the dictionary materialization. A fix was introduced in this release.
+
+#### Improvements
+- The connector is now supporting [column codecs](https://clickhouse.com/blog/optimize-clickhouse-codecs-compression-schema#specialized-codecs).
 
 ### Release [1.7.6], 2024-04-12
 #### Bug Fix

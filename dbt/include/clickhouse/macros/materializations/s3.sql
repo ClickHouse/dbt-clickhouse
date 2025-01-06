@@ -1,5 +1,5 @@
 {% macro clickhouse_s3source(config_name='', bucket='', path='', fmt='', structure='',
-    aws_access_key_id='', aws_secret_access_key='', compression='') %}
+    aws_access_key_id='', aws_secret_access_key='', role_arn='', compression='') %}
   {% if config_name and not config_name.lower().endswith('s3') %}
     {{ exceptions.raise_compiler_error("S3 configuration should end with 's3'") }}
   {% endif %}
@@ -13,5 +13,6 @@
     structure=structure,
     aws_access_key_id=aws_access_key_id,
     aws_secret_access_key=aws_secret_access_key,
+    role_arn=role_arn,
     compression=compression) }}
 {% endmacro %}

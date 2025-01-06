@@ -29,7 +29,7 @@ from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplemen
 from dbt_common.utils import filter_null_values
 
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
-from dbt.adapters.clickhouse.column import ClickHouseColumn
+from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.errors import (
     schema_change_datatype_error,
@@ -39,7 +39,7 @@ from dbt.adapters.clickhouse.errors import (
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
-from dbt.adapters.clickhouse.util import NewColumnDataType, compare_versions
+from dbt.adapters.clickhouse.util import compare_versions
 
 if TYPE_CHECKING:
     import agate
@@ -180,7 +180,7 @@ class ClickHouseAdapter(SQLAdapter):
         if not strategy or strategy == 'default':
             strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
         strategy = strategy.replace('+', '_')
-        if strategy not in ['legacy', 'append', 'delete_insert']:
+        if strategy not in ['legacy', 'append', 'delete_insert', 'insert_overwrite']:
             raise DbtRuntimeError(
                 f"The incremental strategy '{strategy}' is not valid for ClickHouse"
             )
@@ -194,35 +194,41 @@ class ClickHouseAdapter(SQLAdapter):
     @available.parse_none
     def check_incremental_schema_changes(
         self, on_schema_change, existing, target_sql
-    ) -> List[ClickHouseColumn]:
-        if on_schema_change not in ('fail', 'ignore', 'append_new_columns'):
+    ) -> ClickHouseColumnChanges:
+        if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
             raise DbtRuntimeError(
-                "Only `fail`, `ignore`, and `append_new_columns` supported for `on_schema_change`"
+                "Only `fail`, `ignore`, `append_new_columns`, and `sync_all_columns` supported for `on_schema_change`."
             )
+
         source = self.get_columns_in_relation(existing)
         source_map = {column.name: column for column in source}
         target = self.get_column_schema_from_query(target_sql)
-        target_map = {column.name: column for column in source}
+        target_map = {column.name: column for column in target}
+
         source_not_in_target = [column for column in source if column.name not in target_map.keys()]
         target_not_in_source = [column for column in target if column.name not in source_map.keys()]
-        new_column_data_types = []
-        for target_column in target:
-            source_column = source_map.get(target_column.name)
-            if source_column and source_column.dtype != target_column.dtype:
-                new_column_data_types.append(
-                    NewColumnDataType(source_column.name, target_column.dtype)
-                )
-        if new_column_data_types:
-            raise DbtRuntimeError(schema_change_datatype_error.format(new_column_data_types))
-        if source_not_in_target:
-            raise DbtRuntimeError(schema_change_missing_source_error.format(source_not_in_target))
-        if target_not_in_source and on_schema_change == 'fail':
+        target_in_source = [column for column in target if column.name in source_map.keys()]
+        changed_data_types = []
+        for column in target_in_source:
+            source_column = source_map.get(column.name)
+            if source_column is not None and column.dtype != source_column.dtype:
+                changed_data_types.append(column)
+
+        clickhouse_column_changes = ClickHouseColumnChanges(
+            columns_to_add=target_not_in_source,
+            columns_to_drop=source_not_in_target,
+            columns_to_modify=changed_data_types,
+            on_schema_change=on_schema_change,
+        )
+
+        if clickhouse_column_changes.has_conflicting_changes:
             raise DbtRuntimeError(
                 schema_change_fail_error.format(
-                    source_not_in_target, target_not_in_source, new_column_data_types
+                    source_not_in_target, target_not_in_source, changed_data_types
                 )
             )
-        return target_not_in_source
+
+        return clickhouse_column_changes
 
     @available.parse_none
     def s3source_clause(
@@ -235,6 +241,7 @@ class ClickHouseAdapter(SQLAdapter):
         structure: Union[str, list, dict],
         aws_access_key_id: str,
         aws_secret_access_key: str,
+        role_arn: str,
         compression: str = '',
     ) -> str:
         s3config = self.config.vars.vars.get(config_name, {})
@@ -268,7 +275,10 @@ class ClickHouseAdapter(SQLAdapter):
         comp = compression or s3config.get('compression', '')
         if comp:
             comp = f"', {comp}'"
-        return f"s3('{url}'{access}, '{fmt}'{struct}{comp})"
+        extra_credentials = ''
+        if role_arn:
+            extra_credentials = f", extra_credentials(role_arn='{role_arn}')"
+        return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
 
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})

@@ -41,10 +41,14 @@
     {% endcall %}
     {% set need_swap = true %}
 
-  {% elif inserts_only or unique_key is none -%}
+  {% elif
+      inserts_only
+      or unique_key is none
+      and config.get('incremental_strategy', none) != 'insert_overwrite' -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
+    -- insert_overwrite strategy does not require unique_key => is an exception.
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
     {% endcall %}
@@ -55,11 +59,9 @@
     {% set incremental_predicates = config.get('predicates', none) or config.get('incremental_predicates', none) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
-      {%- if column_changes %}
-        {%- if incremental_strategy in ('append', 'delete_insert') %}
-          {% set incremental_strategy = 'legacy' %}
-          {{ log('Schema changes detected, switching to legacy incremental strategy') }}
-        {%- endif %}
+      {% if column_changes and incremental_strategy != 'legacy' %}
+        {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
+        {% set existing_relation = load_cached_relation(this) %}
       {% endif %}
     {% endif %}
     {% if incremental_strategy != 'delete_insert' and incremental_predicates %}
@@ -74,6 +76,15 @@
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
       {% endcall %}
+    {% elif incremental_strategy == 'insert_overwrite' %}#}
+      {%- set partition_by = config.get('partition_by') -%}
+      {% if partition_by is none or partition_by|length == 0 %}
+        {% do exceptions.raise_compiler_error(incremental_strategy + ' strategy requires nonempty partition_by. Current partition_by is ' ~ partition_by) %}
+      {% endif %}
+      {% if inserts_only or unique_key is not none or incremental_predicates is not none %}
+      	{% do exceptions.raise_compiler_error(incremental_strategy + ' strategy does not support inserts_only, unique_key, and incremental predicates.') %}
+      {% endif %}
+      {% do clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %} %}
     {% endif %}
   {% endif %}
 
@@ -233,4 +244,43 @@
     {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
+{% endmacro %}
+
+{% macro clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %}
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
+       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
+    {{ drop_relation_if_exists(new_data_relation) }}
+    {% call statement('create_new_data_temp') -%}
+      {{ get_create_table_as_sql(False, new_data_relation, sql) }}
+    {%- endcall %}
+    {% call statement('main') -%}
+        create table {{ intermediate_relation }} as {{ existing_relation }}
+    {%- endcall %}
+    {% call statement('insert_new_data') -%}
+        insert into {{ intermediate_relation }} select * from {{ new_data_relation }}
+    {%- endcall %}
+    {% if execute %}
+      {% set select_changed_partitions %}
+          SELECT DISTINCT partition_id
+          FROM system.parts
+          WHERE active
+            AND database = '{{ intermediate_relation.schema }}'
+            AND table = '{{ intermediate_relation.identifier }}'
+      {% endset %}
+      {% set changed_partitions = run_query(select_changed_partitions).rows %}
+    {% else %}
+      {% set changed_partitions = [] %}
+    {% endif %}
+    {% if changed_partitions %}
+      {% call statement('replace_partitions') %}
+          alter table {{ existing_relation }}
+          {%- for partition in changed_partitions %}
+              replace partition id '{{ partition['partition_id'] }}'
+              from {{ intermediate_relation }}
+              {{- ', ' if not loop.last }}
+          {%- endfor %}
+      {% endcall %}
+    {% endif %}
+    {% do adapter.drop_relation(intermediate_relation) %}
+    {% do adapter.drop_relation(new_data_relation) %}
 {% endmacro %}

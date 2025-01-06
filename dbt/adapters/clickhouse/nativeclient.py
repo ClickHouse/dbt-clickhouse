@@ -10,6 +10,7 @@ from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 from dbt.adapters.clickhouse.logger import logger
+from dbt.adapters.clickhouse.util import hide_stack_trace
 
 try:
     driver_version = pkg_resources.get_distribution('clickhouse-driver').version
@@ -22,7 +23,8 @@ class ChNativeClient(ChClientWrapper):
         try:
             return NativeClientResult(self._client.execute(sql, with_column_types=True, **kwargs))
         except clickhouse_driver.errors.Error as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = hide_stack_trace(ex)
+            raise DbtDatabaseError(err_msg) from ex
 
     def command(self, sql, **kwargs):
         try:
@@ -30,7 +32,8 @@ class ChNativeClient(ChClientWrapper):
             if len(result) and len(result[0]):
                 return result[0][0]
         except clickhouse_driver.errors.Error as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = hide_stack_trace(ex)
+            raise DbtDatabaseError(err_msg) from ex
 
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
@@ -40,7 +43,8 @@ class ChNativeClient(ChClientWrapper):
             )
             return [ClickHouseColumn.create(column[0], column[1]) for column in columns]
         except clickhouse_driver.errors.Error as ex:
-            raise DbtDatabaseError(str(ex).strip()) from ex
+            err_msg = hide_stack_trace(ex)
+            raise DbtDatabaseError(err_msg) from ex
 
     def get_ch_setting(self, setting_name):
         try:

@@ -114,6 +114,33 @@ sources:
       - name: people
 """
 
+RANGE_DICTIONARY = """
+{{ config(
+       materialized='dictionary',
+       fields=[
+           ('id', 'UInt8'),
+           ('start', 'UInt8'),
+           ('stop', 'UInt8'),
+           ('value', 'String')
+       ],
+       primary_key='id',
+       layout='RANGE_HASHED()',
+       lifetime='MIN 0 MAX 0',
+       source_type='clickhouse',
+       range='min start max stop'
+) }}
+
+select
+    c1 as id,
+    c2 as start,
+    c3 as stop,
+    c4 as value
+from values(
+    (0, 0, 2, 'foo'),
+    (0, 3, 5, 'bar')
+)
+"""
+
 
 class TestQueryDictionary:
     @pytest.fixture(scope="class")
@@ -193,3 +220,17 @@ class TestHttpDictionary:
             "select count(distinct LocationID) from taxi_zone_dictionary", fetch="all"
         )
         assert results[0][0] == 265
+
+
+class TestRangeDictionary:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"range_dictionary.sql": RANGE_DICTIONARY}
+
+    def test_create(self, project):
+        run_dbt()
+
+        results = project.run_sql("select dictGet(range_dictionary, 'value', 0, 1)", fetch="all")
+        assert results[0][0] == "foo"
+        results = project.run_sql("select dictGet(range_dictionary, 'value', 0, 5)", fetch="all")
+        assert results[0][0] == "bar"
