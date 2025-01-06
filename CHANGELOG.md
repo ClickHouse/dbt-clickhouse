@@ -1,8 +1,29 @@
-### Unreleased
+### Next Version
+
+#### New Features
+* [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
+The index config should be added to the model config. for instance: 
+  ```python
+  {{ config(
+         materialized='%s',
+         indexes=[{
+            'name': 'your_index_name',
+            'definition': 'your_column TYPE minmax GRANULARITY 2'
+         }]
+  ) }}
+  ```
+ 
+### Release [1.8.7], 2025-01-05
+
+### New Features
+* Added support for [refreshable materialized view](https://clickhouse.com/docs/en/materialized-view/refreshable-materialized-view) ([#401](https://github.com/ClickHouse/dbt-clickhouse/pull/401))
 
 ### Improvement
+* Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary ([#393](https://github.com/ClickHouse/dbt-clickhouse/pull/393))
+* Removed support in python 3.8 as it is no longer supported by dbt ([#402](https://github.com/ClickHouse/dbt-clickhouse/pull/402)
 
-Avoid potential data loss by using `CREATE OR REPLACE DICTIONARY` to atomically update a dictionary (#393)
+### Bug Fixes
+* Fix a minor bug related to validating existence of an old hanging mv ([#396]()) 
 
 ### Release [1.8.6], 2024-12-05
 
