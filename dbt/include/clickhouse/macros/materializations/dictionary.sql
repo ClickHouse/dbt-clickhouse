@@ -2,38 +2,21 @@
 
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='dictionary') -%}
-  {%- set intermediate_relation = make_intermediate_relation(target_relation) -%}
-  {%- set existing_intermediate_relation = load_cached_relation(intermediate_relation) -%}
-  {%- set backup_relation_type = 'dictionary' if existing_relation is none else existing_relation.type -%}
-  {%- set backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
-  {%- set existing_backup_relation = load_cached_relation(backup_relation) -%}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
 
   {%- set grant_config = config.get('grants') -%}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
-  {{ drop_dictionary_if_exists(existing_backup_relation, cluster_clause) }}
-  {{ drop_dictionary_if_exists(existing_intermediate_relation, cluster_clause) }}
-
 
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   {# create our new dictionary #}
   {% call statement('main') -%}
-    {{ clickhouse__get_create_dictionary_as_sql(intermediate_relation, cluster_clause, sql) }}
+    {{ clickhouse__get_create_dictionary_as_sql(target_relation, cluster_clause, sql) }}
   {%- endcall %}
 
-  {# cleanup #}
-  {% if existing_relation is not none %}
-    {% set existing_relation = load_cached_relation(existing_relation) %}
-    {% if existing_relation is not none %}
-      {{ adapter.rename_relation(existing_relation, backup_relation) }}
-    {% endif %}
-  {% endif %}
-  {{ adapter.rename_relation(intermediate_relation, target_relation) }}
-
-  {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
+  {% set should_revoke = should_revoke(target_relation, full_refresh_mode=True) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
@@ -42,7 +25,6 @@
 
   {{ adapter.commit() }}
 
-  {{ drop_dictionary_if_exists(backup_relation, cluster_clause) }}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
@@ -55,7 +37,7 @@
   {%- set fields = config.get('fields') -%}
   {%- set source_type = config.get('source_type') -%}
 
-  CREATE DICTIONARY {{ relation }} {{ cluster_clause }}
+  CREATE OR REPLACE DICTIONARY {{ relation }} {{ cluster_clause }}
   (
   {%- for (name, data_type) in fields -%}
     {{ name }} {{ data_type }}{%- if not loop.last -%},{%- endif -%}
@@ -71,6 +53,9 @@
   )
   LAYOUT({{ config.get('layout') }})
   LIFETIME({{ config.get('lifetime') }})
+  {%- if config.get('range') %}
+  RANGE({{ config.get('range') }})
+  {%- endif %}
 {% endmacro %}
 
 
