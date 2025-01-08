@@ -480,10 +480,6 @@ class ClickHouseAdapter(SQLAdapter):
     def filter_settings_by_engine(self, settings, engine):
         filtered_settings = {}
 
-        if engine not in IGNORED_SETTINGS:
-            # If the engine has no settings it will not be in the IGNORED_SETTINGS map.
-            return filtered_settings
-
         if engine.endswith('MergeTree'):
             # Special case for MergeTree due to all its variations.
             ignored_settings = IGNORED_SETTINGS.get('MergeTree', [])
