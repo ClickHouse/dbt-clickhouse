@@ -1,4 +1,7 @@
-### Next Version
+### Release [x.x.x]
+### Improvements
+* Ignores incompatible settings based on the configured Engine.
+
 
 #### New Features
 * [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.

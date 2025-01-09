@@ -189,7 +189,7 @@
     {% if temporary -%}
         create temporary table {{ relation }}
         engine Memory
-        {{ adapter.get_model_settings(model) }}
+        {{ adapter.get_model_settings(model, 'Memory') }}
         as (
           {{ sql }}
         )
@@ -205,7 +205,7 @@
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {{ ttl_config(label="ttl")}}
-        {{ adapter.get_model_settings(model) }}
+        {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
           {%- if not adapter.is_before_version('22.7.1.2484') %}
