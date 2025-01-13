@@ -15,7 +15,10 @@ The index config should be added to the model config. for instance:
          }]
   ) }}
   ```
- 
+
+### Bug Fixes
+* Materializations are now compatible with `Replicated` database engine, as they will no longer use `ON CLUSTER` statements.
+
 ### Release [1.8.7], 2025-01-05
 
 ### New Features
