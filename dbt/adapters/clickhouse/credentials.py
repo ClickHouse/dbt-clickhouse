@@ -69,6 +69,7 @@ class ClickHouseCredentials(Credentials):
             'schema',
             'retries',
             'database_engine',
+            'cluster',
             'cluster_mode',
             'secure',
             'verify',
