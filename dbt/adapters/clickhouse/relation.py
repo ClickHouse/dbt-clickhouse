@@ -78,17 +78,17 @@ class ClickHouseRelation(BaseRelation):
 
     @classmethod
     def get_on_cluster(
-        cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = ''
+        cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = '', database_engine: str = ''
     ) -> bool:
+        if 'replicated' in database_engine.lower():
+            return False
         if cluster.strip():
             return (
                 materialized in ('view', 'dictionary')
                 or 'distributed' in materialized
                 or 'Replicated' in engine
             )
-
-        else:
-            return False
+        return False
 
     @classmethod
     def create_from(
@@ -126,7 +126,8 @@ class ClickHouseRelation(BaseRelation):
         else:
             materialized = relation_config.config.get('materialized') or ''
             engine = relation_config.config.get('engine') or ''
-            can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
+            database_engine = quoting.credentials.database_engine or ''
+            can_on_cluster = cls.get_on_cluster(cluster, materialized, engine, database_engine)
 
         return cls.create(
             database='',

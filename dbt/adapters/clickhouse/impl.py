@@ -176,7 +176,7 @@ class ClickHouseAdapter(SQLAdapter):
     def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
-            return ClickHouseRelation.get_on_cluster(conn.credentials.cluster, materialized, engine)
+            return ClickHouseRelation.get_on_cluster(conn.credentials.cluster, materialized, engine, conn.credentials.database_engine)
         return ClickHouseRelation.get_on_cluster('', materialized, engine)
 
     @available.parse_none
@@ -324,6 +324,7 @@ class ClickHouseAdapter(SQLAdapter):
                 and rel_type == ClickHouseRelationType.Table
                 and db_engine in ('Atomic', 'Replicated')
             )
+            can_on_cluster = (on_cluster >= 1) and db_engine != 'Replicated'
 
             relation = self.Relation.create(
                 database='',
@@ -331,7 +332,7 @@ class ClickHouseAdapter(SQLAdapter):
                 identifier=name,
                 type=rel_type,
                 can_exchange=can_exchange,
-                can_on_cluster=(on_cluster >= 1),
+                can_on_cluster=can_on_cluster,
             )
             relations.append(relation)
 
