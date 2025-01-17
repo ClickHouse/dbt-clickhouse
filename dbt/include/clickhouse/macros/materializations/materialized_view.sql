@@ -37,13 +37,13 @@
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   -- extract the names of the materialized views from the sql
-  {% set view_names = modules.re.findall('--([^:]+):begin', sql) %}
+  {% set view_names = modules.re.findall('--(?:\s)?([^:]+):begin', sql) %}
 
   -- extract the sql for each of the materialized view into a map
   {% set views = {} %}
   {% if view_names %}
     {% for view_name in view_names %}
-      {% set view_sql = modules.re.findall('--' + view_name + ':begin(.*)--' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
+      {% set view_sql = modules.re.findall('--(?:\s)?' + view_name + ':begin(.*)--(?:\s)?' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
       {%- set _ = views.update({view_name: view_sql}) -%}
     {% endfor %}
   {% else %}
