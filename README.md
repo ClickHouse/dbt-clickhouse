@@ -310,8 +310,7 @@ and a ClickHouse MATERIALIZED VIEW with the name `<model_name>_mv`. Unlike Postg
 not "static" (and has
 no corresponding REFRESH operation). Instead, it acts as an "insert trigger", and will insert new rows into the target
 table using the defined `SELECT`
-"transformation" in the view definition on rows inserted into the source table. See the [test file]
-(https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)
+"transformation" in the view definition on rows inserted into the source table. See the [test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)
 for an introductory example
 of how to use this functionality.
 
