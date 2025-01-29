@@ -150,7 +150,9 @@
          {% if config.get('projections')%}
                 {{ projection_statement(relation) }}
          {% endif %}
-
+          {% if config.get('indexes') %}
+                {{ indexes_statement(relation) }}
+         {% endif %}
 
         {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
@@ -169,6 +171,16 @@
     {%- endfor %}
 {%- endmacro %}
 
+{% macro indexes_statement(relation) %}
+    {%- set indexes = config.get('indexes', default=[]) -%}
+
+    {%- for index in indexes %}
+         {% call statement('add_indexes') %}
+                ALTER TABLE {{ relation }} ADD INDEX {{ index.get('name') }} {{ index.get('definition') }}
+            {%endcall  %}
+    {%- endfor %}
+{%- endmacro %}
+
 {% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
@@ -177,7 +189,7 @@
     {% if temporary -%}
         create temporary table {{ relation }}
         engine Memory
-        {{ adapter.get_model_settings(model) }}
+        {{ adapter.get_model_settings(model, 'Memory') }}
         as (
           {{ sql }}
         )
@@ -193,7 +205,7 @@
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {{ ttl_config(label="ttl")}}
-        {{ adapter.get_model_settings(model) }}
+        {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
           {%- if not adapter.is_before_version('22.7.1.2484') %}
