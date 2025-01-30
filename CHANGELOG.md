@@ -1,6 +1,7 @@
 ### Release [x.x.x]
 ### Improvements
 * Ignores incompatible settings based on the configured Engine.
+* Materialized view now attempts to use `ALTER TABLE...MODIFY QUERY` to update existing materialized views. This is an atomic operation so data is not lost. ([#390](https://github.com/ClickHouse/dbt-clickhouse/pull/390))
 
 
 #### New Features
