@@ -95,7 +95,7 @@
       {%- endcall %}
       {% do exchange_tables_atomic(backup_relation, existing_relation) %}
 
-      {{ clickhouse__create_mvs(existing_relation, cluster_clause, views) }}
+      {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
     {% else %}
       -- we need to have a 'main' statement
       {% call statement('main') -%}
@@ -103,7 +103,7 @@
       {%- endcall %}
 
       -- try to alter view first to replace sql, else drop and create
-      {{ clickhouse__update_mvs(target_relation, cluster_clause, views) }}
+      {{ clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views) }}
 
     {% endif %}
   {% else %}
@@ -163,9 +163,10 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, view_sql)  -%}
+{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
   {% call statement('create existing mv: ' + mv_relation.name) -%}
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
+    {{ refreshable_clause }}
     to {{ target_relation }}
     as {{ view_sql }}
   {% endcall %}
@@ -177,13 +178,13 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, view_sql)  -%}
+{% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
   {% set existing_relation = adapter.get_relation(database=mv_relation.database, schema=mv_relation.schema, identifier=mv_relation.identifier) %}
   {% if existing_relation %}
     {{ clickhouse__modify_mv(mv_relation, cluster_clause, view_sql) }};
   {% else %}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
-    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, view_sql) }};
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
   {% endif %}
 
 {%- endmacro %}
@@ -195,17 +196,17 @@
   {% endfor %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mvs(target_relation, cluster_clause, views)  -%}
+{% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
   {% for view, view_sql in views.items() %}
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, view_sql) }};
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
   {% endfor %}
 {%- endmacro %}
 
-{% macro clickhouse__update_mvs(target_relation, cluster_clause, views)  -%}
+{% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
   {% for view, view_sql in views.items() %}
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-    {{ clickhouse__update_mv(mv_relation, target_relation, cluster_clause, view_sql) }};
+    {{ clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
   {% endfor %}
 {%- endmacro %}
 
