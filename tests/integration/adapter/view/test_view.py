@@ -67,5 +67,3 @@ class TestClickHouseView:
         result = project.run_sql("DESCRIBE TABLE people_view", fetch="all")
         columns = {row[0] for row in result}
         assert "department" in columns  # New column should be present
-
-
