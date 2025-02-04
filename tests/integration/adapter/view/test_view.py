@@ -3,6 +3,7 @@ Test ClickHouse view materialization in dbt-clickhouse
 """
 
 import json
+
 import pytest
 from dbt.tests.util import run_dbt
 
