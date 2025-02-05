@@ -19,7 +19,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TEST_SETTINGS_FILE: latest
-      CLICKHOUSE_SKIP_USER_SETUP: 1
 
     strategy:
       matrix:
