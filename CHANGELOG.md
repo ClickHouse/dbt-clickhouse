@@ -2,6 +2,10 @@
 ### Improvements
 * Materialized view now attempts to use `ALTER TABLE...MODIFY QUERY` to update existing materialized views. This is an atomic operation so data is not lost. ([#390](https://github.com/ClickHouse/dbt-clickhouse/pull/390))
 * Make view materialization updates atomic. ([#412](https://github.com/ClickHouse/dbt-clickhouse/pull/412))
+* Create a black list settings to ignore based on the configured Engine. ([#367](https://github.com/ClickHouse/dbt-clickhouse/pull/367))
+
+#### New Features
+* [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
 
 
 #### New Features
