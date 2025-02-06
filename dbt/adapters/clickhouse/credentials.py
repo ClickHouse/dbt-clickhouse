@@ -24,6 +24,8 @@ class ClickHouseCredentials(Credentials):
     cluster_mode: bool = False
     secure: bool = False
     verify: bool = True
+    client_cert: Optional[str] = None
+    client_cert_key: Optional[str] = None
     connect_timeout: int = 10
     send_receive_timeout: int = 300
     sync_request_timeout: int = 5
@@ -72,6 +74,8 @@ class ClickHouseCredentials(Credentials):
             'cluster_mode',
             'secure',
             'verify',
+            'client_cert',
+            'client_cert_key',
             'connect_timeout',
             'send_receive_timeout',
             'sync_request_timeout',
