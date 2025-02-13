@@ -200,10 +200,9 @@
 
 
 {% macro clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, is_distributed=False) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
-       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
+    {%- set new_data_relation = make_intermediate_relation(existing_relation, '__dbt_new_data') -%}
     {{ drop_relation_if_exists(new_data_relation) }}
-    {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
+    {%- set distributed_new_data_relation = make_intermediate_relation(existing_relation, '__dbt_distributed_new_data') -%}
 
     {%- set inserting_relation = new_data_relation -%}
 
@@ -223,18 +222,18 @@
     {% call statement('delete_existing_data') %}
       {% if is_distributed %}
           {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
-            delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }})
+          delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                        from {{ inserting_relation }})
       {% else %}
-            delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }})
+          delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
+                                        from {{ inserting_relation }})
       {% endif %}
       {%- if incremental_predicates %}
         {% for predicate in incremental_predicates %}
             and {{ predicate }}
         {% endfor %}
       {%- endif -%}
-      {{ adapter.get_model_query_settings(model) }}
+    {{ adapter.get_model_query_settings(model) }}
     {% endcall %}
 
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
@@ -247,8 +246,7 @@
 {% endmacro %}
 
 {% macro clickhouse__incremental_insert_overwrite(existing_relation, intermediate_relation, partition_by) %}
-    {% set new_data_relation = existing_relation.incorporate(path={"identifier": model['name']
-       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
+    {%- set new_data_relation = make_intermediate_relation(existing_relation, '__dbt_new_data') -%}
     {{ drop_relation_if_exists(new_data_relation) }}
     {% call statement('create_new_data_temp') -%}
       {{ get_create_table_as_sql(False, new_data_relation, sql) }}
