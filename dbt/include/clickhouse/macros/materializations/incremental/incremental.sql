@@ -22,7 +22,7 @@
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
   {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
   
-  {% if not full_refresh_mode and incremental_strategy == 'append' %}
+  {% if not full_refresh_mode and incremental_strategy == 'append' and config.get('incremental_append_skip_drop_table', default='false') == 'true' %}
     -- skip dropping tables for incremental append runs.
   {% else %}
     {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
