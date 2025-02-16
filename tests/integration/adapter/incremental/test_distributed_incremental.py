@@ -203,3 +203,60 @@ class TestDistributedIncrementalNotSchemaChange(BaseIncrementalNotSchemaChange):
     )
     def test_incremental_not_schema_change(self, project):
         super().test_incremental_not_schema_change(project)
+
+
+insert_overwrite_dist_inc = """
+{{ config(
+        materialized='distributed_incremental',
+        incremental_strategy='insert_overwrite',
+        partition_by=['partitionKey'],
+        order_by=['orderKey'],
+        sharding_key='shardingKey'
+    )
+}}
+{% if not is_incremental() %}
+    SELECT shardingKey, partitionKey, orderKey, value
+    FROM VALUES(
+        'shardingKey UInt8, partitionKey String, orderKey UInt8, value String',
+        (1, 'p1', 1, 'a'), (1, 'p1', 2, 'b'), (2, 'p1', 3, 'c'), (2, 'p2', 4, 'd')
+    )
+{% else %}
+    SELECT shardingKey, partitionKey, orderKey, value
+    FROM VALUES(
+        'shardingKey UInt8, partitionKey String, orderKey UInt8, value String',
+        (1, 'p1', 2, 'e'), (3, 'p1', 2, 'f')
+    )
+{% endif %}
+"""
+
+
+class TestInsertOverwriteDistributedIncremental:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"insert_overwrite_dist_inc.sql": insert_overwrite_dist_inc}
+
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
+    def test_insert_overwrite_distributed_incremental(self, project):
+        run_dbt()
+        result = project.run_sql(
+            "select * from insert_overwrite_dist_inc order by shardingKey, partitionKey, orderKey",
+            fetch="all",
+        )
+        assert result == [
+            (1, 'p1', 1, 'a'),
+            (1, 'p1', 2, 'b'),
+            (2, 'p1', 3, 'c'),
+            (2, 'p2', 4, 'd'),
+        ]
+        run_dbt()
+        result = project.run_sql(
+            "select * from insert_overwrite_dist_inc order by shardingKey, partitionKey, orderKey",
+            fetch="all",
+        )
+        assert result == [
+            (1, 'p1', 2, 'e'),
+            (2, 'p2', 4, 'd'),
+            (3, 'p1', 2, 'f'),
+        ]

@@ -53,6 +53,8 @@ The index config should be added to the model config. for instance:
 * Added support for [range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#range_hashed) and [complex_key_range_hashed](https://clickhouse.com/docs/en/sql-reference/dictionaries#complex_key_range_hashed) layouts to the dictionary materialization. ([#361](https://github.com/ClickHouse/dbt-clickhouse/pull/361))
 * Truncated stack trace for database errors for cleaner output when HIDE_STACK_TRACE variable is set to any value. ([#382](https://github.com/ClickHouse/dbt-clickhouse/pull/382))
 * It is now possible to pass query settings not only on table creation but also on query. ([#362](https://github.com/ClickHouse/dbt-clickhouse/pull/362))
+* Added Support of insert_overwrite in cluster setup with incremental and distributed_incremental materializations ([#394](https://github.com/ClickHouse/dbt-clickhouse/pull/394))
+
 
 ### Bug Fixes
 * Before this version, `split_part` macro used to add an extra quotation. that was fixed in ([#338](https://github.com/ClickHouse/dbt-clickhouse/pull/338))
