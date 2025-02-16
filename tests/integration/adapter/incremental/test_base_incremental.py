@@ -236,6 +236,7 @@ class TestInsertOverwriteIncremental:
             (3, 'p1', 2, 'f'),
         ]
 
+
 # "ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}/{uuid}/', '{replica}')"
 insert_overwrite_replicated_inc = """
 {{ config(
