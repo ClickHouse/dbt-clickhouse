@@ -22,6 +22,7 @@ services:
       - SERVER_INDEX=1
       - SHARD_NUM=${SHARD_NUM:-1}
       - REPLICA_NUM=${REPLICA_NUM:-1}
+      - CLICKHOUSE_SKIP_USER_SETUP=1
     ports:
       - "8123:8123"
       - "8443:8443"
@@ -37,6 +38,7 @@ services:
       - SERVER_INDEX=2
       - SHARD_NUM=${SHARD_NUM:-2}
       - REPLICA_NUM=${REPLICA_NUM:-2}
+      - CLICKHOUSE_SKIP_USER_SETUP=1
     <<: *ch-common
   ch2:
     image: clickhouse/clickhouse-server:${DBT_CH_TEST_CH_VERSION:-latest}
@@ -44,6 +46,7 @@ services:
       - SERVER_INDEX=3
       - SHARD_NUM=${SHARD_NUM:-3}
       - REPLICA_NUM=${REPLICA_NUM:-3}
+      - CLICKHOUSE_SKIP_USER_SETUP=1
     <<: *ch-common
 
 networks:

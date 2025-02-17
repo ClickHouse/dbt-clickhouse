@@ -147,39 +147,46 @@
         {% call statement('create_table_empty') %}
             {{ create_table }}
         {% endcall %}
-         {% if config.get('projections')%}
-                {{ projection_statement(relation) }}
-         {% endif %}
-          {% if config.get('indexes') %}
-                {{ indexes_statement(relation) }}
-         {% endif %}
+         {{ add_index_and_projections(relation) }}
 
         {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
 {%- endmacro %}
 
-{% macro projection_statement(relation) %}
+{#
+    A macro that adds any configured projections or indexes at the same time.
+    We optimise to reduce the number of ALTER TABLE statements that are run to avoid
+    Code: 517.
+    DB::Exception: Metadata on replica is not up to date with common metadata in Zookeeper.
+    It means that this replica still not applied some of previous alters. Probably too many
+    alters executing concurrently (highly not recommended).
+#}
+{% macro add_index_and_projections(relation) %}
     {%- set projections = config.get('projections', default=[]) -%}
-
-    {%- for projection in projections %}
-         {% call statement('add_projections') %}
-                ALTER TABLE {{ relation }} ADD PROJECTION {{ projection.get('name') }}
-        (
-            {{ projection.get('query') }}
-        )
-            {%endcall  %}
-    {%- endfor %}
-{%- endmacro %}
-
-{% macro indexes_statement(relation) %}
     {%- set indexes = config.get('indexes', default=[]) -%}
-
-    {%- for index in indexes %}
-         {% call statement('add_indexes') %}
-                ALTER TABLE {{ relation }} ADD INDEX {{ index.get('name') }} {{ index.get('definition') }}
-            {%endcall  %}
-    {%- endfor %}
-{%- endmacro %}
+    
+    {% if projections | length > 0 or indexes | length > 0 %}
+        {% call statement('add_projections_and_indexes') %}
+            ALTER TABLE {{ relation }}
+            {%- if projections %}
+                {%- for projection in projections %}
+                    ADD PROJECTION {{ projection.get('name') }} ({{ projection.get('query') }})
+                    {%- if not loop.last or indexes | length > 0 -%}
+                        ,
+                    {% endif %}
+                {%- endfor %}
+            {%- endif %}
+            {%- if indexes %}
+                {%- for index in indexes %}
+                    ADD INDEX {{ index.get('name') }} {{ index.get('definition') }}
+                    {%- if not loop.last -%}
+                        ,
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        {% endcall %}
+    {% endif %}
+{% endmacro %}
 
 {% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
@@ -189,7 +196,7 @@
     {% if temporary -%}
         create temporary table {{ relation }}
         engine Memory
-        {{ adapter.get_model_settings(model) }}
+        {{ adapter.get_model_settings(model, 'Memory') }}
         as (
           {{ sql }}
         )
@@ -205,7 +212,7 @@
         {{ primary_key_clause(label="primary key") }}
         {{ partition_cols(label="partition by") }}
         {{ ttl_config(label="ttl")}}
-        {{ adapter.get_model_settings(model) }}
+        {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
           {%- if not adapter.is_before_version('22.7.1.2484') %}

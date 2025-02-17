@@ -47,6 +47,11 @@ if TYPE_CHECKING:
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
+IGNORED_SETTINGS = {
+    'Memory': ['replicated_deduplication_window'],
+    'S3': ['replicated_deduplication_window'],
+}
+
 
 @dataclass
 class ClickHouseConfig(AdapterConfig):
@@ -456,12 +461,13 @@ class ClickHouseAdapter(SQLAdapter):
             conn.state = 'close'
 
     @available
-    def get_model_settings(self, model):
+    def get_model_settings(self, model, engine='MergeTree'):
         settings = model['config'].get('settings', {})
         materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
         conn.handle.update_model_settings(settings, materialization_type)
         res = []
+        settings = self.filter_settings_by_engine(settings, engine)
         for key in settings:
             res.append(f' {key}={settings[key]}')
         settings_str = '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
@@ -469,6 +475,24 @@ class ClickHouseAdapter(SQLAdapter):
                     -- end_of_sql
                     {settings_str}
                     """
+
+    @available
+    def filter_settings_by_engine(self, settings, engine):
+        filtered_settings = {}
+
+        if engine.endswith('MergeTree'):
+            # Special case for MergeTree due to all its variations.
+            ignored_settings = IGNORED_SETTINGS.get('MergeTree', [])
+        else:
+            ignored_settings = IGNORED_SETTINGS.get(engine, [])
+
+        for key, value in settings.items():
+            if key in ignored_settings:
+                logger.warning(f"Setting {key} not available for engine {engine}, ignoring.")
+            else:
+                filtered_settings[key] = value
+
+        return filtered_settings
 
     @available
     def get_model_query_settings(self, model):

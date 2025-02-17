@@ -1,4 +1,24 @@
-### Next Version
+### Release [1.8.9], 2025-02-16
+
+#### Improvements
+* It is now possible to configure a TLS client certificate using `client_cert` and `client_cert_key` profile parameters. ([#413](https://github.com/ClickHouse/dbt-clickhouse/pull/413))
+* Added Support of insert_overwrite in cluster setup with incremental and distributed_incremental materializations ([#394](https://github.com/ClickHouse/dbt-clickhouse/pull/394))
+* Improve index and projections creation process ([#421](https://github.com/ClickHouse/dbt-clickhouse/pull/421)) 
+
+#### Bugs
+* Reverted breaking changes in MV materialization ([#416](https://github.com/ClickHouse/dbt-clickhouse/pull/416))
+* A fix was introduced for distributed tables, where an incremental local table could have been dropped if the distributed table was missing. ([#363](https://github.com/ClickHouse/dbt-clickhouse/pull/363))
+
+
+### Release [1.8.8], 2025-02-05
+### Improvements
+* Materialized view now attempts to use `ALTER TABLE...MODIFY QUERY` to update existing materialized views. This is an atomic operation so data is not lost. ([#390](https://github.com/ClickHouse/dbt-clickhouse/pull/390))
+* Make view materialization updates atomic. ([#412](https://github.com/ClickHouse/dbt-clickhouse/pull/412))
+* Create a black list settings to ignore based on the configured Engine. ([#367](https://github.com/ClickHouse/dbt-clickhouse/pull/367))
+
+#### New Features
+* [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
+
 
 #### New Features
 * [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
@@ -41,8 +61,12 @@ The index config should be added to the model config. for instance:
 * Truncated stack trace for database errors for cleaner output when HIDE_STACK_TRACE variable is set to any value. ([#382](https://github.com/ClickHouse/dbt-clickhouse/pull/382))
 * It is now possible to pass query settings not only on table creation but also on query. ([#362](https://github.com/ClickHouse/dbt-clickhouse/pull/362))
 
+
 ### Bug Fixes
 * Before this version, `split_part` macro used to add an extra quotation. that was fixed in ([#338](https://github.com/ClickHouse/dbt-clickhouse/pull/338))
+
+### Bug Fixes
+* Existing local tables are no longer dropped/recreated in case of missing distributed tables in `distributed_incremental` materialization mode. ([#363](https://github.com/ClickHouse/dbt-clickhouse/pull/363))
 
 ### Release [1.8.4], 2024-09-17
 ### Improvement

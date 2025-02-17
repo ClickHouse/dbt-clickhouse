@@ -82,6 +82,8 @@ your_profile_name:
       cluster: [<empty string>] # If set, certain DDL/table operations will be executed with the `ON CLUSTER` clause using this cluster. Distributed materializations require this setting to work. See the following ClickHouse Cluster section for more details.
       verify: [True] # Validate TLS certificate if using TLS/SSL
       secure: [False] # Use TLS (native protocol) or HTTPS (http protocol)
+      client_cert: [null] # Path to a TLS client certificate in .pem format
+      client_cert_key: [null] # Path to the private key for the TLS client certificate
       retries: [1] # Number of times to retry a "retriable" database exception (such as a 503 'Service Unavailable' error)
       compression: [<empty string>] # Use gzip compression if truthy (http), or compression type for a native connection
       connect_timeout: [10] # Timeout in seconds to establish a connection to ClickHouse
@@ -310,8 +312,7 @@ and a ClickHouse MATERIALIZED VIEW with the name `<model_name>_mv`. Unlike Postg
 not "static" (and has
 no corresponding REFRESH operation). Instead, it acts as an "insert trigger", and will insert new rows into the target
 table using the defined `SELECT`
-"transformation" in the view definition on rows inserted into the source table. See the [test file]
-(https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)
+"transformation" in the view definition on rows inserted into the source table. See the [test file](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/materialized_view/test_materialized_view.py)
 for an introductory example
 of how to use this functionality.
 

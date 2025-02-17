@@ -37,13 +37,13 @@
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   -- extract the names of the materialized views from the sql
-  {% set view_names = modules.re.findall('--([^:]+):begin', sql) %}
+  {% set view_names = modules.re.findall('--(?:\s)?([^:]+):begin', sql) %}
 
   -- extract the sql for each of the materialized view into a map
   {% set views = {} %}
   {% if view_names %}
     {% for view_name in view_names %}
-      {% set view_sql = modules.re.findall('--' + view_name + ':begin(.*)--' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
+      {% set view_sql = modules.re.findall('--(?:\s)?' + view_name + ':begin(.*)--(?:\s)?' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
       {%- set _ = views.update({view_name: view_sql}) -%}
     {% endfor %}
   {% else %}
@@ -87,19 +87,25 @@
     {% else %}
         {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
     {% endif %}
-    {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
     {% if should_full_refresh() %}
+      {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+
       {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
       {%- endcall %}
       {% do exchange_tables_atomic(backup_relation, existing_relation) %}
+
+      {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
     {% else %}
       -- we need to have a 'main' statement
       {% call statement('main') -%}
         select 1
       {%- endcall %}
+
+      -- try to alter view first to replace sql, else drop and create
+      {{ clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views) }}
+
     {% endif %}
-    {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
   {% else %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
     {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) }}
@@ -152,32 +158,56 @@
 {%- endmacro %}
 
 {% macro clickhouse__drop_mv(mv_relation, cluster_clause)  -%}
+  {% call statement('drop existing mv: ' + mv_relation.name) -%}
     drop view if exists {{ mv_relation }} {{ cluster_clause }}
-{%- endmacro %}u
+  {% endcall %}
+{%- endmacro %}
 
-{% macro clickhouse__create_mv(mv_relation, target_table, cluster_clause, refreshable_clause, sql)  -%}
-  create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
-  {{ refreshable_clause }}
-  to {{ target_table }}
-  as {{ sql }}
+{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
+  {% call statement('create existing mv: ' + mv_relation.name) -%}
+    create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
+    {{ refreshable_clause }}
+    to {{ target_relation }}
+    as {{ view_sql }}
+  {% endcall %}
+{%- endmacro %}
+
+{% macro clickhouse__modify_mv(mv_relation, cluster_clause, view_sql)  -%}
+  {% call statement('modify existing mv: ' + mv_relation.name) -%}
+    alter table {{ mv_relation }} {{ cluster_clause }} modify query {{ view_sql }}
+  {% endcall %}
+{%- endmacro %}
+
+{% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
+  {% set existing_relation = adapter.get_relation(database=mv_relation.database, schema=mv_relation.schema, identifier=mv_relation.identifier) %}
+  {% if existing_relation %}
+    {{ clickhouse__modify_mv(mv_relation, cluster_clause, view_sql) }};
+  {% else %}
+    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+  {% endif %}
+
 {%- endmacro %}
 
 {% macro clickhouse__drop_mvs(target_relation, cluster_clause, views)  -%}
-    {% for view in views.keys() %}
-      {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-      {% call statement('drop existing mv: ' + view) -%}
-        {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
-      {% endcall %}
-    {% endfor %}
+  {% for view in views.keys() %}
+    {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
+  {% endfor %}
 {%- endmacro %}
 
 {% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
-    {% for view, view_sql in views.items() %}
-      {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-      {% call statement('create existing mv: ' + view) -%}
-        {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
-      {% endcall %}
-    {% endfor %}
+  {% for view, view_sql in views.items() %}
+    {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+  {% endfor %}
+{%- endmacro %}
+
+{% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
+  {% for view, view_sql in views.items() %}
+    {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+    {{ clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+  {% endfor %}
 {%- endmacro %}
 
 {% macro clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) %}
