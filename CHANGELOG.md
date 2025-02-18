@@ -1,3 +1,7 @@
+### Release [x.x.x]
+### Improvements
+* Add support for "microbatch" incremental strategy.
+
 ### Release [1.8.9], 2025-02-16
 
 #### Improvements
