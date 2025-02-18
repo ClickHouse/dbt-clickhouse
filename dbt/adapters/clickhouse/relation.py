@@ -113,12 +113,15 @@ class ClickHouseRelation(BaseRelation):
         # schema with the database instead, since that's presumably what's intended for clickhouse
         schema = relation_config.schema
 
-        cluster = quoting.credentials.cluster or ''
         can_on_cluster = None
+        cluster = ""
         # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
                 schema = relation_config.database
+        else:
+            # quoting is only available for non-source nodes
+            cluster = quoting.credentials.cluster or ""
 
         if cluster and str(relation_config.config.get("force_on_cluster")).lower() == "true":
             can_on_cluster = True
