@@ -1,7 +1,6 @@
 ### Release [x.x.x]
 ### Improvements
 * Add support for "microbatch" incremental strategy.
-* Ignores incompatible settings based on the configured Engine.
 
 ### Release [1.8.9], 2025-02-16
 
