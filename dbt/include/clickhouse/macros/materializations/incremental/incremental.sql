@@ -83,7 +83,7 @@
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql) }}
       {% endcall %}
-    {% elif incremental_strategy == 'insert_overwrite' %}#}
+    {% elif incremental_strategy == 'insert_overwrite' %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, False) %}
     {% endif %}
   {% endif %}
