@@ -96,13 +96,6 @@
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
     {% elif incremental_strategy == 'insert_overwrite' %}
-      {%- set partition_by = config.get('partition_by') -%}
-      {% if partition_by is none or partition_by|length == 0 %}
-        {% do exceptions.raise_compiler_error(incremental_strategy + ' strategy requires nonempty partition_by. Current partition_by is ' ~ partition_by) %}
-      {% endif %}
-      {% if inserts_only or unique_key is not none or incremental_predicates is not none %}
-      	{% do exceptions.raise_compiler_error(incremental_strategy + ' strategy does not support inserts_only, unique_key, and incremental predicates.') %}
-      {% endif %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
