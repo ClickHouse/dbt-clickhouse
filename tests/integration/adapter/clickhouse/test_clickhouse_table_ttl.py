@@ -74,7 +74,7 @@ DISTRIBUTED_TABLE_TTL_MODEL = """
 }}
 SELECT 1 AS id, toDateTime('2010-05-20 06:46:51') AS expiration_date
 UNION ALL
-SELECT 2, toDateTime('2007-09-03 12:31:55')
+SELECT 2, toDateTime('2007-09-03 12:31:51')
 UNION ALL
 SELECT 3, toDateTime('2005-01-01 09:23:15')
 """
