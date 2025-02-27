@@ -67,7 +67,7 @@
 {% endmaterialization %}
 
 {% macro engine_clause() %}
-  engine = {{ config.get('engine', default='MergeTree()') }}
+  engine = {{ config.get('engine', default='ReplicatedMergeTree()') }}
 {%- endmacro -%}
 
 {% macro partition_cols(label) %}
