@@ -59,11 +59,11 @@ class ClickHouseRelation(BaseRelation):
         """
         filter = ""
         if event_time_filter.start and event_time_filter.end:
-            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime("%Y-%m-%d %H:%M:%S")}' and {event_time_filter.field_name} < '{event_time_filter.end.strftime("%Y-%m-%d %H:%M:%S")}'"
+            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}' and {event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
         elif event_time_filter.start:
-            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime("%Y-%m-%d %H:%M:%S")}'"
+            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}'"
         elif event_time_filter.end:
-            filter = f"{event_time_filter.field_name} < '{event_time_filter.end.strftime("%Y-%m-%d %H:%M:%S")}'"
+            filter = f"{event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
 
         return filter
 
