@@ -47,11 +47,9 @@
       {%- endif %}
       DEFINER = {{ definer }} SQL SECURITY DEFINER
     {%- elif sql_security == 'invoker' %}
-      SQL SECURITY INVOKER
-    {%- elif sql_security == 'none' %}
-      SQL SECURITY NONE
+    SQL SECURITY INVOKER
     {%- else %}
-      {{ exceptions.raise_compiler_error("Invalid config parameter `sql_security`. Got: `" + sql_security + "`, but only definer | invoker | none allowed.") }}
+      {{ exceptions.raise_compiler_error("Invalid config parameter `sql_security`. Got: `" + sql_security + "`, but only definer | invoker allowed.") }}
     {%- endif %}
   {%- endif %}
 {%- endmacro -%}
