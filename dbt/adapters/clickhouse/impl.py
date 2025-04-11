@@ -314,6 +314,7 @@ class ClickHouseAdapter(SQLAdapter):
         if comp:
             comp = f"', {comp}'"
         extra_credentials = ''
+        role_arn = role_arn or s3config.get('role_arn')
         if role_arn:
             extra_credentials = f", extra_credentials(role_arn='{role_arn}')"
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
