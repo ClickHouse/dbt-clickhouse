@@ -541,12 +541,13 @@ class ClickHouseAdapter(SQLAdapter):
         return credentials
 
     @classmethod
-    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List:
+    def render_raw_columns_constraints(cls, raw_columns: Dict[str, Dict[str, Any]]) -> List[str]:
         rendered_columns = []
         for v in raw_columns.values():
             codec = f"CODEC({_codec})" if (_codec := v.get('codec')) else ""
+            ttl = f"TTL {_ttl}" if (_ttl := v.get('ttl')) else ""
             rendered_columns.append(
-                f"{quote_identifier(v['name'])} {v['data_type']} {codec}".rstrip()
+                f"{quote_identifier(v['name'])} {v['data_type']} {codec} {ttl}".rstrip()
             )
             if v.get("constraints"):
                 warn_or_error(ConstraintNotSupported(constraint='column', adapter='clickhouse'))
