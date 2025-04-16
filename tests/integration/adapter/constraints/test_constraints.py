@@ -1,6 +1,7 @@
 import pytest
 from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture, write_file
-from fixtures_contraints import (
+
+from tests.integration.adapter.constraints.fixtures_constraints import (
     bad_column_constraint_model_sql,
     bad_foreign_key_model_sql,
     check_constraints_model_fail_sql,
