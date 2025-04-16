@@ -123,9 +123,30 @@ your_profile_name:
 
 ## Column Configuration
 
+> **_NOTE:_** The column configuration options below require [model contracts](https://docs.getdbt.com/docs/collaborate/govern/model-contracts) to be enforced.
+
 | Option | Description                                                                                                                                                | Default if any |
 |--------|------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be interpreted as `CODEC(Delta, ZSTD)`. |                |
+| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be compiled as `CODEC(Delta, ZSTD)`. |    
+| ttl    | A string consisting of a [TTL (time-to-live) expression](https://clickhouse.com/docs/guides/developer/ttl) that defines a TTL rule in the column's DDL. For example: `ttl: ts + INTERVAL 1 DAY` will be compiled as `TTL ts + INTERVAL 1 DAY`. |
+
+### Example
+
+```yaml
+models:
+  - name: table_column_configs
+    description: 'Testing column-level configurations'
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: ts
+        data_type: timestamp
+        codec: ZSTD
+      - name: x
+        data_type: UInt8
+        ttl: ts + INTERVAL 1 DAY
+```
 
 ## ClickHouse Cluster
 
