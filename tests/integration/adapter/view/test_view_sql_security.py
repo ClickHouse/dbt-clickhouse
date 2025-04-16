@@ -69,7 +69,6 @@ from {{ source('raw', 'people') }}
 """
 
 
-
 class TestClickHouseViewSqlSecurity:
     @pytest.fixture(scope="class")
     def seeds(self):
@@ -99,7 +98,9 @@ class TestClickHouseViewSqlSecurity:
         result = project.run_sql(
             """select 1 from system.tables
                 where table = 'view_invoker'
-                and position(create_table_query, 'SQL SECURITY INVOKER') > 0""", fetch="one")
+                and position(create_table_query, 'SQL SECURITY INVOKER') > 0""",
+            fetch="one",
+        )
         assert result[0] == 1  # 1 records in the seed data
 
     def test_create_view_definer(self, project):
@@ -113,29 +114,38 @@ class TestClickHouseViewSqlSecurity:
         result = project.run_sql(
             """select 1 from system.tables
                 where table = 'view_definer'
-                and position(create_table_query, 'DEFINER = admin SQL SECURITY DEFINER') > 0""", fetch="one")
+                and position(create_table_query, 'DEFINER = admin SQL SECURITY DEFINER') > 0""",
+            fetch="one",
+        )
         assert result[0] == 1  # 3 records in the seed data
 
-    def test_fail_view_definer_emty(self, project):
+    def test_fail_view_definer_empty(self, project):
         # Load seed data
         run_dbt(["seed"])
 
         # Run dbt to create the view
-        _, stdout = run_dbt_and_capture(["run", "--select", "view_definer_empty"], expect_pass=False)
-        
+        _, stdout = run_dbt_and_capture(
+            ["run", "--select", "view_definer_empty"], expect_pass=False
+        )
+
         # Confirm that stdout/console output has error description
-        assert "Model 'model.test.view_definer_empty' does not define a required config parameter 'definer'." in stdout
+        assert (
+            "Model 'model.test.view_definer_empty' does not define a required config parameter 'definer'."
+            in stdout
+        )
 
     def test_fail_view_definer_wrong(self, project):
         # Load seed data
         run_dbt(["seed"])
 
         # Run dbt to create the view
-        _, stdout = run_dbt_and_capture(["run", "--select", "view_definer_wrong"], expect_pass=False)
+        _, stdout = run_dbt_and_capture(
+            ["run", "--select", "view_definer_wrong"], expect_pass=False
+        )
 
         # Confirm that stdout/console output has error description
         assert "Invalid config parameter `definer`. No value was provided." in stdout
-    
+
     def test_fail_view_sql_security(self, project):
         # Load seed data
         run_dbt(["seed"])
@@ -144,5 +154,7 @@ class TestClickHouseViewSqlSecurity:
         _, stdout = run_dbt_and_capture(["run", "--select", "view_sql_security"], expect_pass=False)
 
         # Confirm that stdout/console output has error description
-        assert "Invalid config parameter `sql_security`. Got: `wrong`, but only definer | invoker allowed." in stdout
-
+        assert (
+            "Invalid config parameter `sql_security`. Got: `wrong`, but only definer | invoker allowed."
+            in stdout
+        )

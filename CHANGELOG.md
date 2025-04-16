@@ -1,6 +1,6 @@
 ### Release [1.8.10]
 #### New Features
-* Added abillity to set [SQL Security](https://clickhouse.com/docs/en/sql-reference/statements/create/view#sql_security) for normal views, referenced by [issue 359](https://github.com/ClickHouse/dbt-clickhouse/issues/359).
+* Added ability to set [SQL Security](https://clickhouse.com/docs/en/sql-reference/statements/create/view#sql_security) for normal views, referenced by [issue 359](https://github.com/ClickHouse/dbt-clickhouse/issues/359).
 
 ### Release [1.8.9], 2025-02-16
 
