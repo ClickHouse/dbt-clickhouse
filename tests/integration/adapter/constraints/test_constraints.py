@@ -191,6 +191,7 @@ class TestModelConstraintApplied:
         )
         assert 'violated' in log_output.lower()
 
+
 class TestModelCustomConstraints:
     @pytest.fixture(scope="class")
     def models(self):

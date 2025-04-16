@@ -546,7 +546,7 @@ class ClickHouseAdapter(SQLAdapter):
         for v in raw_columns.values():
             codec = f"CODEC({_codec})" if (_codec := v.get('codec')) else ""
             ttl = f"TTL {ttl}" if (ttl := v.get('ttl')) else ""
-            # Codec and TTL are optional clauses. The adapter should support scenarios where one 
+            # Codec and TTL are optional clauses. The adapter should support scenarios where one
             # or both are omitted. If specified together, the codec clause should appear first.
             clauses = " ".join(filter(None, [codec, ttl]))
             rendered_columns.append(
