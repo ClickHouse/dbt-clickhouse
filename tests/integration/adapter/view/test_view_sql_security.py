@@ -3,6 +3,7 @@ Test ClickHouse view with sql security settings in dbt-clickhouse
 """
 
 import os
+
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
@@ -82,7 +83,8 @@ class TestClickHouseViewSqlSecurity:
     def models(self):
         return {
             "view_invoker.sql": PEOPLE_VIEW_CONFIG + PEOPLE_VIEW_MODEL,
-            "view_definer.sql": PEOPLE_VIEW_CONFIG_2 % os.environ.get('DBT_CH_TEST_USER', 'default') + PEOPLE_VIEW_MODEL,
+            "view_definer.sql": PEOPLE_VIEW_CONFIG_2 % os.environ.get('DBT_CH_TEST_USER', 'default')
+            + PEOPLE_VIEW_MODEL,
             "view_definer_empty.sql": PEOPLE_VIEW_CONFIG_3 + PEOPLE_VIEW_MODEL,
             "view_definer_wrong.sql": PEOPLE_VIEW_CONFIG_4 + PEOPLE_VIEW_MODEL,
             "view_sql_security.sql": PEOPLE_VIEW_CONFIG_5 + PEOPLE_VIEW_MODEL,
