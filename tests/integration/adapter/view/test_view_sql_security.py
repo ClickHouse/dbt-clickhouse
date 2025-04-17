@@ -2,6 +2,7 @@
 Test ClickHouse view with sql security settings in dbt-clickhouse
 """
 
+import os
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
@@ -33,7 +34,7 @@ PEOPLE_VIEW_CONFIG_2 = """
 {{ config(
        materialized='view',
        sql_security='definer',
-       definer='admin'
+       definer='%s'
 ) }}
 """
 
@@ -81,7 +82,7 @@ class TestClickHouseViewSqlSecurity:
     def models(self):
         return {
             "view_invoker.sql": PEOPLE_VIEW_CONFIG + PEOPLE_VIEW_MODEL,
-            "view_definer.sql": PEOPLE_VIEW_CONFIG_2 + PEOPLE_VIEW_MODEL,
+            "view_definer.sql": PEOPLE_VIEW_CONFIG_2 % os.environ.get('DBT_CH_TEST_USER', 'default') + PEOPLE_VIEW_MODEL,
             "view_definer_empty.sql": PEOPLE_VIEW_CONFIG_3 + PEOPLE_VIEW_MODEL,
             "view_definer_wrong.sql": PEOPLE_VIEW_CONFIG_4 + PEOPLE_VIEW_MODEL,
             "view_sql_security.sql": PEOPLE_VIEW_CONFIG_5 + PEOPLE_VIEW_MODEL,
@@ -112,9 +113,9 @@ class TestClickHouseViewSqlSecurity:
 
         # Query system table to be sure that view query contains desired statement
         result = project.run_sql(
-            """select 1 from system.tables
+            f"""select 1 from system.tables
                 where table = 'view_definer'
-                and position(create_table_query, 'DEFINER = admin SQL SECURITY DEFINER') > 0""",
+                and position(create_table_query, 'DEFINER = {os.environ.get('DBT_CH_TEST_USER', 'default')} SQL SECURITY DEFINER') > 0""",
             fetch="one",
         )
         assert result[0] == 1  # 3 records in the seed data
