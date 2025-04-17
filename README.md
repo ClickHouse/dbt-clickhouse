@@ -123,9 +123,27 @@ your_profile_name:
 
 ## Column Configuration
 
-| Option | Description                                                                                                                                                | Default if any |
-|--------|------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be interpreted as `CODEC(Delta, ZSTD)`. |                |
+| Option | Description                                                                                                                                                                                                                                       | Default if any |
+|--------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be interpreted as `CODEC(Delta, ZSTD)`.                                                                                        |                |
+| ttl    | A string consisting of a [TTL (time-to-live) expression](https://clickhouse.com/docs/guides/developer/ttl) that defines a TTL rule in the column's DDL. For example: `ttl: ts + INTERVAL 1 DAY` will be interpreted as `TTL ts + INTERVAL 1 DAY`. |                | 
+
+### Example
+
+```yaml
+models:
+  - name: table_column_configs
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: ts
+        data_type: timestamp
+        codec: ZSTD
+      - name: x
+        data_type: UInt8
+        ttl: ts + INTERVAL 1 DAY
+```
 
 ## ClickHouse Cluster
 
