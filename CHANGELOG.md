@@ -1,3 +1,7 @@
+### Release [x.x.x]
+### Improvements
+* Upgrade `dbt-core` to version `1.9` and `dbt-adapters` to `>=1.10` ([#403](https://github.com/ClickHouse/dbt-clickhouse/pull/403))
+
 ### Release [1.8.9], 2025-02-16
 
 #### Improvements
