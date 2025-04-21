@@ -282,6 +282,7 @@ class ClickHouseAdapter(SQLAdapter):
     ) -> str:
         s3config = self.config.vars.vars.get(config_name, {})
         s3config.update(s3_model_config)
+
         structure = structure or s3config.get('structure', '')
         struct = ''
         if structure:
@@ -292,7 +293,9 @@ class ClickHouseAdapter(SQLAdapter):
                 struct = f", '{','.join(structure)}'"
             else:
                 struct = f",'{structure}'"
+
         fmt = fmt or s3config.get('fmt')
+
         bucket = bucket or s3config.get('bucket', '')
         path = path or s3config.get('path', '')
         url = bucket.replace('https://', '')
@@ -310,13 +313,16 @@ class ClickHouseAdapter(SQLAdapter):
             raise DbtRuntimeError('S3 aws_secret_access_key specified without aws_access_key_id')
         if aws_access_key_id:
             access = f", '{aws_access_key_id}', '{aws_secret_access_key}'"
+
         comp = compression or s3config.get('compression', '')
         if comp:
             comp = f"', {comp}'"
+
         extra_credentials = ''
         role_arn = role_arn or s3config.get('role_arn')
         if role_arn:
             extra_credentials = f", extra_credentials(role_arn='{role_arn}')"
+
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
 
     def check_schema_exists(self, database, schema):

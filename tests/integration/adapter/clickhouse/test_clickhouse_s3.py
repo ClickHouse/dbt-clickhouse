@@ -115,7 +115,7 @@ class TestS3Bucket:
         assert result[0] == 1000
 
 
-class TestS3RoleArnGlobal:
+class TestS3AwsAccessGlobal:
     @pytest.fixture(scope="class")
     def project_config_update(self):
         return {
@@ -123,7 +123,8 @@ class TestS3RoleArnGlobal:
                 'taxi_s3': {
                     'bucket': 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
                     'fmt': 'TabSeparatedWithNames',
-                    'role_arn': 'arn:aws:iam::123456789012:role/my-role'
+                    'aws_access_key_id': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                    'aws_secret_access_key': '1234567890123456789012345678901234567890',
                 }
             }
         }
@@ -140,4 +141,38 @@ class TestS3RoleArnGlobal:
         result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)
 
         # Assert the SQL contains the expected role_arn function call
-        assert "extra_credentials(role_arn='arn:aws:iam::123456789012:role/my-role')" in result.results[0].node.compiled_code
+        assert (
+            ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '1234567890123456789012345678901234567890'"
+            in result.results[0].node.compiled_code
+        )
+
+
+class TestS3RoleArnGlobal:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            'vars': {
+                'taxi_s3': {
+                    'bucket': 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
+                    'fmt': 'TabSeparatedWithNames',
+                    'role_arn': 'arn:aws:iam::123456789012:role/my-role',
+                }
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "s3_taxis_source.sql": s3_taxis_full_source,
+            "schema.yml": schema_yaml,
+        }
+    
+    def test_role_arn_in_compiled_sql(self, project):
+        # Only compile, don't run
+        result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)
+
+        # Assert the SQL contains the expected role_arn function call
+        assert (
+            "extra_credentials(role_arn='arn:aws:iam::123456789012:role/my-role')"
+            in result.results[0].node.compiled_code
+        )
