@@ -1,7 +1,5 @@
 import pytest
-
 from dbt.tests.adapter.incremental.test_incremental_microbatch import BaseMicrobatch
-
 
 _input_model_sql = """
 {{
