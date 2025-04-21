@@ -1,6 +1,8 @@
 ### Release [x.x.x]
 ### Improvements
 * Upgrade `dbt-core` to version `1.9` and `dbt-adapters` to `>=1.10` ([#403](https://github.com/ClickHouse/dbt-clickhouse/pull/403))
+* Add support for "microbatch" incremental strategy.
+* Previously, delete_insert would fall back to legacy silently. Now it raises an error if LWD is not enabled.
 
 ### Release [1.8.9], 2025-02-16
 
