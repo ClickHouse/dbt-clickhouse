@@ -566,8 +566,12 @@ class ClickHouseAdapter(SQLAdapter):
         rendered_columns = []
         for v in raw_columns.values():
             codec = f"CODEC({_codec})" if (_codec := v.get('codec')) else ""
+            ttl = f"TTL {ttl}" if (ttl := v.get('ttl')) else ""
+            # Codec and TTL are optional clauses. The adapter should support scenarios where one
+            # or both are omitted. If specified together, the codec clause should appear first.
+            clauses = " ".join(filter(None, [codec, ttl]))
             rendered_columns.append(
-                f"{quote_identifier(v['name'])} {v['data_type']} {codec}".rstrip()
+                f"{quote_identifier(v['name'])} {v['data_type']} {clauses}".rstrip()
             )
             if v.get("constraints"):
                 warn_or_error(ConstraintNotSupported(constraint='column', adapter='clickhouse'))

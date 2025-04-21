@@ -3,6 +3,30 @@
 * Upgrade `dbt-core` to version `1.9` and `dbt-adapters` to `>=1.10` ([#403](https://github.com/ClickHouse/dbt-clickhouse/pull/403))
 * Add support for "microbatch" incremental strategy.
 * Previously, delete_insert would fall back to legacy silently. Now it raises an error if LWD is not enabled.
+* Added support for [TTL (time-to-live)](https://clickhouse.com/docs/guides/developer/ttl) as a column configuration for `table` and `ephemeral` materializations. This feature is implemented as a [custom constraint](https://docs.getdbt.com/reference/resource-properties/constraints#custom-constraints), which requires model contracts to be enforced. For example:
+
+  ```sql
+  -- test_ttl.sql
+  {{ config(order_by='(ts)', engine='MergeTree()', materialized='table') }}
+
+  SELECT now() AS ts, 
+        'Some value that should expire!' AS col_ttl
+  ```
+
+  ```yaml
+  models:
+    - name: test_ttl
+      description: 'Testing column-level TTL'
+      config:
+        contract:
+          enforced: true
+      columns:
+        - name: ts
+          data_type: timestamp
+        - name: col_ttl
+          data_type: String
+          ttl: ts + INTERVAL 1 DAY
+  ```
 
 ### Release [1.8.9], 2025-02-16
 
