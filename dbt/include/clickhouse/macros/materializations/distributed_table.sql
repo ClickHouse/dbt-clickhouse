@@ -127,6 +127,7 @@
   {{ order_cols(label="order by") }}
   {{ primary_key_clause(label="primary key") }}
   {{ partition_cols(label="partition by") }}
+  {{ ttl_config(label="ttl")}}
   {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 {%- endmacro %}
 
