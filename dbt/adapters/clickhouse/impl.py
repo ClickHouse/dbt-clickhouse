@@ -179,10 +179,7 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
             return ClickHouseRelation.get_on_cluster(
-                conn.credentials.cluster,
-                materialized,
-                is_distributed,
-                engine
+                conn.credentials.cluster, materialized, is_distributed, engine
             )
         return ClickHouseRelation.get_on_cluster('', materialized, is_distributed, engine)
 

@@ -96,7 +96,7 @@ class ClickHouseRelation(BaseRelation):
         cluster: str = '',
         materialized: str = '',
         is_distributed: bool = False,
-        engine: str = ''
+        engine: str = '',
     ) -> bool:
         if cluster.strip():
             return (
