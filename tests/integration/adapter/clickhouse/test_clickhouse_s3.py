@@ -135,7 +135,7 @@ class TestS3AwsAccessGlobal:
             "s3_taxis_source.sql": s3_taxis_full_source,
             "schema.yml": schema_yaml,
         }
-    
+
     def test_role_arn_in_compiled_sql(self, project):
         # Only compile, don't run
         result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)
@@ -166,7 +166,7 @@ class TestS3RoleArnGlobal:
             "s3_taxis_source.sql": s3_taxis_full_source,
             "schema.yml": schema_yaml,
         }
-    
+
     def test_role_arn_in_compiled_sql(self, project):
         # Only compile, don't run
         result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)

@@ -295,7 +295,6 @@ class ClickHouseAdapter(SQLAdapter):
 
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
 
-
     def check_schema_exists(self, database, schema):
         results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
         return schema in (row[0] for row in results)
