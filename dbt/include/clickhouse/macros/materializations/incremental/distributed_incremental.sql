@@ -54,6 +54,7 @@
   {% call statement('main') %}
     {{ create_view_as(view_relation, sql) }}
   {% endcall %}
+  {% do to_drop.append(view_relation) %}
 
   {% if existing_relation_local is none %}
     -- No existing local table, recreate local and distributed tables
@@ -94,6 +95,14 @@
       {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, local_column_changes, unique_key, True) %}
       {% set need_swap = true %}
     {% elif incremental_strategy == 'delete_insert' %}
+      {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
+    {% elif incremental_strategy == 'microbatch' %}
+      {%- if config.get("__dbt_internal_microbatch_event_time_start") -%}
+        {% do incremental_predicates.append(config.get("event_time") ~ " >= toDateTime('" ~ config.get("__dbt_internal_microbatch_event_time_start").strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
+      {%- endif -%}
+      {%- if model.config.__dbt_internal_microbatch_event_time_end -%}
+        {% do incremental_predicates.append(config.get("event_time") ~ " < toDateTime('" ~ config.get("__dbt_internal_microbatch_event_time_end").strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
+      {%- endif -%}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
     {% elif incremental_strategy == 'insert_overwrite' %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
@@ -150,6 +159,6 @@
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {{ return({'relations': [target_relation]}) }}
+  {{ return({'relations': [target_relation, target_relation_local]}) }}
 
 {%- endmaterialization %}

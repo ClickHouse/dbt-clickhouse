@@ -173,11 +173,18 @@ class ClickHouseAdapter(SQLAdapter):
         return ch_db and ch_db.engine in ('Atomic', 'Replicated')
 
     @available.parse_none
-    def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
+    def should_on_cluster(
+        self, materialized: str = '', is_distributed: bool = False, engine: str = ''
+    ) -> bool:
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
-            return ClickHouseRelation.get_on_cluster(conn.credentials.cluster, materialized, engine)
-        return ClickHouseRelation.get_on_cluster('', materialized, engine)
+            return ClickHouseRelation.get_on_cluster(
+                conn.credentials.cluster,
+                materialized,
+                is_distributed,
+                engine
+            )
+        return ClickHouseRelation.get_on_cluster('', materialized, is_distributed, engine)
 
     @available.parse_none
     def calculate_incremental_strategy(self, strategy: str) -> str:

@@ -5,7 +5,7 @@
   {% endif %}
 
   {%- set can_exchange = adapter.can_exchange(schema, type) %}
-  {%- set should_on_cluster = adapter.should_on_cluster(config.get('materialized'), engine_clause()) %}
+  {%- set should_on_cluster = adapter.should_on_cluster(config.get('materialized'), config.get('is_distributed'), engine_clause()) %}
   {%- set new_relation = api.Relation.create(
       database=None,
       schema=schema,
