@@ -31,6 +31,7 @@ pip install dbt-clickhouse
 - [x] Table materialization
 - [x] View materialization
 - [x] Incremental materialization
+- [x] Microbatch incremental materialization
 - [x] Materialized View materializations (uses the `TO` form of MATERIALIZED VIEW, experimental)
 - [x] Seeds
 - [x] Sources
@@ -114,7 +115,7 @@ your_profile_name:
 | primary_key            | Like order_by, a ClickHouse primary key expression.  If not specified, ClickHouse will use the order by expression as the primary key                                                                                                                                                                                |                |
 | unique_key             | A tuple of column names that uniquely identify rows.  Used with incremental models for updates.                                                                                                                                                                                                                      |                |
 | inserts_only           | If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way. If `inserts_only` is set, `incremental_strategy` is ignored. |                |
-| incremental_strategy   | Incremental model update strategy: `delete+insert`, `append`, or `insert_overwrite`.  See the following Incremental Model Strategies                                                                                                                                                                                 | `default`      |
+| incremental_strategy   | Incremental model update strategy: `delete+insert`, `append`, `insert_overwrite`, or `microbatch`.  See the following Incremental Model Strategies                                                                                                                                                                   | `default`      |
 | incremental_predicates | Additional conditions to be applied to the incremental materialization (only applied to `delete+insert` strategy                                                                                                                                                                                                     |                |
 | settings               | A map/dictionary of "TABLE" settings to be used to DDL statements like 'CREATE TABLE' with this model                                                                                                                                                                                                                |                |
 | query_settings         | A map/dictionary of ClickHouse user level settings to be used with `INSERT` or `DELETE` statements in conjunction with this model                                                                                                                                                                                    |                |
@@ -125,11 +126,42 @@ your_profile_name:
 |                        |                                                                                                                                                                                                                                                                                                                      |                |
 
 
+## Microbatch Configuration
+
+| Option             | Description                                                                                                                                                                                                                                                                                                                                | Default if any |
+|--------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| event_time         | The column indicating "at what time did the row occur." Required for your microbatch model and any direct parents that should be filtered.                                                                                                                                                                                                 |                |
+| begin              | The "beginning of time" for the microbatch model. This is the starting point for any initial or full-refresh builds. For example, a daily-grain microbatch model run on 2024-10-01 with begin = '2023-10-01 will process 366 batches (it's a leap year!) plus the batch for "today."                                                       |                |
+| batch_size         | The granularity of your batches. Supported values are `hour`, `day`, `month`, and `year`                                                                                                                                                                                                                                                   |                |
+| lookback           | Process X batches prior to the latest bookmark to capture late-arriving records.                                                                                                                                                                                                                                                           | 1              |
+| concurrent_batches | Overrides dbt's auto detect for running batches concurrently (at the same time). Read more about [configuring concurrent batches](https://docs.getdbt.com/docs/build/incremental-microbatch#configure-concurrent_batches). Setting to true runs batches concurrently (in parallel). false runs batches sequentially (one after the other). |                |
+
 ## Column Configuration
+
+> **_NOTE:_** The column configuration options below require [model contracts](https://docs.getdbt.com/docs/collaborate/govern/model-contracts) to be enforced.
 
 | Option | Description                                                                                                                                                | Default if any |
 |--------|------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
-| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be interpreted as `CODEC(Delta, ZSTD)`. |                |
+| codec  | A string consisting of arguments passed to `CODEC()` in the column's DDL. For example: `codec: "Delta, ZSTD"` will be compiled as `CODEC(Delta, ZSTD)`. |    
+| ttl    | A string consisting of a [TTL (time-to-live) expression](https://clickhouse.com/docs/guides/developer/ttl) that defines a TTL rule in the column's DDL. For example: `ttl: ts + INTERVAL 1 DAY` will be compiled as `TTL ts + INTERVAL 1 DAY`. |
+
+### Example
+
+```yaml
+models:
+  - name: table_column_configs
+    description: 'Testing column-level configurations'
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: ts
+        data_type: timestamp
+        codec: ZSTD
+      - name: x
+        data_type: UInt8
+        ttl: ts + INTERVAL 1 DAY
+```
 
 ## ClickHouse Cluster
 
@@ -224,6 +256,20 @@ caveats to using this strategy:
   To ensure consistent results the
   incremental predicates should only include sub-queries on data that will not be modified during the incremental
   materialization.
+
+### The Microbatch Strategy (Requires dbt-core >= 1.9)
+
+The incremental strategy `microbatch` has been a dbt-core feature since version 1.9, designed to handle large
+time-series data transformations efficiently. In dbt-clickhouse, it builds on top of the existing `delete_insert`
+incremental strategy by splitting the increment into predefined time-series batches based on the `event_time` and
+`batch_size` model configurations.
+
+Beyond handling large transformations, microbatch provides the ability to:
+- [Reprocess failed batches](https://docs.getdbt.com/docs/build/incremental-microbatch#retry).
+- Auto-detect [parallel batch execution](https://docs.getdbt.com/docs/build/parallel-batch-execution).
+- Eliminate the need for complex conditional logic in [backfilling](https://docs.getdbt.com/docs/build/incremental-microbatch#backfills).
+
+For detailed microbatch usage, refer to the [official documentation](https://docs.getdbt.com/docs/build/incremental-microbatch).
 
 ### The Append Strategy
 

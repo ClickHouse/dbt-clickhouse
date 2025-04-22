@@ -185,16 +185,37 @@ class ClickHouseAdapter(SQLAdapter):
         if not strategy or strategy == 'default':
             strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
         strategy = strategy.replace('+', '_')
-        if strategy not in ['legacy', 'append', 'delete_insert', 'insert_overwrite']:
-            raise DbtRuntimeError(
-                f"The incremental strategy '{strategy}' is not valid for ClickHouse"
-            )
-        if not conn.handle.has_lw_deletes and strategy == 'delete_insert':
-            logger.warning(
-                'Lightweight deletes are not available, using legacy ClickHouse strategy'
-            )
-            strategy = 'legacy'
         return strategy
+
+    @available.parse_none
+    def validate_incremental_strategy(
+        self,
+        strategy: str,
+        predicates: list,
+        unique_key: str,
+        partition_by: str,
+    ) -> None:
+        conn = self.connections.get_if_exists()
+        if strategy not in ('legacy', 'append', 'delete_insert', 'insert_overwrite', 'microbatch'):
+            raise DbtRuntimeError(
+                f"The incremental strategy '{strategy}' is not valid for ClickHouse."
+            )
+        if strategy in ('delete_insert', 'microbatch') and not conn.handle.has_lw_deletes:
+            raise DbtRuntimeError(
+                f"'{strategy}' strategy requires setting the profile config 'use_lw_deletes' to true."
+            )
+        if strategy in ('delete_insert', 'microbatch') and not unique_key:
+            raise DbtRuntimeError(f"'{strategy}' strategy requires a non-empty 'unique_key'.")
+        if strategy not in ('delete_insert', 'microbatch') and predicates:
+            raise DbtRuntimeError(
+                f"Cannot apply incremental predicates with '{strategy}' strategy."
+            )
+        if strategy == 'insert_overwrite' and not partition_by:
+            raise DbtRuntimeError(
+                f"'{strategy}' strategy requires non-empty 'partition_by'. Current partition_by is {partition_by}."
+            )
+        if strategy == 'insert_overwrite' and unique_key:
+            raise DbtRuntimeError(f"'{strategy}' strategy does not support unique_key.")
 
     @available.parse_none
     def check_incremental_schema_changes(
@@ -545,8 +566,12 @@ class ClickHouseAdapter(SQLAdapter):
         rendered_columns = []
         for v in raw_columns.values():
             codec = f"CODEC({_codec})" if (_codec := v.get('codec')) else ""
+            ttl = f"TTL {ttl}" if (ttl := v.get('ttl')) else ""
+            # Codec and TTL are optional clauses. The adapter should support scenarios where one
+            # or both are omitted. If specified together, the codec clause should appear first.
+            clauses = " ".join(filter(None, [codec, ttl]))
             rendered_columns.append(
-                f"{quote_identifier(v['name'])} {v['data_type']} {codec}".rstrip()
+                f"{quote_identifier(v['name'])} {v['data_type']} {clauses}".rstrip()
             )
             if v.get("constraints"):
                 warn_or_error(ConstraintNotSupported(constraint='column', adapter='clickhouse'))
