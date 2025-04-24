@@ -176,7 +176,9 @@ class ClickHouseAdapter(SQLAdapter):
     def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
-            return ClickHouseRelation.get_on_cluster(conn.credentials.cluster, materialized, engine, conn.credentials.database_engine)
+            return ClickHouseRelation.get_on_cluster(
+                conn.credentials.cluster, materialized, engine, conn.credentials.database_engine
+            )
         return ClickHouseRelation.get_on_cluster('', materialized, engine)
 
     @available.parse_none

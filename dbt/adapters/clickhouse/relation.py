@@ -92,7 +92,11 @@ class ClickHouseRelation(BaseRelation):
 
     @classmethod
     def get_on_cluster(
-        cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = '', database_engine: str = ''
+        cls: Type[Self],
+        cluster: str = '',
+        materialized: str = '',
+        engine: str = '',
+        database_engine: str = '',
     ) -> bool:
         if 'replicated' in database_engine.lower():
             return False
