@@ -1,22 +1,26 @@
 import pytest
-
-from dbt.tests.adapter.basic.test_incremental import BaseIncremental
-from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
+from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
+from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 
 
 class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
     """Contains tests for table, view and swappable view materialization."""
+
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-        test_config["db_engine"] = "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+        test_config["db_engine"] = (
+            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+        )
         return test_config
 
 
 class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-        test_config["db_engine"] = "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+        test_config["db_engine"] = (
+            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+        )
         return test_config
 
     @pytest.fixture(scope="class")

@@ -86,19 +86,19 @@ class TestDistributedTableTTL:
         return {
             "id_expire.sql": DISTRIBUTED_TABLE_TTL_MODEL,
         }
-    
+
     def test_base(self, project):
         results = run_dbt()
         assert len(results) == 1
-        
+
         relation = relation_from_name(project.adapter, "id_expire")
         relation_local = relation_from_name(project.adapter, "id_expire_local")
-        
+
         # wait for TTL to expire
         time.sleep(6)
-        
+
         project.run_sql(f"OPTIMIZE TABLE {relation_local} FINAL")
-        
+
         # make sure is empty
         cnt = project.run_sql(f"select count(*) from {relation}", fetch="all")
         assert cnt[0][0] == 0

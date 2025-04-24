@@ -92,7 +92,11 @@ class ClickHouseRelation(BaseRelation):
 
     @classmethod
     def get_on_cluster(
-        cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = '', database_engine: str = ''
+        cls: Type[Self],
+        cluster: str = '',
+        materialized: str = '',
+        engine: str = '',
+        database_engine: str = '',
     ) -> bool:
         if 'replicated' in database_engine.lower():
             return False
@@ -129,6 +133,7 @@ class ClickHouseRelation(BaseRelation):
 
         can_on_cluster = None
         cluster = ""
+        database_engine = ""
         # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
@@ -136,6 +141,7 @@ class ClickHouseRelation(BaseRelation):
         else:
             # quoting is only available for non-source nodes
             cluster = quoting.credentials.cluster or ""
+            database_engine = quoting.credentials.database_engine
 
         if cluster and str(relation_config.config.get("force_on_cluster")).lower() == "true":
             can_on_cluster = True
@@ -143,7 +149,6 @@ class ClickHouseRelation(BaseRelation):
         else:
             materialized = relation_config.config.get('materialized') or ''
             engine = relation_config.config.get('engine') or ''
-            database_engine = quoting.credentials.database_engine or ''
             can_on_cluster = cls.get_on_cluster(cluster, materialized, engine, database_engine)
 
         return cls.create(
