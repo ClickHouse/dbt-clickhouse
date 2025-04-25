@@ -70,7 +70,9 @@ class ClickHouseRelation(BaseRelation):
     def derivative(self, suffix: str, relation_type: Optional[str] = None) -> BaseRelation:
         path = Path(schema=self.path.schema, database='', identifier=self.path.identifier + suffix)
         derivative_type = ClickHouseRelationType(relation_type) if relation_type else self.type
-        return ClickHouseRelation(type=derivative_type, path=path)
+        return ClickHouseRelation(
+            type=derivative_type, path=path, can_on_cluster=self.can_on_cluster
+        )
 
     def matches(
         self,
