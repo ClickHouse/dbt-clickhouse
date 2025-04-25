@@ -177,9 +177,9 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
             return ClickHouseRelation.get_on_cluster(
-                conn.credentials.cluster, materialized, engine, conn.credentials.database_engine
+                cluster=conn.credentials.cluster, database_engine=conn.credentials.database_engine
             )
-        return ClickHouseRelation.get_on_cluster('', materialized, engine)
+        return ClickHouseRelation.get_on_cluster()
 
     @available.parse_none
     def calculate_incremental_strategy(self, strategy: str) -> str:
