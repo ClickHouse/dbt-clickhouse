@@ -8,7 +8,7 @@ This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https:
 
 The plugin uses syntax that requires ClickHouse version 22.1 or newer. We do not test older versions of Clickhouse. We
 also do not currently test
-Replicated tables or the related `ON CLUSTER` functionality.
+Replicated tables.
 
 ## Installation
 
@@ -169,25 +169,24 @@ The `cluster` setting in profile enables dbt-clickhouse to run against a ClickHo
 
 ### Effective Scope
 
-if `cluster` is set in profile, `on_cluster_clause` now will return cluster info for:
+If `cluster` is set in the profile, **all models will be created with the `ON CLUSTER` clause** by default—except for those using a **Replicated** engine. This includes:
 
 - Database creation
-- View materialization
+- View materializations
+- Table and incremental materializations
 - Distributed materializations
-- Models with Replicated engines
 
+Replicated engines will **not** include the `ON CLUSTER` clause, as they are designed to manage replication internally.
 
-By default, tables and incremental materializations with non-replicated engines will not be affected by the `cluster` setting (model would be created on the connected node only).
+To **opt out** of cluster-based creation for a specific model, add the `disable_on_cluster` config:
 
-To force relations to be created on a cluster regardless of their engine or materialization, use the `force_on_cluster` argument:
 ```sql
 {{ config(
-        engine='Null',
-        materialized='materialized_view',
-        force_on_cluster='true'
+        engine='MergeTree',
+        materialized='table',
+        disable_on_cluster='true'
     )
 }}
-```
 
 table and incremental materializations with non-replicated engine will not be affected by `cluster` setting (model would
 be created on the connected node only).

@@ -31,6 +31,12 @@
 ### Improvements
 * Upgrade `dbt-core` to version `1.9` and `dbt-adapters` to `>=1.10` ([#403](https://github.com/ClickHouse/dbt-clickhouse/pull/403))
 * Previously, delete_insert would fall back to legacy silently. Now it raises an error if LWD is not enabled.
+* Refactored the logic for applying the `ON CLUSTER` clause during model creation.
+    - Previously, `ON CLUSTER` was inconsistently applied based on engine type and materialization, often leading to confusion and unexpected results.
+    - Now, if a `cluster` is defined in the profile and the engine is **not** `Replicated`, the `ON CLUSTER` clause will **always** be added by default.
+    - A new model-level config `disable_on_cluster: true` has been introduced to explicitly opt out of this behavior.
+    - ⚠️ **Breaking Change**: This modifies the previous behavior. Users relying on the old implicit logic should review and update their models accordingly.
+
 
 ### Release [1.8.9], 2025-02-16
 

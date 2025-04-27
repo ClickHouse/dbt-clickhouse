@@ -70,7 +70,9 @@ class ClickHouseRelation(BaseRelation):
     def derivative(self, suffix: str, relation_type: Optional[str] = None) -> BaseRelation:
         path = Path(schema=self.path.schema, database='', identifier=self.path.identifier + suffix)
         derivative_type = ClickHouseRelationType(relation_type) if relation_type else self.type
-        return ClickHouseRelation(type=derivative_type, path=path)
+        return ClickHouseRelation(
+            type=derivative_type, path=path, can_on_cluster=self.can_on_cluster
+        )
 
     def matches(
         self,
@@ -94,19 +96,13 @@ class ClickHouseRelation(BaseRelation):
     def get_on_cluster(
         cls: Type[Self],
         cluster: str = '',
-        materialized: str = '',
-        engine: str = '',
         database_engine: str = '',
     ) -> bool:
-        if 'replicated' in database_engine.lower():
+        # not using ternary expression for simplicity
+        if not cluster.strip() or 'replicated' in database_engine.lower():
             return False
-        if cluster.strip():
-            return (
-                materialized in ('view', 'dictionary')
-                or 'distributed' in materialized
-                or 'Replicated' in engine
-            )
-        return False
+        else:
+            return True
 
     @classmethod
     def create_from(
@@ -143,13 +139,12 @@ class ClickHouseRelation(BaseRelation):
             cluster = quoting.credentials.cluster or ""
             database_engine = quoting.credentials.database_engine
 
-        if cluster and str(relation_config.config.get("force_on_cluster")).lower() == "true":
+        if (
+            cluster
+            and str(relation_config.config.get("disable_on_cluster")).lower() != "true"
+            and 'replicated' not in database_engine.lower()
+        ):
             can_on_cluster = True
-
-        else:
-            materialized = relation_config.config.get('materialized') or ''
-            engine = relation_config.config.get('engine') or ''
-            can_on_cluster = cls.get_on_cluster(cluster, materialized, engine, database_engine)
 
         return cls.create(
             database='',
