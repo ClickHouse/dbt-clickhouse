@@ -37,11 +37,30 @@
 {%- endmaterialization -%}
 
 
+{% macro get_sql_security_clause(relation) %}
+  {% set sql_security = config.get('sql_security') %}
+  {% if sql_security -%}
+    {% if sql_security == 'definer' -%}
+    {%- set definer = config.require('definer') -%}
+      {% if not definer -%}
+        {{ exceptions.raise_compiler_error("Invalid config parameter `definer`. No value was provided.") }}
+      {%- endif %}
+      DEFINER = {{ definer }} SQL SECURITY DEFINER
+    {%- elif sql_security == 'invoker' %}
+    SQL SECURITY INVOKER
+    {%- else %}
+      {{ exceptions.raise_compiler_error("Invalid config parameter `sql_security`. Got: `" + sql_security + "`, but only definer | invoker allowed.") }}
+    {%- endif %}
+  {%- endif %}
+{%- endmacro -%}
+
+
 {% macro clickhouse__create_view_as(relation, sql) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
   {{ sql_header if sql_header is not none }}
 
-  create or replace view {{ relation.include(database=False) }} {{ on_cluster_clause(relation)}}
+  create or replace view {{ relation.include(database=False) }} {{ on_cluster_clause(relation) }}
+    {{ get_sql_security_clause(relation) }}
     {% set contract_config = config.get('contract') %}
     {% if contract_config.enforced %}
       {{ get_assert_columns_equivalent(sql) }}

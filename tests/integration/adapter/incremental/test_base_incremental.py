@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
@@ -263,6 +265,9 @@ insert_overwrite_replicated_inc = """
 """
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
 class TestInsertOverwriteReplicatedIncremental:
     @pytest.fixture(scope="class")
     def models(self):

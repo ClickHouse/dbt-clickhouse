@@ -3,7 +3,7 @@
 {% endmacro %}
 
 {% macro one_alter_column_comment(relation, column_name, comment) %}
-  alter table {{ relation }} {{ on_cluster_clause(relation) }} comment column {{ column_name }} '{{ comment }}'
+  alter table {{ relation }} {{ on_cluster_clause(relation) }} comment column `{{ column_name }}` '{{ comment }}'
 {% endmacro %}
 
 {% macro clickhouse__alter_relation_comment(relation, comment) %}
@@ -24,7 +24,7 @@
       {%- set comment = model.columns[column_name]['description'] -%}
       {%- if comment %}
         {% set escaped_comment = clickhouse_escape_comment(comment) %}
-        {% do alter_comments.append("comment column {column_name} {comment}".format(column_name=column_name, comment=escaped_comment)) %}
+        {% do alter_comments.append("comment column `{column_name}` {comment}".format(column_name=column_name, comment=escaped_comment)) %}
       {%- endif %}
     {%- endfor -%}
   {%- endif -%}

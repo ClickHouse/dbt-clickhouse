@@ -1,3 +1,4 @@
+import os
 import time
 from datetime import datetime
 
@@ -60,3 +61,48 @@ class TestTableTTL(BaseSimpleMaterializations):
         # make sure is empty
         result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
         assert result[0] == 0
+
+
+DISTRIBUTED_TABLE_TTL_MODEL = """
+{{
+    config(
+        order_by='(id)',
+        engine='MergeTree()',
+        materialized='distributed_table',
+        incremental_strategy='append',
+        ttl='expiration_date + interval 5 seconds',
+    )
+}}
+SELECT 1 AS id, toDateTime('2010-05-20 06:46:51') AS expiration_date
+UNION ALL
+SELECT 2, toDateTime('2007-09-03 12:31:55')
+UNION ALL
+SELECT 3, toDateTime('2005-01-01 09:23:15')
+"""
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestDistributedTableTTL:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "id_expire.sql": DISTRIBUTED_TABLE_TTL_MODEL,
+        }
+
+    def test_base(self, project):
+        results = run_dbt()
+        assert len(results) == 1
+
+        relation = relation_from_name(project.adapter, "id_expire")
+        relation_local = relation_from_name(project.adapter, "id_expire_local")
+
+        # wait for TTL to expire
+        time.sleep(6)
+
+        project.run_sql(f"OPTIMIZE TABLE {relation_local} FINAL")
+
+        # make sure is empty
+        cnt = project.run_sql(f"select count(*) from {relation}", fetch="all")
+        assert cnt[0][0] == 0

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Any, Dict, Optional, Type
+from typing import Any, Optional, Type
 
-from dbt.adapters.base.relation import BaseRelation, Path, Policy, Self
+from dbt.adapters.base.relation import BaseRelation, EventTimeFilter, Path, Policy, Self
 from dbt.adapters.contracts.relation import HasQuoting, RelationConfig
 from dbt_common.dataclass_schema import StrEnum
 from dbt_common.exceptions import DbtRuntimeError
@@ -53,10 +53,26 @@ class ClickHouseRelation(BaseRelation):
     def render(self) -> str:
         return ".".join(quote_identifier(part) for _, part in self._render_iterator() if part)
 
+    def _render_event_time_filtered(self, event_time_filter: EventTimeFilter) -> str:
+        """
+        Returns "" if start and end are both None
+        """
+        filter = ""
+        if event_time_filter.start and event_time_filter.end:
+            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}' and {event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
+        elif event_time_filter.start:
+            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}'"
+        elif event_time_filter.end:
+            filter = f"{event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
+
+        return filter
+
     def derivative(self, suffix: str, relation_type: Optional[str] = None) -> BaseRelation:
         path = Path(schema=self.path.schema, database='', identifier=self.path.identifier + suffix)
         derivative_type = ClickHouseRelationType(relation_type) if relation_type else self.type
-        return ClickHouseRelation(type=derivative_type, path=path)
+        return ClickHouseRelation(
+            type=derivative_type, path=path, can_on_cluster=self.can_on_cluster
+        )
 
     def matches(
         self,
@@ -78,17 +94,15 @@ class ClickHouseRelation(BaseRelation):
 
     @classmethod
     def get_on_cluster(
-        cls: Type[Self], cluster: str = '', materialized: str = '', engine: str = ''
+        cls: Type[Self],
+        cluster: str = '',
+        database_engine: str = '',
     ) -> bool:
-        if cluster.strip():
-            return (
-                materialized in ('view', 'dictionary')
-                or 'distributed' in materialized
-                or 'Replicated' in engine
-            )
-
-        else:
+        # not using ternary expression for simplicity
+        if not cluster.strip() or 'replicated' in database_engine.lower():
             return False
+        else:
+            return True
 
     @classmethod
     def create_from(
@@ -113,20 +127,24 @@ class ClickHouseRelation(BaseRelation):
         # schema with the database instead, since that's presumably what's intended for clickhouse
         schema = relation_config.schema
 
-        cluster = quoting.credentials.cluster or ''
         can_on_cluster = None
+        cluster = ""
+        database_engine = ""
         # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
                 schema = relation_config.database
-
-        if cluster and str(relation_config.config.get("force_on_cluster")).lower() == "true":
-            can_on_cluster = True
-
         else:
-            materialized = relation_config.config.get('materialized') or ''
-            engine = relation_config.config.get('engine') or ''
-            can_on_cluster = cls.get_on_cluster(cluster, materialized, engine)
+            # quoting is only available for non-source nodes
+            cluster = quoting.credentials.cluster or ""
+            database_engine = quoting.credentials.database_engine or ""
+
+        if (
+            cluster
+            and str(relation_config.config.get("disable_on_cluster")).lower() != "true"
+            and 'replicated' not in database_engine.lower()
+        ):
+            can_on_cluster = True
 
         return cls.create(
             database='',

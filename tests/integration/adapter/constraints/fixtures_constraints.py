@@ -256,3 +256,35 @@ select
   1::Int32 as id,
   toDate('2019-01-01') as date_day
 """
+
+custom_constraint_model_schema_yml = """
+version: 2
+models:
+  - name: custom_column_constraint_model
+    materialized: table
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id
+        data_type: Int32
+        codec: ZSTD
+      - name: ts
+        data_type: timestamp
+      - name: col_ttl
+        data_type: String
+        ttl: ts + INTERVAL 1 DAY
+"""
+
+check_custom_constraints_model_sql = """
+{{
+  config(
+    materialized = "table",
+  )
+}}
+
+select
+  101::Int32 as id,
+  timestamp('2025-04-16') as ts,
+  'blue' as col_ttl
+"""

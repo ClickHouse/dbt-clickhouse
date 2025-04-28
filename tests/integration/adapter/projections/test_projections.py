@@ -87,7 +87,7 @@ class TestProjections:
 
     def test_create_and_verify_projection(self, project):
         run_dbt(["seed"])
-        run_dbt()
+        run_dbt(["run", "--select", "people_with_projection"])
 
         relation = relation_from_name(project.adapter, "people_with_projection")
         unique_query_identifier = str(uuid.uuid4())
@@ -117,7 +117,7 @@ class TestProjections:
 
     def test_create_and_verify_multiple_projections(self, project):
         run_dbt(["seed"])
-        run_dbt()
+        run_dbt(["run", "--select", "people_with_multiple_projections"])
 
         relation = relation_from_name(project.adapter, "people_with_multiple_projections")
 

@@ -1,3 +1,46 @@
+### Release [1.9.0], 2025-04-28
+
+#### New Features
+* Added ability to set [SQL Security](https://clickhouse.com/docs/en/sql-reference/statements/create/view#sql_security) for normal views ([#379](https://github.com/ClickHouse/dbt-clickhouse/pull/379)).
+* Add support for "microbatch" incremental strategy ([#404](https://github.com/ClickHouse/dbt-clickhouse/pull/404))
+* Added support for [TTL (time-to-live)](https://clickhouse.com/docs/guides/developer/ttl) as a column configuration for `table` and `ephemeral` materializations. This feature is implemented as a [custom constraint](https://docs.getdbt.com/reference/resource-properties/constraints#custom-constraints), which requires model contracts to be enforced ([#442](https://github.com/ClickHouse/dbt-clickhouse/pull/442))
+For example:
+
+  ```sql
+  -- test_ttl.sql
+  {{ config(order_by='(ts)', engine='MergeTree()', materialized='table') }}
+
+  SELECT now() AS ts, 
+        'Some value that should expire!' AS col_ttl
+  ```
+
+  ```yaml
+  models:
+    - name: test_ttl
+      description: 'Testing column-level TTL'
+      config:
+        contract:
+          enforced: true
+      columns:
+        - name: ts
+          data_type: timestamp
+        - name: col_ttl
+          data_type: String
+          ttl: ts + INTERVAL 1 DAY
+  ```
+
+### Improvements
+* Upgrade `dbt-core` to version `1.9` and `dbt-adapters` to `>=1.10` ([#403](https://github.com/ClickHouse/dbt-clickhouse/pull/403)).
+* Escape column names in comments ([#428](https://github.com/ClickHouse/dbt-clickhouse/pull/428)).
+* TTl is now available for distributed tables ([#430](https://github.com/ClickHouse/dbt-clickhouse/pull/430)).
+* Previously, delete_insert would fall back to legacy silently. Now it raises an error if LWD is not enabled ([#447](https://github.com/ClickHouse/dbt-clickhouse/pull/447)).
+* Refactored the logic for applying the `ON CLUSTER` clause during model creation ([#447](https://github.com/ClickHouse/dbt-clickhouse/pull/447)).
+    - Previously, `ON CLUSTER` was inconsistently applied based on engine type and materialization, often leading to confusion and unexpected results.
+    - Now, if a `cluster` is defined in the profile and the engine is **not** `Replicated`, the `ON CLUSTER` clause will **always** be added by default.
+    - A new model-level config `disable_on_cluster: true` has been introduced to explicitly opt out of this behavior.
+    - ⚠️ **Breaking Change**: This modifies the previous behavior. Users relying on the old implicit logic should review and update their models accordingly.
+
+
 ### Release [1.8.9], 2025-02-16
 
 #### Improvements
@@ -32,7 +75,10 @@ The index config should be added to the model config. for instance:
          }]
   ) }}
   ```
- 
+
+### Bug Fixes
+* Materializations are now compatible with `Replicated` database engine, as they will no longer use `ON CLUSTER` statements.
+
 ### Release [1.8.7], 2025-01-05
 
 ### New Features

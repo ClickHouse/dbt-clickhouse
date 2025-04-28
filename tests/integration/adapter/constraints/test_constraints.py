@@ -1,12 +1,15 @@
 import pytest
 from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture, write_file
-from fixtures_contraints import (
+
+from tests.integration.adapter.constraints.fixtures_constraints import (
     bad_column_constraint_model_sql,
     bad_foreign_key_model_sql,
     check_constraints_model_fail_sql,
     check_constraints_model_sql,
+    check_custom_constraints_model_sql,
     constraint_model_schema_yml,
     contract_model_schema_yml,
+    custom_constraint_model_schema_yml,
     model_data_type_schema_yml,
     my_model_data_type_sql,
     my_model_incremental_wrong_name_sql,
@@ -188,3 +191,15 @@ class TestModelConstraintApplied:
             ["run", "-s", "check_constraints_model"], expect_pass=False
         )
         assert 'violated' in log_output.lower()
+
+
+class TestModelCustomConstraints:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "check_custom_constraints_model.sql": check_custom_constraints_model_sql,
+            "constraints_schema.yml": custom_constraint_model_schema_yml,
+        }
+
+    def test_model_constraints_ddl(self, project):
+        run_dbt(["run", "-s", "check_custom_constraints_model"])
