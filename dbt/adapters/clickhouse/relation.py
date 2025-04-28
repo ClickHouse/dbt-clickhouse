@@ -137,7 +137,7 @@ class ClickHouseRelation(BaseRelation):
         else:
             # quoting is only available for non-source nodes
             cluster = quoting.credentials.cluster or ""
-            database_engine = quoting.credentials.database_engine
+            database_engine = quoting.credentials.database_engine or ""
 
         if (
             cluster
