@@ -188,6 +188,8 @@ To **opt out** of cluster-based creation for a specific model, add the `disable_
     )
 }}
 
+```
+
 table and incremental materializations with non-replicated engine will not be affected by `cluster` setting (model would
 be created on the connected node only).
 
