@@ -237,7 +237,7 @@
     -- Use a subquery to get columns in the right order
           SELECT {{ dest_cols_csv }}
           FROM (
-            {{ sql }} 
+            {{ sql }}
             )
   {%- else -%}
       {{ sql }}
