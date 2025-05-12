@@ -235,7 +235,10 @@
         ({{ dest_cols_csv }})
   {%- if has_contract -%}
     -- Use a subquery to get columns in the right order
-          SELECT {{ dest_cols_csv }} FROM ( {{ sql }} )
+          SELECT {{ dest_cols_csv }}
+          FROM (
+            {{ sql }}
+            )
   {%- else -%}
       {{ sql }}
   {%- endif -%}
