@@ -4,6 +4,7 @@ test dictionary support in dbt-clickhouse
 
 import json
 import os
+import time
 
 import pytest
 from dbt.tests.util import run_dbt
@@ -175,6 +176,9 @@ class TestQueryDictionary:
         )
         # force the dictionary to be rebuilt to include the new records in `people`
         project.run_sql("system reload dictionary hackers")
+
+        if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
+            time.sleep(30)
         result = project.run_sql("select count(distinct id) from hackers", fetch="all")
         assert result[0][0] == 5
 
