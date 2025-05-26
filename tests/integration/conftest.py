@@ -114,6 +114,15 @@ def test_config(ch_test_users, ch_test_version):
 # dbt will supply a unique schema per test, so we do not specify 'schema' here
 @pytest.fixture(scope="class")
 def dbt_profile_target(test_config):
+    custom_settings = {
+        'distributed_ddl_task_timeout': 300,
+        'input_format_skip_unknown_fields': 1,
+    }
+
+    # this setting is required for cloud tests until https://github.com/ClickHouse/ClickHouse/issues/63984 would be solved
+    if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
+        custom_settings['enable_parallel_replicas'] = 0
+
     return {
         'type': 'clickhouse',
         'threads': 4,
@@ -128,10 +137,7 @@ def dbt_profile_target(test_config):
         'secure': test_config['secure'],
         'check_exchange': False,
         'use_lw_deletes': True,
-        'custom_settings': {
-            'distributed_ddl_task_timeout': 300,
-            'input_format_skip_unknown_fields': 1,
-        },
+        'custom_settings': custom_settings,
     }
 
 
