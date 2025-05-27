@@ -170,7 +170,7 @@ class ClickHouseAdapter(SQLAdapter):
         if rel_type != 'table' or not schema or not self.supports_atomic_exchange():
             return False
         ch_db = self.get_ch_database(schema)
-        return ch_db and ch_db.engine in ('Atomic', 'Replicated')
+        return ch_db and ch_db.engine in ('Atomic', 'Replicated', 'Shared')
 
     @available.parse_none
     def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
