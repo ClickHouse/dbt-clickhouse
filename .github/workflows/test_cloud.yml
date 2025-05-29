@@ -7,8 +7,12 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches: main
   push:
-    branches:
-      - '*_cloud'
+    branches-ignore:
+      - '*_test'
+      - '*_dev'
+    paths-ignore:
+      - '**.md'
+      - 'LICENSE'
   workflow_dispatch:
 
 jobs:
