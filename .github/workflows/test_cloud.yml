@@ -2,6 +2,10 @@
 name: "test_cloud"
 
 on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '0 0 * * *'  # nightly run every day at 00:00 UTC
+  pull_request:
+    branches: main
   push:
     branches:
       - '*_cloud'
