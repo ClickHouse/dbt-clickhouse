@@ -20,6 +20,10 @@ jobs:
     name: ClickHouse Cloud SharedMergeTree Tests
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        python-version: [ '3.9', '3.10', '3.11', '3.12' ]
+
     env:
       PYTHONPATH: dbt
       DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST_SMT }}
@@ -31,10 +35,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Python 3.11
+      - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: ${{ matrix.python-version }}
 
       - name: Install requirements
         run: pip3 install -r dev_requirements.txt
