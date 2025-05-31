@@ -85,6 +85,7 @@ your_profile_name:
       secure: [False] # Use TLS (native protocol) or HTTPS (http protocol)
       client_cert: [null] # Path to a TLS client certificate in .pem format
       client_cert_key: [null] # Path to the private key for the TLS client certificate
+      ca_cert: [null] # Path to Certificate Authority root to validate ClickHouse server certificate
       retries: [1] # Number of times to retry a "retriable" database exception (such as a 503 'Service Unavailable' error)
       compression: [<empty string>] # Use gzip compression if truthy (http), or compression type for a native connection
       connect_timeout: [10] # Timeout in seconds to establish a connection to ClickHouse

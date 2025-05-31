@@ -1,3 +1,8 @@
+### Release [x.x.x]
+
+#### Improvements
+* Add Certificate Authority root support for httpclient and nativeclient using `ca_cert` parameter
+
 ### Release [1.9.0], 2025-04-28
 
 #### New Features
