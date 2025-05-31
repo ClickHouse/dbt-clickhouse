@@ -68,6 +68,7 @@ class ChHttpClient(ChClientWrapper):
                 verify=credentials.verify,
                 client_cert=credentials.client_cert,
                 client_cert_key=credentials.client_cert_key,
+                ca_cert=credentials.ca_cert,
                 query_limit=0,
                 settings=self._conn_settings,
             )

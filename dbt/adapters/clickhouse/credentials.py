@@ -26,6 +26,7 @@ class ClickHouseCredentials(Credentials):
     verify: bool = True
     client_cert: Optional[str] = None
     client_cert_key: Optional[str] = None
+    ca_cert: Optional[str] = None
     connect_timeout: int = 10
     send_receive_timeout: int = 300
     sync_request_timeout: int = 5
@@ -77,6 +78,7 @@ class ClickHouseCredentials(Credentials):
             'verify',
             'client_cert',
             'client_cert_key',
+            'ca_cert',
             'connect_timeout',
             'send_receive_timeout',
             'sync_request_timeout',
