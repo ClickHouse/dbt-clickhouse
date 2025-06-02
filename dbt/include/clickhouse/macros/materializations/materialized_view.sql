@@ -146,7 +146,7 @@
   {% if catchup == True %}
     {{ get_create_table_as_sql(False, relation, sql) }}
   {% else %}
-  {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
+   {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
    {% set has_contract = config.get('contract').enforced %}
     {{ create_table_or_empty(False, relation, sql, has_contract) }}
   {% endif %}
@@ -168,6 +168,9 @@
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
+    {% if refreshable_clause %}
+      empty
+    {% endif %}
     as {{ view_sql }}
   {% endcall %}
 {%- endmacro %}
