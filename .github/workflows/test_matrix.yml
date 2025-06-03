@@ -45,6 +45,9 @@ jobs:
           echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
           echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
 
+      - name: Show Docker Compose version
+        run: docker compose version
+
       - name: Run ClickHouse Cluster Containers
         env:
           PROJECT_ROOT: ${{ github.workspace }}/tests/integration
