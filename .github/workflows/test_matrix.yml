@@ -45,6 +45,13 @@ jobs:
           echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
           echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
 
+      - name: Install Docker Compose v2.36.0
+        run: |
+          sudo mkdir -p /usr/local/lib/docker/cli-plugins
+          sudo curl -L "https://github.com/docker/compose/releases/download/v2.36.0/docker-compose-linux-x86_64" -o /usr/local/lib/docker/cli-plugins/docker-compose
+          sudo chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+          docker compose version
+
       - name: Show Docker Compose version
         run: docker compose version
 
