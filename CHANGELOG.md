@@ -3,6 +3,21 @@
 #### Improvements
 * Add Certificate Authority root support for httpclient and nativeclient using `ca_cert` parameter
 
+### Release [1.9.2], 2025-06-03
+
+#### Bugs
+* Limit dbt-core version to <1.10.X to avoid compatibility issues ([#453](https://github.com/ClickHouse/dbt-clickhouse/pull/453))
+* README file was broken and fixed in ([#454](https://github.com/ClickHouse/dbt-clickhouse/pull/454))
+* Snapshots were not worked properly on cluster, fixed in ([#455](https://github.com/ClickHouse/dbt-clickhouse/pull/455))
+* when the last line of a model's SQL query is a comment (-- some comment) and the table's contract is enforced, the last parenthesis of the wrapping subquery ends up commented as well. Was fixed in ([#457](https://github.com/ClickHouse/dbt-clickhouse/pull/457))
+* Check for Shared database engine in can_exchange ([#460](https://github.com/ClickHouse/dbt-clickhouse/pull/460))
+* Tests were broken because of docker compose version `2.35` and fixed in ([#468](https://github.com/ClickHouse/dbt-clickhouse/pull/468))
+
+### Release [1.9.1], 2025-04-28
+
+#### Bugs
+* Fix missing database_engine error ([#450](https://github.com/ClickHouse/dbt-clickhouse/pull/450))
+
 ### Release [1.9.0], 2025-04-28
 
 #### New Features
