@@ -90,9 +90,30 @@
     {% if should_full_refresh() %}
       {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
 
-      {% call statement('main') -%}
+      {# ------------- MODIFICATION: ADD ------------- #}
+      {# This modification allows to add the clause catchup_data in case we do not want to insert catchup data when the relation already exists.
+        In the current code, it's applied on the case when:
+        - if backup_relation is not none
+        - if existing_relation.can_exchange is true
+      #}
+      {% call statement('main') %}
+        {% set catchup_data = config.get("catchup", True) %}
+        {% if catchup_data == True %}
+          {{ get_create_table_as_sql(False, backup_relation, sql) }}
+        {% else %}
+        {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
+        {% set has_contract = config.get('contract').enforced %}
+          {{ create_table_or_empty(False, backup_relation, sql, has_contract) }}
+        {% endif %}
+      {% endcall %}
+      {# ------------- MODIFICATION: ADD ------------- #}
+
+      {# ------------- MODIFICATION: DELETE ------------- #}
+      {# {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
-      {%- endcall %}
+      {%- endcall %} #}
+      {# ------------- MODIFICATION: DELETE ------------- #}
+
       {% do exchange_tables_atomic(backup_relation, existing_relation) %}
 
       {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
@@ -168,9 +189,16 @@
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
+
+    {# ------------- MODIFICATION: ADD ------------- #}
+    {# Allows refreshable materialized views to not instantly refresh, but instead wait for the next refresh cycle #}
     {% if refreshable_clause %}
       empty
     {% endif %}
+    {# ------------- MODIFICATION: ADD ------------- #}
+
+
+
     as {{ view_sql }}
   {% endcall %}
 {%- endmacro %}
@@ -219,10 +247,35 @@
   {%- set refreshable_clause = refreshable_mv_clause() -%}
   {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
 
+
+  {# ------------- MODIFICATION: ADD ------------- #}
+  {# This modification allows to add the clause catchup_data in case we do not want to insert catchup data when the relation already exists.
+  In the current code, it's applied on the case when:
+    - if backup_relation is not none
+    - if existing_relation.can_exchange is not true
+  #}
+  {% call statement('main') %}
+    {% set catchup_data = config.get("catchup", True) %}
+    {% if catchup_data == True %}
+      {{ get_create_table_as_sql(False, backup_relation, sql) }}
+    {% else %}
+    {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
+    {% set has_contract = config.get('contract').enforced %}
+      {{ create_table_or_empty(False, backup_relation, sql, has_contract) }}
+    {% endif %}
+  {% endcall %}
+  {# ------------- MODIFICATION: ADD ------------- #}
+
+
+
+  {# ------------- MODIFICATION: DELETE ------------- #}
   {# recreate the target table #}
-  {% call statement('main') -%}
+  {# {% call statement('main') -%}
     {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
-  {%- endcall %}
+  {%- endcall %} #}
+  {# ------------- MODIFICATION: DELETE ------------- #}
+
+
   {{ adapter.rename_relation(existing_relation, backup_relation) }}
   {{ adapter.rename_relation(intermediate_relation, target_relation) }}
 
