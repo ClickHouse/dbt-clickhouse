@@ -6,6 +6,9 @@
 
   {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
   {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
+  
+  {# NEW: Get create_local_tables parameter, default to true for backward compatibility #}
+  {%- set create_local_tables = config.get('create_local_tables', true) -%}
 
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
@@ -47,31 +50,63 @@
 
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
-  {% if backup_relation is none %}
-    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation) }}
-  {% elif existing_relation.can_exchange %}
-    -- We can do an atomic exchange, so no need for an intermediate
-    {% call statement('main') -%}
-      {{ create_empty_table_from_relation(backup_relation, view_relation) }}
-    {%- endcall %}
-    {% do exchange_tables_atomic(backup_relation, existing_relation_local) %}
-  {% else %}
-    {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
-    {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
-    {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
-  {% endif %}  
+  {# NEW: Modified logic to handle create_local_tables parameter #}
+  {% if create_local_tables %}
+    {# Original logic for creating local tables #}
+    {% if backup_relation is none %}
+      {{ create_distributed_local_table(target_relation, target_relation_local, view_relation) }}
+    {% elif existing_relation.can_exchange %}
+      -- We can do an atomic exchange, so no need for an intermediate
+      {% call statement('main') -%}
+        {{ create_empty_table_from_relation(backup_relation, view_relation) }}
+      {%- endcall %}
+      {% do exchange_tables_atomic(backup_relation, existing_relation_local) %}
+    {% else %}
+      {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
+      {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
+      {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
+    {% endif %}
     {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
-  {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+    {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+  {% else %}
+    {# NEW: Skip local table creation, only create/update distributed table #}
+    {# Check if local table exists #}
+    {% set local_table_exists = load_cached_relation(target_relation_local) %}
+    {% if local_table_exists is none %}
+      {% do exceptions.raise_compiler_error('Local table ' + target_relation_local.render() + ' does not exist. When create_local_tables=false, local tables must exist before creating distributed table.') %}
+    {% endif %}
+    
+    {# Drop existing distributed table if it exists #}
+    {{ drop_relation_if_exists(existing_relation) }}
+    
+    {# Create distributed table pointing to existing local tables #}
+    {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
+    
+    {# Optionally insert data if SQL is provided (usually not needed when local tables already have data) #}
+    {% if config.get('insert_data_to_distributed', false) %}
+      {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+    {% endif %}
+  {% endif %}
+
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
-  {% do apply_grants(target_relation_local, grant_config, should_revoke=should_revoke) %}
+  
+  {# NEW Only apply grants to local table if we created it #}
+  {% if create_local_tables %}
+    {% do apply_grants(target_relation_local, grant_config, should_revoke=should_revoke) %}
+  {% endif %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(target_relation, model) %}
   {{ run_hooks(post_hooks, inside_transaction=True) }}
   {{ adapter.commit() }}
-  {{ drop_relation_if_exists(backup_relation) }}
+  
+  {# NEW Only drop backup if we created it #}
+  {% if create_local_tables %}
+    {{ drop_relation_if_exists(backup_relation) }}
+  {% endif %}
+  
   {{ run_hooks(post_hooks, inside_transaction=False) }}
   {{ return({'relations': [target_relation]}) }}
 
