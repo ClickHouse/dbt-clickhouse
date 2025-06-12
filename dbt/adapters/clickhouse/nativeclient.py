@@ -1,7 +1,7 @@
+from importlib.metadata import PackageNotFoundError, version
 from typing import List
 
 import clickhouse_driver
-from importlib.metadata import version, PackageNotFoundError
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
 from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt_common.exceptions import DbtDatabaseError
