@@ -140,7 +140,7 @@
   {%- endif -%}
   {%- set col_list = [] -%}
   {% for col in columns %}
-    {{col_list.append(col.name + ' ' + col.data_type) or '' }}
+    {{col_list.append(adapter.quote(col.name) + ' ' + col.data_type) or '' }}
   {% endfor %}
   {{ sql_header if sql_header is not none }}
 
