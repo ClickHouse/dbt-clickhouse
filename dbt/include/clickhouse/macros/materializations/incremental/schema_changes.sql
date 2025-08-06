@@ -20,9 +20,16 @@
 
 {% macro clickhouse__add_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
     {% for column in columns %}
-        {% set alter_action -%}
-            add column if not exists `{{ column.name }}` {{ column.data_type }}
-        {%- endset %}
+        {% set codec = model['columns'].get(column.name, {}).get('codec') %}
+        {% if codec %}
+            {% set alter_action %}
+            add column if not exists {{ column.name }} {{ column.data_type }} CODEC({{ codec }})
+            {% endset %}
+        {% else %}
+            {% set alter_action %}
+            add column if not exists {{ column.name }} {{ column.data_type }}
+            {% endset %}
+        {% endif %}
         {% do clickhouse__run_alter_table_command(alter_action, existing_relation, existing_local, is_distributed) %}
     {% endfor %}
 
