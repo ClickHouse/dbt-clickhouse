@@ -18,18 +18,18 @@
 
 {% endmacro %}
 
+{% macro codec_clause(codec) %}
+  {%- if codec %}
+      CODEC({{ codec_name }})
+  {%- endif %}
+{% endmacro %}
+
 {% macro clickhouse__add_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
     {% for column in columns %}
         {% set codec = model['columns'].get(column.name, {}).get('codec') %}
-        {% if codec %}
-            {% set alter_action %}
-            add column if not exists {{ column.name }} {{ column.data_type }} CODEC({{ codec }})
-            {% endset %}
-        {% else %}
-            {% set alter_action %}
-            add column if not exists {{ column.name }} {{ column.data_type }}
-            {% endset %}
-        {% endif %}
+        {% set alter_action -%}
+            add column if not exists `{{ column.name }}` {{ column.data_type }} {{ codec_clause(codec) }}
+        {%- endset %}
         {% do clickhouse__run_alter_table_command(alter_action, existing_relation, existing_local, is_distributed) %}
     {% endfor %}
 
