@@ -18,12 +18,6 @@
 
 {% endmacro %}
 
-{% macro codec_clause(codec_name) %}
-  {%- if codec_name %}
-      CODEC({{ codec_name }})
-  {%- endif %}
-{% endmacro %}
-
 {% macro clickhouse__add_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
     {% for column in columns %}
         {% set codec = model['columns'].get(column.name, {}).get('codec') %}
