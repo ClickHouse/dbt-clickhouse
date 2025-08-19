@@ -18,8 +18,8 @@
 
 {% endmacro %}
 
-{% macro codec_clause(codec) %}
-  {%- if codec %}
+{% macro codec_clause(codec_name) %}
+  {%- if codec_name %}
       CODEC({{ codec_name }})
   {%- endif %}
 {% endmacro %}
