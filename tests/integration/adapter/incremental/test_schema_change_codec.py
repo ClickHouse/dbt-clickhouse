@@ -85,12 +85,7 @@ class TestSchemaChangeWithCodec:
         assert result[3][2] == 5
 
         table_name = f"{project.test_schema}.{model}"
-        if "distributed" in model:
-            local_suffix = "_local"
-            local_table = f"{project.test_schema}_ch_local.{model}{local_suffix}"
-            create_table_sql = project.run_sql(f"SHOW CREATE TABLE {local_table}", fetch="one")[0]
-        else:
-            create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
+        create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
 
         assert "CODEC" in create_table_sql
         if "distributed" in model:
@@ -172,12 +167,7 @@ class TestSyncAllColumnsWithCodec:
         assert result[3][1] == 5
 
         table_name = f"{project.test_schema}.{model}"
-        if "distributed" in model:
-            local_suffix = "_local"
-            local_table = f"{project.test_schema}_ch_local.{model}{local_suffix}"
-            create_table_sql = project.run_sql(f"SHOW CREATE TABLE {local_table}", fetch="one")[0]
-        else:
-            create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
+        create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
 
         assert "CODEC" in create_table_sql
         if "distributed" in model:
