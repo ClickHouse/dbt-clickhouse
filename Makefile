@@ -3,7 +3,7 @@
 
 check-black:
 	@echo "--> Running black checks"
-	@black --check --diff --exclude=venv .
+	@black --check --diff .
 
 check-isort:
 	@echo "--> Running isort checks"
