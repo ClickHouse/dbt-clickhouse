@@ -484,17 +484,24 @@ class ClickHouseAdapter(SQLAdapter):
         finally:
             conn.state = 'close'
 
+    def _build_settings_str(self, settings: Dict[str, Any]) -> str:
+        res = []
+        for key in settings:
+            if isinstance(settings[key], str) and not settings[key].startswith("'"):
+                res.append(f"{key}='{settings[key]}'")
+            else:
+                # Support old workaround https://github.com/ClickHouse/dbt-clickhouse/issues/240#issuecomment-1894692117
+                res.append(f"{key}={settings[key]}")
+        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
     @available
     def get_model_settings(self, model, engine='MergeTree'):
         settings = model['config'].get('settings', {})
         materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
         conn.handle.update_model_settings(settings, materialization_type)
-        res = []
         settings = self.filter_settings_by_engine(settings, engine)
-        for key in settings:
-            res.append(f' {key}={settings[key]}')
-        settings_str = '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+        settings_str = self._build_settings_str(settings)
         return f"""
                     -- end_of_sql
                     {settings_str}
@@ -521,18 +528,15 @@ class ClickHouseAdapter(SQLAdapter):
     @available
     def get_model_query_settings(self, model):
         settings = model['config'].get('query_settings', {})
-        res = []
-        for key in settings:
-            res.append(f' {key}={settings[key]}')
-
-        if len(res) == 0:
-            return ''
-        else:
-            settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
-            return f"""
+        settings_str = self._build_settings_str(settings)
+        return (
+            ''
+            if settings_str == ''
+            else f"""
             -- settings_section
             {settings_str}
             """
+        )
 
     @available.parse_none
     def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
