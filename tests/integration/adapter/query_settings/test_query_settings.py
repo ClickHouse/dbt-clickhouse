@@ -63,3 +63,40 @@ class TestNotNullableColumnJoin:
             fetch="one",
         )
         assert result[0] == 0
+
+
+class TestStringSettingsCorrectlyParsed:
+    def build_example(self, setting_value: str):
+        return f"""
+{{{{
+config(
+    materialized='table',
+    query_settings={{
+        "join_algorithm": {setting_value}
+    }} 
+    )
+}}}}
+
+select 1
+"""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "string_setting_unquoted.sql": self.build_example("\"full_sorting_merge\""),
+            "string_setting_already_quoted.sql": self.build_example("\"'full_sorting_merge'\""),
+        }
+
+    def execute_assert(self, model_name: str) -> None:
+        run_dbt(["run", "--select", model_name])
+
+        with open(f"target/run/test/models/{model_name}.sql", 'r') as content:
+            compiled_sql = content.read()
+
+        assert "SETTINGS join_algorithm='full_sorting_merge'" in compiled_sql
+
+    def test_parse_string_query_settings_unquoted(self, project):
+        self.execute_assert("string_setting_unquoted")
+
+    def test_parse_string_query_settings_already_quoted(self, project):
+        self.execute_assert("string_setting_already_quoted")
