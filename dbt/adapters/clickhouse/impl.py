@@ -345,7 +345,7 @@ class ClickHouseAdapter(SQLAdapter):
             can_exchange = (
                 conn_supports_exchange
                 and rel_type == ClickHouseRelationType.Table
-                and db_engine in ('Atomic', 'Replicated')
+                and db_engine in ('Atomic', 'Replicated', 'Shared')
             )
             can_on_cluster = (on_cluster >= 1) and db_engine != 'Replicated'
 
