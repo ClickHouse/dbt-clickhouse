@@ -2,7 +2,7 @@
 line-length = 100
 skip-string-normalization = true
 target-version = ['py310', 'py311', 'py312']
-exclude = '(\.eggs|\.git|\.mypy_cache|\.venv|venv|env|_build|build|build|dist|)'
+exclude = '(\.eggs|\.git|\.mypy_cache|\.venv|venv|env|_build|build|build|dist)'
 
 [tool.isort]
 line_length = 100
