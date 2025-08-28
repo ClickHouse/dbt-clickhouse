@@ -18,6 +18,21 @@ select
 
 """
 
+ref_models__replicated_table_comment_sql = """
+{{
+  config(
+    materialized = "table",
+    persist_docs = {"relation": true, "columns": true},
+    engine="ReplicatedMergeTree('/clickhouse/tables/{uuid}/one-shard', '{replica}' )"
+  )
+}}
+
+select
+    'foo' as first_name,
+    'bar' as second_name
+
+"""
+
 ref_models__view_comment_sql = """
 {{
   config(
@@ -43,6 +58,13 @@ models:
         description: "XXX first description"
       - name: second_name
         description: "XXX second description"
+  - name: replicated_table_comment
+    description: "YYY table"
+    columns:
+      - name: first_name
+        description: "XXX first description"
+      - name: second_name
+        description: "XXX second description"
   - name: view_comment
     description: "YYY view"
     columns:
@@ -59,12 +81,13 @@ class TestBaseComment:
         return {
             "schema.yml": ref_models__schema_yml,
             "table_comment.sql": ref_models__table_comment_sql,
+            "replicated_table_comment.sql": ref_models__replicated_table_comment_sql,
             "view_comment.sql": ref_models__view_comment_sql,
         }
 
     @pytest.mark.parametrize(
         'model_name',
-        ['table_comment', 'view_comment'],
+        ["table_comment", "replicated_table_comment", "view_comment"],
     )
     def test_comment(self, project, model_name):
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
