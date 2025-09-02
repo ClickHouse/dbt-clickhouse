@@ -6,9 +6,9 @@ from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 
 
 @pytest.mark.skipif(
-        os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
-        reason='Replicated is not supported for cloud'
-    )
+    os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
+    reason='Replicated is not supported for cloud',
+)
 class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
     """Contains tests for table, view and swappable view materialization."""
 
@@ -22,7 +22,7 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
 
 @pytest.mark.skipif(
     os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
-    reason='Replicated is not supported for cloud'
+    reason='Replicated is not supported for cloud',
 )
 class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
