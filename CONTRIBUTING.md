@@ -25,7 +25,7 @@ Start by forking the repository on GitHub. This will create a copy of the reposi
     ```
 * Verify the package was installed successfully:
   ```bash
-    pip list || grep dbt-clickhouse
+    pip list | grep dbt-clickhouse
     ```
   the package will be directed to your local project.
 
@@ -75,8 +75,9 @@ configuration file (this file should not be checked into git).  The following en
 3. DBT_CH_TEST_PASSWORD - your ClickHouse password. Default=''
 4. DBT_CH_TEST_PORT - ClickHouse client port. Default=8123 (The default is automatically changed to the correct port if DBT_CH_TEST_USE_DOCKER is enabled)
 5. DBT_CH_TEST_DB_ENGINE - Database engine used to create schemas.  Defaults to '' (server default)
-6. DBT_CH_TEST_USE_DOCKER - Set to True to run clickhouse-server docker image (see tests/docker-compose.yml).  Requires docker-compose. Default=False
+6. DBT_CH_TEST_USE_DOCKER - Set to True to run clickhouse-server docker image (see tests/integration/docker-compose.yml).  Requires docker-compose. Default=False
 7. DBT_CH_TEST_CH_VERSION - ClickHouse docker image to use.  Defaults to `latest`
 8. DBT_CH_TEST_INCLUDE_S3 - Include S3 tests.  Default=False since these are currently dependent on a specific ClickHouse S3 bucket/test dataset
 9. DBT_CH_TEST_CLUSTER_MODE - Use the profile value
 10. DBT_CH_TEST_CLUSTER - ClickHouse cluster name, if DBT_CH_TEST_USE_DOCKER set to true, only `test_replica` and `test_shard` is valid (see tests/test_config.xml for cluster settings)
+11. DBT_CH_TEST_DRIVER - Specifies the protocol for making requests to ClickHouse. Defaults to `http` but automatically switches to `native` when `DBT_CH_TEST_PORT` is set to `10900`, `9000` or `9440`.
