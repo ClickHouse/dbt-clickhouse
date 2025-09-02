@@ -3,6 +3,7 @@ import random
 import sys
 import time
 import timeit
+import uuid
 from pathlib import Path
 from subprocess import PIPE, Popen
 
@@ -14,8 +15,13 @@ from clickhouse_connect import get_client
 # Ensure that test users exist in environment
 @pytest.fixture(scope="session", autouse=True)
 def ch_test_users():
+
+    def generate_random_string():
+        return str(uuid.uuid4()).replace('-', '')[:10]
+
     test_users = [
-        os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{x}') for x in range(1, 4)
+        os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{generate_random_string()}')
+        for x in range(1, 4)
     ]
     yield test_users
 
@@ -121,22 +127,21 @@ def dbt_profile_target(test_config):
 
     # this setting is required for cloud tests until https://github.com/ClickHouse/ClickHouse/issues/63984 would be solved
     if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
-        custom_settings.update({
-            'enable_parallel_replicas': 0,
-
-            # CRITICAL SETTINGS FOR CONSISTENCY
-            'mutations_sync': 3,
-            'replication_alter_partitions_sync': 2,
-            'insert_quorum': 'auto',
-
-            # DEDUPLICATION SETTINGS
-            'insert_deduplicate': 1,
-
-            # ADDITIONAL HELPFUL SETTINGS
-            'max_replica_delay_for_distributed_queries': 10,
-            'fallback_to_stale_replicas_for_distributed_queries': 0,
-            'distributed_foreground_insert': 1,
-        })
+        custom_settings.update(
+            {
+                'enable_parallel_replicas': 0,
+                # CRITICAL SETTINGS FOR CONSISTENCY
+                'mutations_sync': 3,
+                'replication_alter_partitions_sync': 2,
+                'insert_quorum': 'auto',
+                # DEDUPLICATION SETTINGS
+                'insert_deduplicate': 1,
+                # ADDITIONAL HELPFUL SETTINGS
+                'max_replica_delay_for_distributed_queries': 10,
+                'fallback_to_stale_replicas_for_distributed_queries': 0,
+                'distributed_foreground_insert': 1,
+            }
+        )
 
     return {
         'type': 'clickhouse',

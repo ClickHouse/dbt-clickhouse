@@ -109,7 +109,8 @@ class TestBasicRefreshableMV:
         )
 
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
-            result = project.run_sql(f"""
+            result = project.run_sql(
+                f"""
                         SELECT 
                             hostName() as replica,
                             status,
@@ -117,7 +118,9 @@ class TestBasicRefreshableMV:
                         FROM clusterAllReplicas('default', 'system', 'view_refreshes')
                         WHERE database = '{project.test_schema}' 
                           AND view = 'hackers_mv'
-                    """, fetch="all")
+                    """,
+                fetch="all",
+            )
             statuses = [row[1] for row in result]
             assert 'Scheduled' in statuses
         else:
