@@ -1,5 +1,7 @@
-import pytest
 import os
+
+import pytest
+
 from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
