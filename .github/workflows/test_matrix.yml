@@ -59,6 +59,10 @@ jobs:
           PROJECT_ROOT: ${{ github.workspace }}/tests/integration
         run: REPLICA_NUM=1 docker compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
+      - name: Verify ClickHouse connection
+        run: |
+          for i in {1..15}; do docker exec integration-ch0-1 clickhouse-client --query "SELECT 1" && break || sleep 2; done
+
       - name: Setup Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
