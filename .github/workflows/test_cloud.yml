@@ -47,9 +47,9 @@ jobs:
       - name: Run HTTP tests
         env:
           DBT_CH_TEST_PORT: 8443
-        run: pytest tests
+        run: pytest tests -n 8
 
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9440
-        run: pytest tests
+        run: pytest tests -n 8

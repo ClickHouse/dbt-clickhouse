@@ -31,11 +31,11 @@ MV_MODEL = """
        order_by='(department)',
        refreshable=(
            {
-               "interval": "EVERY 2 MINUTE",
+               "interval": "EVERY 1 DAY",
                "depends_on": ['depend_on_model'],
                "depends_on_validation": True
            } if var('run_type', '') == 'validate_depends_on' else {
-               "interval": "EVERY 2 MINUTE"
+               "interval": "EVERY 1 DAY"
            }
        )
        )
