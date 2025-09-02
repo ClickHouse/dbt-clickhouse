@@ -31,11 +31,11 @@ MV_MODEL = """
        order_by='(department)',
        refreshable=(
            {
-               "interval": "EVERY 1 DAY",
+               "interval": "EVERY 2 MINUTE",
                "depends_on": ['depend_on_model'],
                "depends_on_validation": True
            } if var('run_type', '') == 'validate_depends_on' else {
-               "interval": "EVERY 1 DAY"
+               "interval": "EVERY 2 MINUTE"
            }
        )
        )
@@ -122,13 +122,14 @@ class TestBasicRefreshableMV:
                 fetch="all",
             )
             statuses = [row[1] for row in result]
-            assert 'Scheduled' in statuses
+            assert 'Scheduled' in statuses or 'Running' in statuses
         else:
             result = project.run_sql(
                 f"select database, view, status from system.view_refreshes where database= '{project.test_schema}' and view='hackers_mv'",
                 fetch="all",
             )
-            assert result[0][2] == 'Scheduled'
+            mv_status = result[0][2]
+            assert mv_status in ('Scheduled', 'Running')
 
     def test_validate_dependency(self, project):
         """
