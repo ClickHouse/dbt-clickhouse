@@ -83,6 +83,10 @@ def test_config(ch_test_users, ch_test_version):
         username=test_user,
         password=test_password,
         secure=test_secure,
+        connect_timeout=5,
+        send_receive_timeout=5,
+
+
     )
     logging.info("creating users")
     for dbt_user in ch_test_users:
