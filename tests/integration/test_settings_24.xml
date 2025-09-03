@@ -1,0 +1,13 @@
+<clickhouse>
+    <users>
+        <default>
+            <access_management>1</access_management>
+         </default>
+    </users>
+    <profiles>
+        <default>
+            <allow_experimental_database_replicated>1</allow_experimental_database_replicated>
+            <allow_experimental_refreshable_materialized_view>1</allow_experimental_refreshable_materialized_view>
+        </default>
+    </profiles>
+</clickhouse>

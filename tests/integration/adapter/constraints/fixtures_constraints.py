@@ -285,6 +285,6 @@ check_custom_constraints_model_sql = """
 
 select
   101::Int32 as id,
-  timestamp('2025-04-16') as ts,
+  UTCtimestamp() as ts,
   'blue' as col_ttl
 """

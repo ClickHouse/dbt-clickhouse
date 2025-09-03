@@ -1,7 +1,19 @@
+import uuid
+
 import pytest
 from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
+
+from tests.integration.adapter.helpers import below_version
+
+
+def get_uuid_macro_value() -> str:
+    if below_version(25):
+        # Code: 36. DB::Exception: There was an error on [ch0:9000]: Code: 36. DB::Exception: Macro 'uuid' and empty arguments of ReplicatedMergeTree are supported only for ON CLUSTER queries with Atomic database engine. (BAD_ARGUMENTS) (version 24.3.18.7
+        return str(uuid.uuid4())
+    else:
+        return '{uuid}'
 
 
 class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
@@ -9,8 +21,11 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
 
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
+
         test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+            "Replicated('/clickhouse/databases/"
+            + get_uuid_macro_value()
+            + "', '{shard}', '{replica}')"
         )
         return test_config
 
@@ -19,7 +34,9 @@ class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
         test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+            "Replicated('/clickhouse/databases/"
+            + get_uuid_macro_value()
+            + "', '{shard}', '{replica}')"
         )
         return test_config
 

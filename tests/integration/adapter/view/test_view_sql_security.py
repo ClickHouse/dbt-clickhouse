@@ -7,6 +7,8 @@ import os
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
+from tests.integration.adapter.helpers import below_version
+
 PEOPLE_SEED_CSV = """
 id,name,age,department
 1231,Dade,33,engineering
@@ -90,6 +92,10 @@ class TestClickHouseViewSqlSecurity:
             "view_sql_security.sql": PEOPLE_VIEW_CONFIG_5 + PEOPLE_VIEW_MODEL,
         }
 
+    @pytest.mark.skipif(
+        below_version(24, 3),
+        reason='SQL SECURITY for views is supported in ClickHouse 24.3 and above',
+    )
     def test_create_view_invoker(self, project):
         # Load seed data
         run_dbt(["seed"])
@@ -106,6 +112,10 @@ class TestClickHouseViewSqlSecurity:
         )
         assert result[0] == 1  # 1 records in the seed data
 
+    @pytest.mark.skipif(
+        below_version(24, 3),
+        reason='SQL SECURITY for views is supported in ClickHouse 24.3 and above',
+    )
     def test_create_view_definer(self, project):
         # Load seed data
         run_dbt(["seed"])
