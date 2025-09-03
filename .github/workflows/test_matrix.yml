@@ -18,10 +18,12 @@ jobs:
   tests:
     name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     env:
       TEST_SETTINGS_FILE: latest
 
     strategy:
+      fail-fast: false
       matrix:
         python-version:
           - '3.9'
@@ -30,20 +32,28 @@ jobs:
           - '3.12'
         clickhouse-version:
           - '23.8'
-          - '24.1'
-          - '24.2'
           - '24.3'
-          - latest
+          - '24.8'
+          - '25.3'
+          - '25.7'  # Skipping 25.8+ until https://github.com/ClickHouse/ClickHouse/issues/86434 is fixed.
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set environment variables
-        if: ${{ matrix.clickhouse-version == '22.3' }}
         run: |
-          echo "TEST_SETTINGS_FILE=22_3" >> $GITHUB_ENV
-          echo "DBT_CH_TEST_CH_VERSION=22.3" >> $GITHUB_ENV
+          echo "DBT_CH_TEST_CH_VERSION=${{ matrix.clickhouse-version }}" >> $GITHUB_ENV
+
+          # Set DBT_CH_TEST_SETTINGS based on major version
+          MAJOR_VERSION=$(echo "${{ matrix.clickhouse-version }}" | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -eq 23 ]; then
+            echo "DBT_CH_TEST_SETTINGS=23" >> $GITHUB_ENV
+          elif [ "$MAJOR_VERSION" -eq 24 ]; then
+            echo "DBT_CH_TEST_SETTINGS=24" >> $GITHUB_ENV
+          else
+            echo "DBT_CH_TEST_SETTINGS=latest" >> $GITHUB_ENV
+          fi
 
       # a fix until docker compose v2.36.0 will be the default version in the github runner
       - name: Install Docker Compose v2.36.0
@@ -71,7 +81,7 @@ jobs:
           DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
-          pytest tests
+          pytest tests --timeout=120
 
       - name: Run Native tests
         env:
@@ -79,4 +89,4 @@ jobs:
           DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
-          pytest tests
+          pytest tests --timeout=120
