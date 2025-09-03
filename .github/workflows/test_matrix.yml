@@ -90,4 +90,4 @@ jobs:
         if: always()
         run: |
           docker compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml ps
-          docker-compose -f tests/integration/docker-compose.yml logs ch0 ch1 ch2
+          docker compose -f tests/integration/docker-compose.yml logs ch0 ch1 ch2
