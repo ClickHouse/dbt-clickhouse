@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import sys
@@ -87,7 +88,7 @@ def test_config(ch_test_users, ch_test_version):
             cmd,
             (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
         )
-    yield {
+    configurations={
         'driver': test_driver,
         'host': test_host,
         'port': test_port,
@@ -99,6 +100,8 @@ def test_config(ch_test_users, ch_test_version):
         'cluster_mode': test_cluster_mode,
         'database': '',
     }
+    logging.info(configurations)
+    yield configurations
 
     if docker:
         try:
