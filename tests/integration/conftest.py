@@ -96,7 +96,7 @@ def test_config(ch_test_users, ch_test_version):
         cmd = 'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s'
         if test_cluster != '':
             cmd = f'CREATE USER IF NOT EXISTS %s ON CLUSTER "{test_cluster}"  IDENTIFIED WITH sha256_hash BY %s'
-
+        logging.info("creating user %s", dbt_user)
         test_client.command(
             cmd,
             (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
