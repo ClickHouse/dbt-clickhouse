@@ -30,6 +30,7 @@ def ch_test_version():
 # repos. Example in dbt.tests.adapter.basic.test_base.
 @pytest.fixture(scope="session")
 def test_config(ch_test_users, ch_test_version):
+    logging.info("Starting compose setup")
     compose_file = f'{Path(__file__).parent}/docker-compose.yml'
     test_host = os.environ.get('DBT_CH_TEST_HOST', 'localhost')
     test_port = int(os.environ.get('DBT_CH_TEST_PORT', 8123))
@@ -51,7 +52,11 @@ def test_config(ch_test_users, ch_test_version):
         os.environ['DBT_CH_TEST_SETTINGS'] = '22_3'
 
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
-
+    logging.info("docker: %s", docker)
+    logging.info(
+            "Env vars: DBT_CH_TEST_HOST=%s, DBT_CH_TEST_PORT=%s, DBT_CH_TEST_CLIENT_PORT=%s, DBT_CH_TEST_DRIVER=%s, DBT_CH_TEST_USER=%s, DBT_CH_TEST_CLUSTER=%s, DBT_CH_TEST_DB_ENGINE=%s, DBT_CH_TEST_CLUSTER_MODE=%s, DBT_CH_TEST_USE_DOCKER=%s",
+            test_host, test_port, client_port, test_driver, test_user, test_cluster, test_db_engine, os.environ.get('DBT_CH_TEST_CLUSTER_MODE', ''), os.environ.get('DBT_CH_TEST_USE_DOCKER', '')
+        )
     if docker:
         client_port = client_port or 10723
         test_port = 10900 if test_driver == 'native' else client_port
@@ -71,7 +76,7 @@ def test_config(ch_test_users, ch_test_version):
             client_port = 8443 if test_port == 9440 else 8123
         else:
             client_port = test_port
-
+    logging.info("get client")
     test_client = get_client(
         host=test_host,
         port=client_port,
@@ -79,6 +84,7 @@ def test_config(ch_test_users, ch_test_version):
         password=test_password,
         secure=test_secure,
     )
+    logging.info("creating users")
     for dbt_user in ch_test_users:
         cmd = 'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s'
         if test_cluster != '':
