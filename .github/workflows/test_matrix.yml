@@ -42,7 +42,7 @@ jobs:
 
       - name: Set environment variables
         run: |
-          echo "DBT_CH_TEST_CH_VERSION=${{ github.workspace }}" >> $GITHUB_ENV
+          echo "DBT_CH_TEST_CH_VERSION=${{ matrix.clickhouse-version }}" >> $GITHUB_ENV
 
       # a fix until docker compose >v2.36.0 will be the default version in the github runner
       - name: Install Docker Compose v2.39.2
