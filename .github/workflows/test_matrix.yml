@@ -88,4 +88,6 @@ jobs:
 
       - name: Show Docker containers status
         if: always()
-        run: docker compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml ps
+        run: |
+          docker compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml ps
+          docker-compose -f tests/integration/docker-compose.yml logs ch0 ch1 ch2

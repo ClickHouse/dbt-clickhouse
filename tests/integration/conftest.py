@@ -58,6 +58,7 @@ def test_config(ch_test_users, ch_test_version):
             test_host, test_port, client_port, test_driver, test_user, test_cluster, test_db_engine, os.environ.get('DBT_CH_TEST_CLUSTER_MODE', ''), os.environ.get('DBT_CH_TEST_USE_DOCKER', '')
         )
     if docker:
+        logging.info("Starting Docker containers")
         client_port = client_port or 10723
         test_port = 10900 if test_driver == 'native' else client_port
         try:
@@ -67,8 +68,6 @@ def test_config(ch_test_users, ch_test_version):
             up_result = run_cmd(['docker-compose', '-f', compose_file, 'up', '-d'])
             if up_result[0]:
                 raise Exception(f'Failed to start docker: {up_result[2]}')
-            url = f"http://{test_host}:{client_port}"
-            wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
             raise Exception('Failed to run docker-compose: {}', str(e))
     elif not client_port:
@@ -76,15 +75,19 @@ def test_config(ch_test_users, ch_test_version):
             client_port = 8443 if test_port == 9440 else 8123
         else:
             client_port = test_port
-    logging.info("get client")
+    logging.info("Wait for host to be available")
+    url = f"http://{test_host}:{client_port}"
+    wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
+    logging.info("Host is available")
+    logging.info("Creating test client")
     test_client = get_client(
         host=test_host,
         port=client_port,
         username=test_user,
         password=test_password,
         secure=test_secure,
-        connect_timeout=5,
-        send_receive_timeout=5,
+        connect_timeout=10,
+        send_receive_timeout=10,
 
 
     )
@@ -110,7 +113,7 @@ def test_config(ch_test_users, ch_test_version):
         'cluster_mode': test_cluster_mode,
         'database': '',
     }
-    logging.info(configurations)
+    logging.info("Final configuration: %s", configurations)
     yield configurations
 
     if docker:
