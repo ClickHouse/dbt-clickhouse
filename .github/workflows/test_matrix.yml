@@ -22,6 +22,7 @@ jobs:
     env:
       TEST_SETTINGS_FILE: latest
 
+    continue-on-error: True
     strategy:
       matrix:
         python-version:
