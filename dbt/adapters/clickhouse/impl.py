@@ -20,14 +20,6 @@ from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
-from dbt.adapters.contracts.relation import Path, RelationConfig
-from dbt.adapters.events.types import ConstraintNotSupported
-from dbt.adapters.sql import SQLAdapter
-from dbt_common.contracts.constraints import ConstraintType, ModelLevelConstraint
-from dbt_common.events.functions import warn_or_error
-from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
-from dbt_common.utils import filter_null_values
-
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
@@ -40,6 +32,13 @@ from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
 from dbt.adapters.clickhouse.util import compare_versions
+from dbt.adapters.contracts.relation import Path, RelationConfig
+from dbt.adapters.events.types import ConstraintNotSupported
+from dbt.adapters.sql import SQLAdapter
+from dbt_common.contracts.constraints import ConstraintType, ModelLevelConstraint
+from dbt_common.events.functions import warn_or_error
+from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
+from dbt_common.utils import filter_null_values
 
 if TYPE_CHECKING:
     import agate
@@ -608,7 +607,7 @@ def _expect_row_value(key: str, row: "agate.Row"):
 
 
 def _catalog_filter_schemas(
-    used_schemas: FrozenSet[Tuple[str, str]]
+    used_schemas: FrozenSet[Tuple[str, str]],
 ) -> Callable[["agate.Row"], bool]:
     """Return a function that takes a row and decides if the row should be
     included in the catalog output.

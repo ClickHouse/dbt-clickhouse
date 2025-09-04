@@ -9,6 +9,7 @@ line_length = 100
 profile = "black"
 use_parentheses = true
 skip = '.eggs/,.mypy_cache/,.venv/,venv/,env/'
+known_third_party = ["pytest", "dbt"]
 
 [tool.pytest.ini_options]
 log_cli = true

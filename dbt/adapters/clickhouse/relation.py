@@ -2,12 +2,11 @@ from dataclasses import dataclass, field
 from typing import Any, Optional, Type
 
 from dbt.adapters.base.relation import BaseRelation, EventTimeFilter, Path, Policy, Self
+from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.contracts.relation import HasQuoting, RelationConfig
 from dbt_common.dataclass_schema import StrEnum
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
-
-from dbt.adapters.clickhouse.query import quote_identifier
 
 NODE_TYPE_SOURCE = 'source'
 

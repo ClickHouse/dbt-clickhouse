@@ -7,7 +7,7 @@ check-black:
 
 check-isort:
 	@echo "--> Running isort checks"
-	@isort --check-only .
+	@isort --check-only --diff .
 
 check-mypy:
 	@echo "--> Running mypy checks"

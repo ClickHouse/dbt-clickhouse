@@ -4,13 +4,12 @@ from typing import List
 import clickhouse_driver
 from clickhouse_driver.errors import NetworkError, SocketTimeoutError
 from dbt.adapters.__about__ import version as dbt_adapters_version
-from dbt_common.exceptions import DbtDatabaseError
-
 from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.util import hide_stack_trace
+from dbt_common.exceptions import DbtDatabaseError
 
 try:
     driver_version = version('clickhouse-driver')

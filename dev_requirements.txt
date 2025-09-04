@@ -6,7 +6,7 @@ clickhouse-driver>=0.2.7
 pytest>=7.2.0
 pytest-dotenv==0.5.2
 pytest-timeout==2.4.0
-black==24.3.0
+black==25.1.0
 isort==6.0.1
 mypy==0.991
 yamllint==1.26.3
