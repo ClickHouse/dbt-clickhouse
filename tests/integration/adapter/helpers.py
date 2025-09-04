@@ -19,4 +19,4 @@ def below_version(major: int, minor: int = 0, _ch_test_version_value: Optional[s
         or '0.0'  # Extra 0.0 to make Mypy happy
     )
     actual_major, actual_minor = current_version.split('.')
-    return int(actual_major) < major or int(actual_major) == major and int(actual_minor) < minor
+    return int(actual_major) < major or (int(actual_major) == major and int(actual_minor) < minor)
