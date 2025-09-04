@@ -1,3 +1,9 @@
+### Release [x.x.x]
+
+#### Bugs
+* query_settings not being correctly read ([#240](https://github.com/ClickHouse/dbt-clickhouse/pull/497))
+
+
 ### Release [1.9.2], 2025-06-03
 
 #### Bugs
