@@ -1,5 +1,4 @@
 from dbt.adapters.base import AdapterPlugin
-
 from dbt.adapters.clickhouse.column import ClickHouseColumn  # noqa
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager  # noqa
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
