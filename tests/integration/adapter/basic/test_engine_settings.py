@@ -1,5 +1,4 @@
 import pytest
-
 from dbt.tests.util import relation_from_name, run_dbt
 
 test_models_mergetree = """
