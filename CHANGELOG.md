@@ -1,7 +1,8 @@
 ### Release [x.x.x]
 
 #### Bugs
-* query_settings not being correctly read ([#240](https://github.com/ClickHouse/dbt-clickhouse/pull/497))
+* Fix `query_settings` not being correctly read when values are strings ([#240](https://github.com/ClickHouse/dbt-clickhouse/pull/497))
+* Ensure that the default `replicated_deduplication_window` is only applied for `*MergeTree` engines ([#504](https://github.com/ClickHouse/dbt-clickhouse/pull/504))
 
 
 ### Release [1.9.2], 2025-06-03
