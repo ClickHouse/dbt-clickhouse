@@ -244,3 +244,9 @@
   {%- endif -%}
   {{ adapter.get_model_query_settings(model) }}
 {%- endmacro %}
+
+{% macro codec_clause(codec_name) %}
+  {%- if codec_name %}
+      CODEC({{ codec_name }})
+  {%- endif %}
+{% endmacro %}
