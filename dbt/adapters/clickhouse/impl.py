@@ -46,10 +46,7 @@ if TYPE_CHECKING:
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
-IGNORED_SETTINGS = {
-    'Memory': ['replicated_deduplication_window'],
-    'S3': ['replicated_deduplication_window'],
-}
+MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window'}
 
 
 @dataclass
@@ -510,14 +507,8 @@ class ClickHouseAdapter(SQLAdapter):
     def filter_settings_by_engine(self, settings, engine):
         filtered_settings = {}
 
-        if engine.endswith('MergeTree'):
-            # Special case for MergeTree due to all its variations.
-            ignored_settings = IGNORED_SETTINGS.get('MergeTree', [])
-        else:
-            ignored_settings = IGNORED_SETTINGS.get(engine, [])
-
         for key, value in settings.items():
-            if key in ignored_settings:
+            if 'MergeTree' not in engine and key in MERGETREE_EXCLUSIVE_SETTINGS:
                 logger.warning(f"Setting {key} not available for engine {engine}, ignoring.")
             else:
                 filtered_settings[key] = value
