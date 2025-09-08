@@ -1,9 +1,13 @@
-### Release [x.x.x]
+### Release [1.9.3], 2025-09-08
 
 #### Bugs
-* Fix `query_settings` not being correctly read when values are strings ([#240](https://github.com/ClickHouse/dbt-clickhouse/pull/497))
-* Ensure that the default `replicated_deduplication_window` is only applied for `*MergeTree` engines ([#504](https://github.com/ClickHouse/dbt-clickhouse/pull/504))
-
+* Fix `query_settings` not being correctly read when values are strings ([#240](https://github.com/ClickHouse/dbt-clickhouse/pull/497)).
+* Ensure that the default `replicated_deduplication_window` is only applied for `*MergeTree` engines ([#504](https://github.com/ClickHouse/dbt-clickhouse/pull/504)).
+* Avoid full model recalculation if database is `shared` ([#498](https://github.com/ClickHouse/dbt-clickhouse/pull/498)).
+* Use importlib instead of pkg_resources as it's now deprecated ([#471](https://github.com/ClickHouse/dbt-clickhouse/pull/471)).
+* Several fixes made to improve test execution. Most relevant ones:
+  * Restore testing against different CH versions - all versions are now LTS ones, skip 25.8 until pending issue is fixed, fix tests on older versions ([c86a0889](https://github.com/ClickHouse/dbt-clickhouse/commit/c86a0889ad323ce0b02c7409275360e6f2202723)).
+  * Make isort consistent between local and GitHub actions ([#505](https://github.com/ClickHouse/dbt-clickhouse/pull/505)).
 
 ### Release [1.9.2], 2025-06-03
 
