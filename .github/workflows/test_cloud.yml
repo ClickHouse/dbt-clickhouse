@@ -19,7 +19,7 @@ jobs:
   cloud_smt_tests:
     name: ClickHouse Cloud SharedMergeTree Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 90
 
     strategy:
       max-parallel: 1
