@@ -52,7 +52,7 @@
     {% if relation.schema %}
       and database = '{{ relation.schema }}'
     {% else %}
-      {% do exceptions.raise_compiler_error("Relations should always come with a defined schema. Missing schema for " ~ relation.identifier) %}
+      {% do exceptions.warn("Relations should always come with a defined schema. Missing schema for " ~ relation.identifier) %}
     {% endif %}
     order by position
   {% endcall %}
