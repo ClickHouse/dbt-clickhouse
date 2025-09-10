@@ -19,9 +19,11 @@ jobs:
   cloud_smt_tests:
     name: ClickHouse Cloud SharedMergeTree Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     strategy:
       max-parallel: 1
+      fail-fast: false
       matrix:
         python-version: [ '3.9', '3.10', '3.11', '3.12' ]
 
@@ -47,9 +49,9 @@ jobs:
       - name: Run HTTP tests
         env:
           DBT_CH_TEST_PORT: 8443
-        run: pytest tests -n 8
+        run: pytest tests --timeout=120
 
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9440
-        run: pytest tests -n 8
+        run: pytest tests --timeout=120
