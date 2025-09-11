@@ -3,8 +3,7 @@ name: "test_cloud"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-    branches:
-      - '*_cloud'
+    branches: main
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * *'  # Nightly run at 2:00 AM UTC
@@ -13,6 +12,7 @@ jobs:
   cloud_smt_tests:
     name: ClickHouse Cloud SharedMergeTree Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 50
 
     env:
       PYTHONPATH: dbt
