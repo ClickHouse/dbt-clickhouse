@@ -66,6 +66,8 @@ sources:
       - name: people
 """
 
+SLEEP_TIME = 30 if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes') else 10
+
 
 class TestProjections:
     @pytest.fixture(scope="class")
@@ -100,14 +102,14 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
+        # waiting for system.log table to be created/populated
+        time.sleep(SLEEP_TIME)
 
         # check that the latest query used the projection
         result = project.run_sql(
             f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
             f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+            f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
         )
         assert len(result) > 0
@@ -132,14 +134,14 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
+        # waiting for system.log table to be created/populated
+        time.sleep(SLEEP_TIME)
 
         # check that the latest query used the projection
         result = project.run_sql(
             f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
             f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+            f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
         )
         assert len(result) > 0
@@ -158,14 +160,14 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 131), ('malware', 40), ('sales', 25)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
+        # waiting for system.log table to be created/populated
+        time.sleep(SLEEP_TIME)
 
         # check that the latest query used the projection
         result = project.run_sql(
             f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
             f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+            f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
         )
         assert len(result) > 0
@@ -191,8 +193,8 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
+        # waiting for system.log table to be created/populated
+        time.sleep(SLEEP_TIME)
 
         # check that the latest query used the projection
         result = project.run_sql(
