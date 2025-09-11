@@ -10,7 +10,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   cloud_smt_tests:
     name: ClickHouse Cloud SharedMergeTree Tests
-    runs-on: ubuntu-latest
+    runs-on: [ self-hosted, integrations-clients-benchmarks ]
 
     env:
       PYTHONPATH: dbt
