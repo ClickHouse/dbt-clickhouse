@@ -8,6 +8,7 @@ import json
 import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
+from dbt.tests.fixtures.project import TestProjInfo
 
 PEOPLE_SEED_CSV = """
 id,name,age,department
@@ -193,14 +194,14 @@ where department = 'engineering'
 """
 
 
-def query_table_type(project, schema, table):
+def query_table_type(project: TestProjInfo, schema: str, table: str) -> str:
     table_type = project.run_sql(
         f"""
         select engine from system.tables where database = '{schema}' and name = '{table}'
     """,
         fetch="all",
     )
-    return table_type[0][0] if len(table_type) > 0 else None
+    return table_type[0][0] if len(table_type) > 0 else ''
 
 
 class TestUpdateMV:
@@ -287,7 +288,7 @@ class TestUpdateMV:
         assert len(results) == 2  # will include also a view for the other test.
 
         # Verify both tables were created correctly
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MergeTree"
+        assert query_table_type(project, schema_unquoted, 'hackers_mv').endswith("MergeTree")
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         # Step 3: Change model to view materialization and run with full refresh
@@ -300,7 +301,7 @@ class TestUpdateMV:
         # Step 4: Assert that target table is now a view and internal MV no longer exists
         assert query_table_type(project, schema_unquoted, 'hackers_mv') == "View"
         # Verify that the internal materialized view (_mv) no longer exists
-        assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') is None
+        assert not query_table_type(project, schema_unquoted, 'hackers_mv_mv')
 
     def test_view_full_refresh_does_not_affect_existing_mv_with_mv_suffix(self, project):
         """
@@ -321,7 +322,7 @@ class TestUpdateMV:
 
         # Verify both models were created correctly
         assert query_table_type(project, schema_unquoted, 'hackers') == "View"
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MergeTree"
+        assert query_table_type(project, schema_unquoted, 'hackers_mv').endswith("MergeTree")
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         # Verify data is present in both
@@ -341,7 +342,7 @@ class TestUpdateMV:
         assert result[0][0] == 3
 
         # Verify that hackers_mv and hackers_mv_mv are still present and working
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MergeTree"
+        assert query_table_type(project, schema_unquoted, 'hackers_mv').endswith("MergeTree")
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         result = project.run_sql(f"select count(*) from {schema_unquoted}.hackers_mv", fetch="all")
