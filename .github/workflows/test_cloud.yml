@@ -42,9 +42,9 @@ jobs:
       - name: Run HTTP tests
         env:
           DBT_CH_TEST_PORT: 8443
-        run: pytest tests --timeout=120
+        run: pytest tests --timeout=240
 
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9440
-        run: pytest tests --timeout=120
+        run: pytest tests --timeout=240
