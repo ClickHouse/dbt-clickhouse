@@ -24,14 +24,14 @@ id,name,age,department
 # the same test run and allow us to test the evolution of a materialized view
 MV_MODEL = """
 {{ config(
-       materialized='materialized_view',
+       materialized='materialized_view' if var('run_type', '') != 'view_conversion' else 'view',
        engine='MergeTree()',
        order_by='(id)',
        schema='catchup' if var('run_type', '') == 'catchup' else 'custom_schema',
         **({'catchup': False} if var('run_type', '') == 'catchup' else {})
 ) }}
 
-{% if var('run_type', '') in ['', 'catchup'] %}
+{% if var('run_type', '') in ['', 'catchup', 'view_conversion'] %}
 select
     id,
     name,
@@ -235,3 +235,46 @@ class TestUpdateMV:
             f"select distinct hacker_alias from {schema}.hackers where name = 'Dade'", fetch="all"
         )
         assert len(result) == 2
+
+    def test_mv_is_dropped_on_full_refresh(self, project):
+        """
+        1. create a base table via dbt seed
+        2. create a model as a materialized view, selecting from the table created in (1)
+        3. change the model to be a view and run with full refresh
+        4. assert that the target table is now a view and the internal MV (_mv) no longer exists
+        """
+        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema_unquoted = project.test_schema + "_custom_schema"
+
+        # Step 1: Create base table via dbt seed
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create the model as a materialized view
+        results = run_dbt()
+        assert len(results) == 1
+
+        def query_table_type(table_name):
+            table_type = project.run_sql(
+                f"""
+                select engine from system.tables where database = '{schema_unquoted}' and name = '{table_name}'
+            """,
+                fetch="all",
+            )
+            return table_type[0][0] if len(table_type[0]) > 0 else None
+
+        # Verify both tables were created correctly
+        assert query_table_type('hackers') == "MergeTree"
+        assert query_table_type('hackers_mv') == "MaterializedView"
+
+        # Step 3: Change model to view materialization and run with full refresh
+        run_vars = {"run_type": "view_conversion"}
+        results = run_dbt(
+            ["run", "--full-refresh", "--log-level", "debug", "--vars", json.dumps(run_vars)]
+        )
+        assert len(results) == 1
+
+        # Step 4: Assert that target table is now a view and internal MV no longer exists
+        assert query_table_type('hackers') == "View"
+        # Verify that the internal materialized view (_mv) no longer exists
+        assert query_table_type('hackers_mv') is None
