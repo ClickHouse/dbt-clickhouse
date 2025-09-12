@@ -6,13 +6,6 @@ on:  # yamllint disable-line rule:truthy
     - cron: '0 0 * * *'  # nightly run every day at 00:00 UTC
   pull_request:
     branches: main
-  push:
-    branches-ignore:
-      - '*_test'
-      - '*_dev'
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
   workflow_dispatch:
 
 jobs:
