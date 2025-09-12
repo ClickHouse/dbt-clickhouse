@@ -11,7 +11,7 @@ on:  # yamllint disable-line rule:truthy
 jobs:
   cloud_smt_tests:
     name: ClickHouse Cloud SharedMergeTree Tests
-    runs-on: [self-hosted, integrations-clients-benchmarks]
+    runs-on: ubuntu-latest
     timeout-minutes: 90
 
     strategy:
@@ -22,8 +22,8 @@ jobs:
 
     env:
       PYTHONPATH: dbt
-      DBT_CH_TEST_HOST: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_HOST_SMT }}
-      DBT_CH_TEST_PASSWORD: ${{ secrets.INTEGRATIONS_TEAM_TESTS_CLOUD_PASSWORD_SMT }}
+      DBT_CH_TEST_HOST: ${{ secrets.DBT_TESTS_CLOUD_HOST_SMT }}
+      DBT_CH_TEST_PASSWORD: ${{ secrets.DBT_TESTS_CLOUD_PASSWORD_SMT }}
       DBT_CH_TEST_CLUSTER_MODE: true
       DBT_CH_TEST_CLOUD: true
 
