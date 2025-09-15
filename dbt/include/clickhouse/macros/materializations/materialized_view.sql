@@ -55,36 +55,8 @@
     {% set catchup_data = config.get("catchup", True) %}
     {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views, catchup_data) }}
   {% elif existing_relation.can_exchange %}
-    {{ log('Replacing existing materialized view ' + target_relation.name) }}
-    -- in this section, we look for mvs that has the same pattern as this model, but for some reason,
-    -- are not listed in the model. This might happen when using multiple mv, and renaming one of the mv in the model.
-    -- In case such mv found, we raise a warning to the user, that they might need to drop the mv manually.
-    {{ log('Searching for existing materialized views with the pattern of ' + target_relation.name) }}
-    {{ log('Views dictionary contents: ' + views | string) }}
-
-        {% set tables_query %}
-            select table_name
-            from information_schema.tables
-            where table_schema = '{{ existing_relation.schema }}'
-              and table_name like '%{{ target_relation.name }}%'
-              and table_type = 'VIEW'
-        {% endset %}
-
-    {% set tables_result = run_query(tables_query) %}
-    {% if tables_result is not none and tables_result.columns %}
-        {% set tables = tables_result.columns[0].values() %}
-        {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
-        {% set mv_names = [] %}
-        {% for key in views.keys() %}
-            {% do mv_names.append(target_relation.name ~ "_" ~ key) %}
-        {% endfor %}
-        {{ log('Model mvs to replace ' + mv_names | string) }}
-        {% for table in tables %}
-            {% if table not in mv_names %}
-                {{ log('Warning - Table "' + table + '" was detected with the same pattern as model name "' + target_relation.name + '" but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)') }}
-            {% endif %}
-        {% endfor %}
-    {% else %}
+    {% set found_associated_mvs = clickhouse__search_associated_mvs_to_target(existing_relation.schema, target_relation.name, views)  %}
+    {% if found_associated_mvs is none %}
         {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
     {% endif %}
     {% if should_full_refresh() %}
@@ -201,6 +173,50 @@
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
     {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
   {% endfor %}
+{%- endmacro %}
+
+{% macro clickhouse__search_associated_mvs_to_target(relation_schema, relation_name, mv_suffixes)  -%}
+    {% set tables_query %}
+        select table_name
+        from information_schema.tables
+        where table_schema = '{{ relation_schema }}'
+          and table_name like '%{{ relation_name }}%'
+          and table_type = 'VIEW'
+    {% endset %}
+
+    {% set tables_result = run_query(tables_query) %}
+    {% if tables_result is not none and tables_result.columns %}
+        {% set tables = tables_result.columns[0].values() %}
+        {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
+        {% set mv_names = [] %}
+        {% for suffix in mv_suffixes.keys() %}
+            {% do mv_names.append(relation_name ~ "_" ~ key) %}
+        {% endfor %}
+        {{ log('Model mvs to replace ' + mv_names | string) }}
+        {% for table in tables %}
+            {% if table not in mv_names %}
+                {{ log('Warning - Table "' + table + '" was detected with the same pattern as model name "' + relation_name + '" but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)') }}
+            {% endif %}
+        {% endfor %}
+        {{ return(tables) }}
+    {% else %}
+        {{ return(None) }}
+    {% endif %}
+{%- endmacro %}
+
+
+{% macro clickhouse__drop_associated_mv_if_it_was_automatically_created(target_relation)  -%}
+    {#-
+      Limitations of this logic:
+       - Only covers situations where 1 mv was created. Don't cover multiple mvs with different names.
+       - Only checks current relation's database.
+      We print logs in case we find other mvs in that database
+    -#}
+    {% set views = {'mv': ''} %}
+    {{ clickhouse__search_associated_mvs_to_target(target_relation.schema, target_relation.name, views)  }}
+    {%- set cluster_clause = on_cluster_clause(target_relation) -%}
+    {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+
 {%- endmacro %}
 
 {% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}

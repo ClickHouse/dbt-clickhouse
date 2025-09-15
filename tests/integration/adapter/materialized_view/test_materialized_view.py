@@ -261,7 +261,7 @@ class TestUpdateMV:
             """,
                 fetch="all",
             )
-            return table_type[0][0] if len(table_type[0]) > 0 else None
+            return table_type[0][0] if len(table_type) > 0 else None
 
         # Verify both tables were created correctly
         assert query_table_type('hackers') == "MergeTree"
