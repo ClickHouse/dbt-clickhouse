@@ -17,7 +17,7 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
     def test_config(self, test_config):
 
         test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/'{uuid}', '{shard}', '{replica}')"
+            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
         )
         return test_config
 
@@ -30,7 +30,7 @@ class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
         test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/'{uuid}', '{shard}', '{replica}')"
+            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
         )
         return test_config
 
