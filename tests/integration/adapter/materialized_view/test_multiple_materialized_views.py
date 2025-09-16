@@ -9,8 +9,6 @@ import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
 
-from tests.integration.adapter.helpers import below_version
-
 PEOPLE_SEED_CSV = """
 id,name,age,department
 1231,Dade,33,engineering
@@ -178,10 +176,6 @@ class TestMultipleMV:
         ]
 
 
-@pytest.mark.skipif(
-    below_version(24, 3),
-    reason='Pending to fix. Syntax error in 23.8: Code: 53. DB::Exception: Cannot convert string VIEW to type UInt8: while executing...',
-)
 class TestUpdateMultipleMV:
     @pytest.fixture(scope="class")
     def seeds(self):

@@ -7,7 +7,7 @@
         <replica from_env="REPLICA_NUM" />
         <server_index from_env="SERVER_INDEX" />
     </macros>
-    <remote_servers>
+    <remote_servers replace="1">
         <test_shard>
             <shard>
                 <replica>
