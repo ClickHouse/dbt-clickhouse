@@ -13,7 +13,7 @@
   {% if existing_relation is none %}
     {{ log('Creating new relation ' + target_relation.name )}}
   {% else %}
-    {{ log('Relation ' + target_relation.name + ' already exists, replacing it' )}} <-- we should ensure that if it's a mv, it gets removed
+    {{ log('Relation ' + target_relation.name + ' already exists, replacing it' )}}
     {{ clickhouse__drop_associated_mv_if_it_was_automatically_created(target_relation) }}
   {% endif %}
 

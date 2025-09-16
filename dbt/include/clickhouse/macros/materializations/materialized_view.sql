@@ -55,6 +55,12 @@
     {% set catchup_data = config.get("catchup", True) %}
     {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views, catchup_data) }}
   {% elif existing_relation.can_exchange %}
+    {{ log('Replacing existing materialized view ' + target_relation.name) }}
+    -- in this section, we look for mvs that has the same pattern as this model, but for some reason,
+    -- are not listed in the model. This might happen when using multiple mv, and renaming one of the mv in the model.
+    -- In case such mv found, we raise a warning to the user, that they might need to drop the mv manually.
+    {{ log('Searching for existing materialized views with the pattern of ' + target_relation.name) }}
+    {{ log('Views dictionary contents: ' + views | string) }}
     {% set found_associated_mvs, expected_mv_tables = clickhouse__search_associated_mvs_to_target(existing_relation.schema, target_relation.name, views)  %}
     {% if found_associated_mvs is none %}
         {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
