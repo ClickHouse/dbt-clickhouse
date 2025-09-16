@@ -87,6 +87,9 @@ class TestProjections:
             % "table",
         }
 
+    def _get_table_reference(self, table: str) -> str:
+        return table if os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '' else f"clusterAllReplicas({os.environ.get('DBT_CH_TEST_CLUSTER')}, '{table}')"
+
     def test_create_and_verify_projection(self, project):
         run_dbt(["seed"])
         run_dbt(["run", "--select", "people_with_projection"])
@@ -107,7 +110,7 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
+            f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
             f"WHERE query like '%{unique_query_identifier}%' "
             f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
@@ -139,7 +142,7 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
+            f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
             f"WHERE query like '%{unique_query_identifier}%' "
             f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
@@ -165,7 +168,7 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
+            f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
             f"WHERE query like '%{unique_query_identifier}%' "
             f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
@@ -198,7 +201,7 @@ class TestProjections:
 
         # check that the latest query used the projection
         result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
+            f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
             f"WHERE query like '%{unique_query_identifier}%' "
             f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
             fetch="all",
