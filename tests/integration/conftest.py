@@ -84,15 +84,15 @@ def test_config(ch_test_users, ch_test_version):
         password=test_password,
         secure=test_secure,
     )
+    cluster_clause = f'ON CLUSTER "{test_cluster}"' if test_cluster else ''
     for dbt_user in ch_test_users:
-        cmd = 'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s'
-        if test_cluster != '':
-            cmd = f'CREATE USER IF NOT EXISTS %s ON CLUSTER "{test_cluster}"  IDENTIFIED WITH sha256_hash BY %s'
-
+        cmd = f'CREATE USER IF NOT EXISTS %s {cluster_clause} IDENTIFIED WITH sha256_hash BY %s'
         test_client.command(
             cmd,
             (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
         )
+    # Make sure all system tables are available before starting tests
+    test_client.command(f"SYSTEM FLUSH LOGS {cluster_clause}")
     yield {
         'driver': test_driver,
         'host': test_host,
