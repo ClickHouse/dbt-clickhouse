@@ -34,4 +34,4 @@ jobs:
             --no-cli-pager \
             --queue-url "${{ secrets.INTEGRATIONS_STRESSHOUSE_GHA_SQS_QUEUE_URL }}" \
             --message-group-id "cloud-tests" \
-            --message-body "Hello from DBT CI"
+            --message-body "{ \"repo\": \"dbt-clickhouse\" }"
