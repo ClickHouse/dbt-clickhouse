@@ -133,7 +133,9 @@ class TestProjections:
 
             assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
 
-        retry_until_assertion_passes(check_that_the_latest_query_used_the_projection, **RETRY_CONFIG)
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
+        )
 
     def test_create_and_verify_multiple_projections(self, project):
         run_dbt(["seed"])
@@ -166,7 +168,9 @@ class TestProjections:
 
             assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
 
-        retry_until_assertion_passes(check_that_the_latest_query_used_the_projection, **RETRY_CONFIG)
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
+        )
 
         # test the second projection
         unique_query_identifier = str(uuid.uuid4())
@@ -192,7 +196,9 @@ class TestProjections:
 
             assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_sum_age']
 
-        retry_until_assertion_passes(check_that_the_latest_query_used_the_projection, **RETRY_CONFIG)
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
+        )
 
     @pytest.mark.xfail
     @pytest.mark.skipif(
@@ -227,4 +233,6 @@ class TestProjections:
                 f'{project.test_schema}.{relation.name}_local.projection_avg_age'
             ]
 
-        retry_until_assertion_passes(check_that_the_latest_query_used_the_projection, **RETRY_CONFIG)
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
+        )
