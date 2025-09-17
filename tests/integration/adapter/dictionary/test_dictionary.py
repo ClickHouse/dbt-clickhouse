@@ -8,7 +8,7 @@ import os
 import pytest
 from dbt.tests.util import run_dbt
 
-from tests.integration.adapter.helpers import DEFAULT_RETRY_CONFIG, retry_assert_until_true
+from tests.integration.adapter.helpers import DEFAULT_RETRY_CONFIG, retry_until_assertion_passes
 
 testing_s3 = os.environ.get('DBT_CH_TEST_INCLUDE_S3', '').lower() in ('1', 'true', 'yes')
 
@@ -188,7 +188,7 @@ class TestQueryDictionary:
             result = project.run_sql("select count(distinct id) from hackers", fetch="all")
             assert result[0][0] == 5
 
-        retry_assert_until_true(check_count, **retry_config)
+        retry_until_assertion_passes(check_count, **retry_config)
 
         # re-run dbt but this time with the new MV SQL
         run_vars = {"run_type": "extended_schema"}

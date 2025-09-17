@@ -30,7 +30,7 @@ DEFAULT_RETRY_CONFIG: retry_config = {
 }
 
 
-def retry_assert_until_true(
+def retry_until_assertion_passes(
     func: Callable[[], Any],
     max_retries: int = DEFAULT_RETRY_CONFIG["max_retries"],
     delay: float = DEFAULT_RETRY_CONFIG["delay"],
