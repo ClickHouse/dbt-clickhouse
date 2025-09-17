@@ -2,9 +2,8 @@
 name: "test_cloud"
 
 on:  # yamllint disable-line rule:truthy
-  push:
-    branches:
-      - '*_cloud'
+  pull_request:
+    branches: main
   workflow_dispatch:
 
 jobs:
