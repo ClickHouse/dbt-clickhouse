@@ -288,3 +288,39 @@ select
   UTCtimestamp() as ts,
   'blue' as col_ttl
 """
+
+low_cardinality_schema_yml = """
+version: 2
+models:
+  - name: my_model
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: color
+        data_type: String
+      - name: country_code
+        data_type: LowCardinality(String)
+"""
+
+low_cardinality_correct_inner_type_model_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+select
+  'blue' as color,
+  'CH' as country_code
+"""
+
+low_cardinality_incorrect_inner_type_model_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+select
+  'blue' as color,
+  5 as country_code
+"""

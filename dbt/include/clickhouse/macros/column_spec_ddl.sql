@@ -30,7 +30,16 @@
       {#-- Column with name not found in yaml #}
       {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
     {%- endif -%}
-    {%- if sql_col['data_type'] != yaml_col[0]['data_type'] -%}
+
+    {%- set yaml_data_type = yaml_col[0]['data_type'] -%}
+    {%- set sql_data_type = sql_col['data_type'] -%}
+
+    {% if yaml_data_type.lower().startswith('lowcardinality') -%}
+      {#-- If contract is LowCardinality, extract the inner type for comparison --#}
+      {%- set yaml_data_type = yaml_data_type[15:-1] -%}
+    {%- endif -%}
+
+    {%- if sql_data_type != yaml_data_type -%}
       {#-- Column data types don't match #}
       {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
     {%- endif -%}

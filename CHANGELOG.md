@@ -1,3 +1,8 @@
+### Release [x.x.x]
+
+#### New Features
+* Allow defining columns as LowCardinality in column constraints ([xxx])
+
 ### Release [1.9.3], 2025-09-08
 
 #### Bugs
