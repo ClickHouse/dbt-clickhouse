@@ -1,7 +1,7 @@
 ### Release [x.x.x]
 
 #### New Features
-* Allow defining columns as LowCardinality in column constraints ([#522])
+* Allow defining columns as LowCardinality and have special types that ignore the string check in the column constraints ([#522])
 
 ### Release [1.9.3], 2025-09-08
 

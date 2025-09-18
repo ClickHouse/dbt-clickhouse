@@ -324,3 +324,28 @@ select
   'blue' as color,
   5 as country_code
 """
+
+special_types_schema_yml = """
+version: 2
+models:
+  - name: my_model
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: color
+        data_type: String
+      - name: country_code
+        data_type: SimpleAggregateFunction(any, String)
+"""
+
+special_types_schema_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+select
+  'blue' as color,
+  'CH' as country_code
+"""

@@ -21,6 +21,8 @@ from tests.integration.adapter.constraints.fixtures_constraints import (
     low_cardinality_schema_yml,
     low_cardinality_correct_inner_type_model_sql,
     low_cardinality_incorrect_inner_type_model_sql,
+    special_types_schema_yml,
+    special_types_schema_sql,
 )
 
 
@@ -240,3 +242,14 @@ class TestIncorrectLowCardinalityConstraints:
             ["run", "-s", "my_model"], expect_pass=False
         )
         assert 'data type mismatch' in log_output.lower()
+
+class TestSpecialTypesConstraints:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "constraints_schema.yml": special_types_schema_yml,
+            "my_model.sql": special_types_schema_sql,
+        }
+
+    def test_special_type_model_constraints_ddl(self, project):
+        run_dbt(["run", "-s", "my_model"])
