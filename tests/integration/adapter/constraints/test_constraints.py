@@ -18,6 +18,11 @@ from tests.integration.adapter.constraints.fixtures_constraints import (
     my_model_view_wrong_order_sql,
     my_model_wrong_name_sql,
     my_model_wrong_order_sql,
+    low_cardinality_schema_yml,
+    low_cardinality_correct_inner_type_model_sql,
+    low_cardinality_incorrect_inner_type_model_sql,
+    special_types_schema_yml,
+    special_types_schema_sql,
 )
 
 
@@ -203,3 +208,48 @@ class TestModelCustomConstraints:
 
     def test_model_constraints_ddl(self, project):
         run_dbt(["run", "-s", "check_custom_constraints_model"])
+
+class TestCorrectLowCardinalityConstraints:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "constraints_schema.yml": low_cardinality_schema_yml,
+            "my_model.sql": low_cardinality_correct_inner_type_model_sql
+        }
+
+    def test_low_cardinality_contract_passes(self, project):
+        run_dbt(["run", "-s", "my_model"])
+
+    def test_low_cardinality_contract_enforced(self, project):
+        run_dbt(["run", "-s", "my_model"])
+
+        describe_result = project.run_sql("DESCRIBE TABLE my_model", fetch="all")
+        country_code_row = next((row for row in describe_result if row[0] == 'country_code'), None)
+
+        assert country_code_row is not None
+        assert country_code_row[1] == 'LowCardinality(String)'
+
+class TestIncorrectLowCardinalityConstraints:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "constraints_schema.yml": low_cardinality_schema_yml,
+            "my_model.sql": low_cardinality_incorrect_inner_type_model_sql
+        }
+
+    def test_low_cardinality_contract_fails(self, project):
+        _, log_output = run_dbt_and_capture(
+            ["run", "-s", "my_model"], expect_pass=False
+        )
+        assert 'data type mismatch' in log_output.lower()
+
+class TestSpecialTypesConstraints:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "constraints_schema.yml": special_types_schema_yml,
+            "my_model.sql": special_types_schema_sql,
+        }
+
+    def test_special_type_model_constraints_ddl(self, project):
+        run_dbt(["run", "-s", "my_model"])

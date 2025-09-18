@@ -30,10 +30,31 @@
       {#-- Column with name not found in yaml #}
       {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
     {%- endif -%}
-    {%- if sql_col['data_type'] != yaml_col[0]['data_type'] -%}
-      {#-- Column data types don't match #}
-      {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
-    {%- endif -%}
+
+    {%- set yaml_data_type = yaml_col[0]['data_type'] -%}
+    {%- set sql_data_type = sql_col['data_type'] -%}
+
+    {%- set ns = namespace(is_special_type=false) -%}
+
+    {%- set special_types = ['SimpleAggregateFunction'] -%}
+    {%- for special_type in special_types -%}
+      {%- if yaml_data_type.startswith(special_type) -%}
+        {%- set ns.is_special_type = true -%}
+        {%- break -%}
+      {%- endif -%}
+    {%- endfor -%}
+
+    {% if not ns.is_special_type %}
+      {%- if yaml_data_type.startswith('LowCardinality') -%}
+        {#-- If contract is LowCardinality, extract the inner type for comparison --#}
+        {%- set yaml_data_type = yaml_data_type[15:-1] -%}
+      {%- endif -%}
+
+      {%- if sql_data_type != yaml_data_type -%}
+        {#-- Column data types don't match #}
+        {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
+      {%- endif -%}
+    {% endif %} 
   {%- endfor -%}
 
 {% endmacro %}
