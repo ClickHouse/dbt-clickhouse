@@ -4,14 +4,6 @@ name: "test_matrix"
 on:  # yamllint disable-line rule:truthy
   pull_request:
     branches: main
-  push:
-    branches-ignore:
-      - '*_test'
-      - '*_dev'
-      - '*_cloud'
-    paths-ignore:
-      - '**.md'
-      - 'LICENSE'
   workflow_dispatch:
 
 jobs:
