@@ -9,8 +9,6 @@ import os
 import pytest
 from dbt.tests.util import check_relation_types, run_dbt
 
-from tests.integration.adapter.helpers import below_version
-
 PEOPLE_SEED_CSV = """
 id,name,age,department
 1231,Dade,33,engineering
@@ -58,10 +56,6 @@ sources:
 """
 
 
-@pytest.mark.skipif(
-    below_version(25),
-    reason='Refreshable MVs are not supported in the tested 24 versions https://github.com/ClickHouse/ClickHouse/issues/59369#issuecomment-2047926705',
-)
 class TestBasicRefreshableMV:
     @pytest.fixture(scope="class")
     def seeds(self):

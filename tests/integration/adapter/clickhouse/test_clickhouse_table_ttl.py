@@ -7,13 +7,7 @@ from dbt.tests.adapter.basic.files import model_base, schema_base_yml
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.util import relation_from_name, run_dbt
 
-from tests.integration.adapter.helpers import below_version
 
-
-@pytest.mark.skipif(
-    below_version(24, 3),
-    reason='Pending to fix. Syntax error in 23.8: Code: 62. DB::Exception: Syntax error: failed at position 501 (\'SETTINGS\') (line 20, col 21): SETTINGS  allow_nullable_key=1,  replicated_deduplication_window=0',
-)
 class TestTableTTL(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
@@ -88,8 +82,8 @@ SELECT 3, toDateTime('2005-01-01 09:23:15')
 
 
 @pytest.mark.skipif(
-    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '' or below_version(24, 3),
-    reason='Not on a cluster. Also generated syntax not supported in 23.8: Code: 62. DB::Exception: Syntax error: failed at position 530 (end of query) (line 31, col 3): . Expected end of query. (SYNTAX_ERROR) (version 23.8.16.16 (official build))',
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '',
+    reason='Not on a cluster.',
 )
 class TestDistributedTableTTL:
     @pytest.fixture(scope="class")
