@@ -1,3 +1,9 @@
+### Release [1.9.4], 2025-XX-XX
+
+#### Bugs
+* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516))
+
+
 ### Release [1.9.3], 2025-09-08
 
 #### Bugs
@@ -9,6 +15,7 @@
 * Several fixes made to improve test execution. Most relevant ones:
   * Restore testing against different CH versions - all versions are now LTS ones, skip 25.8 until pending issue is fixed, fix tests on older versions ([c86a0889](https://github.com/ClickHouse/dbt-clickhouse/commit/c86a0889ad323ce0b02c7409275360e6f2202723)).
   * Make isort consistent between local and GitHub actions ([#505](https://github.com/ClickHouse/dbt-clickhouse/pull/505)).
+
 
 ### Release [1.9.2], 2025-06-03
 
