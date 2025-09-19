@@ -50,7 +50,7 @@
   {% call statement('get_columns', fetch_result=True) %}
     select name, type from system.columns where table = '{{ relation.identifier }}'
     {% if relation.schema %}
-      {% if not relation.identifier.endswith("__dbt_tmp") %}
+      {% if not relation.is_temporary %}
         and database = '{{ relation.schema }}'
       {% endif %}
     {% else %}
