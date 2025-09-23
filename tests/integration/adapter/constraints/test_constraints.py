@@ -209,12 +209,13 @@ class TestModelCustomConstraints:
     def test_model_constraints_ddl(self, project):
         run_dbt(["run", "-s", "check_custom_constraints_model"])
 
+
 class TestCorrectLowCardinalityConstraints:
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "constraints_schema.yml": low_cardinality_schema_yml,
-            "my_model.sql": low_cardinality_correct_inner_type_model_sql
+            "my_model.sql": low_cardinality_correct_inner_type_model_sql,
         }
 
     def test_low_cardinality_contract_passes(self, project):
@@ -229,19 +230,19 @@ class TestCorrectLowCardinalityConstraints:
         assert country_code_row is not None
         assert country_code_row[1] == 'LowCardinality(String)'
 
+
 class TestIncorrectLowCardinalityConstraints:
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "constraints_schema.yml": low_cardinality_schema_yml,
-            "my_model.sql": low_cardinality_incorrect_inner_type_model_sql
+            "my_model.sql": low_cardinality_incorrect_inner_type_model_sql,
         }
 
     def test_low_cardinality_contract_fails(self, project):
-        _, log_output = run_dbt_and_capture(
-            ["run", "-s", "my_model"], expect_pass=False
-        )
+        _, log_output = run_dbt_and_capture(["run", "-s", "my_model"], expect_pass=False)
         assert 'data type mismatch' in log_output.lower()
+
 
 class TestSpecialTypesConstraints:
     @pytest.fixture(scope="class")
