@@ -1,7 +1,8 @@
 ### Release [1.9.4], 2025-XX-XX
 
 #### Bugs
-* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516))
+* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
+* Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
 
 
 ### Release [1.9.3], 2025-09-08
@@ -26,6 +27,7 @@
 * when the last line of a model's SQL query is a comment (-- some comment) and the table's contract is enforced, the last parenthesis of the wrapping subquery ends up commented as well. Was fixed in ([#457](https://github.com/ClickHouse/dbt-clickhouse/pull/457))
 * Check for Shared database engine in can_exchange ([#460](https://github.com/ClickHouse/dbt-clickhouse/pull/460))
 * Tests were broken because of docker compose version `2.35` and fixed in ([#468](https://github.com/ClickHouse/dbt-clickhouse/pull/468))
+
 
 ### Release [1.9.1], 2025-04-28
 
