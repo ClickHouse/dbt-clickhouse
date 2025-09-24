@@ -5,7 +5,7 @@ name: "test_cloud_results"
 on:
   workflow_dispatch:
   repository_dispatch:
-    types: [ test_cloud_results ]
+    types: [test_cloud_results]
 
 permissions:
   id-token: write
