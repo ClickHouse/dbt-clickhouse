@@ -1,0 +1,20 @@
+---
+name: "test_cloud_results"
+
+# yamllint disable-line rule:truthy
+on:
+  workflow_dispatch:
+  repository_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  update_commit_status:
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Placeholder
+        run: echo "This is a placeholder job to trigger on repository_dispatch events."
