@@ -82,7 +82,8 @@ SELECT 3, toDateTime('2005-01-01 09:23:15')
 
 
 @pytest.mark.skipif(
-    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '',
+    reason='Not on a cluster.',
 )
 class TestDistributedTableTTL:
     @pytest.fixture(scope="class")

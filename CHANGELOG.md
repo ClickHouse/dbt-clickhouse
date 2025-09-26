@@ -1,3 +1,23 @@
+### Release [1.9.4], 2025-XX-XX
+
+#### Bugs
+* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
+* Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
+
+
+### Release [1.9.3], 2025-09-08
+
+#### Bugs
+* Fix `query_settings` not being correctly read when values are strings ([#497](https://github.com/ClickHouse/dbt-clickhouse/pull/497)).
+* Ensure that the default `replicated_deduplication_window` is only applied for `*MergeTree` engines ([#504](https://github.com/ClickHouse/dbt-clickhouse/pull/504)).
+* Avoid full model recalculation if database is `shared` ([#498](https://github.com/ClickHouse/dbt-clickhouse/pull/498)).
+* Override snapshot macro when working with timestamp strategy to allways get a consistent now() value ([#509](https://github.com/ClickHouse/dbt-clickhouse/pull/509)).
+* Use importlib instead of pkg_resources as it's now deprecated ([#471](https://github.com/ClickHouse/dbt-clickhouse/pull/471)).
+* Several fixes made to improve test execution. Most relevant ones:
+  * Restore testing against different CH versions - all versions are now LTS ones, skip 25.8 until pending issue is fixed, fix tests on older versions ([c86a0889](https://github.com/ClickHouse/dbt-clickhouse/commit/c86a0889ad323ce0b02c7409275360e6f2202723)).
+  * Make isort consistent between local and GitHub actions ([#505](https://github.com/ClickHouse/dbt-clickhouse/pull/505)).
+
+
 ### Release [1.9.2], 2025-06-03
 
 #### Bugs
@@ -7,6 +27,7 @@
 * when the last line of a model's SQL query is a comment (-- some comment) and the table's contract is enforced, the last parenthesis of the wrapping subquery ends up commented as well. Was fixed in ([#457](https://github.com/ClickHouse/dbt-clickhouse/pull/457))
 * Check for Shared database engine in can_exchange ([#460](https://github.com/ClickHouse/dbt-clickhouse/pull/460))
 * Tests were broken because of docker compose version `2.35` and fixed in ([#468](https://github.com/ClickHouse/dbt-clickhouse/pull/468))
+
 
 ### Release [1.9.1], 2025-04-28
 

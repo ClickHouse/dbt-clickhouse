@@ -20,14 +20,6 @@ from dbt.adapters.base import AdapterConfig, available
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
-from dbt.adapters.contracts.relation import Path, RelationConfig
-from dbt.adapters.events.types import ConstraintNotSupported
-from dbt.adapters.sql import SQLAdapter
-from dbt_common.contracts.constraints import ConstraintType, ModelLevelConstraint
-from dbt_common.events.functions import warn_or_error
-from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
-from dbt_common.utils import filter_null_values
-
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
@@ -40,6 +32,13 @@ from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
 from dbt.adapters.clickhouse.util import compare_versions
+from dbt.adapters.contracts.relation import Path, RelationConfig
+from dbt.adapters.events.types import ConstraintNotSupported
+from dbt.adapters.sql import SQLAdapter
+from dbt_common.contracts.constraints import ConstraintType, ModelLevelConstraint
+from dbt_common.events.functions import warn_or_error
+from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
+from dbt_common.utils import filter_null_values
 
 if TYPE_CHECKING:
     import agate
@@ -47,10 +46,7 @@ if TYPE_CHECKING:
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
-IGNORED_SETTINGS = {
-    'Memory': ['replicated_deduplication_window'],
-    'S3': ['replicated_deduplication_window'],
-}
+MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window'}
 
 
 @dataclass
@@ -345,7 +341,7 @@ class ClickHouseAdapter(SQLAdapter):
             can_exchange = (
                 conn_supports_exchange
                 and rel_type == ClickHouseRelationType.Table
-                and db_engine in ('Atomic', 'Replicated')
+                and db_engine in ('Atomic', 'Replicated', 'Shared')
             )
             can_on_cluster = (on_cluster >= 1) and db_engine != 'Replicated'
 
@@ -484,17 +480,24 @@ class ClickHouseAdapter(SQLAdapter):
         finally:
             conn.state = 'close'
 
+    def _build_settings_str(self, settings: Dict[str, Any]) -> str:
+        res = []
+        for key in settings:
+            if isinstance(settings[key], str) and not settings[key].startswith("'"):
+                res.append(f"{key}='{settings[key]}'")
+            else:
+                # Support old workaround https://github.com/ClickHouse/dbt-clickhouse/issues/240#issuecomment-1894692117
+                res.append(f"{key}={settings[key]}")
+        return '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+
     @available
     def get_model_settings(self, model, engine='MergeTree'):
         settings = model['config'].get('settings', {})
         materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
         conn.handle.update_model_settings(settings, materialization_type)
-        res = []
         settings = self.filter_settings_by_engine(settings, engine)
-        for key in settings:
-            res.append(f' {key}={settings[key]}')
-        settings_str = '' if len(res) == 0 else 'SETTINGS ' + ', '.join(res) + '\n'
+        settings_str = self._build_settings_str(settings)
         return f"""
                     -- end_of_sql
                     {settings_str}
@@ -504,14 +507,8 @@ class ClickHouseAdapter(SQLAdapter):
     def filter_settings_by_engine(self, settings, engine):
         filtered_settings = {}
 
-        if engine.endswith('MergeTree'):
-            # Special case for MergeTree due to all its variations.
-            ignored_settings = IGNORED_SETTINGS.get('MergeTree', [])
-        else:
-            ignored_settings = IGNORED_SETTINGS.get(engine, [])
-
         for key, value in settings.items():
-            if key in ignored_settings:
+            if 'MergeTree' not in engine and key in MERGETREE_EXCLUSIVE_SETTINGS:
                 logger.warning(f"Setting {key} not available for engine {engine}, ignoring.")
             else:
                 filtered_settings[key] = value
@@ -521,18 +518,15 @@ class ClickHouseAdapter(SQLAdapter):
     @available
     def get_model_query_settings(self, model):
         settings = model['config'].get('query_settings', {})
-        res = []
-        for key in settings:
-            res.append(f' {key}={settings[key]}')
-
-        if len(res) == 0:
-            return ''
-        else:
-            settings_str = 'SETTINGS ' + ', '.join(res) + '\n'
-            return f"""
+        settings_str = self._build_settings_str(settings)
+        return (
+            ''
+            if settings_str == ''
+            else f"""
             -- settings_section
             {settings_str}
             """
+        )
 
     @available.parse_none
     def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
@@ -604,7 +598,7 @@ def _expect_row_value(key: str, row: "agate.Row"):
 
 
 def _catalog_filter_schemas(
-    used_schemas: FrozenSet[Tuple[str, str]]
+    used_schemas: FrozenSet[Tuple[str, str]],
 ) -> Callable[["agate.Row"], bool]:
     """Return a function that takes a row and decides if the row should be
     included in the catalog output.

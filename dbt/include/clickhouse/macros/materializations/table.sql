@@ -194,7 +194,7 @@
     {{ sql_header if sql_header is not none }}
 
     {% if temporary -%}
-        create temporary table {{ relation }}
+        create temporary table {{ relation.identifier }}
         engine Memory
         {{ adapter.get_model_settings(model, 'Memory') }}
         as (
