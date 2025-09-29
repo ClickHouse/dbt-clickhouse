@@ -3,11 +3,11 @@
 
 check-black:
 	@echo "--> Running black checks"
-	@black --check --diff --exclude=venv .
+	@black --check --diff .
 
 check-isort:
 	@echo "--> Running isort checks"
-	@isort --check-only .
+	@isort --check-only --diff .
 
 check-mypy:
 	@echo "--> Running mypy checks"

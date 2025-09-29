@@ -6,9 +6,8 @@ of materialized views from PostgreSQL or Oracle
 import json
 
 import pytest
-from dbt.tests.util import check_relation_types, run_dbt
-
 from dbt.adapters.clickhouse.query import quote_identifier
+from dbt.tests.util import check_relation_types, run_dbt
 
 PEOPLE_SEED_CSV = """
 id,name,age,department

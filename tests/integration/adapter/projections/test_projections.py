@@ -1,9 +1,10 @@
 import os
-import time
 import uuid
 
 import pytest
 from dbt.tests.util import relation_from_name, run_dbt
+
+from tests.integration.adapter.helpers import DEFAULT_RETRY_CONFIG, retry_until_assertion_passes
 
 PEOPLE_SEED_CSV = """
 id,name,age,department
@@ -66,6 +67,12 @@ sources:
       - name: people
 """
 
+RETRY_CONFIG = (
+    {'max_retries': 30, 'delay': 1}
+    if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes')
+    else DEFAULT_RETRY_CONFIG
+)
+
 
 class TestProjections:
     @pytest.fixture(scope="class")
@@ -85,6 +92,18 @@ class TestProjections:
             % "table",
         }
 
+    def _get_table_reference(self, table: str) -> str:
+        return (
+            table
+            if os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
+            else f"clusterAllReplicas({os.environ.get('DBT_CH_TEST_CLUSTER')}, {table})"
+        )
+
+    def _flush_system_logs(self, project) -> None:
+        cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '').strip()
+        cluster_clause = f'ON CLUSTER "{cluster}"' if cluster else ''
+        project.run_sql(f"SYSTEM FLUSH LOGS {cluster_clause}", fetch="all")
+
     def test_create_and_verify_projection(self, project):
         run_dbt(["seed"])
         run_dbt(["run", "--select", "people_with_projection"])
@@ -100,20 +119,23 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
-
         # check that the latest query used the projection
-        result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
-            f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
-            fetch="all",
-        )
-        assert len(result) > 0
-        assert query in result[0][0]
+        def check_that_the_latest_query_used_the_projection():
+            self._flush_system_logs(project)
+            result = project.run_sql(
+                f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
+                f"WHERE query like '%{unique_query_identifier}%' "
+                f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+                fetch="all",
+            )
+            assert len(result) > 0
+            assert query in result[0][0]
 
-        assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
+            assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
+
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
+        )
 
     def test_create_and_verify_multiple_projections(self, project):
         run_dbt(["seed"])
@@ -132,20 +154,23 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
-
         # check that the latest query used the projection
-        result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
-            f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
-            fetch="all",
-        )
-        assert len(result) > 0
-        assert query in result[0][0]
+        def check_that_the_latest_query_used_the_projection():
+            self._flush_system_logs(project)
+            result = project.run_sql(
+                f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
+                f"WHERE query like '%{unique_query_identifier}%' "
+                f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+                fetch="all",
+            )
+            assert len(result) > 0
+            assert query in result[0][0]
 
-        assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
+            assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_avg_age']
+
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
+        )
 
         # test the second projection
         unique_query_identifier = str(uuid.uuid4())
@@ -158,20 +183,22 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 131), ('malware', 40), ('sales', 25)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
+        def check_that_the_latest_query_used_the_projection():
+            self._flush_system_logs(project)
+            result = project.run_sql(
+                f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
+                f"WHERE query like '%{unique_query_identifier}%' "
+                f"and query not like '%clusterAllReplicas%' and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+                fetch="all",
+            )
+            assert len(result) > 0
+            assert query in result[0][0]
 
-        # check that the latest query used the projection
-        result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
-            f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
-            fetch="all",
+            assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_sum_age']
+
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
         )
-        assert len(result) > 0
-        assert query in result[0][0]
-
-        assert result[0][1] == [f'{project.test_schema}.{relation.name}.projection_sum_age']
 
     @pytest.mark.xfail
     @pytest.mark.skipif(
@@ -191,17 +218,21 @@ class TestProjections:
         assert len(result) == 3  # We expect 3 departments in the result
         assert result == [('engineering', 43.666666666666664), ('malware', 40.0), ('sales', 25.0)]
 
-        # waiting for system.log table to be created
-        time.sleep(10)
+        def check_that_the_latest_query_used_the_projection():
+            self._flush_system_logs(project)
+            result = project.run_sql(
+                f"SELECT query, projections FROM {self._get_table_reference('system.query_log')} "
+                f"WHERE query like '%{unique_query_identifier}%' "
+                f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
+                fetch="all",
+            )
+            assert len(result) > 0
+            assert query in result[0][0]
 
-        # check that the latest query used the projection
-        result = project.run_sql(
-            f"SELECT query, projections FROM clusterAllReplicas(default, 'system.query_log') "
-            f"WHERE query like '%{unique_query_identifier}%' "
-            f"and query not like '%system.query_log%' and read_rows > 0 ORDER BY query_start_time DESC",
-            fetch="all",
+            assert result[0][1] == [
+                f'{project.test_schema}.{relation.name}_local.projection_avg_age'
+            ]
+
+        retry_until_assertion_passes(
+            check_that_the_latest_query_used_the_projection, **RETRY_CONFIG
         )
-        assert len(result) > 0
-        assert query in result[0][0]
-
-        assert result[0][1] == [f'{project.test_schema}.{relation.name}_local.projection_avg_age']

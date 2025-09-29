@@ -3,11 +3,8 @@ name: "lint"
 
 on:  # yamllint disable-line rule:truthy
   pull_request:
-  push:
-    branches-ignore:
-      - '*_test'
-      - '*_dev'
-      - '*_cloud'
+    branches: main
+  workflow_dispatch:
 
 jobs:
   lint:
@@ -18,16 +15,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Python 3.11
+      - name: Setup Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: 3.11
+          python-version: 3.12
 
       - name: Upgrade Setuptools
         run: pip install --upgrade setuptools wheel
 
       - name: Install requirements
-        run: pip install -r dev_requirements.txt
+        run: |
+          pip install -r dev_requirements.txt
+          pip install .
 
       - name: Run lint
         run: make lint
