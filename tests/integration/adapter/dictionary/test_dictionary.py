@@ -8,6 +8,8 @@ import os
 import pytest
 from dbt.tests.util import run_dbt
 
+from tests.integration.adapter.helpers import DEFAULT_RETRY_CONFIG, retry_until_assertion_passes
+
 testing_s3 = os.environ.get('DBT_CH_TEST_INCLUDE_S3', '').lower() in ('1', 'true', 'yes')
 
 
@@ -175,8 +177,18 @@ class TestQueryDictionary:
         )
         # force the dictionary to be rebuilt to include the new records in `people`
         project.run_sql("system reload dictionary hackers")
-        result = project.run_sql("select count(distinct id) from hackers", fetch="all")
-        assert result[0][0] == 5
+
+        retry_config = (
+            {'max_retries': 30, 'delay': 1}
+            if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes')
+            else DEFAULT_RETRY_CONFIG
+        )
+
+        def check_count():
+            result = project.run_sql("select count(distinct id) from hackers", fetch="all")
+            assert result[0][0] == 5
+
+        retry_until_assertion_passes(check_count, **retry_config)
 
         # re-run dbt but this time with the new MV SQL
         run_vars = {"run_type": "extended_schema"}

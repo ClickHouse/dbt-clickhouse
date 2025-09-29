@@ -3,9 +3,6 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import Dict
 
-from dbt.adapters.exceptions import FailedToConnectError
-from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
-
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.errors import (
     lw_deletes_not_enabled_error,
@@ -16,6 +13,8 @@ from dbt.adapters.clickhouse.errors import (
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.util import compare_versions
+from dbt.adapters.exceptions import FailedToConnectError
+from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
 LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
@@ -50,7 +49,6 @@ def get_db_client(credentials: ClickHouseCredentials):
     if driver == 'native':
         try:
             import clickhouse_driver  # noqa
-
             from dbt.adapters.clickhouse.nativeclient import ChNativeClient
 
             return ChNativeClient(credentials)
@@ -60,7 +58,6 @@ def get_db_client(credentials: ClickHouseCredentials):
             ) from ex
     try:
         import clickhouse_connect  # noqa
-
         from dbt.adapters.clickhouse.httpclient import ChHttpClient
 
         return ChHttpClient(credentials)

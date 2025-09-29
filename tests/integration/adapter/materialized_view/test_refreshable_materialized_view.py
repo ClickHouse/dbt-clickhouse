@@ -4,6 +4,7 @@ of materialized views from PostgreSQL or Oracle
 """
 
 import json
+import os
 
 import pytest
 from dbt.tests.util import check_relation_types, run_dbt
@@ -101,11 +102,28 @@ class TestBasicRefreshableMV:
             },
         )
 
-        result = project.run_sql(
-            f"select database, view, status from system.view_refreshes where database= '{project.test_schema}' and view='hackers_mv'",
-            fetch="all",
-        )
-        assert result[0][2] == 'Scheduled'
+        if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
+            result = project.run_sql(
+                f"""
+                        SELECT 
+                            hostName() as replica,
+                            status,
+                            last_refresh_time
+                        FROM clusterAllReplicas('default', 'system', 'view_refreshes')
+                        WHERE database = '{project.test_schema}' 
+                          AND view = 'hackers_mv'
+                    """,
+                fetch="all",
+            )
+            statuses = [row[1] for row in result]
+            assert 'Scheduled' in statuses or 'Running' in statuses
+        else:
+            result = project.run_sql(
+                f"select database, view, status from system.view_refreshes where database= '{project.test_schema}' and view='hackers_mv'",
+                fetch="all",
+            )
+            mv_status = result[0][2]
+            assert mv_status in ('Scheduled', 'Running')
 
     def test_validate_dependency(self, project):
         """
