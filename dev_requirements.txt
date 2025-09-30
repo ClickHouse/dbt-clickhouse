@@ -1,5 +1,4 @@
 dbt-core>=1.9.0,<1.10
-dbt-adapters>=1.10,<2.0
 dbt-tests-adapter>=1.10,<2.0
 clickhouse-connect>=0.7.6
 clickhouse-driver>=0.2.7
