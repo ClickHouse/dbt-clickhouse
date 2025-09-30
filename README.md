@@ -6,9 +6,6 @@
 
 This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https://clickhouse.tech/).
 
-The plugin uses syntax that requires ClickHouse version 25.3 or newer. We do not test older versions of Clickhouse. We
-also do not currently test Replicated tables.
-
 ## Documentation
 
 See the [ClickHouse website](https://clickhouse.com/docs/integrations/dbt) for the full documentation entry.
