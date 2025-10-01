@@ -1,7 +1,13 @@
-### Release [x.x.x]
+### Release [1.9.4], 2025-XX-XX
 
-#### New Features
+#### Improvements
+* Add support for preserving column codec configurations during incremental schema changes (append_new_columns and sync_all_columns) ([#486](https://github.com/ClickHouse/dbt-clickhouse/pull/486)).
 * Allow defining columns as LowCardinality and have special types that ignore the string check in the column constraints ([#522])
+
+#### Bugs
+* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
+* Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
+* Lock `dbt-adapters` version to avoid incompatibilities caused by unexpected version upgrades ([#530](https://github.com/ClickHouse/dbt-clickhouse/pull/530)).
 
 ### Release [1.9.3], 2025-09-08
 
@@ -15,6 +21,7 @@
   * Restore testing against different CH versions - all versions are now LTS ones, skip 25.8 until pending issue is fixed, fix tests on older versions ([c86a0889](https://github.com/ClickHouse/dbt-clickhouse/commit/c86a0889ad323ce0b02c7409275360e6f2202723)).
   * Make isort consistent between local and GitHub actions ([#505](https://github.com/ClickHouse/dbt-clickhouse/pull/505)).
 
+
 ### Release [1.9.2], 2025-06-03
 
 #### Bugs
@@ -24,6 +31,7 @@
 * when the last line of a model's SQL query is a comment (-- some comment) and the table's contract is enforced, the last parenthesis of the wrapping subquery ends up commented as well. Was fixed in ([#457](https://github.com/ClickHouse/dbt-clickhouse/pull/457))
 * Check for Shared database engine in can_exchange ([#460](https://github.com/ClickHouse/dbt-clickhouse/pull/460))
 * Tests were broken because of docker compose version `2.35` and fixed in ([#468](https://github.com/ClickHouse/dbt-clickhouse/pull/468))
+
 
 ### Release [1.9.1], 2025-04-28
 
