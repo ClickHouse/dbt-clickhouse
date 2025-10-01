@@ -337,6 +337,8 @@ models:
         data_type: String
       - name: country_code
         data_type: SimpleAggregateFunction(any, String)
+      - name: language_code
+        data_type: SimpleAggregateFunction(max, LowCardinality(String))
 """
 
 special_types_schema_sql = """
@@ -347,5 +349,18 @@ special_types_schema_sql = """
 }}
 select
   'blue' as color,
-  'CH' as country_code
+  'CH' as country_code,
+  'DE' as language_code
+"""
+
+special_types_schema_fail_sql = """
+{{
+  config(
+    materialized = "table"
+  )
+}}
+select
+  'blue' as color,
+  3 as country_code,
+  'DE' as language_code
 """
