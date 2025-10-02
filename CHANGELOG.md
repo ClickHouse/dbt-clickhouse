@@ -1,13 +1,18 @@
-### Release [1.9.4], 2025-XX-XX
+### Release [1.9.4], 2025-10-03
 
 #### Improvements
 * Add support for preserving column codec configurations during incremental schema changes (append_new_columns and sync_all_columns) ([#486](https://github.com/ClickHouse/dbt-clickhouse/pull/486)).
-* Allow defining columns as LowCardinality and have special types that ignore the string check in the column constraints ([#522])
+* Improve validation for model contracts that have columns defined with LowCardinality and SimpleAggregateFunction data types ([#522](https://github.com/ClickHouse/dbt-clickhouse/pull/522)).
 
 #### Bugs
 * Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
 * Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
 * Lock `dbt-adapters` version to avoid incompatibilities caused by unexpected version upgrades ([#530](https://github.com/ClickHouse/dbt-clickhouse/pull/530)).
+
+#### Repository maintenance
+* All documentation is now hosted on [clickhouse.com/docs](https://clickhouse.com/docs/integrations/dbt). The README in this repository has been updated to reflect this change and now includes a quick start guide and links to the full documentation. ([#526](https://github.com/ClickHouse/dbt-clickhouse/pull/526)).
+* List of supported/tested ClickHouse versions has been updated to include only [actively supported versions](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md) ([#517](https://github.com/ClickHouse/dbt-clickhouse/pull/517)).
+
 
 ### Release [1.9.3], 2025-09-08
 
