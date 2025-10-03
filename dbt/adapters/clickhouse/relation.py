@@ -67,8 +67,16 @@ class ClickHouseRelation(BaseRelation):
 
         return filter
 
-    def derivative(self, suffix: str, relation_type: Optional[str] = None) -> BaseRelation:
-        path = Path(schema=self.path.schema, database='', identifier=self.path.identifier + suffix)
+    def derivative(
+        self,
+        suffix: str,
+        relation_type: Optional[str] = None,
+        interpret_suffix_as_full_identifier: bool = False,
+    ) -> BaseRelation:
+        new_identifier = (
+            suffix if interpret_suffix_as_full_identifier else self.path.identifier + suffix
+        )
+        path = Path(schema=self.path.schema, database='', identifier=new_identifier)
         derivative_type = ClickHouseRelationType(relation_type) if relation_type else self.type
         return ClickHouseRelation(
             type=derivative_type, path=path, can_on_cluster=self.can_on_cluster
