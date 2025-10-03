@@ -228,7 +228,9 @@ class TestUpdateMultipleMV:
 
         # run again without extended schema, to make sure table is updated back without the id2 column
         run_dbt()
-        table_description_after_revert_update = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
+        table_description_after_revert_update = project.run_sql(
+            f"DESCRIBE TABLE {schema}.hackers", fetch="all"
+        )
         assert not any(col[0] == "id2" for col in table_description_after_revert_update)
 
     def test_update_full_refresh(self, project):
