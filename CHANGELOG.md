@@ -8,6 +8,7 @@
 * Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
 * Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
 * Lock `dbt-adapters` version to avoid incompatibilities caused by unexpected version upgrades ([#530](https://github.com/ClickHouse/dbt-clickhouse/pull/530)).
+* Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
 
 ### Release [1.9.3], 2025-09-08
 
