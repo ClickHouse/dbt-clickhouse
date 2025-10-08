@@ -2,7 +2,6 @@
 
 #### Improvements
 * Add support for preserving column codec configurations during incremental schema changes (append_new_columns and sync_all_columns) ([#486](https://github.com/ClickHouse/dbt-clickhouse/pull/486)).
-* Allow defining columns as LowCardinality and have special types that ignore the string check in the column constraints ([#522])
 
 #### Bugs
 * Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
