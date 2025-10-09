@@ -6,6 +6,8 @@ on:  # yamllint disable-line rule:truthy
     branches:
       - '*_cloud'
   workflow_dispatch:
+  schedule:
+    - cron: '0 2 * * *' # Nightly run at 2:00 AM UTC
 
 jobs:
   cloud_smt_tests:
