@@ -224,7 +224,7 @@ class ChClientWrapper(ABC):
     def _check_atomic_exchange(self) -> bool:
         try:
             db_engine = self.command('SELECT engine FROM system.databases WHERE name = database()')
-            if db_engine not in ('Atomic', 'Replicated'):
+            if db_engine not in ('Atomic', 'Replicated', 'Shared'):
                 return False
             create_cmd = (
                 'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
