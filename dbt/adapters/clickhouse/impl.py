@@ -31,7 +31,7 @@ from dbt.adapters.clickhouse.errors import (
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
-from dbt.adapters.clickhouse.util import compare_versions
+from dbt.adapters.clickhouse.util import compare_versions, engine_can_atomic_exchange
 from dbt.adapters.contracts.relation import Path, RelationConfig
 from dbt.adapters.events.types import ConstraintNotSupported
 from dbt.adapters.sql import SQLAdapter
@@ -166,7 +166,7 @@ class ClickHouseAdapter(SQLAdapter):
         if rel_type != 'table' or not schema or not self.supports_atomic_exchange():
             return False
         ch_db = self.get_ch_database(schema)
-        return ch_db and ch_db.engine in ('Atomic', 'Replicated', 'Shared')
+        return ch_db and engine_can_atomic_exchange(ch_db.engine)
 
     @available.parse_none
     def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
@@ -341,7 +341,7 @@ class ClickHouseAdapter(SQLAdapter):
             can_exchange = (
                 conn_supports_exchange
                 and rel_type == ClickHouseRelationType.Table
-                and db_engine in ('Atomic', 'Replicated', 'Shared')
+                and engine_can_atomic_exchange(db_engine)
             )
             can_on_cluster = (on_cluster >= 1) and db_engine != 'Replicated'
 
