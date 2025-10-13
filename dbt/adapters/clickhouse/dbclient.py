@@ -12,7 +12,7 @@ from dbt.adapters.clickhouse.errors import (
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.clickhouse.util import compare_versions
+from dbt.adapters.clickhouse.util import compare_versions, engine_can_atomic_exchange
 from dbt.adapters.exceptions import FailedToConnectError
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
@@ -224,7 +224,7 @@ class ChClientWrapper(ABC):
     def _check_atomic_exchange(self) -> bool:
         try:
             db_engine = self.command('SELECT engine FROM system.databases WHERE name = database()')
-            if db_engine not in ('Atomic', 'Replicated', 'Shared'):
+            if not engine_can_atomic_exchange(db_engine):
                 return False
             create_cmd = (
                 'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
