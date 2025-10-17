@@ -7,7 +7,7 @@ on:  # yamllint disable-line rule:truthy
       - '*_cloud'
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *' # Nightly run at 2:00 AM UTC
+    - cron: '0 2 * * *'  # Nightly run at 2:00 AM UTC
 
 jobs:
   cloud_smt_tests:
@@ -31,7 +31,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install requirements
-        run: pip3 install -r dev_requirements.txt
+        run: pip3 install . -r dev_requirements.txt
 
       - name: Run HTTP tests
         env:
