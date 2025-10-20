@@ -1,3 +1,9 @@
+### Release [1.9.5], 2025-XX-XX
+
+#### Improvements
+* Allow db_engine = 'Shared' in supports_atomic_exchange() ([#543](https://github.com/ClickHouse/dbt-clickhouse/pull/543)).
+
+
 ### Release [1.9.4], 2025-10-08
 
 #### Improvements
