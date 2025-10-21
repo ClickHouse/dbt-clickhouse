@@ -33,5 +33,5 @@ jobs:
             --region eu-west-1 \
             --no-cli-pager \
             --queue-url "${{ secrets.INTEGRATIONS_STRESSHOUSE_GHA_SQS_QUEUE_URL }}" \
-            --message-group-id "cloud-tests" \
-            --message-body "{ \"repo\": \"dbt-clickhouse\" }"
+            --message-group-id "test_dispatch" \
+            --message-body "{ \"plugin_name\": \"test_dispatch\" }"
