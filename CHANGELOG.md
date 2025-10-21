@@ -1,3 +1,8 @@
+### Release [1.9.6]
+
+#### Bugs
+* Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
+
 ### Release [1.9.5], 2025-10-20
 
 #### Bugs
@@ -17,7 +22,6 @@
 #### Repository maintenance
 * All documentation is now hosted on [clickhouse.com/docs](https://clickhouse.com/docs/integrations/dbt). The README in this repository has been updated to reflect this change and now includes a quick start guide and links to the full documentation. ([#526](https://github.com/ClickHouse/dbt-clickhouse/pull/526)).
 * List of supported/tested ClickHouse versions has been updated to include only [actively supported versions](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md) ([#517](https://github.com/ClickHouse/dbt-clickhouse/pull/517)).
-
 
 ### Release [1.9.3], 2025-09-08
 
