@@ -1,14 +1,27 @@
-### Release [1.9.4], 2025-XX-XX
+### Release [1.9.6]
+
+#### Bugs
+* Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
+
+### Release [1.9.5], 2025-10-20
+
+#### Bugs
+* Fix regression from `v1.9.4` that causes the error `macro 'dbt_macro__get_expected_sql' takes not more than 2 argument` when executing `dbt test` command ([#548](https://github.com/ClickHouse/dbt-clickhouse/pull/548)).
+
+
+### Release [1.9.4], 2025-10-08
 
 #### Improvements
 * Add support for preserving column codec configurations during incremental schema changes (append_new_columns and sync_all_columns) ([#486](https://github.com/ClickHouse/dbt-clickhouse/pull/486)).
-* Allow defining columns as LowCardinality and have special types that ignore the string check in the column constraints ([#522])
 
 #### Bugs
-* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516)).
+* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516) and [#536](https://github.com/ClickHouse/dbt-clickhouse/pull/536)).
 * Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
-* Lock `dbt-adapters` version to avoid incompatibilities caused by unexpected version upgrades ([#530](https://github.com/ClickHouse/dbt-clickhouse/pull/530)).
-* Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
+* Lock `dbt-adapters` version to avoid incompatibilities caused by unexpected version upgrades ([#530](https://github.com/ClickHouse/dbt-clickhouse/pull/530) and [#537](https://github.com/ClickHouse/dbt-clickhouse/pull/537)).
+
+#### Repository maintenance
+* All documentation is now hosted on [clickhouse.com/docs](https://clickhouse.com/docs/integrations/dbt). The README in this repository has been updated to reflect this change and now includes a quick start guide and links to the full documentation. ([#526](https://github.com/ClickHouse/dbt-clickhouse/pull/526)).
+* List of supported/tested ClickHouse versions has been updated to include only [actively supported versions](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md) ([#517](https://github.com/ClickHouse/dbt-clickhouse/pull/517)).
 
 ### Release [1.9.3], 2025-09-08
 

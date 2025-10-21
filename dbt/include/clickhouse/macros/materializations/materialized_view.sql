@@ -62,7 +62,7 @@
     {{ log('Searching for existing materialized views with the pattern of ' + target_relation.name) }}
     {{ log('Views dictionary contents: ' + views | string) }}
     {% set found_associated_mvs, expected_mv_tables = clickhouse__search_associated_mvs_to_target(existing_relation.schema, target_relation.name, views)  %}
-    {% if found_associated_mvs is none %}
+    {% if not found_associated_mvs %}
         {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
     {% else %}
       {% for table in found_associated_mvs %}
@@ -72,7 +72,7 @@
       {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+      {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
 
       {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
@@ -182,9 +182,16 @@
 
 {%- endmacro %}
 
-{% macro clickhouse__drop_mvs(target_relation, cluster_clause, views)  -%}
-  {% for view in views.keys() %}
-    {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+{% macro clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views_suffixes)  -%}
+  {% for suffix in views_suffixes.keys() %}
+    {%- set mv_relation = target_relation.derivative('_' + suffix, 'materialized_view') -%}
+    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
+  {% endfor %}
+{%- endmacro %}
+
+{% macro clickhouse__drop_mvs_by_names(target_relation, cluster_clause, mvs_names)  -%}
+  {% for mvs_name in mvs_names %}
+    {%- set mv_relation = target_relation.derivative(mvs_name, 'materialized_view', interpret_suffix_as_full_identifier=True) -%}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
   {% endfor %}
 {%- endmacro %}
@@ -204,19 +211,19 @@
       and extract(create_table_query, 'TO\\s+([^\\s(]+)') = '{{ relation_schema }}.{{ relation_name }}'
   {% endset %}
 
-  {% set mv_names = [] %}
+  {% set expected_mvs = [] %}
   {% for suffix in mv_suffixes.keys() %}
-    {% do mv_names.append(relation_name ~ "_" ~ suffix) %}
+    {% do expected_mvs.append(relation_name ~ "_" ~ suffix) %}
   {% endfor %}
-  {{ log('Model mvs to replace ' + mv_names | string) }}
+  {{ log('Model mvs to replace ' + expected_mvs | string) }}
 
-  {% set tables_result = run_query(tables_query) %}
-  {% if tables_result is not none and tables_result.columns %}
-    {% set tables = tables_result.columns[0].values() %}
-    {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
-    {{ return((tables, mv_names,)) }}
+  {% set mvs_found = run_query(tables_query) %}
+  {% if mvs_found is not none and mvs_found.columns %}
+    {% set mv_found_names = mvs_found.columns[0].values() %}
+    {{ log('Current mvs found in ClickHouse are: ' + mv_found_names | join(', ')) }}
+    {{ return((mv_found_names, expected_mvs,)) }}
   {% else %}
-    {{ return((None, mv_names,)) }}
+    {{ return(([], expected_mvs,)) }}
   {% endif %}
 {%- endmacro %}
 
@@ -238,8 +245,13 @@
     {% endfor %}
   {% endif %}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
-  {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
-
+  {% set matching_mvs = [] %}
+  {% for mv in found_associated_mvs %}
+    {% if mv in expected_mv_tables %}
+      {% do matching_mvs.append(mv) %}
+    {% endif %}
+  {% endfor %}
+  {{ clickhouse__drop_mvs_by_names(target_relation, cluster_clause, matching_mvs) }}
 {%- endmacro %}
 
 {% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
@@ -253,7 +265,7 @@
   {# drop existing materialized view while we recreate the target table #}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
-  {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+  {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
 
   {# recreate the target table #}
   {% call statement('main') -%}
