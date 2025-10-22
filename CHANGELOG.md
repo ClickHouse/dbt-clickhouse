@@ -1,3 +1,9 @@
+### Unreleased
+
+#### New Features
+* Add `clickhouse__safe_cast` macro that automatically provides default values for ClickHouse types when casting null values. This eliminates the need to specify all non-nullable columns in unit test fixtures.
+
+
 ### Release [1.9.5], 2025-10-20
 
 #### Bugs
