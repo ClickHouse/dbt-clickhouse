@@ -1,4 +1,5 @@
 import pytest
+from datetime import datetime, date
 from uuid import UUID
 from dbt.tests.util import run_dbt
 
@@ -77,9 +78,9 @@ class TestSafeCast:
         assert result[5] == 0.0  # Decimal default
         
         # Date/Time types
-        assert result[6] is not None  # Date default (1970-01-01)
-        assert result[7] is not None  # DateTime default
-        assert result[8] is not None  # DateTime64 default
+        assert result[6] == date(1970, 1, 1)  # Date default
+        assert result[7] == datetime(1970, 1, 1, 0, 0, 0)  # DateTime default
+        assert result[8] == datetime(1970, 1, 1, 0, 0, 0)  # DateTime64 default
         
         # Other types
         assert result[9] == UUID('00000000-0000-0000-0000-000000000000')  # UUID default
@@ -147,3 +148,4 @@ class TestSafeCast:
         assert column_types['provided_string'] == 'String'
         assert column_types['provided_int'] == 'Int32'
         assert column_types['provided_uuid'] == 'UUID'
+        
