@@ -52,12 +52,16 @@ class TestSafeCast:
         return {
             "safe_cast_test.sql": safe_cast_model_sql,
         }
+    
+    @pytest.fixture(scope="class", autouse=True)
+    def setup(self, project):
+        """Run the model once for all tests in this class"""
+        results = run_dbt(["run", "--select", "safe_cast_test"])
+        assert len(results) == 1
+        yield
 
     def test_safe_cast_defaults(self, project):
         """Test that safe_cast generates correct default values for ClickHouse types"""
-        # Run the model
-        results = run_dbt(["run", "--select", "safe_cast_test"])
-        assert len(results) == 1
         
         # Query the results
         result = project.run_sql(
@@ -84,7 +88,7 @@ class TestSafeCast:
         
         # Other types
         assert result[9] == UUID('00000000-0000-0000-0000-000000000000')  # UUID default
-        assert result[10] == False  # Bool default
+        assert result[10] is False  # Bool default
         
         # Complex types
         assert result[11] == []  # Array default
@@ -101,10 +105,6 @@ class TestSafeCast:
     
     def test_safe_cast_types(self, project):
         """Test that safe_cast preserves the expected data types"""
-        # Run the model
-        results = run_dbt(["run", "--select", "safe_cast_test"])
-        assert len(results) == 1
-        
         # Get column types from ClickHouse
         columns = project.run_sql(
             "SELECT name, type FROM system.columns WHERE table = 'safe_cast_test' AND database = currentDatabase() ORDER BY name",
