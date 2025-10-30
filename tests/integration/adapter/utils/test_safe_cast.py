@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, date
+from datetime import datetime, date, timezone
 from uuid import UUID
 from dbt.tests.util import run_dbt
 
@@ -24,6 +24,7 @@ select
   {{ safe_cast("null", "Date") }} as date_default,
   {{ safe_cast("null", "DateTime") }} as datetime_default,
   {{ safe_cast("null", "DateTime64(3)") }} as datetime64_default,
+  {{ safe_cast("null", "DateTime('Europe/Paris')") }} as datetime_tz_default,
   
   -- Other types
   {{ safe_cast("null", "UUID") }} as uuid_default,
@@ -85,23 +86,25 @@ class TestSafeCast:
         assert result[6] == date(1970, 1, 1)  # Date default
         assert result[7] == datetime(1970, 1, 1, 0, 0, 0)  # DateTime default
         assert result[8] == datetime(1970, 1, 1, 0, 0, 0)  # DateTime64 default
+        # For timezone-aware DateTime, compare in UTC to avoid local TZ shifts
+        assert result[9].astimezone(timezone.utc) == datetime(1970, 1, 1, 0, 0, 0, tzinfo=timezone.utc)  # DateTime with timezone default
         
         # Other types
-        assert result[9] == UUID('00000000-0000-0000-0000-000000000000')  # UUID default
-        assert result[10] is False  # Bool default
+        assert result[10] == UUID('00000000-0000-0000-0000-000000000000')  # UUID default
+        assert result[11] is False  # Bool default
         
         # Complex types
-        assert result[11] == []  # Array default
-        assert result[12] == {}  # Map default
-        assert result[13] == ('', 0)  # Tuple default
+        assert result[12] == []  # Array default
+        assert result[13] == {}  # Map default
+        assert result[14] == ('', 0)  # Tuple default
         
         # Nullable
-        assert result[14] is None  # Nullable default
+        assert result[15] is None  # Nullable default
         
         # Provided values (should be kept as-is)
-        assert result[15] == 'Alice'  # Provided string
-        assert result[16] == 42       # Provided int
-        assert result[17] == UUID('00000000-0000-0000-0000-000000000001')  # Provided UUID
+        assert result[16] == 'Alice'  # Provided string
+        assert result[17] == 42       # Provided int
+        assert result[18] == UUID('00000000-0000-0000-0000-000000000001')  # Provided UUID
     
     def test_safe_cast_types(self, project):
         """Test that safe_cast preserves the expected data types"""
@@ -131,6 +134,7 @@ class TestSafeCast:
         assert column_types['date_default'] == 'Date'
         assert column_types['datetime_default'] == 'DateTime'
         assert column_types['datetime64_default'] == 'DateTime64(3)'
+        assert column_types['datetime_tz_default'] == "DateTime('Europe/Paris')"
         
         # Other types
         assert column_types['uuid_default'] == 'UUID'

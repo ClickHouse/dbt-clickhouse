@@ -5,7 +5,7 @@
 
 {% macro clickhouse__safe_cast(field, dtype) %}
   {%- if field == 'null' -%}
-    CAST(defaultValueOfTypeName('{{ dtype }}') AS {{ dtype }})
+    CAST(defaultValueOfTypeName('{{ dtype | replace("'", "\\'") }}') AS {{ dtype }})
   {%- else -%}
     CAST({{ field }} AS {{ dtype }})
   {%- endif -%}
