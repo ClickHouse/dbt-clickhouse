@@ -1,3 +1,9 @@
+### Release [1.9.6], 2025-11-03
+
+#### Bugs
+* An important fix for cloud users using the `Shard Catalog` feature -  Allow db_engine = 'Shared' in supports_atomic_exchange() ([#543](https://github.com/ClickHouse/dbt-clickhouse/pull/543)).
+
+
 ### Release [1.9.5], 2025-10-20
 
 #### Bugs
