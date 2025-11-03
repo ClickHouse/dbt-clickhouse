@@ -1,7 +1,13 @@
-### Release [1.9.5], 2025-XX-XX
+### Release [1.9.6], 2025-11-03
 
-#### Improvements
-* Allow db_engine = 'Shared' in supports_atomic_exchange() ([#543](https://github.com/ClickHouse/dbt-clickhouse/pull/543)).
+#### Bugs
+* An important fix for cloud users using the `Shard Catalog` feature -  Allow db_engine = 'Shared' in supports_atomic_exchange() ([#543](https://github.com/ClickHouse/dbt-clickhouse/pull/543)).
+
+
+### Release [1.9.5], 2025-10-20
+
+#### Bugs
+* Fix regression from `v1.9.4` that causes the error `macro 'dbt_macro__get_expected_sql' takes not more than 2 argument` when executing `dbt test` command ([#548](https://github.com/ClickHouse/dbt-clickhouse/pull/548)).
 
 
 ### Release [1.9.4], 2025-10-08
