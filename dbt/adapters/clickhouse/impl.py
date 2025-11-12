@@ -130,6 +130,7 @@ class ClickHouseAdapter(SQLAdapter):
             if suffix.startswith('_'):
                 return f'{suffix}'
             return f'_{suffix}'
+        return ''
 
     @available.parse(lambda *a, **k: {})
     def get_clickhouse_local_db_prefix(self):
