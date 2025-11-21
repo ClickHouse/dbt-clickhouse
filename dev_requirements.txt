@@ -1,7 +1,5 @@
-dbt-core>=1.9.0,<1.10
+dbt-core>=1.10.0,<1.11
 dbt-tests-adapter>=1.10,<2.0
-clickhouse-connect>=0.7.6
-clickhouse-driver>=0.2.7
 pytest>=7.2.0
 pytest-dotenv==0.5.2
 pytest-timeout==2.4.0
