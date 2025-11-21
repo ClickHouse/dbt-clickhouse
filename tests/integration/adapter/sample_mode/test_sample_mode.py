@@ -14,7 +14,7 @@ select 3 as id, TIMESTAMP '2025-01-03 01:32:00' as event_time
 """
 
 
-class TestPostgresSampleMode(BaseSampleModeTest):
+class TestSampleMode(BaseSampleModeTest):
     @pytest.fixture(scope="class")
     def input_model_sql(self) -> str:
         """
