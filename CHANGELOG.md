@@ -1,3 +1,10 @@
+### Release [1.9.7], 2025-XX-XX
+
+#### Improvements
+* Change tests to use dbt-core 1.10 to start validating new functionality ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
+* Validate that the new `--sample` flag ([docs](https://docs.getdbt.com/docs/build/sample-flag)) works. Add tests to cover the implementation ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
+
+
 ### Release [1.9.6], 2025-11-03
 
 #### Bugs
