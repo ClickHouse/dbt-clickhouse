@@ -2,9 +2,9 @@
 Test that unit tests work correctly when column values are omitted from input rows.
 The safe_cast macro should provide default values instead of NULL for missing columns.
 """
+
 import pytest
 from dbt.tests.util import run_dbt
-
 
 # First model: a table with non-nullable columns
 my_first_dbt_model_sql = """
