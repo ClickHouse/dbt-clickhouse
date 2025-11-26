@@ -27,18 +27,8 @@ class TestSampleMode(BaseSampleModeTest):
         """
         return input_model_sql
 
-
-class TestMoreSampleModeOptions(BaseSampleModeTest):
-    @pytest.fixture(scope="class")
-    def input_model_sql(self) -> str:
-        """
-        This is the SQL that defines the input model to be sampled, including any {{ config(..) }}.
-        event_time is a required configuration of this input
-        """
-        return input_model_sql
-
     @mock.patch.dict(os.environ, {"DBT_EXPERIMENTAL_SAMPLE_MODE": "True"})
-    def test_sample_mode(self, project) -> None:
+    def test_sample_mode_with_range(self, project) -> None:
         _ = run_dbt(["run"])
         self.assert_row_count(
             project=project,
