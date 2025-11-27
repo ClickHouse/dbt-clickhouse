@@ -288,3 +288,59 @@ select
   UTCtimestamp() as ts,
   'blue' as col_ttl
 """
+
+# distributed model columns in a different order to schema definitions
+distributed_wrong_order_sql = """
+{{
+  config(
+    materialized = "distributed_table"
+  )
+}}
+
+select
+  'blue' as color,
+  1::UInt32 as id,
+  toDate('2019-01-01') as date_day
+"""
+
+# distributed model columns name different to schema definitions
+distributed_wrong_name_sql = """
+{{
+  config(
+    materialized = "distributed_table"
+  )
+}}
+
+select
+  'blue' as color,
+  1 as error,
+  '2019-01-01' as date_day
+"""
+
+distributed_incremental_wrong_order_sql = """
+{{
+  config(
+    materialized = "distributed_incremental",
+    unique_key = "id"
+  )
+}}
+
+select
+  'blue' as color,
+  1::UInt32 as id,
+  toDate('2019-01-01') as date_day
+"""
+
+distributed_incremental_wrong_name_sql = """
+{{
+  config(
+    materialized = "distributed_incremental",
+    unique_key = "id"
+  )
+}}
+
+select
+  'blue' as color,
+  1 as error,
+  '2019-01-01' as date_day
+"""

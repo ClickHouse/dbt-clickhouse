@@ -10,6 +10,10 @@ from tests.integration.adapter.constraints.fixtures_constraints import (
     constraint_model_schema_yml,
     contract_model_schema_yml,
     custom_constraint_model_schema_yml,
+    distributed_incremental_wrong_name_sql,
+    distributed_incremental_wrong_order_sql,
+    distributed_wrong_name_sql,
+    distributed_wrong_order_sql,
     model_data_type_schema_yml,
     my_model_data_type_sql,
     my_model_incremental_wrong_name_sql,
@@ -19,6 +23,32 @@ from tests.integration.adapter.constraints.fixtures_constraints import (
     my_model_wrong_name_sql,
     my_model_wrong_order_sql,
 )
+
+
+# Helper functions used by two different tests
+def contract_wrong_column_order(project):
+    # This no longer causes an error, since we enforce yaml column order
+    run_dbt(["run", "-s", "my_model_wrong_order"], expect_pass=True)
+    manifest = get_manifest(project.project_root)
+    model_id = "model.test.my_model_wrong_order"
+    my_model_config = manifest.nodes[model_id].config
+    contract_actual_config = my_model_config.contract
+
+    assert contract_actual_config.enforced is True
+
+
+def contract_wrong_column_names(project):
+    _, log_output = run_dbt_and_capture(["run", "-s", "my_model_wrong_name"], expect_pass=False)
+    run_dbt(["run", "-s", "my_model_wrong_name"], expect_pass=False)
+    manifest = get_manifest(project.project_root)
+    model_id = "model.test.my_model_wrong_name"
+    my_model_config = manifest.nodes[model_id].config
+    contract_actual_config = my_model_config.contract
+
+    assert contract_actual_config.enforced is True
+
+    expected = ["id", "error", "missing in definition", "missing in contract"]
+    assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
 
 class ClickHouseContractColumnsEqual:
@@ -40,27 +70,10 @@ class ClickHouseContractColumnsEqual:
         ]
 
     def test__contract_wrong_column_order(self, project):
-        # This no longer causes an error, since we enforce yaml column order
-        run_dbt(["run", "-s", "my_model_wrong_order"], expect_pass=True)
-        manifest = get_manifest(project.project_root)
-        model_id = "model.test.my_model_wrong_order"
-        my_model_config = manifest.nodes[model_id].config
-        contract_actual_config = my_model_config.contract
-
-        assert contract_actual_config.enforced is True
+        contract_wrong_column_order(project)
 
     def test__contract_wrong_column_names(self, project):
-        _, log_output = run_dbt_and_capture(["run", "-s", "my_model_wrong_name"], expect_pass=False)
-        run_dbt(["run", "-s", "my_model_wrong_name"], expect_pass=False)
-        manifest = get_manifest(project.project_root)
-        model_id = "model.test.my_model_wrong_name"
-        my_model_config = manifest.nodes[model_id].config
-        contract_actual_config = my_model_config.contract
-
-        assert contract_actual_config.enforced is True
-
-        expected = ["id", "error", "missing in definition", "missing in contract"]
-        assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
+        contract_wrong_column_names(project)
 
     def test__contract_wrong_column_data_types(self, project, data_types):
         for sql_column_value, schema_data_type, error_data_type in data_types:
@@ -138,12 +151,41 @@ class TestViewContractColumnsEqual(ClickHouseContractColumnsEqual):
         }
 
 
-class TestIncrementalContractColumnsEqual(ClickHouseContractColumnsEqual):
+class TestDistributedTableContractColumnsEqual(ClickHouseContractColumnsEqual):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_wrong_name.sql": distributed_wrong_name_sql,
+            "my_model_wrong_order.sql": distributed_wrong_order_sql,
+            "contract_schema.yml": contract_model_schema_yml,
+        }
+
+
+class TestIncrementalContractColumnsEqual:
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "my_model_wrong_order.sql": my_model_incremental_wrong_order_sql,
             "my_model_wrong_name.sql": my_model_incremental_wrong_name_sql,
+            "contract_schema.yml": contract_model_schema_yml,
+        }
+
+    def test_incremental_contract_wrong_column_order(self, project):
+        contract_wrong_column_order(project)
+
+        # Run again for incremental
+        run_dbt(["run", "-s", "my_model_wrong_order"], expect_pass=True)
+
+    def test_incremental_contract_wrong_column_names(self, project):
+        contract_wrong_column_names(project)
+
+
+class TestDistributedIncrementalContractColumnsEqual(TestIncrementalContractColumnsEqual):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_model_wrong_order.sql": distributed_incremental_wrong_order_sql,
+            "my_model_wrong_name.sql": distributed_incremental_wrong_name_sql,
             "contract_schema.yml": contract_model_schema_yml,
         }
 

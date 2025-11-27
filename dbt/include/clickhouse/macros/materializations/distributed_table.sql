@@ -47,8 +47,10 @@
 
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
+  {% set has_contract = config.get('contract').enforced %}
+
   {% if backup_relation is none %}
-    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation) }}
+    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, none, has_contract) }}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
@@ -59,9 +61,9 @@
     {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
-  {% endif %}  
+  {% endif %}
     {% do run_query(create_distributed_table(target_relation, target_relation_local)) or '' %}
-  {% do run_query(clickhouse__insert_into(target_relation, sql)) or '' %}
+  {% do run_query(clickhouse__insert_into(target_relation, sql, has_contract)) or '' %}
   {{ drop_relation_if_exists(view_relation) }}
   -- cleanup
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
@@ -131,13 +133,13 @@
   {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 {%- endmacro %}
 
-{% macro create_distributed_local_table(distributed_relation, shard_relation, structure_relation, sql_query=none) -%}
+{% macro create_distributed_local_table(distributed_relation, shard_relation, structure_relation, sql_query=none, has_contract=false) -%}
   {{ drop_relation_if_exists(shard_relation) }}
   {{ drop_relation_if_exists(distributed_relation) }}
   {{ create_schema(shard_relation) }}
   {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
   {% if sql_query is not none %}
-    {% do run_query(clickhouse__insert_into(distributed_relation, sql_query)) or '' %}
+    {% do run_query(clickhouse__insert_into(distributed_relation, sql_query, has_contract)) or '' %}
   {% endif %}
 {%- endmacro %}

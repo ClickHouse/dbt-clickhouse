@@ -27,6 +27,7 @@
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
   {%- set grant_config = config.get('grants') -%}
+  {%- set has_contract = config.get('contract').enforced -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
   {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
 
@@ -57,11 +58,11 @@
 
   {% if existing_relation_local is none %}
     -- No existing local table, recreate local and distributed tables
-    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql) }}
+    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql, has_contract) }}
 
   {% elif full_refresh_mode %}
     -- Completely replacing the old table, so create a temporary table and then swap it
-    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql) }}
+    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql, has_contract) }}
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
     {% set need_swap = true %}
 
@@ -70,7 +71,7 @@
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
     {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}
 
   {% else %}
@@ -99,7 +100,7 @@
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
       {% endcall %}
     {% endif %}
   {% endif %}
