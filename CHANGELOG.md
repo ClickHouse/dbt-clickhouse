@@ -1,5 +1,8 @@
 ### Release [1.9.7], 2025-XX-XX
 
+#### New Features
+* Add `clickhouse__safe_cast` macro that automatically provides default values for ClickHouse types when casting null values. This eliminates the need to specify all non-nullable columns in unit test fixtures ([#552](https://github.com/ClickHouse/dbt-clickhouse/pull/552)).
+
 #### Improvements
 * Change tests to use dbt-core 1.10 to start validating new functionality ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
 * Validate that the new `--sample` flag ([docs](https://docs.getdbt.com/docs/build/sample-flag)) works. Add tests to cover the implementation ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
