@@ -19,7 +19,6 @@ class TestAliasesWithEmptyFlag:
                 FROM {{ ref('base_table') }} base_alias
                 WHERE base_alias.active = true
             """,
-
             "incremental_base_table.sql": """
                 {{ config(materialized='table') }}
                 SELECT 1 as event_id, 'login' as event_type, '2023-01-01'::date as event_date
@@ -38,7 +37,6 @@ class TestAliasesWithEmptyFlag:
                     src_alias.event_date
                 FROM {{ ref('incremental_base_table') }} src_alias
             """,
-
             "view_with_alias.sql": """
                 {{ config(materialized='view') }}
                 SELECT 
@@ -46,7 +44,7 @@ class TestAliasesWithEmptyFlag:
                     base_alias.name
                 FROM {{ ref('base_table') }} base_alias
                 WHERE base_alias.name = 'test'
-            """
+            """,
         }
 
     def test_alias_with_empty_flag(self, project):

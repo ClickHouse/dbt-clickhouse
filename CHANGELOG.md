@@ -1,3 +1,9 @@
+### Release [1.9.8], 2025-XX-XX
+
+#### Improvements
+* Remove internal aliases for subqueries so the `--empty` flag works when tables are used with alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
+
+
 ### Release [1.9.7], 2025-12-03
 
 #### New Features
