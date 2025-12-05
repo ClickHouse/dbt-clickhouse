@@ -302,7 +302,7 @@ class TestUpdateMV:
         assert len(results) == 2  # will include also a view for the other test.
 
         # Verify both tables were created correctly
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MergeTree"
+        assert "MergeTree" in query_table_type(project, schema_unquoted, 'hackers_mv')
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         # Step 3: Change model to view materialization and run with full refresh
@@ -336,7 +336,7 @@ class TestUpdateMV:
 
         # Verify both models were created correctly
         assert query_table_type(project, schema_unquoted, 'hackers') == "View"
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MergeTree"
+        assert "MergeTree" in query_table_type(project, schema_unquoted, 'hackers_mv')
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         # Verify data is present in both
@@ -356,7 +356,7 @@ class TestUpdateMV:
         assert result[0][0] == 3
 
         # Verify that hackers_mv and hackers_mv_mv are still present and working
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MergeTree"
+        assert "MergeTree" in query_table_type(project, schema_unquoted, 'hackers_mv')
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         result = project.run_sql(f"select count(*) from {schema_unquoted}.hackers_mv", fetch="all")

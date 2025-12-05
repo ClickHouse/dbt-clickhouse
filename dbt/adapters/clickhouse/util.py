@@ -22,3 +22,7 @@ def hide_stack_trace(ex: Exception) -> str:
 
     err_msg = str(ex).split("Stack trace")[0].strip()
     return err_msg
+
+
+def engine_can_atomic_exchange(engine: str) -> bool:
+    return engine in ['Atomic', 'Replicated', 'Shared']

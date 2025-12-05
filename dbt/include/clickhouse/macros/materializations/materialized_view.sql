@@ -72,11 +72,13 @@
       {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
-
       {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
       {%- endcall %}
+
+      {# Drop MV just before exchange to minimize blind period while avoiding old MV writing to new table #}
+      {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
+
       {% do exchange_tables_atomic(backup_relation, existing_relation) %}
 
       {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
@@ -380,6 +382,3 @@
     ) %}
   {% endif %}
 {% endmacro %}
-
-
-
