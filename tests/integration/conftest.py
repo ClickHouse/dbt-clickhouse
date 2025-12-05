@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import sys
@@ -196,3 +197,48 @@ def wait_until_responsive(check, timeout, pause, clock=timeit.default_timer):
             return
         now = clock()
     raise Exception("Timeout reached while waiting on service!")
+
+
+def wait_for_users_in_cluster(client, cluster_name, users, timeout=30.0, pause=1.0):
+    start_time = timeit.default_timer()
+
+    result = client.query(f"""
+        SELECT count() as replica_count
+        FROM system.clusters
+        WHERE cluster = '{cluster_name}'
+    """)
+    replica_count = result.result_rows[0][0] if result.result_rows else 0
+
+    logging.debug(f"Found {replica_count} replicas in cluster '{cluster_name}'\n")
+
+    # Check if all users exist in all replicas
+    while (timeit.default_timer() - start_time) < timeout:
+        all_users_ready = True
+
+        user_list = ", ".join([f"'{user}'" for user in users])
+
+        user_check_query = f"""
+            SELECT name, count() as user_count
+            FROM clusterAllReplicas('{cluster_name}', system.users)
+            WHERE name IN ({user_list})
+            group by name
+        """
+        result = client.query(user_check_query)
+        for row in result.result_rows:
+            user_name, user_count = row
+            if user_count < replica_count:
+                logging.info(
+                    f"User '{user_name}' found in {user_count}/{replica_count} replicas. Waiting...\n"
+                )
+                all_users_ready = False
+                break
+
+        if all_users_ready:
+            logging.info(f"All {len(users)} users are created in all {replica_count} replicas\n")
+            return True
+
+        time.sleep(pause)
+
+    raise Exception(
+        f"Timeout reached: Not all users were created in all replicas within {timeout} seconds"
+    )
