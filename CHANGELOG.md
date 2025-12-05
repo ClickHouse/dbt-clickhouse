@@ -1,3 +1,9 @@
+### Release [1.9.8], 2025-XX-XX
+
+#### Improvements
+* Delay the deletion of the old materialized view during full refresh execution. This ensures the old materialized view remains operational if an error occurs while the new materialized view is being backfilled ([#568](https://github.com/ClickHouse/dbt-clickhouse/pull/568)).
+
+
 ### Release [1.9.7], 2025-12-03
 
 #### New Features
