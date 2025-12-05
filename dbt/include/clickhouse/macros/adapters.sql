@@ -50,7 +50,11 @@
   {% call statement('get_columns', fetch_result=True) %}
     select name, type from system.columns where table = '{{ relation.identifier }}'
     {% if relation.schema %}
-      and database = '{{ relation.schema }}'
+      {% if not relation.is_temporary %}
+        and database = '{{ relation.schema }}'
+      {% endif %}
+    {% else %}
+      {% do exceptions.warn("Relations should always come with a defined schema. Missing schema for " ~ relation.identifier) %}
     {% endif %}
     order by position
   {% endcall %}
@@ -81,7 +85,7 @@
 {% macro clickhouse__make_temp_relation(base_relation, suffix) %}
   {% set tmp_identifier = base_relation.identifier ~ suffix %}
   {% set tmp_relation = base_relation.incorporate(
-                              path={"identifier": tmp_identifier, "schema": None}) -%}
+                              path={"identifier": tmp_identifier, "schema": base_relation.schema}) -%}
   {% do return(tmp_relation) %}
 {% endmacro %}
 

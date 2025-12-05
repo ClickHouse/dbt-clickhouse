@@ -3,6 +3,7 @@ import random
 import sys
 import time
 import timeit
+import uuid
 from pathlib import Path
 from subprocess import PIPE, Popen
 
@@ -14,8 +15,13 @@ from clickhouse_connect import get_client
 # Ensure that test users exist in environment
 @pytest.fixture(scope="session", autouse=True)
 def ch_test_users():
+
+    def generate_random_string():
+        return str(uuid.uuid4()).replace('-', '')[:10]
+
     test_users = [
-        os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{x}') for x in range(1, 4)
+        os.environ.setdefault(f'DBT_TEST_USER_{x}', f'dbt_test_user_{generate_random_string()}')
+        for x in range(1, 4)
     ]
     yield test_users
 
@@ -78,15 +84,15 @@ def test_config(ch_test_users, ch_test_version):
         password=test_password,
         secure=test_secure,
     )
+    cluster_clause = f'ON CLUSTER "{test_cluster}"' if test_cluster else ''
     for dbt_user in ch_test_users:
-        cmd = 'CREATE USER IF NOT EXISTS %s IDENTIFIED WITH sha256_hash BY %s'
-        if test_cluster != '':
-            cmd = f'CREATE USER IF NOT EXISTS %s ON CLUSTER "{test_cluster}"  IDENTIFIED WITH sha256_hash BY %s'
-
+        cmd = f'CREATE USER IF NOT EXISTS %s {cluster_clause} IDENTIFIED WITH sha256_hash BY %s'
         test_client.command(
             cmd,
             (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
         )
+    # Make sure all system tables are available before starting tests
+    test_client.command(f"SYSTEM FLUSH LOGS {cluster_clause}")
     yield {
         'driver': test_driver,
         'host': test_host,
@@ -114,6 +120,29 @@ def test_config(ch_test_users, ch_test_version):
 # dbt will supply a unique schema per test, so we do not specify 'schema' here
 @pytest.fixture(scope="class")
 def dbt_profile_target(test_config):
+    custom_settings = {
+        'distributed_ddl_task_timeout': 300,
+        'input_format_skip_unknown_fields': 1,
+    }
+
+    # this setting is required for cloud tests until https://github.com/ClickHouse/ClickHouse/issues/63984 would be solved
+    if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
+        custom_settings.update(
+            {
+                'enable_parallel_replicas': 0,
+                # CRITICAL SETTINGS FOR CONSISTENCY
+                'mutations_sync': 3,
+                'replication_alter_partitions_sync': 2,
+                'insert_quorum': 'auto',
+                # DEDUPLICATION SETTINGS
+                'insert_deduplicate': 1,
+                # ADDITIONAL HELPFUL SETTINGS
+                'max_replica_delay_for_distributed_queries': 10,
+                'fallback_to_stale_replicas_for_distributed_queries': 0,
+                'distributed_foreground_insert': 1,
+            }
+        )
+
     return {
         'type': 'clickhouse',
         'threads': 4,
@@ -128,10 +157,7 @@ def dbt_profile_target(test_config):
         'secure': test_config['secure'],
         'check_exchange': False,
         'use_lw_deletes': True,
-        'custom_settings': {
-            'distributed_ddl_task_timeout': 300,
-            'input_format_skip_unknown_fields': 1,
-        },
+        'custom_settings': custom_settings,
     }
 
 

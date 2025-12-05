@@ -194,7 +194,7 @@
     {{ sql_header if sql_header is not none }}
 
     {% if temporary -%}
-        create temporary table {{ relation }}
+        create temporary table {{ relation.identifier }}
         engine Memory
         {{ adapter.get_model_settings(model, 'Memory') }}
         as (
@@ -244,3 +244,9 @@
   {%- endif -%}
   {{ adapter.get_model_query_settings(model) }}
 {%- endmacro %}
+
+{% macro codec_clause(codec_name) %}
+  {%- if codec_name %}
+      CODEC({{ codec_name }})
+  {%- endif %}
+{% endmacro %}

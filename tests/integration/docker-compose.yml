@@ -1,6 +1,4 @@
 ---
-version: '3'
-
 x-ch-common: &ch-common
   volumes:
     - /var/lib/clickhouse

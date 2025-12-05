@@ -1,20 +1,31 @@
+import os
+
 import pytest
 from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
+    reason='Replicated is not supported for cloud',
+)
 class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
     """Contains tests for table, view and swappable view materialization."""
 
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
+
         test_config["db_engine"] = (
             "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
         )
         return test_config
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
+    reason='Replicated is not supported for cloud',
+)
 class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):

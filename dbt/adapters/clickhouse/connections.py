@@ -4,11 +4,10 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
 import dbt.exceptions
-from dbt.adapters.contracts.connection import AdapterResponse, Connection
-from dbt.adapters.sql import SQLConnectionManager
-
 from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
 from dbt.adapters.clickhouse.logger import logger
+from dbt.adapters.contracts.connection import AdapterResponse, Connection
+from dbt.adapters.sql import SQLConnectionManager
 
 if TYPE_CHECKING:
     import agate

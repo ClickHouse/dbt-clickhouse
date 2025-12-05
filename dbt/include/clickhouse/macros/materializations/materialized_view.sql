@@ -61,34 +61,18 @@
     -- In case such mv found, we raise a warning to the user, that they might need to drop the mv manually.
     {{ log('Searching for existing materialized views with the pattern of ' + target_relation.name) }}
     {{ log('Views dictionary contents: ' + views | string) }}
-
-        {% set tables_query %}
-            select table_name
-            from information_schema.tables
-            where table_schema = '{{ existing_relation.schema }}'
-              and table_name like '%{{ target_relation.name }}%'
-              and table_type = 'VIEW'
-        {% endset %}
-
-    {% set tables_result = run_query(tables_query) %}
-    {% if tables_result is not none and tables_result.columns %}
-        {% set tables = tables_result.columns[0].values() %}
-        {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
-        {% set mv_names = [] %}
-        {% for key in views.keys() %}
-            {% do mv_names.append(target_relation.name ~ "_" ~ key) %}
-        {% endfor %}
-        {{ log('Model mvs to replace ' + mv_names | string) }}
-        {% for table in tables %}
-            {% if table not in mv_names %}
-                {{ log('Warning - Table "' + table + '" was detected with the same pattern as model name "' + target_relation.name + '" but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)') }}
-            {% endif %}
-        {% endfor %}
-    {% else %}
+    {% set found_associated_mvs, expected_mv_tables = clickhouse__search_associated_mvs_to_target(existing_relation.schema, target_relation.name, views)  %}
+    {% if not found_associated_mvs %}
         {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
+    {% else %}
+      {% for table in found_associated_mvs %}
+        {% if table not in expected_mv_tables %}
+          {{ log('Warning - Materialized view "' + table + '" was detected pointing to the model "' + target_relation.name + '" but was not found in this run. In case it is a renamed mv that was previously part of this model, drop it manually (!!!)', info=True) }}
+        {% endif %}
+      {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+      {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
 
       {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
@@ -189,9 +173,16 @@
 
 {%- endmacro %}
 
-{% macro clickhouse__drop_mvs(target_relation, cluster_clause, views)  -%}
-  {% for view in views.keys() %}
-    {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
+{% macro clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views_suffixes)  -%}
+  {% for suffix in views_suffixes.keys() %}
+    {%- set mv_relation = target_relation.derivative('_' + suffix, 'materialized_view') -%}
+    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
+  {% endfor %}
+{%- endmacro %}
+
+{% macro clickhouse__drop_mvs_by_names(target_relation, cluster_clause, mvs_names)  -%}
+  {% for mvs_name in mvs_names %}
+    {%- set mv_relation = target_relation.derivative(mvs_name, 'materialized_view', interpret_suffix_as_full_identifier=True) -%}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
   {% endfor %}
 {%- endmacro %}
@@ -201,6 +192,57 @@
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
     {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
   {% endfor %}
+{%- endmacro %}
+
+{% macro clickhouse__search_associated_mvs_to_target(relation_schema, relation_name, mv_suffixes)  -%}
+  {% set tables_query %}
+    select name
+    from system.tables
+    where engine = 'MaterializedView'
+      and extract(create_table_query, 'TO\\s+([^\\s(]+)') = '{{ relation_schema }}.{{ relation_name }}'
+  {% endset %}
+
+  {% set expected_mvs = [] %}
+  {% for suffix in mv_suffixes.keys() %}
+    {% do expected_mvs.append(relation_name ~ "_" ~ suffix) %}
+  {% endfor %}
+  {{ log('Model mvs to replace ' + expected_mvs | string) }}
+
+  {% set mvs_found = run_query(tables_query) %}
+  {% if mvs_found is not none and mvs_found.columns %}
+    {% set mv_found_names = mvs_found.columns[0].values() %}
+    {{ log('Current mvs found in ClickHouse are: ' + mv_found_names | join(', ')) }}
+    {{ return((mv_found_names, expected_mvs,)) }}
+  {% else %}
+    {{ return(([], expected_mvs,)) }}
+  {% endif %}
+{%- endmacro %}
+
+
+{% macro clickhouse__drop_associated_mv_if_it_was_automatically_created(target_relation)  -%}
+  {#-
+    Limitations of this logic:
+     - Only covers situations where 1 mv was created. Don't cover multiple mvs with different names.
+     - Only checks current relation's database.
+    We print logs in case we find other mvs in that database
+  -#}
+  {% set views = {'mv': ''} %}
+  {% set found_associated_mvs, expected_mv_tables = clickhouse__search_associated_mvs_to_target(target_relation.schema, target_relation.name, views) %}
+  {% if found_associated_mvs is not none %}
+    {% for table in found_associated_mvs %}
+      {% if table not in expected_mv_tables %}
+        {{ log('Warning - Materialized View "' + table + '" was detected pointing to the model name "' + target_relation.name + '" that was just updated/removed. It can\'t be automatically removed by DBT. Drop it manually if needed (!!!)', info=True) }}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {%- set cluster_clause = on_cluster_clause(target_relation) -%}
+  {% set matching_mvs = [] %}
+  {% for mv in found_associated_mvs %}
+    {% if mv in expected_mv_tables %}
+      {% do matching_mvs.append(mv) %}
+    {% endif %}
+  {% endfor %}
+  {{ clickhouse__drop_mvs_by_names(target_relation, cluster_clause, matching_mvs) }}
 {%- endmacro %}
 
 {% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
@@ -214,7 +256,7 @@
   {# drop existing materialized view while we recreate the target table #}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
-  {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+  {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
 
   {# recreate the target table #}
   {% call statement('main') -%}

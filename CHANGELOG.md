@@ -1,3 +1,56 @@
+### Release [1.9.7], 2025-12-03
+
+#### New Features
+* Add `clickhouse__safe_cast` macro that automatically provides default values for ClickHouse types when casting null values. This eliminates the need to specify all non-nullable columns in unit test fixtures ([#552](https://github.com/ClickHouse/dbt-clickhouse/pull/552)).
+
+#### Improvements
+* We are now officially supporting dbt-core 1.10!
+  * Validate that the new `--sample` flag ([docs](https://docs.getdbt.com/docs/build/sample-flag)) works. Add tests to cover the implementation ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
+  * We have validated that the code doesn't raise warnings related to deprecations for future dbt versions
+  * Change tests to use dbt-core 1.10 to start validating new functionality ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
+  * dbt Catalogs feature is not supported right now, but workarounds are going to be documented.
+
+
+### Release [1.9.6], 2025-11-03
+
+#### Bugs
+* An important fix for cloud users using the `Shard Catalog` feature -  Allow db_engine = 'Shared' in supports_atomic_exchange() ([#543](https://github.com/ClickHouse/dbt-clickhouse/pull/543)).
+
+
+### Release [1.9.5], 2025-10-20
+
+#### Bugs
+* Fix regression from `v1.9.4` that causes the error `macro 'dbt_macro__get_expected_sql' takes not more than 2 argument` when executing `dbt test` command ([#548](https://github.com/ClickHouse/dbt-clickhouse/pull/548)).
+
+
+### Release [1.9.4], 2025-10-08
+
+#### Improvements
+* Add support for preserving column codec configurations during incremental schema changes (append_new_columns and sync_all_columns) ([#486](https://github.com/ClickHouse/dbt-clickhouse/pull/486)).
+
+#### Bugs
+* Fix Materialized View not dropped when a model's materialization is changed from materialized_view to view ([#516](https://github.com/ClickHouse/dbt-clickhouse/pull/516) and [#536](https://github.com/ClickHouse/dbt-clickhouse/pull/536)).
+* Ensure that temporary tables are not accessed with database clause ([#515](https://github.com/ClickHouse/dbt-clickhouse/pull/515)).
+* Lock `dbt-adapters` version to avoid incompatibilities caused by unexpected version upgrades ([#530](https://github.com/ClickHouse/dbt-clickhouse/pull/530) and [#537](https://github.com/ClickHouse/dbt-clickhouse/pull/537)).
+
+#### Repository maintenance
+* All documentation is now hosted on [clickhouse.com/docs](https://clickhouse.com/docs/integrations/dbt). The README in this repository has been updated to reflect this change and now includes a quick start guide and links to the full documentation. ([#526](https://github.com/ClickHouse/dbt-clickhouse/pull/526)).
+* List of supported/tested ClickHouse versions has been updated to include only [actively supported versions](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md) ([#517](https://github.com/ClickHouse/dbt-clickhouse/pull/517)).
+
+
+### Release [1.9.3], 2025-09-08
+
+#### Bugs
+* Fix `query_settings` not being correctly read when values are strings ([#497](https://github.com/ClickHouse/dbt-clickhouse/pull/497)).
+* Ensure that the default `replicated_deduplication_window` is only applied for `*MergeTree` engines ([#504](https://github.com/ClickHouse/dbt-clickhouse/pull/504)).
+* Avoid full model recalculation if database is `shared` ([#498](https://github.com/ClickHouse/dbt-clickhouse/pull/498)).
+* Override snapshot macro when working with timestamp strategy to allways get a consistent now() value ([#509](https://github.com/ClickHouse/dbt-clickhouse/pull/509)).
+* Use importlib instead of pkg_resources as it's now deprecated ([#471](https://github.com/ClickHouse/dbt-clickhouse/pull/471)).
+* Several fixes made to improve test execution. Most relevant ones:
+  * Restore testing against different CH versions - all versions are now LTS ones, skip 25.8 until pending issue is fixed, fix tests on older versions ([c86a0889](https://github.com/ClickHouse/dbt-clickhouse/commit/c86a0889ad323ce0b02c7409275360e6f2202723)).
+  * Make isort consistent between local and GitHub actions ([#505](https://github.com/ClickHouse/dbt-clickhouse/pull/505)).
+
+
 ### Release [1.9.2], 2025-06-03
 
 #### Bugs
@@ -7,6 +60,7 @@
 * when the last line of a model's SQL query is a comment (-- some comment) and the table's contract is enforced, the last parenthesis of the wrapping subquery ends up commented as well. Was fixed in ([#457](https://github.com/ClickHouse/dbt-clickhouse/pull/457))
 * Check for Shared database engine in can_exchange ([#460](https://github.com/ClickHouse/dbt-clickhouse/pull/460))
 * Tests were broken because of docker compose version `2.35` and fixed in ([#468](https://github.com/ClickHouse/dbt-clickhouse/pull/468))
+
 
 ### Release [1.9.1], 2025-04-28
 
