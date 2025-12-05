@@ -28,6 +28,7 @@ MULTIPLE_MV_MODEL = """
        materialized='materialized_view',
        engine='MergeTree()',
        order_by='(id)',
+       on_schema_change='sync_all_columns',
        schema='custom_schema_for_multiple_mv',
 ) }}
 
@@ -70,7 +71,8 @@ select
         when name like 'Dade' and age != 11 then 'crash override'
         when name like 'Kate' then 'acid burn'
         else 'N/A'
-    end as hacker_alias
+    end as hacker_alias,
+    id as id2 
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 --mv1:end
@@ -82,7 +84,8 @@ select
     id,
     name,
     -- sales people are not cool enough to have a hacker alias
-    'N/A' as hacker_alias
+    'N/A' as hacker_alias,
+    id as id2
 from {{ source('raw', 'people') }}
 where department = 'sales'
 --mv2:end
@@ -219,6 +222,34 @@ class TestUpdateMultipleMV:
         assert result[0][0] == "crash_override"
         assert result[1][0] == "zero cool"
 
+    # Test to verify that updates to multiple MVs also updates the destination table
+    def test_update_incremental_table_update(self, project):
+        schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
+        # create our initial materialized view
+        run_dbt(["seed"])
+        run_dbt()
+
+        # re-run dbt but this time with the new MV SQL
+        run_vars = {"run_type": "extended_schema"}
+        run_dbt(["run", "--vars", json.dumps(run_vars)])
+
+        project.run_sql(
+            f"""
+        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+            values (1232,'Dade',11,'engineering'), (9999,'eugene',40,'malware');
+        """
+        )
+
+        # assert that the destination table is updated with the new column
+        table_description_after_update = project.run_sql(f"DESCRIBE {schema}.hackers", fetch="all")
+        assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description_after_update)
+
+        # run again without extended schema, to make sure table is updated back without the id2 column
+        run_dbt()
+        table_description_after_revert_update = project.run_sql(
+            f"DESCRIBE TABLE {schema}.hackers", fetch="all"
+        )
+        assert not any(col[0] == "id2" for col in table_description_after_revert_update)
     def test_update_full_refresh(self, project):
         schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
         # create our initial materialized view
