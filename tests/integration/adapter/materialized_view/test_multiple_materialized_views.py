@@ -250,6 +250,7 @@ class TestUpdateMultipleMV:
             f"DESCRIBE TABLE {schema}.hackers", fetch="all"
         )
         assert not any(col[0] == "id2" for col in table_description_after_revert_update)
+
     def test_update_full_refresh(self, project):
         schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
         # create our initial materialized view
