@@ -54,7 +54,7 @@ setup(
     },
     install_requires=[
         f'dbt-core>={dbt_minor_version}',
-        'dbt-adapters>=1.16,<1.17',  # This version should be dbt-adapters>=1.16,<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
+        'dbt-adapters>=1.16.7,<1.17',  # This version should be dbt-adapters>=1.16.7,<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
         'clickhouse-connect>=0.10.0',
         'clickhouse-driver>=0.2.10',
         'setuptools>=0.69',
