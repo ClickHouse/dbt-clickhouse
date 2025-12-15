@@ -2,9 +2,99 @@
   Create or update a materialized view in ClickHouse.
   This involves creating both the materialized view itself and a
   target table that the materialized view writes to.
+
+  External Target Mode:
+  When you want the MV to write to an existing table (not auto-created), use:
+
+    -- materialization_target_table: {{ ref('my_target_table') }}
+
+  This single comment both:
+  1. Registers the DAG dependency (via ref())
+  2. Specifies the target table for the MV's TO clause
 -#}
 {%- materialization materialized_view, adapter='clickhouse' -%}
 
+  {#- First check config, then try to extract from SQL comment -#}
+  {#- Extract target table from comment. Handles formats like:
+      `schema`.`table`, "schema"."table", schema.table -#}
+  {%- set target_match = modules.re.search('--\\s*materialization_target_table:\\s*(.+?)\\s*$', sql, modules.re.MULTILINE) -%}
+  {%- set materialization_target_table = target_match.group(1).strip() if target_match else none -%}
+
+  {%- if materialization_target_table is not none -%}
+    {%- set result = clickhouse__materialized_view_with_external_target(materialization_target_table, sql) -%}
+    {{ return(result) }}
+  {%- else -%}
+    {%- set result = clickhouse__materialized_view_standard(sql) -%}
+    {{ return(result) }}
+  {%- endif -%}
+
+{%- endmaterialization -%}
+
+
+{#-
+  External target mode: Creates only the MV pointing to an existing table.
+  The target table must exist (typically created by another dbt model).
+
+  Usage (single declaration):
+    -- materialization_target_table: {{ ref('my_target_table') }}
+    {{ config(materialized='materialized_view') }}
+
+  The comment does double duty:
+  1. ref() registers the DAG dependency at parse time
+  2. The rendered table name is extracted at run time for the TO clause
+-#}
+{% macro clickhouse__materialized_view_with_external_target(materialization_target_table, sql) %}
+  {#- The MV relation - this is what we're creating -#}
+  {%- set mv_relation = this.incorporate(type='materialized_view') -%}
+  {%- set cluster_clause = on_cluster_clause(mv_relation) -%}
+  {%- set refreshable_clause = refreshable_mv_clause() -%}
+
+  {#- materialization_target_table is already the fully-qualified name from the rendered ref() -#}
+  {%- set target_table_name = materialization_target_table -%}
+
+  {#- Check for existing MV -#}
+  {%- set existing_relation = load_cached_relation(this) -%}
+
+  {% set grant_config = config.get('grants') %}
+
+  {{ run_hooks(pre_hooks, inside_transaction=False) }}
+  {{ run_hooks(pre_hooks, inside_transaction=True) }}
+
+  {#- Drop existing MV if it exists (for updates/full refresh) -#}
+  {% if existing_relation is not none %}
+    {{ log('Dropping existing streaming MV ' ~ mv_relation.name ~ ' for recreation') }}
+    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
+  {% endif %}
+
+  {#- Create the MV pointing to the external target table -#}
+  {{ log('Creating streaming MV ' ~ mv_relation.name ~ ' writing to external target ' ~ target_table_name) }}
+  {% call statement('main') -%}
+    CREATE MATERIALIZED VIEW {{ mv_relation }} {{ cluster_clause }}
+    {{ refreshable_clause }}
+    TO {{ target_table_name }}
+    AS {{ sql }}
+  {%- endcall %}
+
+  {#- Cleanup and grants -#}
+  {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
+  {% do apply_grants(mv_relation, grant_config, should_revoke=should_revoke) %}
+
+  {% do persist_docs(mv_relation, model) %}
+
+  {{ run_hooks(post_hooks, inside_transaction=True) }}
+  {{ adapter.commit() }}
+  {{ run_hooks(post_hooks, inside_transaction=False) }}
+
+  {#- Return only the MV as the relation this model produces -#}
+  {{ return({'relations': [mv_relation]}) }}
+{% endmacro %}
+
+
+{#-
+  Standard mode: Creates both the target table and the MV(s).
+  This is the original behavior of the materialized_view materialization.
+-#}
+{% macro clickhouse__materialized_view_standard(sql) %}
   {%- set target_relation = this.incorporate(type='table') -%}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
