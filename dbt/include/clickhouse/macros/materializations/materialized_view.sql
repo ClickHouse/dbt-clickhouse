@@ -2,9 +2,139 @@
   Create or update a materialized view in ClickHouse.
   This involves creating both the materialized view itself and a
   target table that the materialized view writes to.
+
+  External Target Mode:
+  When you want the MV to write to an existing table (not auto-created), use:
+
+    {{ materialization_target_table(ref('my_target_table')) }}
+
+  This macro both:
+  1. Registers the DAG dependency (via ref())
+  2. Outputs the special comment that specifies the target table for the MV's TO clause
 -#}
 {%- materialization materialized_view, adapter='clickhouse' -%}
 
+  {#- First check config, then try to extract from SQL comment -#}
+  {#- Extract target table from comment. Handles formats like:
+      `schema`.`table`, "schema"."table", schema.table -#}
+  {%- set target_match = modules.re.search('--\\s*materialization_target_table:\\s*(.+?)\\s*$', sql, modules.re.MULTILINE) -%}
+  {%- set materialization_target_table = target_match.group(1).strip() if target_match else none -%}
+
+  {%- if materialization_target_table is not none -%}
+    {%- set result = clickhouse__materialized_view_with_external_target(materialization_target_table, sql) -%}
+  {%- else -%}
+    {%- set result = clickhouse__materialized_view_standard(sql) -%}
+  {%- endif -%}
+    {{ return(result) }}
+{%- endmaterialization -%}
+
+{% macro strip_identifier_quotes(ident) %}
+  {%- set s = ident.strip() -%}
+  {%- if (s.startswith('`') and s.endswith('`')) or
+         (s.startswith('"') and s.endswith('"')) or
+         (s.startswith("'") and s.endswith("'")) -%}
+    {{- s[1:-1] -}}
+  {%- else -%}
+    {{- s -}}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro get_relation_from_string(relation_string) %}
+
+  {%- set parts = relation_string.split('.') -%}
+
+  {%- if parts | length < 2 -%}
+    {{ exceptions.raise_compiler_error('Invalid relation string "' ~ relation_string ~ '". Expected format: schema.table') }}
+  {%- endif -%}
+
+  {%- set schema = strip_identifier_quotes(parts[0]) -%}
+  {%- set identifier = strip_identifier_quotes(parts[1]) -%}
+
+  {#- Get the relation from the adapter -#}
+  {%- set target_relation = adapter.get_relation(database='', schema=schema, identifier=identifier) -%}
+
+  {{ return(target_relation) }}
+{% endmacro %}
+
+{#-
+  External target mode: Creates only the MV pointing to an existing table.
+  The target table must exist (typically created by another dbt model).
+
+  Usage:
+    {{ materialization_target_table(ref('my_target_table')) }}
+    {{ config(materialized='materialized_view') }}
+
+  The macro does double duty:
+  1. ref() registers the DAG dependency at parse time
+  2. Outputs a comment that is parsed at run time for the TO clause
+-#}
+
+{% macro materialization_target_table(target_relation) %}
+-- materialization_target_table: {{ target_relation }}
+{% endmacro %}
+
+{% macro clickhouse__materialized_view_with_external_target(materialization_target_table, sql) %}
+  {#- The MV relation - this is what we're creating -#}
+  {%- set mv_relation = this.incorporate(type='materialized_view') -%}
+  {%- set cluster_clause = on_cluster_clause(mv_relation) -%}
+  {%- set refreshable_clause = refreshable_mv_clause() -%}
+
+  {#- Parse the target table string to get the actual relation -#}
+  {%- set target_table_relation = get_relation_from_string(materialization_target_table) -%}
+  {% if target_table_relation is none %}
+    {{ exceptions.raise_compiler_error('Target table ' ~ materialization_target_table ~ ' not found in cache. It may not exist yet. Ensure the target table model runs before this MV.') }}
+  {% endif %}
+
+  {#- Check for existing MV -#}
+  {%- set existing_relation = load_cached_relation(this) -%}
+
+  {{ run_hooks(pre_hooks, inside_transaction=False) }}
+  {{ run_hooks(pre_hooks, inside_transaction=True) }}
+
+  {%- set view_created = True -%}
+
+  {% if existing_relation is none %}
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
+  {% elif should_full_refresh() %}
+    {{ log('Dropping existing MV ' ~ mv_relation.name ~ ' for full refresh recreation') }}
+    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
+  {% else %}
+    {{ log('Updating query of existing MV ' ~ mv_relation.name ~ ' for recreation') }}
+    -- Target table cannot be updated
+    -- TODO update also refreshable clause https://clickhouse.com/docs/sql-reference/statements/create/view#changing-refresh-parameters
+    {{ clickhouse__modify_mv(mv_relation, cluster_clause, sql, is_main_statement=True) }};
+    {%- set view_created = False -%}
+  {% endif %}
+
+  {% set catchup_data = config.get("catchup", True) %}
+  {% if catchup_data == True and view_created == True %}
+    {{ log('Executing catchup data insertion into target table ' ~ target_table_relation )}}
+    {% set has_contract = config.get('contract').enforced %}
+    {% do run_query(clickhouse__insert_into(target_table_relation, sql, has_contract, use_columns_from_sql=True)) %}
+  {% endif %}
+
+  {#- Cleanup and grants -#}
+  {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
+  {% set grant_config = config.get('grants') %}
+  {% do apply_grants(mv_relation, grant_config, should_revoke=should_revoke) %}
+
+  {% do persist_docs(mv_relation, model) %}
+
+  {{ run_hooks(post_hooks, inside_transaction=True) }}
+  {{ adapter.commit() }}
+  {{ run_hooks(post_hooks, inside_transaction=False) }}
+
+  {#- Return only the MV as the relation this model produces -#}
+  {{ return({'relations': [mv_relation]}) }}
+{% endmacro %}
+
+
+{#-
+  Standard mode: Creates both the target table and the MV(s).
+  This is the original behavior of the materialized_view materialization.
+-#}
+{% macro clickhouse__materialized_view_standard(sql) %}
   {%- set target_relation = this.incorporate(type='table') -%}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
@@ -125,8 +255,7 @@
   {% endfor %}
 
   {{ return({'relations': relations}) }}
-
-{%- endmaterialization -%}
+{% endmacro %}
 
 
 {#
@@ -167,8 +296,9 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
-  {% call statement('create existing mv: ' + mv_relation.name) -%}
+{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, is_main_statement=False)  -%}
+  {% set statement_name = 'main' if is_main_statement else 'create existing mv: ' + mv_relation.name -%}
+  {% call statement(statement_name) -%}
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
@@ -176,8 +306,9 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__modify_mv(mv_relation, cluster_clause, view_sql)  -%}
-  {% call statement('modify existing mv: ' + mv_relation.name) -%}
+{% macro clickhouse__modify_mv(mv_relation, cluster_clause, view_sql, is_main_statement=False)  -%}
+  {% set statement_name = 'main' if is_main_statement else 'modify existing mv: ' + mv_relation.name -%}
+  {% call statement(statement_name) -%}
     alter table {{ mv_relation }} {{ cluster_clause }} modify query {{ view_sql }}
   {% endcall %}
 {%- endmacro %}

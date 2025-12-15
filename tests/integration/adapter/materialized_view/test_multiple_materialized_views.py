@@ -9,15 +9,10 @@ import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
 
-PEOPLE_SEED_CSV = """
-id,name,age,department
-1231,Dade,33,engineering
-6666,Ksenia,48,engineering
-8888,Kate,50,engineering
-1000,Alfie,10,sales
-2000,Bill,20,sales
-3000,Charlie,30,sales
-""".lstrip()
+from tests.integration.adapter.materialized_view.common import (
+    PEOPLE_SEED_CSV,
+    SEED_SCHEMA_YML,
+)
 
 # This model is parameterized, in a way, by the "run_type" dbt project variable
 # This is to be able to switch between different model definitions within
@@ -91,17 +86,6 @@ where department = 'sales'
 --mv2:end
 
 {% endif %}
-"""
-
-
-SEED_SCHEMA_YML = """
-version: 2
-
-sources:
-  - name: raw
-    schema: "{{ target.schema }}"
-    tables:
-      - name: people
 """
 
 

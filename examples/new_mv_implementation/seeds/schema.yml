@@ -1,0 +1,13 @@
+version: 2
+
+seeds:
+  - name: events
+    description: "Raw events data - source for streaming MVs"
+    config:
+      column_types:
+        event_id: UInt32
+        event_time: DateTime
+        event_type: String
+        user_id: UInt32
+        value: Float64
+
