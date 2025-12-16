@@ -27,7 +27,7 @@ MV_MODEL = """
        materialized='materialized_view' if var('run_type', '') != 'view_conversion' else 'view',
        engine='MergeTree()',
        order_by='(id)',
-       on_schema_change='sync_all_columns',
+       on_schema_change=var('on_schema_change', 'ignore'),
        schema='catchup' if var('run_type', '') == 'catchup' else 'custom_schema',
         **({'catchup': False} if var('run_type', '') == 'catchup' else {})
 ) }}
@@ -247,15 +247,21 @@ class TestUpdateMV:
         )
         assert len(result) == 2
 
+        # As 'on_schema_change' is not defined, the new `id2` column will not be created in the destination table
+        table_description_after_update = project.run_sql(
+            f"DESCRIBE TABLE {schema}.hackers_mv", fetch="all"
+        )
+        assert not any(col[0] == "id2" for col in table_description_after_update)
+
     # Test to verify that updates with incremental materialized views also update its destination table
-    def test_update_incremental_table_update(self, project):
+    def test_update_incremental_on_schema_change_sync_all_columns(self, project):
         schema = quote_identifier(project.test_schema + "_custom_schema")
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
 
         # re-run dbt but this time with the new MV SQL
-        run_vars = {"run_type": "extended_schema"}
+        run_vars = {"run_type": "extended_schema", "on_schema_change": "sync_all_columns"}
         run_dbt(["run", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
@@ -272,11 +278,32 @@ class TestUpdateMV:
         assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description_after_update)
 
         # run again without extended schema, to make sure table is updated back without the id2 column
-        run_dbt()
+        run_dbt(["run", "--vars", json.dumps({"on_schema_change": "sync_all_columns"})])
         table_description_after_revert_update = project.run_sql(
             f"DESCRIBE TABLE {schema}.hackers_mv", fetch="all"
         )
         assert not any(col[0] == "id2" for col in table_description_after_revert_update)
+
+    def test_update_incremental_on_schema_change_fail(self, project):
+        schema = quote_identifier(project.test_schema + "_custom_schema")
+        # create our initial materialized view
+        run_dbt(["seed"])
+        run_dbt()
+
+        # re-run dbt but this time with the new MV SQL
+        run_vars = {"run_type": "extended_schema", "on_schema_change": "fail"}
+        result = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
+
+        assert (
+            'The source and target schemas on this incremental model are out of sync'
+            in result[0].message
+        )
+        assert 'Source columns not in target: []' in result[0].message
+        assert (
+            'Target columns not in source: [<ClickhouseColumn id2 (Int32, is nullable: False)>]'
+            in result[0].message
+        )
+        assert 'New column types: []' in result[0].message
 
     def test_update_full_refresh(self, project):
         schema = quote_identifier(project.test_schema + "_custom_schema")
