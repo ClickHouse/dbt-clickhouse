@@ -230,7 +230,7 @@ class TestUpdateMultipleMV:
         run_dbt()
 
         # re-run dbt but this time with the new MV SQL
-        run_vars = {"run_type": "extended_schema"}
+        run_vars = {"run_type": "extended_schema", "on_schema_change": "sync_all_columns"}
         run_dbt(["run", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
@@ -245,7 +245,7 @@ class TestUpdateMultipleMV:
         assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description_after_update)
 
         # run again without extended schema, to make sure table is updated back without the id2 column
-        run_dbt()
+        run_dbt(["run", "--vars", json.dumps({"on_schema_change": "sync_all_columns"})])
         table_description_after_revert_update = project.run_sql(
             f"DESCRIBE TABLE {schema}.hackers", fetch="all"
         )

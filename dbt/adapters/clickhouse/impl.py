@@ -233,18 +233,14 @@ class ClickHouseAdapter(SQLAdapter):
         target = self.get_column_schema_from_query(target_sql)
         target_map = {column.name: column for column in target}
 
-        source_not_in_target = [
-            str(column) for column in source if column.name not in target_map.keys()
-        ]
-        target_not_in_source = [
-            str(column) for column in target if column.name not in source_map.keys()
-        ]
+        source_not_in_target = [column for column in source if column.name not in target_map.keys()]
+        target_not_in_source = [column for column in target if column.name not in source_map.keys()]
         target_in_source = [column for column in target if column.name in source_map.keys()]
         changed_data_types = []
         for column in target_in_source:
             source_column = source_map.get(column.name)
             if source_column is not None and column.dtype != source_column.dtype:
-                changed_data_types.append(str(column))
+                changed_data_types.append(column)
 
         clickhouse_column_changes = ClickHouseColumnChanges(
             columns_to_add=target_not_in_source,
@@ -254,9 +250,16 @@ class ClickHouseAdapter(SQLAdapter):
         )
 
         if clickhouse_column_changes.has_conflicting_changes:
+
+            def format_column_names(columns) -> List[str]:
+                return [str(col) for col in columns]
+
             raise DbtRuntimeError(
                 schema_change_fail_error.format(
-                    materialization, source_not_in_target, target_not_in_source, changed_data_types
+                    materialization,
+                    format_column_names(source_not_in_target),
+                    format_column_names(target_not_in_source),
+                    format_column_names(changed_data_types),
                 )
             )
 
