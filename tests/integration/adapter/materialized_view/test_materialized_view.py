@@ -292,15 +292,18 @@ class TestUpdateMV:
 
         # re-run dbt but this time with the new MV SQL
         run_vars = {"run_type": "extended_schema", "on_schema_change": "fail"}
-        result = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
 
-        assert (
-            'The source and target schemas on this materialized view model are out of sync'
-            in result[0].message
-        )
-        assert 'Source columns not in target: []' in result[0].message
-        assert "Target columns not in source: ['id2 Int32']" in result[0].message
-        assert 'New column types: []' in result[0].message
+        result = next(r for r in results if r.status == "error")
+
+        expected_messages = [
+            'The source and target schemas on this materialized view model are out of sync',
+            'Source columns not in target: []',
+            "Target columns not in source: ['id2 Int32']",
+            'New column types: []',
+        ]
+        for msg in expected_messages:
+            assert msg in result.message
 
     def test_update_full_refresh(self, project):
         schema = quote_identifier(project.test_schema + "_custom_schema")
