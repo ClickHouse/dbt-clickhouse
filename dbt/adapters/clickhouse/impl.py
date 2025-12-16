@@ -217,7 +217,11 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available.parse_none
     def check_incremental_schema_changes(
-        self, on_schema_change, existing, target_sql
+        self,
+        on_schema_change,
+        existing,
+        target_sql,
+        materialization: str = 'incremental',
     ) -> ClickHouseColumnChanges:
         if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
             raise DbtRuntimeError(
@@ -229,14 +233,18 @@ class ClickHouseAdapter(SQLAdapter):
         target = self.get_column_schema_from_query(target_sql)
         target_map = {column.name: column for column in target}
 
-        source_not_in_target = [column for column in source if column.name not in target_map.keys()]
-        target_not_in_source = [column for column in target if column.name not in source_map.keys()]
+        source_not_in_target = [
+            str(column) for column in source if column.name not in target_map.keys()
+        ]
+        target_not_in_source = [
+            str(column) for column in target if column.name not in source_map.keys()
+        ]
         target_in_source = [column for column in target if column.name in source_map.keys()]
         changed_data_types = []
         for column in target_in_source:
             source_column = source_map.get(column.name)
             if source_column is not None and column.dtype != source_column.dtype:
-                changed_data_types.append(column)
+                changed_data_types.append(str(column))
 
         clickhouse_column_changes = ClickHouseColumnChanges(
             columns_to_add=target_not_in_source,
@@ -248,7 +256,7 @@ class ClickHouseAdapter(SQLAdapter):
         if clickhouse_column_changes.has_conflicting_changes:
             raise DbtRuntimeError(
                 schema_change_fail_error.format(
-                    source_not_in_target, target_not_in_source, changed_data_types
+                    materialization, source_not_in_target, target_not_in_source, changed_data_types
                 )
             )
 

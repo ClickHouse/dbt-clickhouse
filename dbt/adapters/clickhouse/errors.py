@@ -1,14 +1,14 @@
 schema_change_fail_error = """
-The source and target schemas on this incremental model are out of sync.
+The source and target schemas on this {0} model are out of sync.
 They can be reconciled in several ways:
   - set the `on_schema_change` config to `append_new_columns` or `sync_all_columns`.
-  - Re-run the incremental model with `full_refresh: True` to update the target schema.
+  - Re-run the {0} model with `full_refresh: True` to update the target schema.
   - update the schema manually and re-run the process.
 
 Additional troubleshooting context:
-   Source columns not in target: {0}
-   Target columns not in source: {1}
-   New column types: {2}
+   Source columns not in target: {1}
+   Target columns not in source: {2}
+   New column types: {3}
 """
 
 schema_change_datatype_error = """

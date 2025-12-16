@@ -295,14 +295,11 @@ class TestUpdateMV:
         result = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
 
         assert (
-            'The source and target schemas on this incremental model are out of sync'
+            'The source and target schemas on this materialized view model are out of sync'
             in result[0].message
         )
         assert 'Source columns not in target: []' in result[0].message
-        assert (
-            'Target columns not in source: [<ClickhouseColumn id2 (Int32, is nullable: False)>]'
-            in result[0].message
-        )
+        assert "Target columns not in source: ['id2 Int32']" in result[0].message
         assert 'New column types: []' in result[0].message
 
     def test_update_full_refresh(self, project):
