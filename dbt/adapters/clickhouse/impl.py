@@ -218,7 +218,11 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available.parse_none
     def check_incremental_schema_changes(
-        self, on_schema_change, existing, target_sql
+        self,
+        on_schema_change,
+        existing,
+        target_sql,
+        materialization: str = 'incremental',
     ) -> ClickHouseColumnChanges:
         if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
             raise DbtRuntimeError(
@@ -247,9 +251,16 @@ class ClickHouseAdapter(SQLAdapter):
         )
 
         if clickhouse_column_changes.has_conflicting_changes:
+
+            def format_column_names(columns) -> List[str]:
+                return [str(col) for col in columns]
+
             raise DbtRuntimeError(
                 schema_change_fail_error.format(
-                    source_not_in_target, target_not_in_source, changed_data_types
+                    materialization,
+                    format_column_names(source_not_in_target),
+                    format_column_names(target_not_in_source),
+                    format_column_names(changed_data_types),
                 )
             )
 
