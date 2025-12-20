@@ -23,11 +23,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Upgrade Setuptools
-        run: pip install --upgrade setuptools wheel
+      - name: Install build dependencies
+        run: pip install --upgrade pip build twine
 
       - name: Build Distribution
-        run: python setup.py sdist bdist_wheel --universal
+        run: python -m build
 
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
