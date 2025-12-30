@@ -27,12 +27,25 @@
   -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
+  {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='default') -%}
   {% if backup_relation is none %}
     {{ log('Creating new relation ' + target_relation.name )}}
     -- There is not existing relation, so we can just create
     {% call statement('main') -%}
       {{ get_create_table_as_sql(False, target_relation, sql) }}
     {%- endcall %}
+  {% elif not should_full_refresh() and on_schema_change != 'default' %}
+    {% call statement('main') -%}
+      Select 1
+    {%- endcall %}
+    {{ log('on_schema_change strategy for table: ' + on_schema_change) }}
+    {%- if on_schema_change != 'ignore' -%}
+      {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
+      {% if column_changes %}
+        {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
+        {% set existing_relation = load_cached_relation(this) %}
+      {% endif %}
+    {%- endif %}
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}

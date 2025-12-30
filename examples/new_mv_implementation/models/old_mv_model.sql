@@ -6,7 +6,7 @@
   )
 }}
 
---mobile:begin
+--mv_first:begin
 SELECT
     user_id,
     count() AS total_events,
@@ -15,10 +15,11 @@ SELECT
 FROM {{ ref('events') }}
 WHERE event_type LIKE 'mobile.%'
 GROUP BY user_id
---mobile:end
+--mv_first:end
 
+UNION ALL
 
---web:begin
+--mv_second:begin
 SELECT
     user_id,
     count() AS total_events,
@@ -27,5 +28,5 @@ SELECT
 FROM {{ ref('events') }}
 WHERE event_type NOT LIKE 'mobile.%'
 GROUP BY user_id
---web:end
+--mv_second:end
 

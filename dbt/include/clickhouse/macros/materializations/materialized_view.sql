@@ -22,14 +22,35 @@
 
   {%- if materialization_target_table is not none -%}
     {%- set result = clickhouse__materialized_view_with_external_target(materialization_target_table, sql) -%}
-    {{ return(result) }}
   {%- else -%}
     {%- set result = clickhouse__materialized_view_standard(sql) -%}
-    {{ return(result) }}
   {%- endif -%}
-
+    {{ return(result) }}
 {%- endmaterialization -%}
 
+{% macro strip_identifier_quotes(ident) %}
+  {%- set s = ident.strip() -%}
+  {%- if (s.startswith('`') and s.endswith('`')) or
+         (s.startswith('"') and s.endswith('"')) or
+         (s.startswith("'") and s.endswith("'")) -%}
+    {{- s[1:-1] -}}
+  {%- else -%}
+    {{- s -}}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro get_relation_from_string(relation_string) %}
+
+  {%- set parts = relation_string.split('.') -%}
+
+  {%- set schema = strip_identifier_quotes(parts[0]) -%}
+  {%- set identifier = strip_identifier_quotes(parts[1]) -%}
+
+  {#- Get the relation from the adapter -#}
+  {%- set target_relation = adapter.get_relation(database='', schema=schema, identifier=identifier) -%}
+
+  {{ return(target_relation) }}
+{% endmacro %}
 
 {#-
   External target mode: Creates only the MV pointing to an existing table.
@@ -49,34 +70,51 @@
   {%- set cluster_clause = on_cluster_clause(mv_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
 
-  {#- materialization_target_table is already the fully-qualified name from the rendered ref() -#}
-  {%- set target_table_name = materialization_target_table -%}
+  {#- Parse the target table string to get the actual relation -#}
+  {%- set target_table_relation = get_relation_from_string(materialization_target_table) -%}
+
+  {% if target_table_relation is none %}
+    {{ exceptions.raise_compiler_error('Target table ' ~ materialization_target_table ~ ' (schema: ' ~ parsed_target.schema ~ ', identifier: ' ~ parsed_target.identifier ~ ') not found in cache. It may not exist yet.') }}
+  {% endif %}
+
 
   {#- Check for existing MV -#}
   {%- set existing_relation = load_cached_relation(this) -%}
 
-  {% set grant_config = config.get('grants') %}
-
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
-  {#- Drop existing MV if it exists (for updates/full refresh) -#}
-  {% if existing_relation is not none %}
-    {{ log('Dropping existing streaming MV ' ~ mv_relation.name ~ ' for recreation') }}
+  -- TODO: manage main creation better.
+  {% call statement('main') -%}
+        select 1
+  {%- endcall %}
+
+  {%- set view_created = True -%}
+
+  {% if existing_relation is none %}
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql) }};
+  {% elif should_full_refresh() %}
+    {{ log('Dropping existing MV ' ~ mv_relation.name ~ ' for full refresh recreation') }}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql) }};
+  {% else %}
+    {{ log('Updating query of existing MV ' ~ mv_relation.name ~ ' for recreation') }}
+    -- Target table cannot be updated
+    -- TODO update also refreshable clause https://clickhouse.com/docs/sql-reference/statements/create/view#changing-refresh-parameters
+    {{ clickhouse__modify_mv(mv_relation, cluster_clause, sql) }};
+    {%- set view_created = False -%}
   {% endif %}
 
-  {#- Create the MV pointing to the external target table -#}
-  {{ log('Creating streaming MV ' ~ mv_relation.name ~ ' writing to external target ' ~ target_table_name) }}
-  {% call statement('main') -%}
-    CREATE MATERIALIZED VIEW {{ mv_relation }} {{ cluster_clause }}
-    {{ refreshable_clause }}
-    TO {{ target_table_name }}
-    AS {{ sql }}
-  {%- endcall %}
+  {% set catchup_data = config.get("catchup", False) %}
+  {% if catchup_data == True and view_created == True %}
+    {{ log('Executing catchup data insertion into target table ' ~ target_table_relation )}}
+    {% set has_contract = config.get('contract').enforced %}
+   {% do run_query(clickhouse__insert_into(target_table_relation, sql, has_contract)) %}
+  {% endif %}
 
   {#- Cleanup and grants -#}
   {% set should_revoke = should_revoke(existing_relation, full_refresh_mode=True) %}
+  {% set grant_config = config.get('grants') %}
   {% do apply_grants(mv_relation, grant_config, should_revoke=should_revoke) %}
 
   {% do persist_docs(mv_relation, model) %}
@@ -99,7 +137,6 @@
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
 
-
   {# look for an existing relation for the target table and create backup relations if necessary #}
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set backup_relation = none -%}
@@ -114,8 +151,6 @@
       {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation) -%}
     {% endif %}
   {% endif %}
-
-  {% set grant_config = config.get('grants') %}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
 
@@ -216,8 +251,7 @@
   {% endfor %}
 
   {{ return({'relations': relations}) }}
-
-{%- endmaterialization -%}
+{% endmacro %}
 
 
 {#

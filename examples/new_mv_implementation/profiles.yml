@@ -7,7 +7,7 @@ clickhouse:
       port: 9000
       user: default
       password: ""
-      threads: 4
+      threads: 1
       keepalives_idle: 0
       search_path: default
       sslmode: disable

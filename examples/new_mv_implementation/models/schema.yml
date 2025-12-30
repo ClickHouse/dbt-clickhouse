@@ -1,7 +1,7 @@
 version: 2
 
 models:
-  - name: events_aggregated
+  - name: new_mv_target_model
     description: |
       Target table for aggregated event data.
       
@@ -26,7 +26,7 @@ models:
       - name: total_value
         description: "Sum of event values for this date/type combination"
 
-  - name: streaming_events_mv
+  - name: new_mv_mv1
     description: |
       Streaming Materialized View that continuously populates `events_aggregated`.
       

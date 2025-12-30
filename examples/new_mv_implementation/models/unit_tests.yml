@@ -3,7 +3,7 @@ version: 2
 unit_tests:
   - name: test_streaming_events_mv_mobile_filters_only_mobile_events
     description: "Verify that only events with event_type starting with 'mobile.' are included"
-    model: streaming_events_mv_mobile
+    model: new_mv_mv2
     given:
       - input: ref('events')
         rows:
@@ -16,7 +16,7 @@ unit_tests:
           - { event_id: 5, event_time: "2024-01-15 10:45:00", event_type: "click", user_id: 105, value: 3.0 }
           - { event_id: 6, event_time: "2024-01-15 12:00:00", event_type: "purchase", user_id: 106, value: 100.0 }
       # Mock events_aggregated (not used in SELECT, but needed for dependency resolution)
-      - input: ref('events_aggregated')
+      - input: ref('new_mv_target_model')
         rows: []
     expect:
       rows:
@@ -27,7 +27,7 @@ unit_tests:
 
   - name: test_streaming_events_mv_mobile_aggregates_same_type_same_day
     description: "Verify that multiple events of same type on same day are aggregated"
-    model: streaming_events_mv_mobile
+    model: new_mv_mv2
     given:
       - input: ref('events')
         rows:
@@ -38,7 +38,7 @@ unit_tests:
           # Different day
           - { event_id: 4, event_time: "2024-01-16 10:00:00", event_type: "mobile.click", user_id: 104, value: 5.0 }
       # Mock events_aggregated (not used in SELECT, but needed for dependency resolution)
-      - input: ref('events_aggregated')
+      - input: ref('new_mv_target_model')
         rows: []
     expect:
       rows:
@@ -52,7 +52,7 @@ unit_tests:
 
   - name: test_user_activity_mv_separates_mobile_and_web
     description: "Verify mobile and web events are aggregated separately per user"
-    model: user_activity_mv
+    model: old_mv_model
     given:
       - input: ref('events')
         rows:
@@ -72,7 +72,7 @@ unit_tests:
 
   - name: test_user_activity_mv_mobile_only_user
     description: "Verify user with only mobile events appears once"
-    model: user_activity_mv
+    model: old_mv_model
     given:
       - input: ref('events')
         rows:

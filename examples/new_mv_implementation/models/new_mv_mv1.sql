@@ -1,6 +1,6 @@
-{{ config(materialized='materialized_view') }}
+{{ config(materialized='materialized_view', catchup=True) }}
 
--- materialization_target_table: {{ ref('events_aggregated') }}
+-- materialization_target_table: {{ ref("new_mv_target_model", is_target=True) }}
 
 SELECT
     toDate(event_time) AS event_date,

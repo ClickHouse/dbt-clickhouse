@@ -12,3 +12,4 @@ agate~=1.7.1
 requests~=2.27.1
 setuptools>=69.2.0
 types-setuptools>=69.2.0
+ipdb
