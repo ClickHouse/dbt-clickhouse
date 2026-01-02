@@ -50,9 +50,12 @@
     {%- set _ = views.update({"mv": sql}) -%}
   {% endif %}
 
+  {# --- MODIFICATION: Récupération de catchup ici pour utilisation globale --- #}
+  {% set catchup_data = config.get("catchup", True) %}
+
   {% if backup_relation is none %}
     {{ log('Creating new materialized view ' + target_relation.name )}}
-    {% set catchup_data = config.get("catchup", True) %}
+    {# --- MODIFICATION: catchup_data est déjà passé ici, c'est bon --- #}
     {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views, catchup_data) }}
   {% elif existing_relation.can_exchange %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
@@ -62,7 +65,7 @@
     {{ log('Searching for existing materialized views with the pattern of ' + target_relation.name) }}
     {{ log('Views dictionary contents: ' + views | string) }}
     {% set found_associated_mvs, expected_mv_tables = clickhouse__search_associated_mvs_to_target(existing_relation.schema, target_relation.name, views)  %}
-    {% if not found_associated_mvs %}
+    {% if found_associated_mvs is none %}
         {{ log('No existing mvs found matching the pattern. continuing..', info=True) }}
     {% else %}
       {% for table in found_associated_mvs %}
@@ -72,57 +75,30 @@
       {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
+      {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
 
-      {# ------------- MODIFICATION: ADD ------------- #}
-      {# This modification allows to add the clause catchup_data in case we do not want to insert catchup data when the relation already exists.
-        In the current code, it's applied on the case when:
-        - if backup_relation is not none
-        - if existing_relation.can_exchange is true
-      #}
-      {% call statement('main') %}
-        {% set catchup_data = config.get("catchup", True) %}
-        {% if catchup_data == True %}
-          {{ get_create_table_as_sql(False, backup_relation, sql) }}
-        {% else %}
-        {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
-        {% set has_contract = config.get('contract').enforced %}
-          {{ create_table_or_empty(False, backup_relation, sql, has_contract) }}
-        {% endif %}
-      {% endcall %}
-      {# ------------- MODIFICATION: ADD ------------- #}
-
-      {# ------------- MODIFICATION: DELETE ------------- #}
-      {# {% call statement('main') -%}
+      {% call statement('main') -%}
         {{ get_create_table_as_sql(False, backup_relation, sql) }}
-      {%- endcall %} #}
-      {# ------------- MODIFICATION: DELETE ------------- #}
-
+      {%- endcall %}
       {% do exchange_tables_atomic(backup_relation, existing_relation) %}
 
-      {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
+      {# --- MODIFICATION: Ajout de catchup_data --- #}
+      {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views, catchup_data) }}
     {% else %}
       -- we need to have a 'main' statement
       {% call statement('main') -%}
         select 1
       {%- endcall %}
 
-       {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
-       {{ log('on_schema_change strategy for destination table of  MV: ' + on_schema_change, info=True) }}
-       {%- if on_schema_change != 'ignore' -%}
-        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, materialization='materialized view') -%}
-        {% if column_changes %}
-          {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
-          {% set existing_relation = load_cached_relation(this) %}
-        {% endif %}
-      {%- endif %}
       -- try to alter view first to replace sql, else drop and create
-      {{ clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views) }}
+      {# --- MODIFICATION: Ajout de catchup_data --- #}
+      {{ clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views, catchup_data) }}
 
     {% endif %}
   {% else %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
-    {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) }}
+    {# --- MODIFICATION: Ajout de catchup_data --- #}
+    {{ clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views, catchup_data) }}
   {% endif %}
 
   -- cleanup
@@ -160,7 +136,7 @@
   {% if catchup == True %}
     {{ get_create_table_as_sql(False, relation, sql) }}
   {% else %}
-   {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
+  {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
    {% set has_contract = config.get('contract').enforced %}
     {{ create_table_or_empty(False, relation, sql, has_contract) }}
   {% endif %}
@@ -168,7 +144,8 @@
   {%- set cluster_clause = on_cluster_clause(relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
-  {{ clickhouse__create_mvs(relation, cluster_clause, refreshable_clause, views) }}
+  {# --- MODIFICATION: Passage de catchup --- #}
+  {{ clickhouse__create_mvs(relation, cluster_clause, refreshable_clause, views, catchup) }}
 {%- endmacro %}
 
 {% macro clickhouse__drop_mv(mv_relation, cluster_clause)  -%}
@@ -177,22 +154,17 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
+{# --- MODIFICATION: Ajout du paramètre catchup et logique EMPTY --- #}
+{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, catchup=True)  -%}
   {% call statement('create existing mv: ' + mv_relation.name) -%}
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
-
-    {# ------------- MODIFICATION: ADD ------------- #}
-    {# Allows refreshable materialized views to not instantly refresh, but instead wait for the next refresh cycle #}
-    {% if refreshable_clause %}
-      empty
-    {% endif %}
-    {# ------------- MODIFICATION: ADD ------------- #}
-
-
-
     as {{ view_sql }}
+    {# Si refreshable est activé ET catchup est faux, on ajoute EMPTY pour éviter le refresh immédiat #}
+    {% if refreshable_clause | trim | length > 0 and catchup == False %}
+      EMPTY
+    {% endif %}
   {% endcall %}
 {%- endmacro %}
 
@@ -202,35 +174,32 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
+{# --- MODIFICATION: Ajout de catchup --- #}
+{% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, catchup=True)  -%}
   {% set existing_relation = adapter.get_relation(database=mv_relation.database, schema=mv_relation.schema, identifier=mv_relation.identifier) %}
   {% if existing_relation %}
     {{ clickhouse__modify_mv(mv_relation, cluster_clause, view_sql) }};
   {% else %}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
-    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+    {# --- MODIFICATION: Passage de catchup --- #}
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, catchup) }};
   {% endif %}
 
 {%- endmacro %}
 
-{% macro clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views_suffixes)  -%}
-  {% for suffix in views_suffixes.keys() %}
-    {%- set mv_relation = target_relation.derivative('_' + suffix, 'materialized_view') -%}
+{% macro clickhouse__drop_mvs(target_relation, cluster_clause, views)  -%}
+  {% for view in views.keys() %}
+    {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
   {% endfor %}
 {%- endmacro %}
 
-{% macro clickhouse__drop_mvs_by_names(target_relation, cluster_clause, mvs_names)  -%}
-  {% for mvs_name in mvs_names %}
-    {%- set mv_relation = target_relation.derivative(mvs_name, 'materialized_view', interpret_suffix_as_full_identifier=True) -%}
-    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }};
-  {% endfor %}
-{%- endmacro %}
-
-{% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
+{# --- MODIFICATION: Ajout de catchup --- #}
+{% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views, catchup=True)  -%}
   {% for view, view_sql in views.items() %}
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+    {# --- MODIFICATION: Passage de catchup --- #}
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, catchup) }};
   {% endfor %}
 {%- endmacro %}
 
@@ -242,19 +211,19 @@
       and extract(create_table_query, 'TO\\s+([^\\s(]+)') = '{{ relation_schema }}.{{ relation_name }}'
   {% endset %}
 
-  {% set expected_mvs = [] %}
+  {% set mv_names = [] %}
   {% for suffix in mv_suffixes.keys() %}
-    {% do expected_mvs.append(relation_name ~ "_" ~ suffix) %}
+    {% do mv_names.append(relation_name ~ "_" ~ suffix) %}
   {% endfor %}
-  {{ log('Model mvs to replace ' + expected_mvs | string) }}
+  {{ log('Model mvs to replace ' + mv_names | string) }}
 
-  {% set mvs_found = run_query(tables_query) %}
-  {% if mvs_found is not none and mvs_found.columns %}
-    {% set mv_found_names = mvs_found.columns[0].values() %}
-    {{ log('Current mvs found in ClickHouse are: ' + mv_found_names | join(', ')) }}
-    {{ return((mv_found_names, expected_mvs,)) }}
+  {% set tables_result = run_query(tables_query) %}
+  {% if tables_result is not none and tables_result.columns %}
+    {% set tables = tables_result.columns[0].values() %}
+    {{ log('Current mvs found in ClickHouse are: ' + tables | join(', ')) }}
+    {{ return((tables, mv_names,)) }}
   {% else %}
-    {{ return(([], expected_mvs,)) }}
+    {{ return((None, mv_names,)) }}
   {% endif %}
 {%- endmacro %}
 
@@ -276,62 +245,36 @@
     {% endfor %}
   {% endif %}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
-  {% set matching_mvs = [] %}
-  {% for mv in found_associated_mvs %}
-    {% if mv in expected_mv_tables %}
-      {% do matching_mvs.append(mv) %}
-    {% endif %}
-  {% endfor %}
-  {{ clickhouse__drop_mvs_by_names(target_relation, cluster_clause, matching_mvs) }}
+  {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
+
 {%- endmacro %}
 
-{% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
+{# --- MODIFICATION: Ajout de catchup --- #}
+{% macro clickhouse__update_mvs(target_relation, cluster_clause, refreshable_clause, views, catchup=True)  -%}
   {% for view, view_sql in views.items() %}
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-    {{ clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+    {# --- MODIFICATION: Passage de catchup --- #}
+    {{ clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, catchup) }};
   {% endfor %}
 {%- endmacro %}
 
-{% macro clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views) %}
+{# --- MODIFICATION: Ajout de catchup --- #}
+{% macro clickhouse__replace_mv(target_relation, existing_relation, intermediate_relation, backup_relation, sql, views, catchup=True) %}
   {# drop existing materialized view while we recreate the target table #}
   {%- set cluster_clause = on_cluster_clause(target_relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
-  {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
+  {{ clickhouse__drop_mvs(target_relation, cluster_clause, views) }}
 
-
-  {# ------------- MODIFICATION: ADD ------------- #}
-  {# This modification allows to add the clause catchup_data in case we do not want to insert catchup data when the relation already exists.
-  In the current code, it's applied on the case when:
-    - if backup_relation is not none
-    - if existing_relation.can_exchange is not true
-  #}
-  {% call statement('main') %}
-    {% set catchup_data = config.get("catchup", True) %}
-    {% if catchup_data == True %}
-      {{ get_create_table_as_sql(False, backup_relation, sql) }}
-    {% else %}
-    {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
-    {% set has_contract = config.get('contract').enforced %}
-      {{ create_table_or_empty(False, backup_relation, sql, has_contract) }}
-    {% endif %}
-  {% endcall %}
-  {# ------------- MODIFICATION: ADD ------------- #}
-
-
-
-  {# ------------- MODIFICATION: DELETE ------------- #}
   {# recreate the target table #}
-  {# {% call statement('main') -%}
+  {% call statement('main') -%}
     {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
-  {%- endcall %} #}
-  {# ------------- MODIFICATION: DELETE ------------- #}
-
-
+  {%- endcall %}
   {{ adapter.rename_relation(existing_relation, backup_relation) }}
   {{ adapter.rename_relation(intermediate_relation, target_relation) }}
 
   {# now that the target table is recreated, we can finally create our new view #}
-  {{ clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views) }}
+  {# --- MODIFICATION: Passage de catchup --- #}
+  {{ clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views, catchup) }}
 {% endmacro %}
 
 {% macro refreshable_mv_clause() %}
