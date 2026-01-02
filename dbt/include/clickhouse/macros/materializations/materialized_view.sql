@@ -160,11 +160,12 @@
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
-    as {{ view_sql }}
     {# Si refreshable est activé ET catchup est faux, on ajoute EMPTY pour éviter le refresh immédiat #}
     {% if refreshable_clause | trim | length > 0 and catchup == False %}
       EMPTY
     {% endif %}
+    as {{ view_sql }}
+
   {% endcall %}
 {%- endmacro %}
 
