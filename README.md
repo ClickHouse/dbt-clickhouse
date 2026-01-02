@@ -43,6 +43,12 @@ pip install dbt-clickhouse
 - [x] Distributed table materialization (experimental)
 - [x] Distributed incremental materialization (experimental)
 - [x] Contracts
+- [x] ClickHouse-specific column configurations (Codec, TTL...)
+- [x] ClickHouse-specific table settings (indexes, projections...)
+
+All features up to dbt-core 1.10 are supported, including `--sample` flag and all deprecation warnings fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 are not yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](/integrations/dbt/features-and-configurations#catalog-support) for details.
+
+This adapter is still not available for use inside [dbt Cloud](https://docs.getdbt.com/docs/dbt-cloud/cloud-overview), but we expect to make it available soon. Please reach out to support to get more information on this.
 
 ## Contributing
 

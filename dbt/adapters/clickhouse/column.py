@@ -48,6 +48,10 @@ class ClickHouseColumn(Column):
     def __repr__(self) -> str:
         return f'<ClickhouseColumn {self.name} ({self.data_type}, is nullable: {self.is_nullable})>'
 
+    def __str__(self) -> str:
+        data_type = self.data_type if not self.is_nullable else f'Nullable({self.data_type})'
+        return f'{self.name} {data_type}'
+
     @property
     def data_type(self) -> str:
         if self.is_string():

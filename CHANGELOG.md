@@ -1,3 +1,30 @@
+### Release [1.9.8], 2025-XX-XX
+
+#### Improvements
+* Delay the deletion of the old materialized view during full refresh execution. This ensures the old materialized view remains operational if an error occurs while the new materialized view is being backfilled ([#568](https://github.com/ClickHouse/dbt-clickhouse/pull/568)).
+* Remove internal aliases for subqueries so the `--empty` flag works when tables are used with alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
+* Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
+
+
+### Release [1.9.7], 2025-12-03
+
+#### New Features
+* Add `clickhouse__safe_cast` macro that automatically provides default values for ClickHouse types when casting null values. This eliminates the need to specify all non-nullable columns in unit test fixtures ([#552](https://github.com/ClickHouse/dbt-clickhouse/pull/552)).
+
+#### Improvements
+* We are now officially supporting dbt-core 1.10!
+  * Validate that the new `--sample` flag ([docs](https://docs.getdbt.com/docs/build/sample-flag)) works. Add tests to cover the implementation ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
+  * We have validated that the code doesn't raise warnings related to deprecations for future dbt versions
+  * Change tests to use dbt-core 1.10 to start validating new functionality ([#570](https://github.com/ClickHouse/dbt-clickhouse/pull/570)).
+  * dbt Catalogs feature is not supported right now, but workarounds are going to be documented.
+
+
+### Release [1.9.6], 2025-11-03
+
+#### Bugs
+* An important fix for cloud users using the `Shard Catalog` feature -  Allow db_engine = 'Shared' in supports_atomic_exchange() ([#543](https://github.com/ClickHouse/dbt-clickhouse/pull/543)).
+
+
 ### Release [1.9.5], 2025-10-20
 
 #### Bugs
