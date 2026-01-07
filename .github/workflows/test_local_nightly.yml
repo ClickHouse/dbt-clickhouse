@@ -1,7 +1,7 @@
 ---
 name: "test_local_nightly"
 
-on:
+on:  # yamllint disable-line rule:truthy
   schedule:
     - cron: '0 2 * * *'  # Runs at 2 AM UTC daily
   workflow_dispatch:
