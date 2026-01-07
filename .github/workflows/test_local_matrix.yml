@@ -32,6 +32,8 @@ jobs:
             clickhouse-version: '25.12'
           - python-version: '3.12'
             clickhouse-version: 'latest'
+          - python-version: '3.12'
+            clickhouse-version: 'head'
 
     uses: ./.github/workflows/steps_local_testing.yml
     with:
