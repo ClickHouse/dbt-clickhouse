@@ -1,0 +1,39 @@
+---
+name: "test_matrix"
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: main
+  workflow_dispatch:
+
+jobs:
+  tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Testing Python supported versions https://docs.getdbt.com/faqs/Core/install-python-compatibility
+        python-version:
+          - '3.10'
+          - '3.11'
+          - '3.12'
+          - '3.13'
+        # Testing ClickHouse versions with active security support https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md
+        clickhouse-version:
+          # lts will get tested will all supported python versions
+          - '25.3'
+          - '25.8'
+        include:
+          # Rest of supported versions will get tested only with latest python version to reduce the number of jobs needed
+          - python-version: '3.12'
+            clickhouse-version: '25.10'
+          - python-version: '3.12'
+            clickhouse-version: '25.11'
+          - python-version: '3.12'
+            clickhouse-version: '25.12'
+          - python-version: '3.12'
+            clickhouse-version: 'latest'
+
+    uses: ./.github/workflows/steps_local_testing.yml
+    with:
+      python-version: ${{ matrix.python-version }}
+      clickhouse-version: ${{ matrix.clickhouse-version }}

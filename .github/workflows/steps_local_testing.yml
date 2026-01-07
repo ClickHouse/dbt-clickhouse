@@ -1,43 +1,23 @@
 ---
-name: "test_matrix"
+name: "test_job"
 
-on:  # yamllint disable-line rule:truthy
-  pull_request:
-    branches: main
-  workflow_dispatch:
+on:
+  workflow_call:
+    inputs:
+      python-version:
+        required: true
+        type: string
+      clickhouse-version:
+        required: true
+        type: string
 
 jobs:
-  tests:
-    name: Python ${{ matrix.python-version }} | Clickhouse ${{ matrix.clickhouse-version}} | Ubuntu
+  test:
+    name: Python ${{ inputs.python-version }} | Clickhouse ${{ inputs.clickhouse-version }} | Ubuntu
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
       TEST_SETTINGS_FILE: latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        # Testing Python supported versions https://docs.getdbt.com/faqs/Core/install-python-compatibility
-        python-version:
-          - '3.10'
-          - '3.11'
-          - '3.12'
-          - '3.13'
-        # Testing ClickHouse versions with active security support https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md
-        clickhouse-version:
-          # lts will get tested will all supported python versions
-          - '25.3'
-          - '25.8'
-        include:
-          # Rest of supported versions will get tested only with latest python version to reduce the number of jobs needed
-          - python-version: '3.12'
-            clickhouse-version: '25.10'
-          - python-version: '3.12'
-            clickhouse-version: '25.11'
-          - python-version: '3.12'
-            clickhouse-version: '25.12'
-          - python-version: '3.12'
-            clickhouse-version: 'latest'
 
     steps:
       - name: Checkout
@@ -45,10 +25,10 @@ jobs:
 
       - name: Set environment variables
         run: |
-          echo "DBT_CH_TEST_CH_VERSION=${{ matrix.clickhouse-version }}" >> $GITHUB_ENV
+          echo "DBT_CH_TEST_CH_VERSION=${{ inputs.clickhouse-version }}" >> $GITHUB_ENV
 
           # Set DBT_CH_TEST_SETTINGS based on major version
-          MAJOR_VERSION=$(echo "${{ matrix.clickhouse-version }}" | cut -d. -f1)
+          MAJOR_VERSION=$(echo "${{ inputs.clickhouse-version }}" | cut -d. -f1)
           if [ "$MAJOR_VERSION" -eq 23 ]; then
             echo "DBT_CH_TEST_SETTINGS=23" >> $GITHUB_ENV
           elif [ "$MAJOR_VERSION" -eq 24 ]; then
@@ -70,10 +50,10 @@ jobs:
           PROJECT_ROOT: ${{ github.workspace }}/tests/integration
         run: REPLICA_NUM=1 docker compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
-      - name: Setup Python ${{ matrix.python-version }}
+      - name: Setup Python ${{ inputs.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ inputs.python-version }}
 
       - name: Install requirements
         run: pip3 install . -r dev_requirements.txt
