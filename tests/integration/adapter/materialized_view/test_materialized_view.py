@@ -7,6 +7,7 @@ import json
 
 import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
+from dbt.tests.fixtures.project import TestProjInfo
 from dbt.tests.util import check_relation_types, run_dbt
 
 PEOPLE_SEED_CSV = """
@@ -195,14 +196,14 @@ where department = 'engineering'
 """
 
 
-def query_table_type(project, schema, table):
+def query_table_type(project: TestProjInfo, schema: str, table: str) -> str:
     table_type = project.run_sql(
         f"""
         select engine from system.tables where database = '{schema}' and name = '{table}'
     """,
         fetch="all",
     )
-    return table_type[0][0] if len(table_type) > 0 else None
+    return table_type[0][0] if len(table_type) > 0 else ''
 
 
 class TestUpdateMV:
@@ -360,7 +361,7 @@ class TestUpdateMV:
         # Step 4: Assert that target table is now a view and internal MV no longer exists
         assert query_table_type(project, schema_unquoted, 'hackers_mv') == "View"
         # Verify that the internal materialized view (_mv) no longer exists
-        assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') is None
+        assert not query_table_type(project, schema_unquoted, 'hackers_mv_mv')
 
     def test_view_full_refresh_does_not_affect_existing_mv_with_mv_suffix(self, project):
         """
