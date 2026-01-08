@@ -12,6 +12,7 @@
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
   {%- set grant_config = config.get('grants') -%}
+  {%- set has_contract = config.get('contract').enforced -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
   {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
 
@@ -50,7 +51,7 @@
     -- specific configurable that is used to avoid creating an expensive intermediate table.
     -- insert_overwrite strategy does not require unique_key => is an exception.
     {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}
 
   {% else %}
@@ -81,7 +82,7 @@
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
       {% endcall %}
     {% elif incremental_strategy == 'insert_overwrite' %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, False) %}
