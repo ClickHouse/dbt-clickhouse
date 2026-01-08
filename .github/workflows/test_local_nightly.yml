@@ -1,0 +1,14 @@
+---
+name: "test_local_nightly"
+
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: '0 2 * * *'  # Runs at 2 AM UTC daily
+  workflow_dispatch:
+
+jobs:
+  test-head:
+    uses: ./.github/workflows/steps_local_testing.yml
+    with:
+      python-version: '3.12'
+      clickhouse-version: 'head'
