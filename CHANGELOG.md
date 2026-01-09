@@ -6,7 +6,7 @@
 #### Improvements
 * Delay the deletion of the old materialized view during full refresh execution. This ensures the old materialized view remains operational if an error occurs while the new materialized view is being backfilled ([#568](https://github.com/ClickHouse/dbt-clickhouse/pull/568)).
 * Remove internal aliases for subqueries so the `--empty` flag works when tables are used with an alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
-* dbt can now perform ALTER COLUMNS operations on the destination table of materialized views. You can use `on_schema_changes` to control the behavior ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534)).
+* dbt can now perform ALTER COLUMN operations to update the columns of the destination table of materialized views. By default, it will work as usual (in a `dbt run`, if the columns change, the target table will not change), but you can use the `on_schema_changes` setting to control the behavior ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534)).
 * Bump minimum `dbt-adapters` version to 1.16.7 to fix a compatibility issue that breaks tests if an older version is installed ([#578](https://github.com/ClickHouse/dbt-clickhouse/pull/578)).
 * It is now possible to use an empty `local_suffix` configuration ([#569](https://github.com/ClickHouse/dbt-clickhouse/pull/569)).
 * Column order is now respected when using incremental materialization with contracts ([#575](https://github.com/ClickHouse/dbt-clickhouse/pull/575)).
