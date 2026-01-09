@@ -1,3 +1,8 @@
+### Release [1.11.X] 2026-XX-XX
+
+#### Improvements
+* Add support [User Defined Functions](https://docs.getdbt.com/docs/build/udfs).
+
 ### Release [1.9.9], 2026-XX-XX
 
 
@@ -100,7 +105,7 @@ For example:
   -- test_ttl.sql
   {{ config(order_by='(ts)', engine='MergeTree()', materialized='table') }}
 
-  SELECT now() AS ts, 
+  SELECT now() AS ts,
         'Some value that should expire!' AS col_ttl
   ```
 
@@ -136,7 +141,7 @@ For example:
 #### Improvements
 * It is now possible to configure a TLS client certificate using `client_cert` and `client_cert_key` profile parameters. ([#413](https://github.com/ClickHouse/dbt-clickhouse/pull/413))
 * Added Support of insert_overwrite in cluster setup with incremental and distributed_incremental materializations ([#394](https://github.com/ClickHouse/dbt-clickhouse/pull/394))
-* Improve index and projections creation process ([#421](https://github.com/ClickHouse/dbt-clickhouse/pull/421)) 
+* Improve index and projections creation process ([#421](https://github.com/ClickHouse/dbt-clickhouse/pull/421))
 
 #### Bugs
 * Reverted breaking changes in MV materialization ([#416](https://github.com/ClickHouse/dbt-clickhouse/pull/416))
@@ -155,7 +160,7 @@ For example:
 
 #### New Features
 * [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
-The index config should be added to the model config. for instance: 
+The index config should be added to the model config. for instance:
   ```python
   {{ config(
          materialized='%s',
@@ -179,7 +184,7 @@ The index config should be added to the model config. for instance:
 * Removed support in python 3.8 as it is no longer supported by dbt ([#402](https://github.com/ClickHouse/dbt-clickhouse/pull/402)
 
 ### Bug Fixes
-* Fix a minor bug related to validating existence of an old hanging mv ([#396]()) 
+* Fix a minor bug related to validating existence of an old hanging mv ([#396]())
 
 ### Release [1.8.6], 2024-12-05
 
@@ -219,7 +224,7 @@ The index config should be added to the model config. for instance:
 ### Release [1.8.2], 2024-08-22
 #### New Features
 * [ClickHouse projections](https://clickhouse.com/docs/en/sql-reference/statements/alter/projection) are now fully supported for `table` materialization, and partly supported for `distributed_table` materialization.
-The projection config should be added to the model config ([#342](https://github.com/ClickHouse/dbt-clickhouse/pull/342)), for instance: 
+The projection config should be added to the model config ([#342](https://github.com/ClickHouse/dbt-clickhouse/pull/342)), for instance:
   ```python
   {{ config(
          materialized='%s',
@@ -231,7 +236,7 @@ The projection config should be added to the model config ([#342](https://github
          ]
   ) }}
   ```
- 
+
 #### Bug Fixes
 * Until this release, when writing tests, it was not possible to pass empty seed data. ([#341](https://github.com/ClickHouse/dbt-clickhouse/pull/341))
 * When a cluster was used, the adapter left a few `__dbt_backup` tables in the schema. After the fix, these backup tables are now properly dropped. ([#326](https://github.com/ClickHouse/dbt-clickhouse/pull/326))
@@ -247,9 +252,9 @@ The projection config should be added to the model config ([#342](https://github
 * Enhanced the clickhouse__listagg macro to support single field ordering with optional direction, ensuring compatibility with ClickHouse's sorting limitations. Added validation to prevent the use of multiple order-by fields. ([#318](https://github.com/ClickHouse/dbt-clickhouse/pull/318))
 
 #### Documentation
-* Update the docs with the new `insert_overwrite` incremental strategy. ([#331](https://github.com/ClickHouse/dbt-clickhouse/pull/331)) 
+* Update the docs with the new `insert_overwrite` incremental strategy. ([#331](https://github.com/ClickHouse/dbt-clickhouse/pull/331))
 * Add documentation for codec column configuration. ([#317](https://github.com/ClickHouse/dbt-clickhouse/pull/317))
- 
+
 
 ### Release [1.8.1], 2024-07-11
 #### Bug Fix
@@ -306,7 +311,7 @@ for the PR!
 ### Release [1.7.4], 2024-03-23
 #### Improvement
 - Adds support for materializing ClickHouse dictionaries.  Thanks to [Rory Sawyer](https://github.com/SoryRawyer) for the contribution!
-See his excellent [tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py) 
+See his excellent [tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py)
 for example usage.
 
 ### Release [1.7.3], 2024-03-11
@@ -363,7 +368,7 @@ do not support `CREATE TABLE AS SELECT ... EMPTY`, since the automatic deduplica
 inserts in Replicated tables on those older versions.  Fixes https://github.com/ClickHouse/dbt-clickhouse/issues/216.
 
 ### Release [1.6.0], 2023-11-30
-#### Improvements 
+#### Improvements
 - Compatible with dbt 1.6.x.  Note that dbt new `clone` feature is not supported, as ClickHouse has no native "light weight"
 clone functionality, and copying tables without actual data transfer is not possible in ClickHouse (barring file manipulation
 outside ClickHouse itself).
@@ -452,7 +457,7 @@ https://github.com/ClickHouse/dbt-clickhouse/issues/167
 
 #### Improvement
 - Added macros for creating distributed tables.  See the `distributed_table.sql` include file.  Thanks to
-[gladkikhtutu](https://github.com/gladkikhtutu) for the contribution.  
+[gladkikhtutu](https://github.com/gladkikhtutu) for the contribution.
 
 ### Release [1.4.2], 2023-05-14
 #### Bug fixes
@@ -476,7 +481,7 @@ to non-overlapping data ranges.  Closes https://github.com/ClickHouse/dbt-clickh
   - Adds additional dbt 1.4.0 tests
   - Adds support for incremental_predicates.  This only applies to `delete+insert` incremental strategy.  Note that incremental
 predicates that depend on "non-deterministic" data (such as a subquery using a table that is accepting inserts) could lead to
-unexpected results for ReplicatedMergeTree tables depending on the timing of the incremental materialization.  
+unexpected results for ReplicatedMergeTree tables depending on the timing of the incremental materialization.
   - Replaces deprecated Exception classes
 - Setting the `use_lw_deletes` profile value to True will now attempt to enable the `allow_experimental_lightweight_delete`
 setting for the dbt session (if user has such permissions on the ClickHouse server).  See https://github.com/ClickHouse/dbt-clickhouse/issues/133
@@ -489,7 +494,7 @@ setting for the dbt session (if user has such permissions on the ClickHouse serv
 #### Documentation Update
 - The documentation has been updated to reflect that dbt-clickhouse does support ephemeral models, and ephemeral model tests do pass.
 However, due to a [ClickHouse limitation](https://github.com/ClickHouse/ClickHouse/issues/30323), CTEs will not work directly
-with INSERT statements so table models will fail if they include ephemeral models in the SELECT.  View models and other SQL 
+with INSERT statements so table models will fail if they include ephemeral models in the SELECT.  View models and other SQL
 statements using ephemeral models should work correctly.
 
 #### Bug Fix
@@ -513,7 +518,7 @@ slower "legacy" strategy.
 [tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/test_s3.py) for example usage.
 
 #### Bug Fixes
-- The ON CLUSTER clause has been added to additional DDL statements including incremental models processing. 
+- The ON CLUSTER clause has been added to additional DDL statements including incremental models processing.
 Closes https://github.com/ClickHouse/dbt-clickhouse/issues/117 and should close https://github.com/ClickHouse/dbt-clickhouse/issues/95
 for Replicated tables that use the `{uuid}` macro in the path to avoid name conflicts.  Thanks to [Saurabh Bikram](https://github.com/saurabhbikram)
 - The `apply` and `revoke` grants macros now correctly work with roles as well as user.  Again thanks to [Saurabh Bikram](https://github.com/saurabhbikram)
