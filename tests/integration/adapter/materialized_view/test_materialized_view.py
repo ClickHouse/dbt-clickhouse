@@ -484,4 +484,3 @@ class TestUpdateMV:
         # Verify only new data is captured
         result = project.run_sql(f"select count(*) from {schema}.hackers_mv", fetch="all")
         assert result[0][0] == 1  # Only the new row after full refresh
-
