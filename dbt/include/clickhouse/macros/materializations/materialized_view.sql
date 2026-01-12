@@ -72,9 +72,8 @@
       {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {% call statement('main') -%}
-        {{ get_create_table_as_sql(False, backup_relation, sql) }}
-      {%- endcall %}
+      {% set catchup_on_full_refresh = config.get('catchup_on_full_refresh', True) %}
+      {{ clickhouse__create_target_table(backup_relation, sql, catchup_on_full_refresh) }}
 
       {# Drop MV just before exchange to minimize blind period while avoiding old MV writing to new table #}
       {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
@@ -137,19 +136,27 @@
   data into the table creating during step 1
 #}
 {% macro clickhouse__get_create_materialized_view_as_sql(relation, sql, views, catchup=True ) -%}
-  {% call statement('main') %}
-  {% if catchup == True %}
-    {{ get_create_table_as_sql(False, relation, sql) }}
-  {% else %}
-  {{ log('Catchup data config was set to false, skipping mv-target-table initial insertion ')}}
-   {% set has_contract = config.get('contract').enforced %}
-    {{ create_table_or_empty(False, relation, sql, has_contract) }}
-  {% endif %}
-  {% endcall %}
+  {{ clickhouse__create_target_table(relation, sql, catchup) }}
   {%- set cluster_clause = on_cluster_clause(relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
   {{ clickhouse__create_mvs(relation, cluster_clause, refreshable_clause, views) }}
+{%- endmacro %}
+
+{#
+  Helper macro to create target table with or without backfilling.
+  Used by both initial MV creation and full refresh to avoid code duplication.
+#}
+{% macro clickhouse__create_target_table(relation, sql, catchup=True) -%}
+  {% call statement('main') %}
+  {% if catchup %}
+    {{ get_create_table_as_sql(False, relation, sql) }}
+  {% else %}
+    {{ log('Catchup config was set to false, skipping mv-target-table backfill') }}
+    {% set has_contract = config.get('contract').enforced %}
+    {{ create_table_or_empty(False, relation, sql, has_contract) }}
+  {% endif %}
+  {% endcall %}
 {%- endmacro %}
 
 {% macro clickhouse__drop_mv(mv_relation, cluster_clause)  -%}
