@@ -464,7 +464,9 @@ class TestUpdateMV:
 
         # Step 4: Run full refresh with catchup_on_full_refresh=False
         run_vars = {"run_type": "catchup_on_full_refresh"}
-        results = run_dbt(["run", "--select", "hackers_mv", "--full-refresh", "--vars", json.dumps(run_vars)])
+        results = run_dbt(
+            ["run", "--select", "hackers_mv", "--full-refresh", "--vars", json.dumps(run_vars)]
+        )
         assert len(results) == 1
 
         # Step 5: Verify table is empty after full refresh (no backfill)
