@@ -1,9 +1,13 @@
 ### Release [1.9.8], 2025-XX-XX
 
+#### New Features
+* Add `catchup_on_full_refresh` configuration option for materialized views to control backfilling behavior during explicit full refresh operations. When set to `False`, running `dbt run --full-refresh` will recreate the materialized view without backfilling historical data, while still allowing the view to capture new data going forward. This complements the existing `catchup` option which controls initial creation behavior ([#506](https://github.com/ClickHouse/dbt-clickhouse/issues/506)).
+
 #### Improvements
 * Delay the deletion of the old materialized view during full refresh execution. This ensures the old materialized view remains operational if an error occurs while the new materialized view is being backfilled ([#568](https://github.com/ClickHouse/dbt-clickhouse/pull/568)).
 * Remove internal aliases for subqueries so the `--empty` flag works when tables are used with alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
 * Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
+* Refactor materialized view table creation logic to eliminate code duplication between initial creation and full refresh paths.
 
 
 ### Release [1.9.7], 2025-12-03
