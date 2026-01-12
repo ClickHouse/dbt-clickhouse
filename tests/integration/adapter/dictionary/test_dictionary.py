@@ -114,7 +114,15 @@ sources:
     schema: "{{ target.schema }}"
     tables:
       - name: people
+      - name: people_updated
 """
+
+PEOPLE_UPDATED_SEED_CSV = """
+id,name,age,department,updated_at
+1231,Dade,33,engineering,2024-01-01 00:00:00
+6666,Ksenia,48,engineering,2024-01-02 00:00:00
+8888,Kate,50,engineering,2024-01-03 00:00:00
+""".lstrip()
 
 RANGE_DICTIONARY = """
 {{ config(
@@ -141,6 +149,59 @@ from values(
     (0, 0, 2, 'foo'),
     (0, 3, 5, 'bar')
 )
+"""
+
+DIRECT_DICTIONARY = """
+{{ config(
+       materialized='dictionary',
+       fields=[
+           ('id', 'UInt64'),
+           ('name', 'String'),
+       ],
+       primary_key='id',
+       layout='DIRECT()',
+       source_type='clickhouse',
+       table='people'
+) }}
+
+select 1
+"""
+
+UPDATE_FIELD_DICTIONARY = """
+{{ config(
+       materialized='dictionary',
+       fields=[
+           ('id', 'Int32'),
+           ('name', 'String'),
+           ('updated_at', 'DateTime'),
+       ],
+       primary_key='id',
+       layout='HASHED()',
+       lifetime='MIN 0 MAX 60',
+       source_type='clickhouse',
+       update_field='updated_at',
+) }}
+
+select id, name, updated_at from {{ source('raw', 'people_updated') }}
+"""
+
+UPDATE_LAG_DICTIONARY = """
+{{ config(
+       materialized='dictionary',
+       fields=[
+           ('id', 'Int32'),
+           ('name', 'String'),
+           ('updated_at', 'DateTime'),
+       ],
+       primary_key='id',
+       layout='HASHED()',
+       lifetime='MIN 0 MAX 60',
+       source_type='clickhouse',
+       update_field='updated_at',
+       update_lag=120,
+) }}
+
+select id, name, updated_at from {{ source('raw', 'people_updated') }}
 """
 
 
@@ -246,3 +307,68 @@ class TestRangeDictionary:
         assert results[0][0] == "foo"
         results = project.run_sql("select dictGet(range_dictionary, 'value', 0, 5)", fetch="all")
         assert results[0][0] == "bar"
+
+
+class TestDirectDictionary:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"direct_dictionary.sql": DIRECT_DICTIONARY}
+
+    def test_create(self, project):
+        run_dbt(["seed"])
+        run_dbt()
+
+        results = project.run_sql("select distinct name from direct_dictionary", fetch="all")
+        names = set(i[0] for i in results)
+        assert names == set(["Dade", "Kate", "Ksenia"])
+
+
+class TestUpdateFieldDictionary:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people_updated.csv": PEOPLE_UPDATED_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"update_field_dictionary.sql": UPDATE_FIELD_DICTIONARY}
+
+    def test_create(self, project):
+        run_dbt(["seed"])
+        run_dbt()
+
+        results = project.run_sql(
+            "select distinct name from update_field_dictionary", fetch="all"
+        )
+        names = set(i[0] for i in results)
+        assert names == set(["Dade", "Kate", "Ksenia"])
+
+
+class TestUpdateLagDictionary:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people_updated.csv": PEOPLE_UPDATED_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"update_lag_dictionary.sql": UPDATE_LAG_DICTIONARY}
+
+    def test_create(self, project):
+        run_dbt(["seed"])
+        run_dbt()
+
+        results = project.run_sql("select distinct name from update_lag_dictionary", fetch="all")
+        names = set(i[0] for i in results)
+        assert names == set(["Dade", "Kate", "Ksenia"])
