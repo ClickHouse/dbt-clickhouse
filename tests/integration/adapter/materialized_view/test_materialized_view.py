@@ -23,16 +23,18 @@ id,name,age,department
 # This is to be able to switch between different model definitions within
 # the same test run and allow us to test the evolution of a materialized view
 MV_MODEL = """
+{%- set run_type = var('run_type', '') -%}
 {{ config(
-       materialized='materialized_view' if var('run_type', '') != 'view_conversion' else 'view',
+       materialized='materialized_view' if run_type != 'view_conversion' else 'view',
        engine='MergeTree()',
        order_by='(id)',
        on_schema_change=var('on_schema_change', 'ignore'),
-       schema='catchup' if var('run_type', '') == 'catchup' else 'custom_schema',
-        **({'catchup': False} if var('run_type', '') == 'catchup' else {})
+       schema='catchup' if run_type == 'catchup' else ('catchup_on_full_refresh' if run_type == 'catchup_on_full_refresh' else 'custom_schema'),
+       catchup=False if run_type == 'catchup' else True,
+       catchup_on_full_refresh=False if run_type == 'catchup_on_full_refresh' else True
 ) }}
 
-{% if var('run_type', '') in ['', 'catchup', 'view_conversion'] %}
+{% if var('run_type', '') in ['', 'catchup', 'catchup_on_full_refresh', 'view_conversion'] %}
 select
     id,
     name,
@@ -421,3 +423,63 @@ class TestUpdateMV:
 
         result = project.run_sql(f"select count(*) from {schema_unquoted}.hackers_mv", fetch="all")
         assert result[0][0] == 4
+
+    def test_catchup_on_full_refresh(self, project):
+        """
+        Test catchup_on_full_refresh=False skips backfilling on explicit full refresh:
+        1. Create base table with seed data (3 engineering people)
+        2. Create materialized view with catchup_on_full_refresh=False (should still backfill initially)
+        3. Add new data to base table
+        4. Run --full-refresh with catchup_on_full_refresh=False
+        5. Verify table is empty after full refresh (no backfill)
+        6. Verify MV continues to work for new data
+        """
+        schema = quote_identifier(project.test_schema + "_catchup_on_full_refresh")
+
+        # Step 1: Create base table via dbt seed
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create the model with catchup_on_full_refresh=False
+        # Note: Initial creation should still respect default catchup=True
+        run_vars = {"run_type": "catchup_on_full_refresh"}
+        results = run_dbt(["run", "--select", "hackers_mv", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Verify initial backfill happened (catchup_on_full_refresh only affects --full-refresh)
+        result = project.run_sql(f"select count(*) from {schema}.hackers_mv", fetch="all")
+        assert result[0][0] == 3  # Initial data should be there
+
+        # Step 3: Add new data
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (1232,'Dade',16,'engineering'), (7777,'Neo',30,'engineering');
+            """
+        )
+
+        # Verify MV captured new data
+        result = project.run_sql(f"select count(*) from {schema}.hackers_mv", fetch="all")
+        assert result[0][0] == 5
+
+        # Step 4: Run full refresh with catchup_on_full_refresh=False
+        run_vars = {"run_type": "catchup_on_full_refresh"}
+        results = run_dbt(["run", "--select", "hackers_mv", "--full-refresh", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Step 5: Verify table is empty after full refresh (no backfill)
+        result = project.run_sql(f"select count(*) from {schema}.hackers_mv", fetch="all")
+        assert result[0][0] == 0  # No historical data should be backfilled
+
+        # Step 6: Add new data and verify MV still works
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (8888,'Trinity',28,'engineering');
+            """
+        )
+
+        # Verify only new data is captured
+        result = project.run_sql(f"select count(*) from {schema}.hackers_mv", fetch="all")
+        assert result[0][0] == 1  # Only the new row after full refresh
+
