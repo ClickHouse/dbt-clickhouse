@@ -1,6 +1,14 @@
 import csv
 import io
+import subprocess
+import tempfile
+import os
+import json
+import sys
+import pandas as pd
 from dataclasses import dataclass
+from dbt.adapters.clickhouse.python_executor import ClickHousePythonExecutor
+from dbt. adapters.capability import Capability
 from multiprocessing.context import SpawnContext
 from typing import (
     TYPE_CHECKING,
@@ -17,6 +25,7 @@ from typing import (
 )
 
 from dbt.adapters.base import AdapterConfig, available
+from dbt.adapters.contracts.connection import AdapterResponse
 from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
@@ -83,6 +92,7 @@ class ClickHouseAdapter(SQLAdapter):
     def __init__(self, config, mp_context: SpawnContext):
         BaseAdapter.__init__(self, config, mp_context)
         self.cache = ClickHouseRelationsCache()
+        self.python_executor = ClickHousePythonExecutor(self.connections)
 
     @classmethod
     def date_function(cls):
@@ -115,6 +125,234 @@ class ClickHouseAdapter(SQLAdapter):
     @classmethod
     def convert_time_type(cls, agate_table: "agate.Table", col_idx: int) -> str:
         raise NotImplementedError('`convert_time_type` is not implemented for this adapter!')
+    
+    from dbt.adapters.contracts.connection import AdapterResponse
+
+    # In the ClickHouseAdapter class, add these methods: 
+    @available
+    def submit_python_job(self, model: dict, compiled_code: str) -> AdapterResponse:
+        """Execute Python model and materialize to ClickHouse"""
+        
+        import pandas as pd
+        
+        # Extract model info
+        schema = model.get('schema')
+        identifier = model.get('alias')
+        
+        # Execute the compiled Python code in a namespace
+        namespace = {}
+        exec(compiled_code, namespace)
+        
+        # The model function should be in the namespace
+        if 'model' in namespace:
+            # Create dbt object that can return DataFrames (pandas or polars)
+            class DbtRef:
+                def __init__(self, adapter, return_type='pandas'):
+                    self.adapter = adapter
+                    self.return_type = return_type
+                
+                def ref(self, model_name, limit=None):
+                    """Reference another dbt model and return its data as DataFrame"""
+                    connection = self.adapter.connections.get_thread_connection()
+                    
+                    # ✅ Add LIMIT to SQL query if specified
+                    if limit:
+                        sql = f"SELECT * FROM {model_name} LIMIT {limit}"
+                    else:
+                        sql = f"SELECT * FROM {model_name}"
+                    
+                    result = connection.handle.query(sql).result_set
+                    
+                    if result:
+                        columns = [col[0] for col in connection.handle.query(f"DESCRIBE TABLE {model_name}").result_set]
+                        df = pd.DataFrame(result, columns=columns)
+                        
+                        if self.return_type == 'polars':
+                            import polars as pl
+                            return pl.from_pandas(df)
+                        return df
+                    
+                    if self.return_type == 'polars':
+                        import polars as pl
+                        return pl.DataFrame()
+                    return pd.DataFrame()
+                
+                def query(self, sql):
+                    """Execute raw SQL query and return as DataFrame"""
+                    connection = self.adapter.connections.get_thread_connection()
+                    result = connection.handle.query(sql).result_set
+                    
+                    if result and len(result) > 0:
+                        # Get column names from first row structure or parse from query
+                        # This is simplified - you might need better column detection
+                        df = pd.DataFrame(result)
+                        
+                        if self.return_type == 'polars':
+                            import polars as pl
+                            return pl.from_pandas(df)
+                        return df
+                    
+                    if self.return_type == 'polars':
+                        import polars as pl
+                        return pl.DataFrame()
+                    return pd.DataFrame()
+                
+                def config(self, **kwargs):
+                    pass
+            
+            class MockSession: 
+                pass
+            
+            # Detect if model uses polars by checking imports in compiled code
+            return_type = 'polars' if 'import polars' in compiled_code or 'from polars' in compiled_code else 'pandas'
+            
+            # Call the model function with dbt object
+            dbt = DbtRef(self, return_type=return_type)
+            session = MockSession()
+            df = namespace['model'](dbt, session)
+            
+            # Materialize the result (handles both pandas and polars)
+            self._materialize_python_result(df, schema, identifier)
+            
+            # Return response that dbt-core expects
+            return AdapterResponse(
+                _message=f"Inserted {len(df)} rows",
+                code="success",
+                rows_affected=len(df)
+            )
+        else:
+            raise Exception("No 'model' function found in Python code")
+    
+    def _materialize_python_result(self, df, schema: str, table_name: str) -> None:
+        """Materialize Python result to ClickHouse table - supports both pandas and polars"""
+        
+        import pandas as pd
+        from datetime import datetime, date
+        
+        # Check if it's a Polars DataFrame and convert to Pandas
+        if hasattr(df, '__class__') and 'polars' in str(type(df).__module__):
+            df = df.to_pandas()
+        
+        if df is None or df.empty:
+            create_sql = f'''
+            CREATE TABLE IF NOT EXISTS `{schema}`.`{table_name}` (
+                dummy String
+            ) ENGINE = MergeTree()
+            ORDER BY tuple()
+            '''
+            self.execute(create_sql, auto_begin=False, fetch=False)
+            return
+        
+        # Create table with proper columns
+        columns = []
+        for col, dtype in zip(df.columns, df.dtypes):
+            ch_type = self._pandas_to_ch_type(dtype)
+            columns.append(f"`{col}` {ch_type}")
+        
+        create_sql = f'''
+        CREATE TABLE IF NOT EXISTS `{schema}`.`{table_name}` (
+            {", ".join(columns)}
+        ) ENGINE = MergeTree()
+        ORDER BY tuple()
+        '''
+        
+        self.execute(create_sql, auto_begin=False, fetch=False)
+        
+        # Batch insert
+        connection = self.connections.get_thread_connection()
+        client = connection.handle
+        
+        # Insert in batches of 10000 rows
+        batch_size = 10000
+        for i in range(0, len(df), batch_size):
+            batch_df = df.iloc[i:i+batch_size]
+            
+            values_list = []
+            for _, row in batch_df.iterrows():
+                values = []
+                for v in row:
+                    if pd.isna(v):
+                        values.append('NULL')
+                    elif isinstance(v, bool):
+                        # Boolean must come before int check (bool is subclass of int)
+                        values.append('1' if v else '0')
+                    elif isinstance(v, (datetime, pd.Timestamp)):
+                        # ✅ Format datetime properly
+                        dt_str = v.strftime('%Y-%m-%d %H:%M:%S')
+                        values.append(f"'{dt_str}'")
+                    elif isinstance(v, date):
+                        # ✅ Format date properly
+                        date_str = v.strftime('%Y-%m-%d')
+                        values.append(f"'{date_str}'")
+                    elif isinstance(v, str):
+                        # ✅ Escape strings properly
+                        escaped = v.replace("'", "''").replace("\\", "\\\\")
+                        values.append(f"'{escaped}'")
+                    elif isinstance(v, (int, float)):
+                        # ✅ Numbers don't need quotes
+                        values.append(str(v))
+                    else:
+                        # ✅ Default: convert to string and quote
+                        escaped = str(v).replace("'", "''").replace("\\", "\\\\")
+                        values.append(f"'{escaped}'")
+                
+                values_list.append(f"({', '.join(values)})")
+            
+            insert_sql = f"INSERT INTO `{schema}`.`{table_name}` VALUES {', '.join(values_list)}"
+            client.command(insert_sql)
+
+    def _batch_insert(self, client, schema: str, table_name: str, df):
+        """Helper method for batch insert"""
+        import pandas as pd
+        
+        # Insert in batches of 10000 rows
+        batch_size = 10000
+        for i in range(0, len(df), batch_size):
+            batch_df = df.iloc[i:i+batch_size]
+            
+            values_list = []
+            for _, row in batch_df.iterrows():
+                values = []
+                for v in row:
+                    if pd.isna(v):
+                        values.append('NULL')
+                    elif isinstance(v, str):
+                        escaped = v.replace("'", "''")
+                        values.append(f"'{escaped}'")
+                    elif isinstance(v, bool):
+                        values.append('1' if v else '0')
+                    else:
+                        values.append(str(v))
+                values_list.append(f"({', '.join(values)})")
+            
+            insert_sql = f"INSERT INTO `{schema}`.`{table_name}` VALUES {', '.join(values_list)}"
+            client.command(insert_sql)
+                
+    @staticmethod
+    def _pandas_to_ch_type(dtype):
+        """Convert pandas dtype to ClickHouse type"""
+        dtype_str = str(dtype).lower()
+        
+        if 'int64' in dtype_str:
+            return 'Int64'
+        elif 'int32' in dtype_str: 
+            return 'Int32'
+        elif 'int16' in dtype_str: 
+            return 'Int16'
+        elif 'int8' in dtype_str:
+            return 'Int8'
+        elif 'float64' in dtype_str:
+            return 'Float64'
+        elif 'float32' in dtype_str:
+            return 'Float32'
+        elif 'bool' in dtype_str:
+            return 'UInt8'
+        elif 'datetime' in dtype_str:
+            return 'DateTime'
+        elif 'date' in dtype_str: 
+            return 'Date'
+        else:
+            return 'String'
 
     @available.parse(lambda *a, **k: {})
     def get_clickhouse_cluster_name(self):
