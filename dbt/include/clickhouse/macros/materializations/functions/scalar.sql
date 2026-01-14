@@ -13,8 +13,3 @@
 {% macro clickhouse__scalar_function_body_sql() %}
   {{ model.compiled_code }}
 {% endmacro %}
-
-{% macro clickhouse__scalar_function_sql(target_relation) %}
-  {{ clickhouse__scalar_function_create_replace_signature_sql(target_relation) }}
-  {{ clickhouse__scalar_function_body_sql() }};
-{% endmacro %}
