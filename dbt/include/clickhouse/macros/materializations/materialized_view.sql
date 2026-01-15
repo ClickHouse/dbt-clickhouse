@@ -50,9 +50,10 @@
     {%- set _ = views.update({"mv": sql}) -%}
   {% endif %}
 
+  {% set catchup_data = config.get('catchup', True) %}
+
   {% if backup_relation is none %}
     {{ log('Creating new materialized view ' + target_relation.name )}}
-    {% set catchup_data = config.get("catchup", True) %}
     {{ clickhouse__get_create_materialized_view_as_sql(target_relation, sql, views, catchup_data) }}
   {% elif existing_relation.can_exchange %}
     {{ log('Replacing existing materialized view ' + target_relation.name) }}
@@ -72,8 +73,7 @@
       {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {% set catchup_on_full_refresh = config.get('catchup_on_full_refresh', True) %}
-      {{ clickhouse__create_target_table(backup_relation, sql, catchup_on_full_refresh) }}
+      {{ clickhouse__create_target_table(backup_relation, sql, catchup_data) }}
 
       {# Drop MV just before exchange to minimize blind period while avoiding old MV writing to new table #}
       {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
