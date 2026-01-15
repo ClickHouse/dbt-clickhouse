@@ -4,6 +4,7 @@
 * Delay the deletion of the old materialized view during full refresh execution. This ensures the old materialized view remains operational if an error occurs while the new materialized view is being backfilled ([#568](https://github.com/ClickHouse/dbt-clickhouse/pull/568)).
 * Remove internal aliases for subqueries so the `--empty` flag works when tables are used with alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
 * Alter destination table along with mv using `on_schema_changes` ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534))
+* Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#XXX](https://github.com/ClickHouse/dbt-clickhouse/pull/XXX)).
 
 
 ### Release [1.9.7], 2025-12-03
