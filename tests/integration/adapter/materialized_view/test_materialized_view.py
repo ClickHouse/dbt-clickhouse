@@ -29,13 +29,18 @@ MV_MODEL = """
        order_by='(id)',
        on_schema_change=var('on_schema_change', 'ignore'),
        schema=(
-           'catchup' if var('run_type', '') == 'catchup'
-           else ('catchup_on_redeployment' if var('run_type', '') == 'catchup_on_redeployment' else 'custom_schema')
+           'catchup' if var('run_type', '') == 'catchup' else
+           'catchup_initial' if var('run_type', '') == 'catchup_initial' else
+           'catchup_full_refresh_disabled' if var('run_type', '') in ['catchup_full_refresh_disabled', 'catchup_full_refresh_disabled_extended'] else
+           'catchup_full_refresh_enabled' if var('run_type', '') in ['catchup_full_refresh_enabled', 'catchup_full_refresh_enabled_extended'] else
+           'catchup_toggle' if var('run_type', '') in ['catchup_toggle', 'catchup_toggle_extended'] else
+           'catchup_no_exchange' if var('run_type', '') in ['catchup_no_exchange', 'catchup_no_exchange_extended'] else
+           'custom_schema'
        ),
-        **({'catchup': False} if var('run_type', '') in ['catchup', 'catchup_on_redeployment'] else {})
+       **({'catchup': False} if var('run_type', '') in ['catchup', 'catchup_initial', 'catchup_full_refresh_disabled', 'catchup_full_refresh_disabled_extended', 'catchup_toggle', 'catchup_no_exchange', 'catchup_no_exchange_extended'] else {})
 ) }}
 
-{% if var('run_type', '') in ['', 'catchup', 'catchup_on_redeployment', 'view_conversion'] %}
+{% if var('run_type', '') in ['', 'catchup', 'catchup_initial', 'catchup_full_refresh_disabled', 'catchup_full_refresh_enabled', 'catchup_toggle', 'catchup_no_exchange', 'view_conversion'] %}
 select
     id,
     name,
@@ -47,7 +52,7 @@ select
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 
-{% elif var('run_type', '') == 'extended_schema' %}
+{% elif var('run_type', '') in ['extended_schema', 'catchup_full_refresh_disabled_extended', 'catchup_full_refresh_enabled_extended', 'catchup_toggle_extended', 'catchup_no_exchange_extended'] %}
 select
     id,
     name,
@@ -133,86 +138,6 @@ class TestBasicMV:
 
         result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
         assert result[0][0] == 4
-
-    def test_disabled_catchup_initial_load(self, project):
-        """
-        1. create a base table via dbt seed
-        2. create a model with catchup disabled as a materialized view, selecting from the table created in (1)
-        3. insert data into the base table and make sure it's there in the target table created in (2)
-        """
-        schema = quote_identifier(project.test_schema + "_catchup")
-        results = run_dbt(["seed"])
-        assert len(results) == 1
-        columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        # create the model with catchup disabled
-        run_vars = {"run_type": "catchup"}
-        run_dbt(["run", "--vars", json.dumps(run_vars)])
-        # check that we only have the new row, without the historical data
-        assert len(results) == 1
-
-        columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        check_relation_types(
-            project.adapter,
-            {
-                "hackers_mv": "view",
-                "hackers": "table",
-            },
-        )
-
-        # insert some data and make sure it reaches the target table
-        project.run_sql(
-            f"""
-           insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
-               values (1232,'Dade',16,'engineering'), (9999,'eugene',40,'malware');
-           """
-        )
-
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 1
-
-    def test_disabled_catchup_redeployment(self, project):
-        """
-        1. create a base table via dbt seed
-        2. create a model with catchup disabled (initial run) in a different schema
-        3. run again with --full-refresh and catchup disabled (redeployment)
-        4. assert table remains empty after full refresh; then insert data and assert only new rows appear
-        """
-        schema = quote_identifier(project.test_schema + "_catchup_on_redeployment")
-
-        # Step 1: seed
-        results = run_dbt(["seed"])
-        assert len(results) == 1
-
-        # Step 2: initial run with catchup disabled using run_type toggle (uses _catchup_on_redeployment)
-        run_vars = {"run_type": "catchup_on_redeployment"}
-        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
-        assert len(results) == 1
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 0
-
-        # Step 3: redeploy with --full-refresh and catchup disabled
-        results = run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
-        assert len(results) == 1
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 0
-
-        # Step 4: insert new data and ensure only new engineering rows are captured
-        project.run_sql(
-            f"""
-           insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
-               values (1232,'Dade',16,'engineering'), (9999,'eugene',40,'malware');
-           """
-        )
-
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 1
 
 
 # View model for testing view + MV coexistence
@@ -461,3 +386,297 @@ class TestUpdateMV:
 
         result = project.run_sql(f"select count(*) from {schema_unquoted}.hackers_mv", fetch="all")
         assert result[0][0] == 4
+
+
+class TestCatchup:
+    """
+    Comprehensive test suite for catchup flag behavior.
+    Tests catchup functionality across initial creation, full refresh, and schema changes.
+    Each test uses a unique schema to ensure proper isolation.
+    """
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": MV_MODEL,
+        }
+
+    def test_initial_creation_catchup_disabled(self, project):
+        """
+        Test catchup=False on initial MV creation (original test from TestBasicMV).
+
+        Scenario:
+        1. Create seed data (3 engineering people)
+        2. Create MV with catchup=False - table should be empty
+        3. Insert new data (1 row)
+        4. Verify table has only the 1 new row (not the 3 seed rows)
+        """
+        schema = quote_identifier(project.test_schema + "_catchup_initial")
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
+        assert columns[0][1] == "Int32"
+
+        # Step 2: Create the model with catchup disabled
+        run_vars = {"run_type": "catchup_initial"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
+        assert columns[0][1] == "Int32"
+
+        columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
+        assert columns[0][1] == "Int32"
+
+        check_relation_types(
+            project.adapter,
+            {
+                "hackers_mv": "view",
+                "hackers": "table",
+            },
+        )
+
+        # Verify table is empty (no initial backfill)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 0
+
+        # Step 3: Insert new data
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (1232,'Dade',16,'engineering'), (9999,'eugene',40,'malware');
+            """
+        )
+
+        # Step 4: Verify only the new row is present
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 1
+
+    def test_full_refresh_catchup_disabled(self, project):
+        """
+        Test that full refresh respects catchup=False flag (can_exchange=True path).
+
+        Scenario:
+        1. Create seed data (3 engineering people)
+        2. Create MV with catchup=False initially - table should be empty
+        3. Insert new data (1 row) - should have 1 row
+        4. Full refresh with catchup=False and schema change
+        5. Assert table is still empty (not backfilled during refresh)
+        6. Insert new data after refresh
+        7. Assert table only has the new post-refresh data
+        """
+        schema = quote_identifier(project.test_schema + "_catchup_full_refresh_disabled")
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create MV with catchup=False
+        run_vars = {"run_type": "catchup_full_refresh_disabled"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Verify table is empty (no initial backfill)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 0
+
+        # Step 3: Insert new data
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (1232,'Dade',16,'engineering'), (9999,'eugene',40,'malware');
+            """
+        )
+
+        # Verify we now have 1 row (1 new engineering person, no seed data)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 1
+
+        # Step 4: Full refresh with catchup=False and schema change
+        run_vars = {"run_type": "catchup_full_refresh_disabled_extended"}
+        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+
+        # Step 5: Assert table was NOT backfilled (should be empty)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 0
+
+        # Step 6: Insert new data after refresh
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (5555,'Trinity',29,'engineering');
+            """
+        )
+
+        # Step 7: Verify only the new post-refresh data is present
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 1
+
+    def test_full_refresh_catchup_enabled(self, project):
+        """
+        Control test: Verify default behavior still works (catchup=True on full refresh).
+
+        Scenario:
+        1. Create seed data (3 rows)
+        2. Create MV with catchup=True (default)
+        3. Insert new data (1 row) - should have 4 rows
+        4. Full refresh with catchup=True (default) and schema change
+        5. Assert table still has all historical data (backfilled during refresh)
+        """
+        schema = quote_identifier(project.test_schema + "_catchup_full_refresh_enabled")
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create MV with default catchup=True
+        run_vars = {"run_type": "catchup_full_refresh_enabled"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Verify initial backfill worked
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 3
+
+        # Step 3: Insert new data
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (1232,'Dade',16,'engineering'), (9999,'eugene',40,'malware');
+            """
+        )
+
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 4
+
+        # Step 4: Full refresh with catchup=True (default) and schema change
+        run_vars = {"run_type": "catchup_full_refresh_enabled_extended"}
+        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+
+        # Step 5: Assert table was backfilled with all historical data
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 4  # All 4 rows should be present
+
+    def test_catchup_toggle_between_runs(self, project):
+        """
+        Test switching catchup flag between deployments.
+
+        Scenario:
+        1. Create seed data (3 rows)
+        2. Create MV with catchup=False - table should be empty
+        3. Insert new data (1 row)
+        4. Verify table has only the 1 new row
+        5. Full refresh with catchup=True (by not specifying it) and schema change
+        6. Assert table now has ALL historical data (3 seed + 1 previous insert = 4 total)
+        """
+        schema = quote_identifier(project.test_schema + "_catchup_toggle")
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create MV with catchup=False
+        run_vars = {"run_type": "catchup_toggle"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Verify table is empty (no initial backfill)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 0
+
+        # Step 3: Insert new data
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (1232,'Dade',16,'engineering');
+            """
+        )
+
+        # Step 4: Verify only the new row is present
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 1
+
+        # Step 5: Full refresh with catchup=True (default) and schema change
+        run_vars = {"run_type": "catchup_toggle_extended"}
+        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+
+        # Step 6: Assert all historical data is now backfilled (3 seed + 1 insert)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 4
+
+    def test_full_refresh_catchup_disabled_no_exchange(self, project, mocker):
+        """
+        Test that catchup=False works in the replace MV path (when can_exchange=False).
+        This tests older ClickHouse versions or special database configurations.
+
+        We mock can_exchange to force the replace path instead of atomic exchange.
+
+        Scenario:
+        1. Create seed data (3 rows)
+        2. Create MV with catchup=False initially
+        3. Insert data (1 row) - should have 1 row
+        4. Mock can_exchange=False
+        5. Full refresh with catchup=False and schema change
+        6. Assert table was NOT backfilled (should be empty)
+        7. Insert new data and verify MV still works
+        """
+        schema = quote_identifier(project.test_schema + "_catchup_no_exchange")
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create MV with catchup=False
+        run_vars = {"run_type": "catchup_no_exchange"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Verify table is empty (no initial backfill)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 0
+
+        # Step 3: Insert data to verify behavior
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (1232,'Dade',16,'engineering');
+            """
+        )
+
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 1
+
+        # Step 4: Mock can_exchange to return False
+        # This forces the code to use the clickhouse__replace_mv path instead of atomic exchange
+        from dbt.adapters.clickhouse.relation import ClickHouseRelation
+
+        mocker.patch.object(ClickHouseRelation, 'can_exchange', False)
+
+        # Step 5: Full refresh with catchup=False and schema change
+        # The mock forces us into the replace MV path (line 274 in materialized_view.sql)
+        run_vars = {"run_type": "catchup_no_exchange_extended"}
+        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+
+        # Step 6: Assert table was NOT backfilled (should be empty)
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 0
+
+        # Step 7: Insert new data and verify MV still works
+        project.run_sql(
+            f"""
+            insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+                values (5555,'Trinity',29,'engineering');
+            """
+        )
+
+        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
+        assert result[0][0] == 1
