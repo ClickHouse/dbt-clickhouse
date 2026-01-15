@@ -130,7 +130,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     # In the ClickHouseAdapter class, add these methods: 
     @available
-    def submit_python_job(self, model: dict, compiled_code: str) -> AdapterResponse:
+    def submit_python_job(self, model: dict, compiled_code: str, is_incremental: bool = False, target_relation = None) -> AdapterResponse:
         """Execute Python model and materialize to ClickHouse"""
         
         import pandas as pd
@@ -138,6 +138,9 @@ class ClickHouseAdapter(SQLAdapter):
         # Extract model info
         schema = model.get('schema')
         identifier = model.get('alias')
+        unique_key = model.get('config', {}).get('unique_key')
+        incremental_strategy = model.get('config', {}).get('incremental_strategy', 'append')
+        
         
         # Execute the compiled Python code in a namespace
         namespace = {}
@@ -145,23 +148,115 @@ class ClickHouseAdapter(SQLAdapter):
         
         # The model function should be in the namespace
         if 'model' in namespace:
-            # Create dbt object that can return DataFrames (pandas or polars)
+            # Create dbt object with incremental support
             class DbtRef:
-                def __init__(self, adapter, return_type='pandas'):
+                def __init__(self, adapter, return_type='pandas', is_incremental=False, target_relation=None):
                     self.adapter = adapter
                     self.return_type = return_type
+                    self._is_incremental = is_incremental
+                    self.target_relation = target_relation
                 
-                def ref(self, model_name, limit=None):
+                def is_incremental(self):
+                    """Check if this is an incremental run"""
+                    return self._is_incremental
+                
+                def this(self):
+                    """Get reference to the current target table (for incremental)"""
+                    if not self._is_incremental or not self.target_relation:
+                        if self.return_type == 'polars':
+                            import polars as pl
+                            return pl.DataFrame()
+                        return pd.DataFrame()
+                    
+                    # Query the existing table
+                    connection = self.adapter.connections.get_thread_connection()
+                    sql = f"SELECT * FROM {self.target_relation}"
+                    
+                    try:
+                        result = connection.handle.query(sql).result_set
+                        
+                        if result:
+                            columns = [col[0] for col in connection.handle.query(f"DESCRIBE TABLE {self.target_relation}").result_set]
+                            df = pd.DataFrame(result, columns=columns)
+                            
+                            if self.return_type == 'polars':
+                                import polars as pl
+                                return pl.from_pandas(df)
+                            return df
+                    except:
+                        pass
+                    
+                    if self.return_type == 'polars':
+                        import polars as pl
+                        return pl.DataFrame()
+                    return pd.DataFrame()
+                
+                def ref(self, model_name, limit=None, where=None, start_date=None, end_date=None, date_column=None, order_by=None):
                     """Reference another dbt model and return its data as DataFrame"""
                     connection = self.adapter.connections.get_thread_connection()
                     
-                    # ✅ Add LIMIT to SQL query if specified
+                    # ✅ Helper function to format dates for SQL
+                    def format_date_for_sql(date_value):
+                        if date_value is None:
+                            return None
+                        
+                        # If it's already a string, return it
+                        if isinstance(date_value, str):
+                            return date_value
+                        
+                        # If it has strftime method (Python datetime)
+                        if hasattr(date_value, 'strftime'):
+                            return date_value.strftime('%Y-%m-%d %H:%M:%S')
+                        
+                        # If it has isoformat (Pandas/Polars datetime)
+                        if hasattr(date_value, 'isoformat'):
+                            return date_value.isoformat().replace('T', ' ').split('+')[0].split('.')[0]
+                        
+                        # Fallback: convert to string and clean
+                        date_str = str(date_value)
+                        # Remove timezone info and microseconds
+                        date_str = date_str.split('+')[0].split('.')[0]
+                        # Replace T with space if present
+                        date_str = date_str.replace('T', ' ')
+                        return date_str
+                    
+                    # Build SQL query
+                    sql_parts = [f"SELECT * FROM {model_name}"]
+                    
+                    # Build WHERE clause
+                    where_conditions = []
+                    
+                    if where:
+                        where_conditions.append(f"({where})")
+                    
+                    if start_date and date_column:
+                        # ✅ Format the date properly
+                        formatted_start = format_date_for_sql(start_date)
+                        where_conditions.append(f"{date_column} >= '{formatted_start}'")
+                    
+                    if end_date and date_column:
+                        # ✅ Format the date properly
+                        formatted_end = format_date_for_sql(end_date)
+                        where_conditions.append(f"{date_column} <= '{formatted_end}'")
+                    
+                    if where_conditions:
+                        sql_parts.append(f"WHERE {' AND '.join(where_conditions)}")
+                    
+                    # Add ORDER BY
+                    if order_by:
+                        sql_parts.append(f"ORDER BY {order_by}")
+                    
+                    # Add LIMIT
                     if limit:
-                        sql = f"SELECT * FROM {model_name} LIMIT {limit}"
-                    else:
-                        sql = f"SELECT * FROM {model_name}"
+                        sql_parts.append(f"LIMIT {limit}")
+                    
+                    sql = " ".join(sql_parts)
+                    
+                    print(f"🔍 Executing SQL: {sql}")
                     
                     result = connection.handle.query(sql).result_set
+                    
+                    print(f"📊 Query returned {len(result) if result else 0} rows")
                     
                     if result:
                         columns = [col[0] for col in connection.handle.query(f"DESCRIBE TABLE {model_name}").result_set]
@@ -172,20 +267,56 @@ class ClickHouseAdapter(SQLAdapter):
                             return pl.from_pandas(df)
                         return df
                     
-                    if self.return_type == 'polars':
-                        import polars as pl
-                        return pl.DataFrame()
-                    return pd.DataFrame()
+                    # Return empty DataFrame WITH columns when no results
+                    try:
+                        columns = [col[0] for col in connection.handle.query(f"DESCRIBE TABLE {model_name}").result_set]
+                        if self.return_type == 'polars':
+                            import polars as pl
+                            return pl.DataFrame({col: [] for col in columns})
+                        return pd.DataFrame(columns=columns)
+                    except:
+                        if self.return_type == 'polars':
+                            import polars as pl
+                            return pl.DataFrame()
+                        return pd.DataFrame()
                 
-                def query(self, sql):
-                    """Execute raw SQL query and return as DataFrame"""
+                def source(self, source_name, table_name, limit=None, where=None, start_date=None, end_date=None, date_column=None, order_by=None):
+                    """Reference a source table with optional filters"""
                     connection = self.adapter.connections.get_thread_connection()
+                    
+                    # Build SQL query
+                    sql_parts = [f"SELECT * FROM {source_name}.{table_name}"]
+                    
+                    # Build WHERE clause
+                    where_conditions = []
+                    
+                    if where:
+                        where_conditions.append(f"({where})")
+                    
+                    if start_date and date_column:
+                        where_conditions.append(f"{date_column} >= '{start_date}'")
+                    
+                    if end_date and date_column:
+                        where_conditions.append(f"{date_column} <= '{end_date}'")
+                    
+                    if where_conditions:
+                        sql_parts.append(f"WHERE {' AND '.join(where_conditions)}")
+                    
+                    # Add ORDER BY
+                    if order_by:
+                        sql_parts.append(f"ORDER BY {order_by}")
+                    
+                    # Add LIMIT
+                    if limit:
+                        sql_parts.append(f"LIMIT {limit}")
+                    
+                    sql = " ".join(sql_parts)
+                    
                     result = connection.handle.query(sql).result_set
                     
-                    if result and len(result) > 0:
-                        # Get column names from first row structure or parse from query
-                        # This is simplified - you might need better column detection
-                        df = pd.DataFrame(result)
+                    if result:
+                        columns = [col[0] for col in connection.handle.query(f"DESCRIBE TABLE {source_name}.{table_name}").result_set]
+                        df = pd.DataFrame(result, columns=columns)
                         
                         if self.return_type == 'polars':
                             import polars as pl
@@ -203,27 +334,52 @@ class ClickHouseAdapter(SQLAdapter):
             class MockSession: 
                 pass
             
-            # Detect if model uses polars by checking imports in compiled code
+            # Detect if model uses polars
             return_type = 'polars' if 'import polars' in compiled_code or 'from polars' in compiled_code else 'pandas'
             
-            # Call the model function with dbt object
-            dbt = DbtRef(self, return_type=return_type)
+            # Call the model function with incremental support
+            dbt = DbtRef(self, return_type=return_type, is_incremental=is_incremental, target_relation=target_relation)
             session = MockSession()
             df = namespace['model'](dbt, session)
             
-            # Materialize the result (handles both pandas and polars)
-            self._materialize_python_result(df, schema, identifier)
+            # Convert to pandas if needed
+            if hasattr(df, '__class__') and 'polars' in str(type(df).__module__):
+                df_pandas = df.to_pandas()
+            else:
+                df_pandas = df
             
-            # Return response that dbt-core expects
+            # Handle incremental vs full refresh
+            if is_incremental and target_relation:
+                # Incremental run - append or merge
+                if incremental_strategy == 'append':
+                    self._append_to_table(df_pandas, schema, identifier)
+                    rows_affected = len(df_pandas)
+                    message = f"Appended {rows_affected} rows"
+                    
+                elif incremental_strategy == 'delete+insert' and unique_key:
+                    rows_affected = self._merge_table(df_pandas, schema, identifier, unique_key)
+                    message = f"Merged {rows_affected} rows (delete+insert)"
+                    
+                else:
+                    self._append_to_table(df_pandas, schema, identifier)
+                    rows_affected = len(df_pandas)
+                    message = f"Appended {rows_affected} rows (default)"
+            else:
+                # Full refresh - drop and recreate table
+                self._materialize_python_result(df, schema, identifier, drop_if_exists=True)
+                rows_affected = len(df_pandas) if df_pandas is not None else 0
+                message = f"Created table with {rows_affected} rows"
+            
+            # Return response
             return AdapterResponse(
-                _message=f"Inserted {len(df)} rows",
+                _message=message,
                 code="success",
-                rows_affected=len(df)
+                rows_affected=rows_affected
             )
         else:
             raise Exception("No 'model' function found in Python code")
     
-    def _materialize_python_result(self, df, schema: str, table_name: str) -> None:
+    def _materialize_python_result(self, df, schema: str, table_name: str, drop_if_exists: bool = True) -> None:
         """Materialize Python result to ClickHouse table - supports both pandas and polars"""
         
         import pandas as pd
@@ -243,14 +399,21 @@ class ClickHouseAdapter(SQLAdapter):
             self.execute(create_sql, auto_begin=False, fetch=False)
             return
         
+        # ✅ Drop table if requested
+        if drop_if_exists:
+            drop_sql = f"DROP TABLE IF EXISTS `{schema}`.`{table_name}`"
+            self.execute(drop_sql, auto_begin=False, fetch=False)
+        
         # Create table with proper columns
         columns = []
         for col, dtype in zip(df.columns, df.dtypes):
             ch_type = self._pandas_to_ch_type(dtype)
             columns.append(f"`{col}` {ch_type}")
         
+        # ✅ Use appropriate CREATE statement
+        create_keyword = "CREATE TABLE IF NOT EXISTS" if not drop_if_exists else "CREATE TABLE"
         create_sql = f'''
-        CREATE TABLE IF NOT EXISTS `{schema}`.`{table_name}` (
+        {create_keyword} `{schema}`.`{table_name}` (
             {", ".join(columns)}
         ) ENGINE = MergeTree()
         ORDER BY tuple()
@@ -258,13 +421,17 @@ class ClickHouseAdapter(SQLAdapter):
         
         self.execute(create_sql, auto_begin=False, fetch=False)
         
-        # Batch insert
+        # Insert data
         connection = self.connections.get_thread_connection()
         client = connection.handle
         
-        # Insert in batches of 10000 rows
-        batch_size = 10000
-        for i in range(0, len(df), batch_size):
+        # Batch insert
+        batch_size = 500
+        total_rows = len(df)
+        
+        print(f"📊 Inserting {total_rows} rows in batches of {batch_size}")
+        
+        for i in range(0, total_rows, batch_size):
             batch_df = df.iloc[i:i+batch_size]
             
             values_list = []
@@ -274,25 +441,19 @@ class ClickHouseAdapter(SQLAdapter):
                     if pd.isna(v):
                         values.append('NULL')
                     elif isinstance(v, bool):
-                        # Boolean must come before int check (bool is subclass of int)
                         values.append('1' if v else '0')
                     elif isinstance(v, (datetime, pd.Timestamp)):
-                        # ✅ Format datetime properly
                         dt_str = v.strftime('%Y-%m-%d %H:%M:%S')
                         values.append(f"'{dt_str}'")
                     elif isinstance(v, date):
-                        # ✅ Format date properly
                         date_str = v.strftime('%Y-%m-%d')
                         values.append(f"'{date_str}'")
                     elif isinstance(v, str):
-                        # ✅ Escape strings properly
                         escaped = v.replace("'", "''").replace("\\", "\\\\")
                         values.append(f"'{escaped}'")
                     elif isinstance(v, (int, float)):
-                        # ✅ Numbers don't need quotes
                         values.append(str(v))
                     else:
-                        # ✅ Default: convert to string and quote
                         escaped = str(v).replace("'", "''").replace("\\", "\\\\")
                         values.append(f"'{escaped}'")
                 
@@ -300,6 +461,11 @@ class ClickHouseAdapter(SQLAdapter):
             
             insert_sql = f"INSERT INTO `{schema}`.`{table_name}` VALUES {', '.join(values_list)}"
             client.command(insert_sql)
+            
+            if (i + batch_size) % 5000 == 0:
+                print(f"   Inserted {min(i + batch_size, total_rows)}/{total_rows} rows")
+        
+        print(f"✅ Successfully inserted all {total_rows} rows")
 
     def _batch_insert(self, client, schema: str, table_name: str, df):
         """Helper method for batch insert"""
@@ -353,6 +519,397 @@ class ClickHouseAdapter(SQLAdapter):
             return 'Date'
         else:
             return 'String'
+    def _append_to_table(self, df, schema: str, table_name: str) -> None:
+        """Append data to existing table"""
+        import pandas as pd
+        from datetime import datetime, date
+        
+        connection = self.connections.get_thread_connection()
+        client = connection.handle
+        
+        # Small batch inserts
+        batch_size = 500
+        for i in range(0, len(df), batch_size):
+            batch_df = df.iloc[i:i+batch_size]
+            
+            values_list = []
+            for _, row in batch_df.iterrows():
+                values = []
+                for v in row:
+                    if pd.isna(v):
+                        values.append('NULL')
+                    elif isinstance(v, bool):
+                        values.append('1' if v else '0')
+                    elif isinstance(v, (datetime, pd.Timestamp)):
+                        dt_str = v.strftime('%Y-%m-%d %H:%M:%S')
+                        values.append(f"'{dt_str}'")
+                    elif isinstance(v, date):
+                        date_str = v.strftime('%Y-%m-%d')
+                        values.append(f"'{date_str}'")
+                    elif isinstance(v, str):
+                        escaped = v.replace("'", "''").replace("\\", "\\\\")
+                        values.append(f"'{escaped}'")
+                    elif isinstance(v, (int, float)):
+                        values.append(str(v))
+                    else:
+                        escaped = str(v).replace("'", "''").replace("\\", "\\\\")
+                        values.append(f"'{escaped}'")
+                
+                values_list.append(f"({', '.join(values)})")
+            
+            insert_sql = f"INSERT INTO `{schema}`.`{table_name}` VALUES {', '.join(values_list)}"
+            client.command(insert_sql)
+
+    def _merge_table(self, df, schema: str, table_name: str, unique_key: Union[str, List[str]]) -> int:
+        """
+        Delete+Insert merge strategy matching dbt-clickhouse SQL incremental logic
+        
+        Returns the NET row change (not just inserted rows)
+        """
+        import time
+        
+        connection = self.connections.get_thread_connection()
+        client = connection.handle
+        
+        # ✅ Handle composite unique keys
+        unique_key_list = [unique_key] if isinstance(unique_key, str) else unique_key
+        
+        # ✅ Verify all unique key columns exist
+        missing_cols = [col for col in unique_key_list if col not in df.columns]
+        if missing_cols:
+            raise Exception(f"Unique key columns {missing_cols} not found in DataFrame. Available columns: {df.columns.tolist()}")
+        
+        print(f"\n{'='*60}")
+        print(f"🔄 Delete+Insert Strategy (Python Model)")
+        print(f"{'='*60}")
+        print(f"Target table: {schema}.{table_name}")
+        print(f"Unique key: {unique_key_list}")
+        print(f"Rows to merge: {len(df)}")
+        print(f"{'='*60}\n")
+        
+        # ============================================================================
+        # STEP 0: Get row counts BEFORE merge
+        # ============================================================================
+        target_relation = f"`{schema}`.`{table_name}`"
+        
+        count_before_sql = f"SELECT COUNT(*) as cnt FROM {target_relation}"
+        result = client.query(count_before_sql).result_set
+        rows_before = result[0][0] if result else 0
+        
+        print(f"📊 Current state:")
+        print(f"   Rows in target table: {rows_before:,}")
+        print(f"   Rows to merge: {len(df):,}\n")
+        
+        # ============================================================================
+        # STEP 1: Create temporary table with new data
+        # ============================================================================
+        temp_table = f"{table_name}__dbt_tmp_{int(time.time())}"
+        temp_relation = f"`{schema}`.`{temp_table}`"
+        
+        print(f"📋 STEP 1: Creating temporary table")
+        print(f"   Temp table: {temp_relation}")
+        
+        try:
+            # Create temp table with same structure as target
+            self._materialize_python_result(df, schema, temp_table, drop_if_exists=True)
+            print(f"   ✅ Temp table created with {len(df):,} rows\n")
+            
+            # ============================================================================
+            # STEP 1.5: Count how many rows will be deleted
+            # ============================================================================
+            unique_key_cols = ', '.join(f'`{k}`' for k in unique_key_list)
+            
+            if len(unique_key_list) == 1:
+                count_to_delete_sql = f"""
+                SELECT COUNT(*) as cnt
+                FROM {target_relation}
+                WHERE `{unique_key_list[0]}` IN (
+                    SELECT `{unique_key_list[0]}` FROM {temp_relation}
+                )
+                """
+            else:
+                count_to_delete_sql = f"""
+                SELECT COUNT(*) as cnt
+                FROM {target_relation}
+                WHERE ({unique_key_cols}) IN (
+                    SELECT {unique_key_cols} FROM {temp_relation}
+                )
+                """
+            
+            result = client.query(count_to_delete_sql).result_set
+            rows_to_delete = result[0][0] if result else 0
+            
+            print(f"📊 Rows that will be deleted: {rows_to_delete:,}")
+            print(f"   (These are existing rows matching the unique key)\n")
+            
+            # ============================================================================
+            # STEP 2: Delete rows from target that exist in temp table
+            # ============================================================================
+            print(f"🗑️  STEP 2: Deleting matching rows from target")
+            
+            if len(unique_key_list) == 1:
+                delete_sql = f"""
+                ALTER TABLE {target_relation} DELETE
+                WHERE `{unique_key_list[0]}` IN (
+                    SELECT `{unique_key_list[0]}` FROM {temp_relation}
+                )
+                """
+            else:
+                delete_sql = f"""
+                ALTER TABLE {target_relation} DELETE
+                WHERE ({unique_key_cols}) IN (
+                    SELECT {unique_key_cols} FROM {temp_relation}
+                )
+                """
+            
+            print(f"   Executing DELETE mutation...")
+            client.command(delete_sql)
+            print(f"   ✅ DELETE mutation submitted\n")
+            
+            # ============================================================================
+            # STEP 3: Wait for mutations to complete (CRITICAL!)
+            # ============================================================================
+            print(f"⏳ STEP 3: Waiting for mutations to complete")
+            
+            self._wait_for_mutations(client, schema, table_name, max_wait_seconds=60)
+            
+            print(f"   ✅ All mutations completed\n")
+            
+            # ============================================================================
+            # STEP 4: Insert data from temp table to target
+            # ============================================================================
+            print(f"📥 STEP 4: Inserting rows from temp to target")
+            
+            insert_sql = f"""
+            INSERT INTO {target_relation}
+            SELECT * FROM {temp_relation}
+            """
+            
+            print(f"   Executing INSERT...")
+            client.command(insert_sql)
+            print(f"   ✅ Inserted {len(df):,} rows\n")
+            
+            # ============================================================================
+            # STEP 5: Drop temporary table
+            # ============================================================================
+            print(f"🧹 STEP 5: Cleaning up")
+            
+            drop_sql = f"DROP TABLE IF EXISTS {temp_relation}"
+            client.command(drop_sql)
+            print(f"   ✅ Temp table dropped\n")
+            
+            # ============================================================================
+            # STEP 6: Get final row counts and calculate changes
+            # ============================================================================
+            result = client.query(count_before_sql).result_set
+            rows_after = result[0][0] if result else 0
+            
+            net_change = rows_after - rows_before
+            rows_updated = min(rows_to_delete, len(df))
+            rows_inserted_new = len(df) - rows_updated
+            
+            print(f"{'='*60}")
+            print(f"✅ Delete+Insert Strategy Complete!")
+            print(f"{'='*60}")
+            print(f"📊 Summary:")
+            print(f"   Rows before:        {rows_before:,}")
+            print(f"   Rows deleted:       {rows_to_delete:,}")
+            print(f"   Rows inserted:      {len(df):,}")
+            print(f"   ├─ Updated:         {rows_updated:,}")
+            print(f"   └─ New:             {rows_inserted_new:,}")
+            print(f"   Rows after:         {rows_after:,}")
+            print(f"   Net change:         {net_change:+,}")
+            print(f"{'='*60}\n")
+            
+            # ✅ Return net change instead of just inserted rows
+            return net_change
+            
+        except Exception as e:
+            # Cleanup temp table on error
+            print(f"\n❌ Error during delete+insert: {e}")
+            try:
+                client.command(f"DROP TABLE IF EXISTS {temp_relation}")
+                print(f"   🧹 Cleaned up temp table")
+            except:
+                pass
+            raise
+
+
+    def _wait_for_mutations(self, client, schema: str, table_name: str, max_wait_seconds: int = 60, check_interval: int = 2):
+        """
+        Wait for ClickHouse mutations to complete - matches dbt-clickhouse SQL logic
+        
+        This is CRITICAL for delete+insert to work correctly because ALTER TABLE DELETE
+        is asynchronous in ClickHouse.
+        """
+        import time
+        
+        waited = 0
+        
+        while waited < max_wait_seconds:
+            # Check system.mutations table for pending mutations
+            check_sql = f"""
+            SELECT COUNT(*) as pending
+            FROM system.mutations
+            WHERE database = '{schema}'
+            AND table = '{table_name}'
+            AND is_done = 0
+            """
+            
+            result = client.query(check_sql).result_set
+            pending = result[0][0] if result else 0
+            
+            if pending == 0:
+                if waited > 0:
+                    print(f"   ✅ All mutations completed (waited {waited}s)")
+                return
+            
+            print(f"   ⏱️  {pending} mutation(s) still pending... ({waited}s elapsed)")
+            time.sleep(check_interval)
+            waited += check_interval
+        
+        # Timeout - mutations still running
+        print(f"   ⚠️  Timeout after {max_wait_seconds}s - some mutations may still be running")
+        print(f"   ⚠️  This may cause duplicates if INSERT happens before DELETE completes!")
+
+
+    def _verify_no_duplicates(self, client, schema: str, table_name: str, unique_key: Union[str, List[str]]) -> bool:
+        """
+        Verify no duplicates exist after merge - for debugging
+        """
+        unique_key_list = [unique_key] if isinstance(unique_key, str) else unique_key
+        unique_key_cols = ', '.join(f'`{k}`' for k in unique_key_list)
+        
+        check_sql = f"""
+        SELECT 
+            {unique_key_cols},
+            COUNT(*) as cnt
+        FROM `{schema}`.`{table_name}`
+        GROUP BY {unique_key_cols}
+        HAVING cnt > 1
+        LIMIT 10
+        """
+        
+        result = client.query(check_sql).result_set
+        
+        if result:
+            print(f"\n⚠️  WARNING: Found {len(result)} duplicate key(s):")
+            for row in result[:5]:
+                print(f"   {row}")
+            if len(result) > 5:
+                print(f"   ... and {len(result) - 5} more")
+            return False
+        else:
+            print(f"\n✅ No duplicates found - merge successful!")
+            return True
+        
+    def _insert_overwrite(self, df, schema: str, table_name: str, partition_by: str) -> int:
+        """
+        Insert Overwrite strategy - deletes entire partitions and inserts new data
+        
+        This is more efficient than delete+insert when you're replacing entire partitions.
+        Used for time-based incremental models where you reload entire days/months.
+        
+        Example: If partition_by='toYYYYMM(date)' and new data has months [2025-01, 2025-02],
+                it will delete ALL rows in those months and insert the new data.
+        """
+        import pandas as pd
+        from datetime import datetime, date
+        
+        connection = self.connections.get_thread_connection()
+        client = connection.handle
+        
+        target_relation = f"`{schema}`.`{table_name}`"
+        
+        print(f"\n{'='*60}")
+        print(f"🔄 Insert Overwrite Strategy (Python Model)")
+        print(f"{'='*60}")
+        print(f"Target table: {schema}.{table_name}")
+        print(f"Partition by: {partition_by}")
+        print(f"Rows to insert: {len(df)}")
+        print(f"{'='*60}\n")
+        
+        # ============================================================================
+        # STEP 1: Get unique partition values from new data
+        # ============================================================================
+        print(f"📊 STEP 1: Identifying partitions to overwrite")
+        
+        # Extract partition column from partition_by expression
+        # Examples:
+        #   "toYYYYMM(date)" -> "date"
+        #   "toStartOfMonth(created_at)" -> "created_at"
+        #   "city" -> "city"
+        
+        import re
+        match = re.search(r'\(([^)]+)\)', partition_by)
+        if match:
+            partition_column = match.group(1)
+        else:
+            partition_column = partition_by
+        
+        if partition_column not in df.columns:
+            raise Exception(f"Partition column '{partition_column}' not found in DataFrame. Available: {df.columns.tolist()}")
+        
+        # Get unique partition values
+        unique_partition_values = df[partition_column].unique()
+        print(f"   Partition column: {partition_column}")
+        print(f"   Unique partitions in new data: {len(unique_partition_values)}")
+        
+        # ============================================================================
+        # STEP 2: Delete partitions
+        # ============================================================================
+        print(f"\n🗑️  STEP 2: Deleting partitions")
+        
+        # Build WHERE clause to match partitions
+        where_conditions = []
+        for val in unique_partition_values:
+            if pd.isna(val):
+                continue
+            elif isinstance(val, str):
+                escaped = val.replace("'", "''").replace("\\", "\\\\")
+                where_conditions.append(f"{partition_by} = '{escaped}'")
+            elif isinstance(val, (datetime, pd.Timestamp)):
+                dt_str = val.strftime('%Y-%m-%d %H:%M:%S')
+                where_conditions.append(f"{partition_by} = '{dt_str}'")
+            elif isinstance(val, date):
+                date_str = val.strftime('%Y-%m-%d')
+                where_conditions.append(f"{partition_by} = '{date_str}'")
+            else:
+                where_conditions.append(f"{partition_by} = {val}")
+        
+        if where_conditions:
+            delete_sql = f"""
+            ALTER TABLE {target_relation} DELETE
+            WHERE {' OR '.join(where_conditions)}
+            """
+            
+            print(f"   Deleting {len(where_conditions)} partition(s)...")
+            client.command(delete_sql)
+            print(f"   ✅ DELETE mutation submitted\n")
+            
+            # ============================================================================
+            # STEP 3: Wait for mutations
+            # ============================================================================
+            print(f"⏳ STEP 3: Waiting for mutations to complete")
+            self._wait_for_mutations(client, schema, table_name, max_wait_seconds=60)
+            print(f"   ✅ All mutations completed\n")
+        else:
+            print(f"   ⚠️  No valid partition values found\n")
+        
+        # ============================================================================
+        # STEP 4: Insert new data
+        # ============================================================================
+        print(f"📥 STEP 4: Inserting new data")
+        self._append_to_table(df, schema, table_name)
+        print(f"   ✅ Inserted {len(df)} rows\n")
+        
+        print(f"{'='*60}")
+        print(f"✅ Insert Overwrite Complete!")
+        print(f"   Overwrote {len(where_conditions)} partition(s)")
+        print(f"   Inserted {len(df)} rows")
+        print(f"{'='*60}\n")
+        
+        return len(df)
 
     @available.parse(lambda *a, **k: {})
     def get_clickhouse_cluster_name(self):

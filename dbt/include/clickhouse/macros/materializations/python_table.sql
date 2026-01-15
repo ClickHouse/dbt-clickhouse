@@ -1,3 +1,5 @@
+{# macros/materializations/python_table.sql #}
+
 {% materialization python_table, adapter='clickhouse', supported_languages=['python'] %}
 
   {%- set identifier = model.alias -%}
@@ -12,16 +14,32 @@
       database=database,
       type='table') %}
   
-  {%- if old_relation is not none -%}
-      {%- do adapter.drop_relation(old_relation) -%}
+  {%- set full_refresh_mode = (should_full_refresh()) -%}
+  {%- set exists_as_table = (old_relation is not none and old_relation.type == 'table') -%}
+  
+  {# For incremental, we need to handle it differently #}
+  {%- if exists_as_table and not full_refresh_mode -%}
+    {# Incremental run - temp table approach #}
+    {%- set temp_relation = make_temp_relation(target_relation) -%}
+    
+    {# Execute Python model with incremental=True #}
+    {%- set python_result = adapter.submit_python_job(model, compiled_code, is_incremental=true, target_relation=target_relation) -%}
+    
+    {# The adapter handles the merge/append logic #}
+    {%- do store_result('main', python_result) -%}
+    
+  {%- else -%}
+    {# Full refresh or first run #}
+    {%- if old_relation is not none -%}
+        {%- do adapter.drop_relation(old_relation) -%}
+    {%- endif -%}
+    
+    {# Execute Python model with incremental=False #}
+    {%- set python_result = adapter.submit_python_job(model, compiled_code, is_incremental=false, target_relation=target_relation) -%}
+    
+    {%- do store_result('main', python_result) -%}
+    
   {%- endif -%}
-  
-  -- Execute Python model using the adapter's submit_python_job method
-  -- Pass 'model' (the full model dictionary) and 'compiled_code' (the compiled Python code)
-  {%- set python_result = adapter.submit_python_job(model, compiled_code) -%}
-  
-  -- Store the result so dbt-core can track it
-  {%- do store_result('main', python_result) -%}
   
   {% do return({'relations': [target_relation]}) %}
 
