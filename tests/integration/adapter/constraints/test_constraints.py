@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from dbt.tests.util import get_manifest, run_dbt, run_dbt_and_capture, write_file
 
@@ -151,6 +153,10 @@ class TestViewContractColumnsEqual(ClickHouseContractColumnsEqual):
         }
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
+    reason='Replicated is not supported for cloud',
+)
 class TestDistributedTableContractColumnsEqual(ClickHouseContractColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
@@ -180,6 +186,10 @@ class TestIncrementalContractColumnsEqual:
         contract_wrong_column_names(project)
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
+    reason='Replicated is not supported for cloud',
+)
 class TestDistributedIncrementalContractColumnsEqual(TestIncrementalContractColumnsEqual):
     @pytest.fixture(scope="class")
     def models(self):
