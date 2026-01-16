@@ -19,28 +19,21 @@ id,name,age,department
 3000,Charlie,30,sales
 """.lstrip()
 
-# This model is parameterized, in a way, by the "run_type" dbt project variable
-# This is to be able to switch between different model definitions within
-# the same test run and allow us to test the evolution of a materialized view
+# This model is parameterized by three dbt project variables:
+# - schema_name: the schema name to use (default: 'custom_schema')
+# - catchup: whether to backfill existing data (default: True)
+# - use_updated_schema: whether to use the extended schema with id2 column (default: False)
 MV_MODEL = """
 {{ config(
-       materialized='materialized_view' if var('run_type', '') != 'view_conversion' else 'view',
+       materialized='materialized_view' if not var('use_view', False) else 'view',
        engine='MergeTree()',
        order_by='(id)',
        on_schema_change=var('on_schema_change', 'ignore'),
-       schema=(
-           'catchup' if var('run_type', '') == 'catchup' else
-           'catchup_initial' if var('run_type', '') == 'catchup_initial' else
-           'catchup_full_refresh_disabled' if var('run_type', '') in ['catchup_full_refresh_disabled', 'catchup_full_refresh_disabled_extended'] else
-           'catchup_full_refresh_enabled' if var('run_type', '') in ['catchup_full_refresh_enabled', 'catchup_full_refresh_enabled_extended'] else
-           'catchup_toggle' if var('run_type', '') in ['catchup_toggle', 'catchup_toggle_extended'] else
-           'catchup_no_exchange' if var('run_type', '') in ['catchup_no_exchange', 'catchup_no_exchange_extended'] else
-           'custom_schema'
-       ),
-       **({'catchup': False} if var('run_type', '') in ['catchup', 'catchup_initial', 'catchup_full_refresh_disabled', 'catchup_full_refresh_disabled_extended', 'catchup_toggle', 'catchup_no_exchange', 'catchup_no_exchange_extended'] else {})
+       schema=var('schema_name', 'custom_schema'),
+       **({'catchup': False} if not var('catchup', True) else {})
 ) }}
 
-{% if var('run_type', '') in ['', 'catchup', 'catchup_initial', 'catchup_full_refresh_disabled', 'catchup_full_refresh_enabled', 'catchup_toggle', 'catchup_no_exchange', 'view_conversion'] %}
+{% if not var('use_updated_schema', False) %}
 select
     id,
     name,
@@ -52,7 +45,7 @@ select
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 
-{% elif var('run_type', '') in ['extended_schema', 'catchup_full_refresh_disabled_extended', 'catchup_full_refresh_enabled_extended', 'catchup_toggle_extended', 'catchup_no_exchange_extended'] %}
+{% else %}
 select
     id,
     name,
@@ -195,7 +188,7 @@ class TestUpdateMV:
         run_dbt()
 
         # re-run dbt but this time with the new MV SQL
-        run_vars = {"run_type": "extended_schema"}
+        run_vars = {"use_updated_schema": True}
         run_dbt(["run", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
@@ -226,7 +219,7 @@ class TestUpdateMV:
         run_dbt()
 
         # re-run dbt but this time with the new MV SQL
-        run_vars = {"run_type": "extended_schema", "on_schema_change": "sync_all_columns"}
+        run_vars = {"use_updated_schema": True, "on_schema_change": "sync_all_columns"}
         run_dbt(["run", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
@@ -256,7 +249,7 @@ class TestUpdateMV:
         run_dbt()
 
         # re-run dbt but this time with the new MV SQL
-        run_vars = {"run_type": "extended_schema", "on_schema_change": "fail"}
+        run_vars = {"use_updated_schema": True, "on_schema_change": "fail"}
         results = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
 
         result = next(r for r in results if r.status == "error")
@@ -277,7 +270,7 @@ class TestUpdateMV:
         run_dbt()
 
         # re-run dbt but this time with the new MV SQL
-        run_vars = {"run_type": "extended_schema"}
+        run_vars = {"use_updated_schema": True}
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
@@ -316,7 +309,7 @@ class TestUpdateMV:
         assert query_table_type(project, schema_unquoted, 'hackers_mv_mv') == "MaterializedView"
 
         # Step 3: Change model to view materialization and run with full refresh
-        run_vars = {"run_type": "view_conversion"}
+        run_vars = {"use_view": True}
         results = run_dbt(
             ["run", "--full-refresh", "--log-level", "debug", "--vars", json.dumps(run_vars)]
         )
@@ -427,7 +420,7 @@ class TestCatchup:
         assert columns[0][1] == "Int32"
 
         # Step 2: Create the model with catchup disabled
-        run_vars = {"run_type": "catchup_initial"}
+        run_vars = {"schema_name": "catchup_initial", "catchup": False}
         results = run_dbt(["run", "--vars", json.dumps(run_vars)])
         assert len(results) == 1
 
@@ -481,7 +474,7 @@ class TestCatchup:
         assert len(results) == 1
 
         # Step 2: Create MV with catchup=False
-        run_vars = {"run_type": "catchup_full_refresh_disabled"}
+        run_vars = {"schema_name": "catchup_full_refresh_disabled", "catchup": False}
         results = run_dbt(["run", "--vars", json.dumps(run_vars)])
         assert len(results) == 1
 
@@ -502,7 +495,7 @@ class TestCatchup:
         assert result[0][0] == 1
 
         # Step 4: Full refresh with catchup=False and schema change
-        run_vars = {"run_type": "catchup_full_refresh_disabled_extended"}
+        run_vars = {"schema_name": "catchup_full_refresh_disabled", "catchup": False, "use_updated_schema": True}
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         # Step 5: Assert table was NOT backfilled (should be empty)
@@ -539,7 +532,7 @@ class TestCatchup:
         assert len(results) == 1
 
         # Step 2: Create MV with default catchup=True
-        run_vars = {"run_type": "catchup_full_refresh_enabled"}
+        run_vars = {"schema_name": "catchup_full_refresh_enabled"}
         results = run_dbt(["run", "--vars", json.dumps(run_vars)])
         assert len(results) == 1
 
@@ -559,7 +552,7 @@ class TestCatchup:
         assert result[0][0] == 4
 
         # Step 4: Full refresh with catchup=True (default) and schema change
-        run_vars = {"run_type": "catchup_full_refresh_enabled_extended"}
+        run_vars = {"schema_name": "catchup_full_refresh_enabled", "use_updated_schema": True}
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         # Step 5: Assert table was backfilled with all historical data
@@ -585,7 +578,7 @@ class TestCatchup:
         assert len(results) == 1
 
         # Step 2: Create MV with catchup=False
-        run_vars = {"run_type": "catchup_toggle"}
+        run_vars = {"schema_name": "catchup_toggle", "catchup": False}
         results = run_dbt(["run", "--vars", json.dumps(run_vars)])
         assert len(results) == 1
 
@@ -606,14 +599,14 @@ class TestCatchup:
         assert result[0][0] == 1
 
         # Step 5: Full refresh with catchup=True (default) and schema change
-        run_vars = {"run_type": "catchup_toggle_extended"}
+        run_vars = {"schema_name": "catchup_toggle", "use_updated_schema": True}
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         # Step 6: Assert all historical data is now backfilled (3 seed + 1 insert)
         result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
         assert result[0][0] == 4
 
-    def test_full_refresh_catchup_disabled_no_exchange(self, project, mocker):
+    def test_full_refresh_catchup_disabled_no_exchange(self, project):
         """
         Test that catchup=False works in the replace MV path (when can_exchange=False).
         This tests older ClickHouse versions or special database configurations.
@@ -629,6 +622,8 @@ class TestCatchup:
         6. Assert table was NOT backfilled (should be empty)
         7. Insert new data and verify MV still works
         """
+        from unittest.mock import patch, PropertyMock
+
         schema = quote_identifier(project.test_schema + "_catchup_no_exchange")
 
         # Step 1: Create seed data
@@ -636,7 +631,7 @@ class TestCatchup:
         assert len(results) == 1
 
         # Step 2: Create MV with catchup=False
-        run_vars = {"run_type": "catchup_no_exchange"}
+        run_vars = {"schema_name": "catchup_no_exchange", "catchup": False}
         results = run_dbt(["run", "--vars", json.dumps(run_vars)])
         assert len(results) == 1
 
@@ -659,12 +654,11 @@ class TestCatchup:
         # This forces the code to use the clickhouse__replace_mv path instead of atomic exchange
         from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
-        mocker.patch.object(ClickHouseRelation, 'can_exchange', False)
-
         # Step 5: Full refresh with catchup=False and schema change
         # The mock forces us into the replace MV path (line 274 in materialized_view.sql)
-        run_vars = {"run_type": "catchup_no_exchange_extended"}
-        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+        run_vars = {"schema_name": "catchup_no_exchange", "catchup": False, "use_updated_schema": True}
+        with patch.object(ClickHouseRelation, 'can_exchange', new_callable=PropertyMock, return_value=False):
+            run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         # Step 6: Assert table was NOT backfilled (should be empty)
         result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")

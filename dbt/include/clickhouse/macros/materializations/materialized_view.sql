@@ -135,7 +135,7 @@
   If catchup is False, creates an empty table without backfilling.
 #}
 {% macro clickhouse__create_target_table(relation, sql, catchup=True) -%}
-  {% if catchup_data == True %}
+  {% if catchup == True %}
     {{ get_create_table_as_sql(False, relation, sql) }}
   {% else %}
     {{ log('Catchup config set to false, skipping table backfill for ' + relation.name) }}
