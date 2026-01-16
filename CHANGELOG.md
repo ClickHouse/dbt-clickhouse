@@ -1,5 +1,7 @@
 ### Release [1.9.9], 2026-XX-XX
 
+#### Improvements
+* Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
 
 ### Release [1.9.8], 2026-01-12
 
@@ -10,7 +12,6 @@
 * Bump minimum `dbt-adapters` version to 1.16.7 to fix a compatibility issue that breaks tests if an older version is installed ([#578](https://github.com/ClickHouse/dbt-clickhouse/pull/578)).
 * It is now possible to use an empty `local_suffix` configuration ([#569](https://github.com/ClickHouse/dbt-clickhouse/pull/569)).
 * Column order is now respected when using incremental materialization with contracts ([#575](https://github.com/ClickHouse/dbt-clickhouse/pull/575)).
-* Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#XXX](https://github.com/ClickHouse/dbt-clickhouse/pull/XXX)).
 
 #### Repository maintenance
 * Regular maintenance tasks ([#586](https://github.com/ClickHouse/dbt-clickhouse/pull/586))
