@@ -21,13 +21,62 @@
     {% do return(tmp_relation) %}
 {% endmacro %}
 
+{% macro clickhouse__create_snapshot_upsert_table(upsert_relation, target_relation) -%}
+  {%- set target_columns = adapter.get_columns_in_relation(target_relation) -%}
+  {%- set col_definitions = [] -%}
+  {%- for col in target_columns -%}
+    {%- do col_definitions.append(col.name + ' ' + col.data_type) -%}
+  {%- endfor -%}
+  
+  {%- set order_by = config.get('order_by', validator=validation.any[list, basestring]) -%}
+  {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
+  {%- set engine = config.get('engine', default='MergeTree()') -%}
+  
+  create table if not exists {{ upsert_relation }}
+  {{ on_cluster_clause(upsert_relation) }} (
+    {{ col_definitions | join(', ') }}
+  )
+  engine = {{ engine }}
+  {%- if order_by is not none %}
+    {%- if order_by is string -%}
+      {%- set order_by_list = [order_by] -%}
+    {%- else -%}
+      {%- set order_by_list = order_by -%}
+    {%- endif -%}
+    order by (
+      {%- for item in order_by_list -%}
+        {{ item }}{%- if not loop.last %},{%- endif -%}
+      {%- endfor -%}
+    )
+  {%- endif %}
+  {%- if primary_key is not none %}
+    {%- if primary_key is string -%}
+      {%- set primary_key_list = [primary_key] -%}
+    {%- else -%}
+      {%- set primary_key_list = primary_key -%}
+    {%- endif -%}
+    primary key (
+      {%- for item in primary_key_list -%}
+        {{ item }}{%- if not loop.last %},{%- endif -%}
+      {%- endfor -%}
+    )
+  {%- endif %}
+{%- endmacro %}
+
 {% macro clickhouse__snapshot_merge_sql(target, source, insert_cols) -%}
   {%- set insert_cols_csv = insert_cols | join(', ') -%}
   {%- set valid_to_col = adapter.quote('dbt_valid_to') -%}
 
   {%- set upsert = target.derivative('__snapshot_upsert') -%}
+  {%- set order_by = config.get('order_by', validator=validation.any[list, basestring]) -%}
+  {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
+  
   {% call statement('create_upsert_relation') %}
-    create table if not exists {{ upsert }} {{ on_cluster_clause(upsert) }} as {{ target }}
+    {%- if order_by is not none or primary_key is not none %}
+      {{ clickhouse__create_snapshot_upsert_table(upsert, target) }}
+    {%- else %}
+      create table if not exists {{ upsert }} {{ on_cluster_clause(upsert) }} as {{ target }}
+    {%- endif %}
   {% endcall %}
 
   {% call statement('insert_unchanged_data') %}
@@ -89,7 +138,6 @@
 
 
 {% macro clickhouse__snapshot_staging_table(strategy, source_sql, target_relation) -%}
-    {# Detect strategy type and delegate to specific macro #}
     {% if strategy.updated_at == 'now()' or 'now()' in strategy.updated_at %}
         {{ clickhouse__snapshot_staging_table_check_strategy(strategy, source_sql, target_relation) }}
     {% else %}
@@ -100,7 +148,7 @@
 {% macro clickhouse__snapshot_staging_table_check_strategy(strategy, source_sql, target_relation) -%}
 
     with snapshot_time as (
-        select {{ strategy.updated_at }} as ts  -- Single timestamp
+        select {{ strategy.updated_at }} as ts
     ),
         snapshot_query as (
 
