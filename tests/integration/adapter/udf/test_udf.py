@@ -5,7 +5,6 @@ test UDF creation support for dbt-clickhouse
 # we'll import helper used by the core test project to write directories
 
 import pytest
-
 from dbt.tests.util import run_dbt
 
 UDF_MODEL = """
