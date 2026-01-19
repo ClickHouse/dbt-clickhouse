@@ -80,7 +80,10 @@ class ChClientWrapper(ABC):
         if credentials.cluster_mode or credentials.database_engine == 'Replicated':
             self._conn_settings['database_replicated_enforce_synchronous_settings'] = '1'
             self._conn_settings['insert_quorum'] = 'auto'
-        self._conn_settings['mutations_sync'] = '2'
+        elif credentials.database_engine == 'Shared':
+            self._conn_settings['select_sequential_consistency'] = '1'
+        self._conn_settings['mutations_sync'] = '3'
+        self._conn_settings['alter_sync'] = '3'
         self._conn_settings['insert_distributed_sync'] = '1'
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
