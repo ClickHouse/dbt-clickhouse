@@ -1,7 +1,6 @@
 import pytest
 from dbt.tests.util import relation_from_name, run_dbt
 
-
 SEED_CSV = """id,name,email,updated_at
 1,Alice,alice@example.com,2024-01-01 10:00:00
 2,Bob,bob@example.com,2024-01-02 11:00:00
