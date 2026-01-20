@@ -495,7 +495,11 @@ class TestCatchup:
         assert result[0][0] == 1
 
         # Step 4: Full refresh with catchup=False and schema change
-        run_vars = {"schema_name": "catchup_full_refresh_disabled", "catchup": False, "use_updated_schema": True}
+        run_vars = {
+            "schema_name": "catchup_full_refresh_disabled",
+            "catchup": False,
+            "use_updated_schema": True,
+        }
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         # Step 5: Assert table was NOT backfilled (should be empty)
@@ -622,7 +626,7 @@ class TestCatchup:
         6. Assert table was NOT backfilled (should be empty)
         7. Insert new data and verify MV still works
         """
-        from unittest.mock import patch, PropertyMock
+        from unittest.mock import PropertyMock, patch
 
         schema = quote_identifier(project.test_schema + "_catchup_no_exchange")
 
@@ -656,8 +660,14 @@ class TestCatchup:
 
         # Step 5: Full refresh with catchup=False and schema change
         # The mock forces us into the replace MV path (line 274 in materialized_view.sql)
-        run_vars = {"schema_name": "catchup_no_exchange", "catchup": False, "use_updated_schema": True}
-        with patch.object(ClickHouseRelation, 'can_exchange', new_callable=PropertyMock, return_value=False):
+        run_vars = {
+            "schema_name": "catchup_no_exchange",
+            "catchup": False,
+            "use_updated_schema": True,
+        }
+        with patch.object(
+            ClickHouseRelation, 'can_exchange', new_callable=PropertyMock, return_value=False
+        ):
             run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         # Step 6: Assert table was NOT backfilled (should be empty)
