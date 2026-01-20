@@ -38,11 +38,15 @@ class TestClickHouseSnapshotOrderBy:
     @pytest.fixture(scope="class")
     def snapshots(self):
         return {
-            "snap_both.sql": make_snapshot("snap_both", order_by=["dbt_scd_id", "dbt_valid_from"], primary_key="dbt_scd_id"),
+            "snap_both.sql": make_snapshot(
+                "snap_both", order_by=["dbt_scd_id", "dbt_valid_from"], primary_key="dbt_scd_id"
+            ),
             "snap_order_only.sql": make_snapshot("snap_order_only", order_by="dbt_scd_id"),
             "snap_pk_only.sql": make_snapshot("snap_pk_only", primary_key="dbt_scd_id"),
             "snap_none.sql": make_snapshot("snap_none"),
-            "snap_replacing.sql": make_snapshot("snap_replacing", engine="ReplacingMergeTree()", order_by="dbt_scd_id"),
+            "snap_replacing.sql": make_snapshot(
+                "snap_replacing", engine="ReplacingMergeTree()", order_by="dbt_scd_id"
+            ),
         }
 
     @pytest.fixture(scope="class", autouse=True)
@@ -75,19 +79,26 @@ class TestClickHouseSnapshotOrderBy:
 
     def _update_source_data(self, project):
         rel = relation_from_name(project.adapter, "table_model")
-        project.run_sql(f"ALTER TABLE {rel} UPDATE email = 'alice.new@example.com' WHERE id = 1 SETTINGS mutations_sync = 2")
-        project.run_sql(f"INSERT INTO {rel} VALUES (4, 'David', 'david@example.com', '2024-01-04 13:00:00')")
+        project.run_sql(
+            f"ALTER TABLE {rel} UPDATE email = 'alice.new@example.com' WHERE id = 1 SETTINGS mutations_sync = 2"
+        )
+        project.run_sql(
+            f"INSERT INTO {rel} VALUES (4, 'David', 'david@example.com', '2024-01-04 13:00:00')"
+        )
 
     def _drop_snapshot(self, project, snapshot):
         rel = relation_from_name(project.adapter, snapshot)
         project.run_sql(f"DROP TABLE IF EXISTS {rel}")
 
-    @pytest.mark.parametrize("snapshot,expect_order,expect_pk", [
-        ("snap_both", ["dbt_scd_id", "dbt_valid_from"], ["dbt_scd_id"]),
-        ("snap_order_only", ["dbt_scd_id"], None),
-        ("snap_pk_only", ["dbt_scd_id"], ["dbt_scd_id"]),
-        ("snap_none", None, None),
-    ])
+    @pytest.mark.parametrize(
+        "snapshot,expect_order,expect_pk",
+        [
+            ("snap_both", ["dbt_scd_id", "dbt_valid_from"], ["dbt_scd_id"]),
+            ("snap_order_only", ["dbt_scd_id"], None),
+            ("snap_pk_only", ["dbt_scd_id"], ["dbt_scd_id"]),
+            ("snap_none", None, None),
+        ],
+    )
     def test_snapshot_config(self, project, snapshot, expect_order, expect_pk):
         self._reset_source_data(project)
         self._drop_snapshot(project, snapshot)
