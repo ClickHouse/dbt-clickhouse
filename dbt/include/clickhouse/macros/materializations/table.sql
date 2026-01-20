@@ -86,10 +86,16 @@
 {%- endmacro -%}
 
 {% macro primary_key_clause(label) %}
-  {%- set primary_key = config.get('primary_key', validator=validation.any[basestring]) -%}
+  {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
 
-  {%- if primary_key is not none %}
-    {{ label }} {{ primary_key }}
+  {%- if primary_key %}
+    {%- set pk_list = [primary_key] if primary_key is string else primary_key -%}
+    {{ label }} (
+    {%- for item in pk_list -%}
+      {{ item }}
+      {%- if not loop.last -%},{%- endif -%}
+    {%- endfor -%}
+    )
   {%- endif %}
 {%- endmacro -%}
 
@@ -105,17 +111,15 @@
     'Hive'
   ] -%}
 
-  {%- if cols is none and primary_key is not none -%}
+  {%- if not cols and primary_key -%}
     {%- set cols = primary_key -%}
   {%- endif -%}
 
   {%- if 'MergeTree' in engine or engine in supported %}
-    {%- if cols is not none %}
-      {%- if cols is string -%}
-        {%- set cols = [cols] -%}
-      {%- endif -%}
+    {%- if cols %}
+      {%- set cols_list = [cols] if cols is string else cols -%}
       {{ label }} (
-      {%- for item in cols -%}
+      {%- for item in cols_list -%}
         {{ item }}
         {%- if not loop.last -%},{%- endif -%}
       {%- endfor -%}

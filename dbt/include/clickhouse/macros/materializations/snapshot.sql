@@ -32,13 +32,7 @@
   {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
   {%- set engine = config.get('engine', default='MergeTree()') -%}
   
-  {%- if order_by_raw is not none -%}
-    {%- set order_by = order_by_raw -%}
-  {%- elif primary_key is not none -%}
-    {%- set order_by = primary_key -%}
-  {%- else -%}
-    {%- set order_by = none -%}
-  {%- endif -%}
+  {%- set order_by = order_by_raw if order_by_raw else (primary_key if primary_key else none) -%}
   
   create table if not exists {{ upsert_relation }}
   {{ on_cluster_clause(upsert_relation) }} (
@@ -72,7 +66,7 @@
   {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
   
   {% call statement('create_upsert_relation') %}
-    {%- if order_by is not none or primary_key is not none %}
+    {%- if order_by or primary_key %}
       {{ clickhouse__create_snapshot_upsert_table(upsert, target) }}
     {%- else %}
       create table if not exists {{ upsert }} {{ on_cluster_clause(upsert) }} as {{ target }}
