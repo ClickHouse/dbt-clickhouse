@@ -28,33 +28,33 @@
     {%- do col_definitions.append(col.name + ' ' + col.data_type) -%}
   {%- endfor -%}
   
-  {%- set order_by = config.get('order_by', validator=validation.any[list, basestring]) -%}
+  {%- set order_by_raw = config.get('order_by', validator=validation.any[list, basestring]) -%}
   {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
   {%- set engine = config.get('engine', default='MergeTree()') -%}
+  
+  {%- if order_by_raw is not none -%}
+    {%- set order_by = order_by_raw -%}
+  {%- elif primary_key is not none -%}
+    {%- set order_by = primary_key -%}
+  {%- else -%}
+    {%- set order_by = none -%}
+  {%- endif -%}
   
   create table if not exists {{ upsert_relation }}
   {{ on_cluster_clause(upsert_relation) }} (
     {{ col_definitions | join(', ') }}
   )
   engine = {{ engine }}
-  {%- if order_by is not none %}
-    {%- if order_by is string -%}
-      {%- set order_by_list = [order_by] -%}
-    {%- else -%}
-      {%- set order_by_list = order_by -%}
-    {%- endif -%}
+  {%- if order_by %}
+    {%- set order_by_list = [order_by] if order_by is string else order_by -%}
     order by (
       {%- for item in order_by_list -%}
         {{ item }}{%- if not loop.last %},{%- endif -%}
       {%- endfor -%}
     )
   {%- endif %}
-  {%- if primary_key is not none %}
-    {%- if primary_key is string -%}
-      {%- set primary_key_list = [primary_key] -%}
-    {%- else -%}
-      {%- set primary_key_list = primary_key -%}
-    {%- endif -%}
+  {%- if primary_key %}
+    {%- set primary_key_list = [primary_key] if primary_key is string else primary_key -%}
     primary key (
       {%- for item in primary_key_list -%}
         {{ item }}{%- if not loop.last %},{%- endif -%}

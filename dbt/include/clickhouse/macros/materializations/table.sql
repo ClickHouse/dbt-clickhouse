@@ -95,6 +95,7 @@
 
 {% macro order_cols(label) %}
   {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
+  {%- set primary_key = config.get('primary_key', validator=validation.any[list, basestring]) -%}
   {%- set engine = config.get('engine', default='MergeTree()') -%}
   {%- set supported = [
     'HDFS',
@@ -103,6 +104,10 @@
     'EmbeddedRocksDB',
     'Hive'
   ] -%}
+
+  {%- if cols is none and primary_key is not none -%}
+    {%- set cols = primary_key -%}
+  {%- endif -%}
 
   {%- if 'MergeTree' in engine or engine in supported %}
     {%- if cols is not none %}
