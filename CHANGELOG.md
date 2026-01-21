@@ -1,5 +1,7 @@
 ### Release [1.9.9], 2026-XX-XX
 
+#### Documentation
+* Add compatibility matrix to README to help users understand version requirements ([#565](https://github.com/ClickHouse/dbt-clickhouse/issues/565)).
 
 ### Release [1.9.8], 2026-01-12
 

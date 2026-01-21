@@ -46,6 +46,17 @@ pip install dbt-clickhouse
 - [x] ClickHouse-specific column configurations (Codec, TTL...)
 - [x] ClickHouse-specific table settings (indexes, projections...)
 
+## Compatibility Matrix
+
+| dbt-clickhouse | dbt-core | Python     | ClickHouse | clickhouse-connect |
+|----------------|----------|------------|------------|-------------------|
+| 1.9.x          | ≥1.9     | 3.10-3.13  | 24.8+      | ≥0.10.0           |
+| 1.8.x          | ≥1.8     | 3.9-3.12   | 23.8+      | ≥0.8.0            |
+| 1.7.x          | ≥1.7     | 3.8-3.11   | 22.8+      | ≥0.6.0            |
+
+> **Note:** ClickHouse versions listed are the minimum tested versions. Newer versions are generally supported.
+> Python 3.9 support was dropped in dbt-clickhouse 1.9.8.
+
 All features up to dbt-core 1.10 are supported, including `--sample` flag and all deprecation warnings fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 are not yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](/integrations/dbt/features-and-configurations#catalog-support) for details.
 
 This adapter is still not available for use inside [dbt Cloud](https://docs.getdbt.com/docs/dbt-cloud/cloud-overview), but we expect to make it available soon. Please reach out to support to get more information on this.
