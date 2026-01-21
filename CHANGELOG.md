@@ -1,5 +1,8 @@
 ### Release [1.9.9], 2026-XX-XX
 
+#### Bugs
+* Fix incremental models failing with `ON CLUSTER` when the table exists on a single shard. The `can_on_cluster` flag now also considers the cluster configuration from the profile, not just the actual shard distribution ([#273](https://github.com/ClickHouse/dbt-clickhouse/issues/273)).
+
 
 ### Release [1.9.8], 2026-01-12
 
