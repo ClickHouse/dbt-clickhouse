@@ -55,18 +55,37 @@
       {%- set configured_on_schema_change = 'fail' -%}
     {%- endif -%}
 
-    {%- set on_schema_change = incremental_validate_on_schema_change(configured_on_schema_change, default='ignore') -%}
-    {% call statement('main') -%}
-      Select 1
-    {%- endcall %}
-    {{ log('on_schema_change strategy for table: ' + on_schema_change) }}
-    {%- if on_schema_change != 'ignore' -%}
-      {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
-      {% if column_changes %}
-        {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
-        {% set existing_relation = load_cached_relation(this) %}
+    {# If definetively no on_schema_change is set, we behave as usual #}
+    {% if configured_on_schema_change is none %}
+      {% if existing_relation.can_exchange %}
+      {% call statement('main') -%}
+            {{ get_create_table_as_sql(False, backup_relation, sql) }}
+          {%- endcall %}
+      {% do exchange_tables_atomic(backup_relation, existing_relation) %}
+      {% else %}
+          -- We have to use an intermediate and rename accordingly
+          {% call statement('main') -%}
+            {{ get_create_table_as_sql(False, intermediate_relation, sql) }}
+          {%- endcall %}
+          {{ adapter.rename_relation(existing_relation, backup_relation) }}
+          {{ adapter.rename_relation(intermediate_relation, target_relation) }}
       {% endif %}
-    {%- endif %}
+    
+    {# If on_schema_change is set, we apply the strategy #}
+    {% else %}
+      {%- set on_schema_change = incremental_validate_on_schema_change(configured_on_schema_change, default='ignore') -%}
+      {% call statement('main') -%}
+        Select 1
+      {%- endcall %}
+      {{ log('on_schema_change strategy for table: ' + on_schema_change) }}
+      {%- if on_schema_change != 'ignore' -%}
+        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
+        {% if column_changes %}
+          {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
+          {% set existing_relation = load_cached_relation(this) %}
+        {% endif %}
+      {%- endif %}
+    {% endif %}
   
   {# Behaviour under full_refresh operations #}
   {% else %}
