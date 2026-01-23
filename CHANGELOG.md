@@ -3,6 +3,10 @@
 #### Improvements
 * Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
 
+#### Bugs
+* Fix incremental models failing with `ON CLUSTER` when the table exists on a single shard. The `can_on_cluster` flag now also considers the cluster configuration from the profile, not just the actual shard distribution ([#273](https://github.com/ClickHouse/dbt-clickhouse/issues/273)).
+
+
 ### Release [1.9.8], 2026-01-12
 
 #### Improvements

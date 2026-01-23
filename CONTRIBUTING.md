@@ -77,3 +77,87 @@ configuration file (this file should not be checked into git).  The following en
 9. DBT_CH_TEST_CLUSTER_MODE - Use the profile value
 10. DBT_CH_TEST_CLUSTER - ClickHouse cluster name, if DBT_CH_TEST_USE_DOCKER set to true, only `test_replica` and `test_shard` is valid (see tests/test_config.xml for cluster settings)
 11. DBT_CH_TEST_DRIVER - Specifies the protocol for making requests to ClickHouse. Defaults to `http` but automatically switches to `native` when `DBT_CH_TEST_PORT` is set to `10900`, `9000` or `9440`.
+
+### Example Configurations
+
+Local development using the docker compose file included (cluster start/stop will be managed by the tests)
+
+```env
+DBT_CH_TEST_USE_DOCKER=True
+DBT_CH_TEST_CLUSTER=test_replica
+DBT_CH_TEST_CLUSTER_MODE=true
+```
+
+If you want to run tests against ClickHouse Cloud you can use:
+
+```env
+DBT_CH_TEST_HOST=my.host.name.clickhouse.com  
+DBT_CH_TEST_PASSWORD=password  
+DBT_CH_TEST_CLOUD=true
+DBT_CH_TEST_PORT=8443
+```
+
+## Inspecting Generated Queries
+
+Use `dbt compile` to see the SQL queries that dbt is building. This is useful for debugging macro logic and understanding what queries will be executed against ClickHouse.
+
+## Local Debugging
+
+Interesting links:
+
+- [dbt debug() method documentation](https://docs.getdbt.com/reference/dbt-jinja-functions/debug-method)
+- [Guide to Jinja debugging](https://docs.getdbt.com/blog/guide-to-jinja-debug)
+
+### TL, DR: enabling macro debugging
+
+Set the environment variable to enable macro debugging:
+
+```bash
+export DBT_MACRO_DEBUGGING=1
+```
+
+And insert a breakpoint in your Jinja template:
+
+```jinja2
+{{ debug() }}
+```
+
+Then you can execute normally your `dbt` command and see that it will stop at the breakpoint. For pytest, add `-s` to Additional Arguments to see debug output.
+
+Once in the debugger, you can inspect available variables using these commands. Take into account jinja adds prefix like `l_1_` to the variables:
+
+```python
+# List available variables
+locals().keys()
+# See variable content
+locals()['<variable>']
+# If it's an object, you can see its attributes with
+locals()['<variable>'].__dict__
+```
+
+
+### TL, DR: pdb Commands
+
+Reference: [Python pdb debugger commands](https://docs.python.org/3/library/pdb.html#debugger-commands)
+
+| Command | Description |
+|---------|-------------|
+| `c(ontinue)` | Continue execution |
+| `s(tep)` | Step into functions |
+| `n(ext)` | Execute next line (step over) |
+| `r(eturn)` | Continue until current function returns |
+
+### Raising Exceptions and adding logs in Jinja
+
+**Raise a compiler error: [dbt exceptions documentation](https://docs.getdbt.com/reference/dbt-jinja-functions/exceptions)**
+
+```jinja2
+{{ exceptions.raise_compiler_error('message') }}
+```
+
+**Log a warning: [dbt warnings documentation](https://docs.getdbt.com/reference/dbt-jinja-functions/exceptions)**
+
+Remeber to execute your `dbt` commands with 
+```jinja2
+{% do exceptions.warn("Invalid `number`. Got: " ~ number) %}
+```
