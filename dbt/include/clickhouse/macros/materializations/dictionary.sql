@@ -52,7 +52,9 @@
     {% endif -%}
   )
   LAYOUT({{ config.get('layout') }})
+  {%- if config.get('lifetime') %}
   LIFETIME({{ config.get('lifetime') }})
+  {%- endif %}
   {%- if config.get('range') %}
   RANGE({{ config.get('range') }})
   {%- endif %}
@@ -82,6 +84,12 @@
       {% else %}
         query "{{ sql }}"
       {% endif -%}
+      {%- if config.get('update_field') %}
+      update_field '{{ config.get('update_field') }}'
+      {%- endif %}
+      {%- if config.get('update_lag') %}
+      update_lag {{ config.get('update_lag') }}
+      {%- endif %}
   )
 {% endmacro %}
 
