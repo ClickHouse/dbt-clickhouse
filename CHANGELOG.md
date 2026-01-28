@@ -1,5 +1,8 @@
 ### Release [1.9.9], 2026-XX-XX
 
+#### Bugs
+* Fix issue where AWS credentials (`aws_access_key_id` and `aws_secret_access_key`) were not being read when defined outside the macro call ([#601](https://github.com/ClickHouse/dbt-clickhouse/issues/601)).
+
 
 ### Release [1.9.8], 2026-01-12
 
