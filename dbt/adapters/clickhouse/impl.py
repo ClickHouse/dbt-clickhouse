@@ -343,6 +343,8 @@ class ClickHouseAdapter(SQLAdapter):
         results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
         conn_supports_exchange = self.supports_atomic_exchange()
 
+        cluster_configured = bool(self.get_clickhouse_cluster_name())
+
         relations = []
         for row in results:
             name, schema, type_info, db_engine, on_cluster = row
@@ -357,7 +359,7 @@ class ClickHouseAdapter(SQLAdapter):
                 and rel_type == ClickHouseRelationType.Table
                 and engine_can_atomic_exchange(db_engine)
             )
-            can_on_cluster = (on_cluster >= 1) and db_engine != 'Replicated'
+            can_on_cluster = (cluster_configured or on_cluster >= 1) and db_engine != 'Replicated'
 
             relation = self.Relation.create(
                 database='',
