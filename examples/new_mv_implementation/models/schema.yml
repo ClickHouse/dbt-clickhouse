@@ -1,0 +1,45 @@
+version: 2
+
+models:
+  - name: new_mv_target_model
+    description: |
+      Target table for aggregated event data.
+      
+      This table is created EMPTY - it only defines the schema.
+      All data is populated by streaming materialized views:
+      - `streaming_events_mv` - aggregates all events
+      - `streaming_events_mv_mobile` - aggregates mobile events
+      
+      Uses SummingMergeTree engine to automatically aggregate rows
+      with the same (event_date, event_type) during background merges.
+    config:
+      materialized: table
+      engine: "SummingMergeTree()"
+      order_by: "(event_date, event_type)"
+    columns:
+      - name: event_date
+        description: "Date of the events (aggregation key)"
+      - name: event_type
+        description: "Type of event (aggregation key)"
+      - name: event_count
+        description: "Count of events for this date/type combination"
+      - name: total_value
+        description: "Sum of event values for this date/type combination"
+
+  - name: new_mv_mv1
+    description: |
+      Streaming Materialized View that continuously populates `events_aggregated`.
+      
+      This model uses the `external_target` config to write to an existing table
+      rather than creating its own.
+      
+      **Important**: This MV does NOT own the target table. It only transforms
+      and routes data. The target table's lifecycle (schema, engine, etc.) is
+      managed by the `events_aggregated` model.
+    config:
+      materialized: materialized_view
+      external_target: "events_aggregated"
+    meta:
+      mv_type: streaming
+      writes_to: events_aggregated
+
