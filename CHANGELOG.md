@@ -5,6 +5,7 @@
 
 #### Bugs
 * Fix incremental models failing with `ON CLUSTER` when the table exists on a single shard. The `can_on_cluster` flag now also considers the cluster configuration from the profile, not just the actual shard distribution ([#273](https://github.com/ClickHouse/dbt-clickhouse/issues/273)).
+* Fix issue where AWS credentials (`aws_access_key_id` and `aws_secret_access_key`) were not being read when defined outside the macro call ([#601](https://github.com/ClickHouse/dbt-clickhouse/issues/601)).
 
 
 ### Release [1.9.8], 2026-01-12

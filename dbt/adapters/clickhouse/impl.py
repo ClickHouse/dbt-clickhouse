@@ -301,6 +301,8 @@ class ClickHouseAdapter(SQLAdapter):
                 path = f'/{path}'
             url = f'{url}{path}'.replace('//', '/')
         url = f'https://{url}'
+        aws_access_key_id = aws_access_key_id or s3config.get('aws_access_key_id', '')
+        aws_secret_access_key = aws_secret_access_key or s3config.get('aws_secret_access_key', '')
         access = ''
         if aws_access_key_id and not aws_secret_access_key:
             raise DbtRuntimeError('S3 aws_access_key_id specified without aws_secret_access_key')
