@@ -25,7 +25,7 @@ package_name = 'dbt-clickhouse'
 package_version = _dbt_clickhouse_version()
 description = '''The Clickhouse plugin for dbt (data build tool)'''
 
-dbt_minor_version = '1.9'
+dbt_minor_version = "1.11"
 
 if not package_version.startswith(dbt_minor_version):
     raise ValueError(
@@ -54,7 +54,7 @@ setup(
     },
     install_requires=[
         f'dbt-core>={dbt_minor_version}',
-        'dbt-adapters>=1.16.7,<1.17',  # This version should be dbt-adapters>=1.16.7,<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
+        'dbt-adapters>=1.17.0,<2.0',  # This version should be dbt-adapters>=1.17.0,<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
         'clickhouse-connect>=0.10.0',
         'clickhouse-driver>=0.2.10',
         'setuptools>=0.69',
