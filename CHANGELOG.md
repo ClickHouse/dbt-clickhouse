@@ -1,14 +1,29 @@
-### Release [1.9.9], 2025-XX-XX
+### Release [1.9.9], 2026-XX-XX
 
 #### Improvements
+* Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
 * Add update_field and update_lag, which is used in https://clickhouse.com/docs/sql-reference/dictionaries#refreshing-dictionary-data-using-lifetime and makes lifetime optional ([#580](https://github.com/ClickHouse/dbt-clickhouse/pull/580)).
 
+#### Bugs
+* Fix incremental models failing with `ON CLUSTER` when the table exists on a single shard. The `can_on_cluster` flag now also considers the cluster configuration from the profile, not just the actual shard distribution ([#273](https://github.com/ClickHouse/dbt-clickhouse/issues/273)).
+* Fix issue where AWS credentials (`aws_access_key_id` and `aws_secret_access_key`) were not being read when defined outside the macro call ([#601](https://github.com/ClickHouse/dbt-clickhouse/issues/601)).
 
-### Release [1.9.8], 2025-XX-XX
+
+### Release [1.9.8], 2026-01-12
 
 #### Improvements
 * Delay the deletion of the old materialized view during full refresh execution. This ensures the old materialized view remains operational if an error occurs while the new materialized view is being backfilled ([#568](https://github.com/ClickHouse/dbt-clickhouse/pull/568)).
-* Remove internal aliases for subqueries so the `--empty` flag works when tables are used with alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
+* Remove internal aliases for subqueries so the `--empty` flag works when tables are used with an alias ([#487](https://github.com/ClickHouse/dbt-clickhouse/pull/487)).
+* dbt can now perform ALTER COLUMN operations to update the columns of the destination table of materialized views. By default, it will work as usual (in a `dbt run`, if the columns change, the target table will not change), but you can use the `on_schema_changes` setting to control the behavior ([#534](https://github.com/ClickHouse/dbt-clickhouse/pull/534)).
+* Bump minimum `dbt-adapters` version to 1.16.7 to fix a compatibility issue that breaks tests if an older version is installed ([#578](https://github.com/ClickHouse/dbt-clickhouse/pull/578)).
+* It is now possible to use an empty `local_suffix` configuration ([#569](https://github.com/ClickHouse/dbt-clickhouse/pull/569)).
+* Column order is now respected when using incremental materialization with contracts ([#575](https://github.com/ClickHouse/dbt-clickhouse/pull/575)).
+
+#### Repository maintenance
+* Regular maintenance tasks ([#586](https://github.com/ClickHouse/dbt-clickhouse/pull/586))
+  * Update Python versions used for testing: drop 3.9 support, add 3.13.
+  * Update ClickHouse versions used for testing: drop 25.7, add 25.8, 25.10, 25.11, 25.12 and head.
+  * Update linting libraries versions.
 
 
 ### Release [1.9.7], 2025-12-03

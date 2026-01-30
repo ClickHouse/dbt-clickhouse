@@ -218,7 +218,11 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available.parse_none
     def check_incremental_schema_changes(
-        self, on_schema_change, existing, target_sql
+        self,
+        on_schema_change,
+        existing,
+        target_sql,
+        materialization: str = 'incremental',
     ) -> ClickHouseColumnChanges:
         if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
             raise DbtRuntimeError(
@@ -247,9 +251,16 @@ class ClickHouseAdapter(SQLAdapter):
         )
 
         if clickhouse_column_changes.has_conflicting_changes:
+
+            def format_column_names(columns) -> List[str]:
+                return [str(col) for col in columns]
+
             raise DbtRuntimeError(
                 schema_change_fail_error.format(
-                    source_not_in_target, target_not_in_source, changed_data_types
+                    materialization,
+                    format_column_names(source_not_in_target),
+                    format_column_names(target_not_in_source),
+                    format_column_names(changed_data_types),
                 )
             )
 
@@ -290,6 +301,8 @@ class ClickHouseAdapter(SQLAdapter):
                 path = f'/{path}'
             url = f'{url}{path}'.replace('//', '/')
         url = f'https://{url}'
+        aws_access_key_id = aws_access_key_id or s3config.get('aws_access_key_id', '')
+        aws_secret_access_key = aws_secret_access_key or s3config.get('aws_secret_access_key', '')
         access = ''
         if aws_access_key_id and not aws_secret_access_key:
             raise DbtRuntimeError('S3 aws_access_key_id specified without aws_secret_access_key')
@@ -330,6 +343,8 @@ class ClickHouseAdapter(SQLAdapter):
         results = self.execute_macro('list_relations_without_caching', kwargs=kwargs)
         conn_supports_exchange = self.supports_atomic_exchange()
 
+        cluster_configured = bool(self.get_clickhouse_cluster_name())
+
         relations = []
         for row in results:
             name, schema, type_info, db_engine, on_cluster = row
@@ -344,7 +359,7 @@ class ClickHouseAdapter(SQLAdapter):
                 and rel_type == ClickHouseRelationType.Table
                 and engine_can_atomic_exchange(db_engine)
             )
-            can_on_cluster = (on_cluster >= 1) and db_engine != 'Replicated'
+            can_on_cluster = (cluster_configured or on_cluster >= 1) and db_engine != 'Replicated'
 
             relation = self.Relation.create(
                 database='',
