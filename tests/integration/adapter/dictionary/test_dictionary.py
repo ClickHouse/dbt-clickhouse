@@ -346,9 +346,7 @@ class TestUpdateFieldDictionary:
         run_dbt(["seed"])
         run_dbt()
 
-        results = project.run_sql(
-            "select distinct name from update_field_dictionary", fetch="all"
-        )
+        results = project.run_sql("select distinct name from update_field_dictionary", fetch="all")
         names = set(i[0] for i in results)
         assert names == set(["Dade", "Kate", "Ksenia"])
 

@@ -1,3 +1,9 @@
+### Release [1.9.9], 2025-XX-XX
+
+#### Improvements
+* Add update_field and update_lag, which is used in https://clickhouse.com/docs/sql-reference/dictionaries#refreshing-dictionary-data-using-lifetime and makes lifetime optional ([#580](https://github.com/ClickHouse/dbt-clickhouse/pull/580)).
+
+
 ### Release [1.9.8], 2025-XX-XX
 
 #### Improvements

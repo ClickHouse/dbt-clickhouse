@@ -87,7 +87,7 @@
       {%- if config.get('update_field') %}
       update_field '{{ config.get('update_field') }}'
       {%- endif %}
-      {%- if config.get('update_lag') %}
+      {%- if config.get('update_lag') is not none %}
       update_lag {{ config.get('update_lag') }}
       {%- endif %}
   )
