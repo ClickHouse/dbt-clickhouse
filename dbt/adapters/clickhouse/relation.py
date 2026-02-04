@@ -33,6 +33,7 @@ class ClickHouseRelationType(StrEnum):
     External = "external"
     Ephemeral = "ephemeral"
     Dictionary = "dictionary"
+    Function = "function"
 
 
 @dataclass(frozen=True, eq=False, repr=False)
