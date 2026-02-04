@@ -100,8 +100,20 @@
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
     {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
   {% else %}
+    {# Check if target table has changed - cannot be updated via MODIFY QUERY #}
+    {% set existing_target = clickhouse__get_mv_current_target(mv_relation) %}
+    {% set materialization_target_table_name = target_table_relation.schema ~ '.' ~ target_table_relation.identifier %}
+
+    {% if existing_target != materialization_target_table_name %}
+      {{ exceptions.raise_compiler_error(
+        'Target table mismatch for MV "' ~ mv_relation.name ~ '": Current target is "' ~ existing_target
+        ~ '", but model references "' ~ materialization_target_table_name ~ '". '
+        ~ 'The TO clause cannot be changed via ALTER TABLE MODIFY QUERY. '
+        ~ 'Use --full-refresh to recreate the MV with the new target table.'
+      ) }}
+    {% endif %}
+
     {{ log('Updating query of existing MV ' ~ mv_relation.name ~ ' for recreation') }}
-    -- Target table cannot be updated
     -- TODO update also refreshable clause https://clickhouse.com/docs/sql-reference/statements/create/view#changing-refresh-parameters
     {{ clickhouse__modify_mv(mv_relation, cluster_clause, sql, is_main_statement=True) }};
     {%- set view_created = False -%}
@@ -312,6 +324,21 @@
     alter table {{ mv_relation }} {{ cluster_clause }} modify query {{ view_sql }}
   {% endcall %}
 {%- endmacro %}
+
+{% macro clickhouse__get_mv_current_target(mv_relation) %}
+  {% set query %}
+    select replaceRegexpOne(create_table_query, '.*TO\\s+`?([^`\\s(]+)`?\\.`?([^`\\s(]+)`?.*', '\\1.\\2') as target_table
+    from system.tables
+    where database = '{{ mv_relation.schema }}'
+      and name = '{{ mv_relation.identifier }}'
+      and engine = 'MaterializedView'
+  {% endset %}
+  {% set result = run_query(query) %}
+  {% if result and result.columns and result.columns[0].values() | length > 0 %}
+    {{ return(result.columns[0].values()[0]) }}
+  {% endif %}
+  {{ return(none) }}
+{% endmacro %}
 
 {% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
   {% set existing_relation = adapter.get_relation(database=mv_relation.database, schema=mv_relation.schema, identifier=mv_relation.identifier) %}

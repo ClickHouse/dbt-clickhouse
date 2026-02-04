@@ -19,9 +19,11 @@ from tests.integration.adapter.materialized_view.common import (
 # repopulate_from_mvs_on_full_refresh controlled by var
 TARGET_MODEL = """
 {{ config(
-       materialized='table',
-       **({'repopulate_from_mvs_on_full_refresh': True} if var('enable_repopulate', False) else {})
+       materialized='table'
 ) }}
+{%- if var('enable_repopulate', false) %}
+{{ config(repopulate_from_mvs_on_full_refresh=true) }}
+{%- endif %}
 
 SELECT
     toInt32(0) AS id,

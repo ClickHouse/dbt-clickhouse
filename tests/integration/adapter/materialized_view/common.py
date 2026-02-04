@@ -24,8 +24,7 @@ sources:
 
 VIEW_MODEL_HACKERS = """
 {{ config(
-       materialized='view',
-       schema='custom_schema'
+       materialized='view'
 ) }}
 
 select
