@@ -26,11 +26,16 @@
       select
         name as mv_name,
         database as mv_database,
-        as_select as mv_sql,
-        replaceRegexpOne(create_table_query, '.*TO\\s+`?([^`\\s(]+)`?\\.`?([^`\\s(]+)`?.*', '\\1.\\2') as target_fqn
+        any(as_select) as mv_sql,
+        any(replaceRegexpOne(create_table_query, '.*TO\\s+`?([^`\\s(]+)`?\\.`?([^`\\s(]+)`?.*', '\\1.\\2')) as target_fqn
+      {% if adapter.get_clickhouse_cluster_name() -%}
+      from clusterAllReplicas({{ adapter.get_clickhouse_cluster_name() }}, system.tables)
+      {% else %}
       from system.tables
+      {% endif %}
       where engine = 'MaterializedView'
         and create_table_query like '%TO %'
+      group by mv_name, mv_database
     )
     select
       t.name as name,
