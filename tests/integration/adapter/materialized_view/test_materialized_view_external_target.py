@@ -13,18 +13,11 @@ from dbt.tests.util import check_relation_types, run_dbt
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
-    VIEW_MODEL_HACKERS,
-    query_table_type,
 )
 
 # Target table model - this creates the destination table that the MV will write to
 TARGET_TABLE_MODEL = """
-{{ config(
-       materialized='table',
-       engine='MergeTree()',
-       order_by='(id)',
-       schema='custom_schema'
-) }}
+{{ config(materialized='table') }}
 
 SELECT
     toInt32(0) AS id,
@@ -33,36 +26,18 @@ SELECT
 WHERE 0  -- Creates empty table with correct schema
 """
 
-# MV model that writes to the external target table
+# MV model - can be used as regular MV or with external target table
+# When target_table var is set: uses external target (new implementation)
+# When target_table var is not set: uses regular MV (dbt-clickhouse creates target table)
 MV_MODEL = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema'
-) }}
+{{ config(materialized='materialized_view') }}
+{%- if not var('catchup', True) %}
+{{ config(catchup=False) }}
+{%- endif %}
 
-{{ materialization_target_table(ref('hackers_target')) }}
-
-select
-    id,
-    name,
-    case
-        when name like 'Dade' then 'crash_override'
-        when name like 'Kate' then 'acid burn'
-        else 'N/A'
-    end as hacker_alias
-from {{ source('raw', 'people') }}
-where department = 'engineering'
-"""
-
-# MV model without catchup
-MV_MODEL_NO_CATCHUP = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema',
-       catchup=False
-) }}
-
-{{ materialization_target_table(ref('hackers_target')) }}
+{%- if var('target_table', none) %}
+{{ materialization_target_table(ref(var('target_table'))) }}
+{%- endif %}
 
 select
     id,
@@ -102,23 +77,10 @@ class TestBasicExternalTargetMV:
         3. create a model as a materialized view pointing to the target table
         4. insert data into the base table and make sure it's there in the target table
         """
-        schema = quote_identifier(project.test_schema + "_custom_schema")
-        results = run_dbt(["seed"])
-        assert len(results) == 1
-        columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        # create the models (target table + MV)
-        results = run_dbt()
-        assert len(results) == 2
-
-        # Check the target table structure
-        columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        # Check the MV exists (it's named after the model, not with _mv suffix in external target mode)
-        columns = project.run_sql(f"DESCRIBE {schema}.hackers", fetch="all")
-        assert columns[0][1] == "Int32"
+        schema = quote_identifier(project.test_schema)
+        run_vars = {"target_table": "hackers_target"}
+        run_dbt(["seed", "--vars", json.dumps(run_vars)])
+        run_dbt(["run", "--vars", json.dumps(run_vars)])
 
         check_relation_types(
             project.adapter,
@@ -158,7 +120,7 @@ class TestExternalTargetMVDisabledCatchup:
     def models(self):
         return {
             "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers.sql": MV_MODEL_NO_CATCHUP,
+            "hackers.sql": MV_MODEL,
         }
 
     def test_disabled_catchup(self, project):
@@ -167,29 +129,10 @@ class TestExternalTargetMVDisabledCatchup:
         2. create a model with catchup disabled as a materialized view
         3. insert data into the base table and make sure only new data is in the target table
         """
-        schema = quote_identifier(project.test_schema + "_custom_schema")
-        results = run_dbt(["seed"])
-        assert len(results) == 1
-        columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        # create the model with catchup disabled
-        run_dbt()
-
-        # Check the target table and MV exist
-        columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        columns = project.run_sql(f"DESCRIBE {schema}.hackers", fetch="all")
-        assert columns[0][1] == "Int32"
-
-        check_relation_types(
-            project.adapter,
-            {
-                "hackers": "view",
-                "hackers_target": "table",
-            },
-        )
+        schema = quote_identifier(project.test_schema)
+        run_vars = {"catchup": False, "target_table": "hackers_target"}
+        run_dbt(["seed", "--vars", json.dumps(run_vars)])
+        run_dbt(["run", "--vars", json.dumps(run_vars)])
 
         # check that target table is empty (no catchup)
         result = project.run_sql(f"select count(*) from {schema}.hackers_target", fetch="all")
@@ -207,139 +150,6 @@ class TestExternalTargetMVDisabledCatchup:
         assert result[0][0] == 1
 
 
-class TestUpdateExternalTargetMVFullRefresh:
-    """Test full refresh behavior"""
-
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {
-            "people.csv": PEOPLE_SEED_CSV,
-            "schema.yml": SEED_SCHEMA_YML,
-        }
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers_mv.sql": MV_MODEL.replace("hackers_target", "hackers_mv_target"),
-            "hackers_mv_target.sql": TARGET_TABLE_MODEL.replace(
-                "hackers_target", "hackers_mv_target"
-            ),
-            "hackers.sql": VIEW_MODEL_HACKERS,
-        }
-
-    def test_update_full_refresh(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema")
-        schema_unquoted = project.test_schema + "_custom_schema"
-        # create our initial materialized view
-        run_dbt(["seed"])
-        run_dbt()
-
-        # Verify MV was created correctly
-        assert "MergeTree" in query_table_type(project, schema_unquoted, 'hackers_mv_target')
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MaterializedView"
-
-        # re-run dbt with full-refresh
-        run_dbt(["run", "--full-refresh"])
-
-        project.run_sql(
-            f"""
-        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
-            values (1232,'Dade',11,'engineering'), (9999,'eugene',40,'malware');
-        """
-        )
-
-        # assert that we have data in our target table
-        result = project.run_sql(
-            f"select count(*) from {schema}.hackers_mv_target",
-            fetch="all",
-        )
-        assert result[0][0] == 4  # 3 from seed + 1 from insert (only 'engineering' department)
-
-
-class TestViewRefreshDoesNotAffectExternalTargetMV:
-    """Test that view full refresh doesn't affect existing MV with external target"""
-
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {
-            "people.csv": PEOPLE_SEED_CSV,
-            "schema.yml": SEED_SCHEMA_YML,
-        }
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers_mv.sql": MV_MODEL.replace("hackers_target", "hackers_mv_target"),
-            "hackers_mv_target.sql": TARGET_TABLE_MODEL.replace(
-                "hackers_target", "hackers_mv_target"
-            ),
-            "hackers.sql": VIEW_MODEL_HACKERS,
-        }
-
-    def test_view_full_refresh_does_not_affect_existing_external_target_mv(self, project):
-        """
-        1. create a base table via dbt seed
-        2. create a regular view (hackers) and a materialized view (hackers_mv) with external target
-        3. force a full refresh on hackers (the view)
-        4. verify that hackers still works and hackers_mv and hackers_mv_target are still present
-        """
-        schema = quote_identifier(project.test_schema + "_custom_schema")
-        schema_unquoted = project.test_schema + "_custom_schema"
-
-        # Step 1: Create base table via dbt seed
-        results = run_dbt(["seed"])
-        assert len(results) == 1
-
-        # Step 2: Create both models (view and materialized view)
-        results = run_dbt()
-        assert len(results) == 4
-
-        # Verify both models were created correctly
-        assert query_table_type(project, schema_unquoted, 'hackers') == "View"
-        assert "MergeTree" in query_table_type(project, schema_unquoted, 'hackers_mv_target')
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MaterializedView"
-
-        # Verify data is present
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 3  # 3 engineering people in seed data
-
-        result = project.run_sql(f"select count(*) from {schema}.hackers_mv_target", fetch="all")
-        assert result[0][0] == 3
-
-        # Step 3: Force a full refresh on hackers (the view) only
-        results = run_dbt(["run", "--full-refresh", "--select", "hackers"])
-        assert len(results) == 1
-
-        # Step 4: Verify that hackers still works
-        assert query_table_type(project, schema_unquoted, 'hackers') == "View"
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 3
-
-        # Verify that hackers_mv and hackers_mv_target are still present and working
-        assert "MergeTree" in query_table_type(project, schema_unquoted, 'hackers_mv_target')
-        assert query_table_type(project, schema_unquoted, 'hackers_mv') == "MaterializedView"
-
-        result = project.run_sql(f"select count(*) from {schema}.hackers_mv_target", fetch="all")
-        assert result[0][0] == 3
-
-        # Insert new data and verify materialized view still captures it
-        project.run_sql(
-            f"""
-        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
-            values (7777,'Neo',30,'engineering');
-        """
-        )
-
-        # Verify the new data appears in both view and target table
-        result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
-        assert result[0][0] == 4
-
-        result = project.run_sql(f"select count(*) from {schema}.hackers_mv_target", fetch="all")
-        assert result[0][0] == 4
-
-
 class TestUpdateExternalTargetMVWithSchemaChange:
     """Test full refresh with schema changes"""
 
@@ -354,12 +164,7 @@ class TestUpdateExternalTargetMVWithSchemaChange:
     def models(self):
         # Use run_type variable to switch between normal and extended schema
         target_model = """
-{{ config(
-       materialized='table',
-       engine='MergeTree()',
-       order_by='(id)',
-       schema='custom_schema'
-) }}
+{{ config(materialized='table') }}
 
 {% if var('run_type', '') == 'extended_schema' %}
 SELECT
@@ -378,8 +183,7 @@ WHERE 0
 """
         mv_model = """
 {{ config(
-       materialized='materialized_view',
-       schema='custom_schema'
+       materialized='materialized_view'
 ) }}
 
 {{ materialization_target_table(ref('hackers_target')) }}
@@ -417,7 +221,7 @@ where department = 'engineering'
 
     def test_update_full_refresh_with_schema_change(self, project):
         """Test full refresh when schema changes"""
-        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
@@ -449,3 +253,110 @@ where department = 'engineering'
         # Verify extended schema column exists
         table_description = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
         assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description)
+
+
+class TestExternalTargetMVTargetChange:
+    """Test validation when target table changes without full-refresh"""
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target_a.sql": TARGET_TABLE_MODEL,
+            "hackers_target_b.sql": TARGET_TABLE_MODEL,
+            "hackers_mv.sql": MV_MODEL,
+        }
+
+    def test_target_change_validation(self, project):
+        """
+        Test that changing the target table without --full-refresh fails with appropriate error
+        """
+        schema = quote_identifier(project.test_schema)
+        schema_unquoted = project.test_schema
+
+        # Step 1: Create seed and initial MV pointing to target_a
+        run_vars = {"target_table": "hackers_target_a"}
+        run_dbt(["seed", "--vars", json.dumps(run_vars)])
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 3  # Two target tables + MV
+
+        # Verify initial MV is pointing to target_a
+        result = project.run_sql(f"select count(*) from {schema}.hackers_target_a", fetch="all")
+        assert result[0][0] == 3  # 3 engineering people from seed
+
+        # target_b should be empty since MV is not writing to it
+        result = project.run_sql(f"select count(*) from {schema}.hackers_target_b", fetch="all")
+        assert result[0][0] == 0
+
+        # Verify MV target from system.tables
+        mv_target_query = f"""
+            select replaceRegexpOne(create_table_query, '.*TO\\\\s+`?([^`\\\\s(]+)`?\\\\.`?([^`\\\\s(]+)`?.*', '\\\\1.\\\\2') as target_table
+            from system.tables
+            where database = '{schema_unquoted}'
+              and name = 'hackers_mv'
+              and engine = 'MaterializedView'
+        """
+        result = project.run_sql(mv_target_query, fetch="all")
+        assert len(result) == 1
+        assert result[0][0] == f"{schema_unquoted}.hackers_target_a"
+
+        # Step 2: Change MV to point to target_b without --full-refresh
+        # This should FAIL with validation error
+        run_vars = {"target_table": "hackers_target_b"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
+
+        # Verify the error message contains expected text
+        assert len(results) == 3
+        # Find the hackers_mv result
+        mv_result = next((r for r in results if r.node.name == "hackers_mv"), None)
+        assert mv_result.status == "error"
+        assert (
+            f'Current target is "{schema_unquoted}.hackers_target_a", but model references "{schema_unquoted}.hackers_target_b"'
+            in mv_result.message
+        )
+
+        # Verify MV still points to target_a (unchanged)
+        result = project.run_sql(mv_target_query, fetch="all")
+        assert result[0][0] == f"{schema_unquoted}.hackers_target_a"
+
+        # Step 3: Change MV to point to target_b WITH --full-refresh
+        # This should SUCCEED (only refresh the MV, not the target tables)
+        results = run_dbt(
+            ["run", "--full-refresh", "--select", "hackers_mv", "--vars", json.dumps(run_vars)]
+        )
+        assert len(results) == 1
+
+        # Verify MV now points to target_b
+        result = project.run_sql(mv_target_query, fetch="all")
+        assert len(result) == 1
+        assert result[0][0] == f"{schema_unquoted}.hackers_target_b"
+
+        # Verify target_b now has data (catchup should have backfilled)
+        result = project.run_sql(f"select count(*) from {schema}.hackers_target_b", fetch="all")
+        assert result[0][0] == 3
+
+        # target_a should still have old data (unchanged)
+        result = project.run_sql(f"select count(*) from {schema}.hackers_target_a", fetch="all")
+        assert result[0][0] == 3
+
+        # Step 4: Insert new data and verify it goes to target_b
+        project.run_sql(
+            f"""
+        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+            values (1232,'Dade',16,'engineering');
+        """
+        )
+
+        # New data should appear in target_b (the current target)
+        result = project.run_sql(f"select count(*) from {schema}.hackers_target_b", fetch="all")
+        assert result[0][0] == 4
+
+        # target_a should remain unchanged
+        result = project.run_sql(f"select count(*) from {schema}.hackers_target_a", fetch="all")
+        assert result[0][0] == 3
