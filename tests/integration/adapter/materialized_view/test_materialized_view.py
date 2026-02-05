@@ -4,6 +4,7 @@ of materialized views from PostgreSQL or Oracle
 """
 
 import json
+import re
 
 import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
@@ -61,6 +62,25 @@ from {{ source('raw', 'people') }}
 where department = 'engineering'
 
 {% endif %}
+"""
+
+# Model for testing settings updates on MV destination table
+# Uses max_bytes_to_merge_at_max_space_in_pool as a configurable table setting
+MV_SETTINGS_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(id)',
+       schema='settings_test',
+       settings={'max_bytes_to_merge_at_max_space_in_pool': var('merge_pool_bytes', 1000000000)}
+) }}
+
+select
+    id,
+    name,
+    age
+from {{ source('raw', 'people') }}
+where department = 'engineering'
 """
 
 SEED_SCHEMA_YML = """
@@ -684,3 +704,145 @@ class TestCatchup:
 
         result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
         assert result[0][0] == 1
+
+
+def get_table_setting(project, schema, table_name, setting_name):
+    """
+    Helper function to extract a specific setting value from engine_full.
+    Returns the setting value as a string, or None if not found.
+    """
+    result = project.run_sql(
+        f"SELECT engine_full FROM system.tables "
+        f"WHERE database = '{schema}' AND name = '{table_name}'",
+        fetch="one",
+    )
+    if result is None:
+        return None
+
+    engine_full = result[0]
+    # Parse the setting from engine_full string
+    # Format: SETTINGS key1 = value1, key2 = value2, ...
+    pattern = rf"{setting_name}\s*=\s*(\d+)"
+    match = re.search(pattern, engine_full)
+    return match.group(1) if match else None
+
+
+class TestMVSettingsUpdate:
+    """
+    Test suite for verifying that MV destination table settings can be updated.
+    Tests both full refresh and incremental run scenarios.
+    """
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_settings.sql": MV_SETTINGS_MODEL,
+        }
+
+    def test_settings_update_on_full_refresh(self, project):
+        """
+        Test that settings are updated when running dbt with --full-refresh.
+
+        Scenario:
+        1. Create seed data
+        2. Create MV with initial setting value (max_bytes_to_merge_at_max_space_in_pool = 1000000000)
+        3. Verify the setting is present in engine_full
+        4. Run dbt with --full-refresh and updated setting value (2000000000)
+        5. Assert the new setting value is reflected in engine_full
+        """
+        schema = project.test_schema + "_settings_test"
+        initial_value = "1000000000"
+        updated_value = "2000000000"
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create MV with initial setting value
+        run_vars = {"merge_pool_bytes": int(initial_value)}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Step 3: Verify the setting is present in engine_full
+        setting_value = get_table_setting(
+            project, schema, "hackers_settings", "max_bytes_to_merge_at_max_space_in_pool"
+        )
+        assert setting_value == initial_value, (
+            f"Expected initial setting value {initial_value}, got {setting_value}"
+        )
+
+        # Step 4: Run dbt with --full-refresh and updated setting value
+        run_vars = {"merge_pool_bytes": int(updated_value)}
+        results = run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Step 5: Assert the new setting value is reflected in engine_full
+        setting_value = get_table_setting(
+            project, schema, "hackers_settings", "max_bytes_to_merge_at_max_space_in_pool"
+        )
+        assert setting_value == updated_value, (
+            f"Expected updated setting value {updated_value}, got {setting_value}"
+        )
+
+    def test_settings_update_on_incremental_run(self, project):
+        """
+        Test whether settings are updated on incremental run (no --full-refresh).
+
+        This test documents current behavior - we expect settings NOT to be updated
+        on incremental runs since the destination table is not recreated.
+
+        Scenario:
+        1. Create seed data
+        2. Create MV with initial setting value using --full-refresh to ensure clean state
+        3. Verify the setting is present in engine_full
+        4. Run dbt (no full-refresh) with updated setting value (3000000000)
+        5. Check what happens to the setting value (document current behavior)
+        """
+        schema = project.test_schema + "_settings_test"
+        initial_value = "1000000000"
+        updated_value = "3000000000"
+
+        # Step 1: Create seed data
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+
+        # Step 2: Create MV with initial setting value (use --full-refresh to ensure clean state)
+        run_vars = {"merge_pool_bytes": int(initial_value)}
+        results = run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Step 3: Verify the setting is present in engine_full
+        setting_value = get_table_setting(
+            project, schema, "hackers_settings", "max_bytes_to_merge_at_max_space_in_pool"
+        )
+        assert setting_value == initial_value, (
+            f"Expected initial setting value {initial_value}, got {setting_value}"
+        )
+
+        # Step 4: Run dbt (no full-refresh) with updated setting value
+        run_vars = {"merge_pool_bytes": int(updated_value)}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        # Step 5: Check the setting value after incremental run
+        setting_value = get_table_setting(
+            project, schema, "hackers_settings", "max_bytes_to_merge_at_max_space_in_pool"
+        )
+
+        # Document current behavior: settings are NOT updated on incremental runs
+        # The destination table is not recreated, so settings remain unchanged
+        # This test will fail if/when settings update is implemented for incremental runs
+        assert setting_value == initial_value, (
+            f"Settings were unexpectedly updated on incremental run. "
+            f"Expected {initial_value} (current behavior), got {setting_value}. "
+            f"If settings update for incremental runs was implemented, update this test."
+        )
+
+
