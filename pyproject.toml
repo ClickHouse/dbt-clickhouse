@@ -13,21 +13,21 @@ authors = [
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
+    "License :: OSI Approved :: Apache Software License",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: MacOS :: MacOS X",
     "Operating System :: POSIX :: Linux",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 dependencies = [
     "dbt-core>=1.9",
     "dbt-adapters>=1.16.7,<1.17",
     "clickhouse-connect>=0.10.0",
-    "clickhouse-driver>=0.2.10",
-    "setuptools>=69",
+    "clickhouse-driver>=0.2.10"
 ]
 
 [project.urls]
@@ -41,7 +41,6 @@ packages = {find = {include = ["dbt", "dbt.*"], namespaces = true}}
 [tool.setuptools.package-data]
 "dbt.include.clickhouse" = [
     "dbt_project.yml",
-    "sample_profiles.yml",
     "macros/*.sql",
     "macros/**/*.sql",
 ]
