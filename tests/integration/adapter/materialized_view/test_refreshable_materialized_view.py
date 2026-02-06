@@ -82,7 +82,7 @@ class TestBasicRefreshableMV:
         check_relation_types(
             project.adapter,
             {
-                "hackers_mv": "view",
+                "hackers_mv": "materialized_view",
                 "hackers": "table",
             },
         )

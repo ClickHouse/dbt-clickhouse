@@ -122,8 +122,8 @@ class TestMultipleExternalTargetMV:
         check_relation_types(
             project.adapter,
             {
-                "hackers_mv1": "view",
-                "hackers_mv2": "view",
+                "hackers_mv1": "materialized_view",
+                "hackers_mv2": "materialized_view",
                 "hackers_target": "table",
             },
         )
