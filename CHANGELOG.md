@@ -1,14 +1,17 @@
-### Release [1.9.9], 2026-XX-XX
+### Release [1.10.0], 2026-02-09
+
+This is an interesting release with many changes! Please take some time to review the notes before upgrading it. All changes are backward compatible, but some of them may require adjustments in your code.
 
 #### Improvements
-* Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
-* Add update_field and update_lag, which is used in https://clickhouse.com/docs/sql-reference/dictionaries#refreshing-dictionary-data-using-lifetime and makes lifetime optional ([#580](https://github.com/ClickHouse/dbt-clickhouse/pull/580)).
+* Respect `catchup` in `materializataion: materialized_view` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
+* Add in `materializataion: dictionary` the settings update_field and update_lag, which is used in https://clickhouse.com/docs/sql-reference/dictionaries#refreshing-dictionary-data-using-lifetime and make lifetime optional ([#580](https://github.com/ClickHouse/dbt-clickhouse/pull/580)).
 * Move to declarative packaging to provide better tooling integration and build isolation (by enabling python-build) ([#593](https://github.com/ClickHouse/dbt-clickhouse/issues/593)).
 
 #### Bugs
 * Fix incremental models failing with `ON CLUSTER` when the table exists on a single shard. The `can_on_cluster` flag now also considers the cluster configuration from the profile, not just the actual shard distribution ([#273](https://github.com/ClickHouse/dbt-clickhouse/issues/273)).
-* Fix issue where AWS credentials (`aws_access_key_id` and `aws_secret_access_key`) were not being read when defined outside the macro call ([#601](https://github.com/ClickHouse/dbt-clickhouse/issues/601)).
-* Fix the same AWS credentials issue, but with the `role_arn` parameter ([#440](https://github.com/ClickHouse/dbt-clickhouse/issues/440)).
+* Fix issue where AWS credentials used in `s3source` were not read when defined outside the macro call:
+  * Fix for `aws_access_key_id` and `aws_secret_access_key` ([#601](https://github.com/ClickHouse/dbt-clickhouse/issues/601)).
+  * Fix for `role_arn` ([#440](https://github.com/ClickHouse/dbt-clickhouse/issues/440)).
 
 
 ### Release [1.9.8], 2026-01-12
