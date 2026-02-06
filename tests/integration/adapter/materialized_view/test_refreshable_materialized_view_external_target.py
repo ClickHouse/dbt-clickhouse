@@ -99,7 +99,7 @@ class TestBasicExternalTargetRefreshableMV:
         check_relation_types(
             project.adapter,
             {
-                "hackers": "view",
+                "hackers": "materialized_view",
                 "hackers_target": "table",
             },
         )

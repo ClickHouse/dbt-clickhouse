@@ -356,7 +356,9 @@ class ClickHouseAdapter(SQLAdapter):
         relations = []
         for row in results:
             name, schema, type_info, db_engine, mvs_pointing_to_it, on_cluster = row
-            if 'view' in type_info:
+            if type_info == 'materialized_view':
+                rel_type = ClickHouseRelationType.MaterializedView
+            elif type_info == 'view':
                 rel_type = ClickHouseRelationType.View
             elif type_info == 'dictionary':
                 rel_type = ClickHouseRelationType.Dictionary
@@ -617,7 +619,7 @@ class ClickHouseDatabase:
 
 def _expect_row_value(key: str, row: "agate.Row"):
     if key not in row.keys():
-        raise DbtInternalError(f'Got a row without \'{key}\' column, columns: {row.keys()}')
+        raise DbtInternalError(f"Got a row without '{key}' column, columns: {row.keys()}")
 
     return row[key]
 

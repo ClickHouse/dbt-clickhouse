@@ -41,8 +41,10 @@
       t.name as name,
       t.database as schema,
       multiIf(
-        t.engine in ('MaterializedView', 'View'), 'view', -- TODO: Check if we can start detecting MaterializedView separately 
-        t.engine = 'Dictionary', 'dictionary', 'table'
+        t.engine = 'MaterializedView', 'materialized_view',
+        t.engine = 'View', 'view',
+        t.engine = 'Dictionary', 'dictionary',
+        'table'
       ) as type,
       db.engine as db_engine,
       groupArrayIf(

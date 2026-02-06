@@ -85,7 +85,7 @@ class TestBasicExternalTargetMV:
         check_relation_types(
             project.adapter,
             {
-                "hackers": "view",  # The MV appears as a view
+                "hackers": "materialized_view",  # The MV appears as a materialized_view
                 "hackers_target": "table",
             },
         )
