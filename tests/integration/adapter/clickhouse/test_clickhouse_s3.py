@@ -4,7 +4,6 @@ import pytest
 from dbt.tests.util import run_dbt
 
 testing_s3 = os.environ.get('DBT_CH_TEST_INCLUDE_S3', '').lower() in ('1', 'true', 'yes')
-pytestmark = pytest.mark.skipif(not testing_s3, reason='Testing S3 disabled')
 
 schema_yaml = """
 version: 2
@@ -51,6 +50,7 @@ LIMIT 5000
 """
 
 
+@pytest.mark.skipif(not testing_s3, reason='Testing S3 disabled')
 class TestS3:
     @pytest.fixture(scope="class")
     def project_config_update(self):
@@ -90,6 +90,7 @@ class TestS3:
         assert result[1] > 0
 
 
+@pytest.mark.skipif(not testing_s3, reason='Testing S3 disabled')
 class TestS3Bucket:
     @pytest.fixture(scope="class")
     def project_config_update(self):
