@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 from dataclasses import dataclass
 from multiprocessing.context import SpawnContext
 from typing import (
@@ -354,8 +355,10 @@ class ClickHouseAdapter(SQLAdapter):
 
         relations = []
         for row in results:
-            name, schema, type_info, db_engine, on_cluster = row
-            if 'view' in type_info:
+            name, schema, type_info, db_engine, mvs_pointing_to_it, on_cluster = row
+            if type_info == 'materialized_view':
+                rel_type = ClickHouseRelationType.MaterializedView
+            elif type_info == 'view':
                 rel_type = ClickHouseRelationType.View
             elif type_info == 'dictionary':
                 rel_type = ClickHouseRelationType.Dictionary
@@ -375,6 +378,7 @@ class ClickHouseAdapter(SQLAdapter):
                 type=rel_type,
                 can_exchange=can_exchange,
                 can_on_cluster=can_on_cluster,
+                mvs_pointing_to_it=json.loads(mvs_pointing_to_it) or [],
             )
             relations.append(relation)
 
@@ -615,7 +619,7 @@ class ClickHouseDatabase:
 
 def _expect_row_value(key: str, row: "agate.Row"):
     if key not in row.keys():
-        raise DbtInternalError(f'Got a row without \'{key}\' column, columns: {row.keys()}')
+        raise DbtInternalError(f"Got a row without '{key}' column, columns: {row.keys()}")
 
     return row[key]
 
