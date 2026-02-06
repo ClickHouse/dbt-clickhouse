@@ -24,7 +24,7 @@
   {%- endfor -%}
 
   {% if not expected_sql %}
-  {%   set expected_sql = get_expected_sql(expected_rows, column_name_to_data_types) %}
+  {%   set expected_sql = get_expected_sql(expected_rows, column_name_to_data_types, column_name_to_quoted) %}
   {% endif %}
   {% set unit_test_sql = get_unit_test_sql(sql, expected_sql, expected_column_names_quoted) %}
 

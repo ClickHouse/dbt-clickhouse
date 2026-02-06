@@ -24,7 +24,7 @@ classifiers = [
 requires-python = ">=3.10"
 dependencies = [
     "dbt-core>=1.9",
-    "dbt-adapters>=1.16.7,<1.17",
+    "dbt-adapters>=1.22.0,<1.22.6",  # This version should be dbt-adapters<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
     "clickhouse-connect>=0.10.0",
     "clickhouse-driver>=0.2.10"
 ]
