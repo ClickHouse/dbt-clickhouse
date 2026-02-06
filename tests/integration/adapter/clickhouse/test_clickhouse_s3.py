@@ -4,7 +4,6 @@ import pytest
 from dbt.tests.util import run_dbt
 
 testing_s3 = os.environ.get('DBT_CH_TEST_INCLUDE_S3', '').lower() in ('1', 'true', 'yes')
-pytestmark = pytest.mark.skipif(not testing_s3, reason='Testing S3 disabled')
 
 schema_yaml = """
 version: 2
@@ -51,6 +50,7 @@ LIMIT 5000
 """
 
 
+@pytest.mark.skipif(not testing_s3, reason='Testing S3 disabled')
 class TestS3:
     @pytest.fixture(scope="class")
     def project_config_update(self):
@@ -90,6 +90,7 @@ class TestS3:
         assert result[1] > 0
 
 
+@pytest.mark.skipif(not testing_s3, reason='Testing S3 disabled')
 class TestS3Bucket:
     @pytest.fixture(scope="class")
     def project_config_update(self):
@@ -113,3 +114,66 @@ class TestS3Bucket:
         run_dbt(["run", "--select", "s3_taxis_source.sql"])
         result = project.run_sql("select count() as num_rows from s3_taxis_source", fetch="one")
         assert result[0] == 1000
+
+
+class TestS3AwsAccessGlobal:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            'vars': {
+                'taxi_s3': {
+                    'bucket': 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
+                    'fmt': 'TabSeparatedWithNames',
+                    'aws_access_key_id': 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                    'aws_secret_access_key': '1234567890123456789012345678901234567890',
+                }
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "s3_taxis_source.sql": s3_taxis_full_source,
+            "schema.yml": schema_yaml,
+        }
+
+    def test_role_arn_in_compiled_sql(self, project):
+        # Only compile, don't run
+        result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)
+
+        # Assert the SQL contains the expected role_arn function call
+        assert (
+            ", 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', '1234567890123456789012345678901234567890'"
+            in result.results[0].node.compiled_code
+        )
+
+
+class TestS3RoleArnGlobal:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            'vars': {
+                'taxi_s3': {
+                    'bucket': 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
+                    'fmt': 'TabSeparatedWithNames',
+                    'role_arn': 'arn:aws:iam::123456789012:role/my-role',
+                }
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "s3_taxis_source.sql": s3_taxis_full_source,
+            "schema.yml": schema_yaml,
+        }
+
+    def test_role_arn_in_compiled_sql(self, project):
+        # Only compile, don't run
+        result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)
+
+        # Assert the SQL contains the expected role_arn function call
+        assert (
+            "extra_credentials(role_arn='arn:aws:iam::123456789012:role/my-role')"
+            in result.results[0].node.compiled_code
+        )
