@@ -24,7 +24,7 @@ jobs:
           python-version: "3.11"
 
       - name: Install build dependencies
-        run: pip install --upgrade pip build twine
+        run: pip install --upgrade pip build
 
       - name: Build Distribution
         run: python -m build
