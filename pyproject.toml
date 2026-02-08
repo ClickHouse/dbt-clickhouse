@@ -1,3 +1,52 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbt-clickhouse"
+dynamic = ["version"]
+description = "The Clickhouse plugin for dbt (data build tool)"
+readme = "README.md"
+license = "Apache-2.0"
+authors = [
+    {name = "ClickHouse Inc.", email = "guy@clickhouse.com"}
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS :: MacOS X",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.10"
+dependencies = [
+    "dbt-core>=1.9",
+    "dbt-adapters>=1.16.7,<1.17",
+    "clickhouse-connect>=0.10.0",
+    "clickhouse-driver>=0.2.10"
+]
+
+[project.urls]
+Homepage = "https://github.com/ClickHouse/dbt-clickhouse"
+Repository = "https://github.com/ClickHouse/dbt-clickhouse"
+Issues = "https://github.com/ClickHouse/dbt-clickhouse/issues"
+
+[tool.setuptools]
+packages = {find = {include = ["dbt", "dbt.*"], namespaces = true}}
+
+[tool.setuptools.package-data]
+"dbt.include.clickhouse" = [
+    "dbt_project.yml",
+    "macros/*.sql",
+    "macros/**/*.sql",
+]
+
+[tool.setuptools.dynamic]
+version = {attr = "dbt.adapters.clickhouse.__version__.version"}
+
 [tool.black]
 line-length = 100
 skip-string-normalization = true
