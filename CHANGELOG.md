@@ -3,6 +3,7 @@
 #### Improvements
 * Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
 * Add update_field and update_lag, which is used in https://clickhouse.com/docs/sql-reference/dictionaries#refreshing-dictionary-data-using-lifetime and makes lifetime optional ([#580](https://github.com/ClickHouse/dbt-clickhouse/pull/580)).
+* Add `select_sequential_consistency` setting for SharedMergeTree (`database_engine: Shared`) to ensure read-after-write consistency. Shared engine also uses stricter `mutations_sync=3` and `alter_sync=3` defaults. All connection settings now use `setdefault()` allowing users to override defaults via `custom_settings` ([#596](https://github.com/ClickHouse/dbt-clickhouse/issues/596)).
 * Move to declarative packaging to provide better tooling integration and build isolation (by enabling python-build) ([#593](https://github.com/ClickHouse/dbt-clickhouse/issues/593)).
 * Update `dbt-adapters` version to 1.22 ([#609](https://github.com/ClickHouse/dbt-clickhouse/issues/609)).
 
