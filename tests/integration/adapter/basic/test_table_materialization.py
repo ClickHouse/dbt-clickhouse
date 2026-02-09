@@ -113,10 +113,10 @@ class TestTableOnSchemaChangeIgnore:
         run_dbt(["run"])
         result = project.run_sql("select * from table_ignore order by col_1", fetch="all")
         assert len(result) == 3
-       assert actual_cols == 2, (
-    f"Table should have 2 columns with on_schema_change='ignore', "
-    f"but has {actual_cols} columns: {result[0] if result else 'no rows'}"
-)
+        actual_cols = len(result[0])
+        assert actual_cols == 2, (
+            f"Table should have 2 columns with on_schema_change='ignore', but has {actual_cols} columns"
+        )
 
 
 class TestTableOnSchemaChangeFail:

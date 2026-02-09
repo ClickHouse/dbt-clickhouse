@@ -114,7 +114,7 @@
     {% endif %}
 
     {{ log('Updating query of existing MV ' ~ mv_relation.name ~ ' for recreation') }}
-    -- TODO update also refreshable clause https://clickhouse.com/docs/sql-reference/statements/create/view#changing-refresh-parameters
+    -- We should also update refreshable paramenters here https://github.com/ClickHouse/dbt-clickhouse/issues/611
     {{ clickhouse__modify_mv(mv_relation, cluster_clause, sql, is_main_statement=True) }};
     {%- set view_created = False -%}
   {% endif %}
