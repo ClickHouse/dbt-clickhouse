@@ -11,45 +11,12 @@ from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
 
 from tests.integration.adapter.materialized_view.common import (
+    MV_MODEL_HACKERS,
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
+    TARGET_MODEL,
+    TARGET_MODEL_HACKERS,
 )
-
-# Target table model - this creates the destination table that the MV will write to
-TARGET_TABLE_MODEL = """
-{{ config(materialized='table') }}
-
-SELECT
-    toInt32(0) AS id,
-    '' AS name,
-    '' AS hacker_alias
-WHERE 0  -- Creates empty table with correct schema
-"""
-
-# MV model - can be used as regular MV or with external target table
-# When target_table var is set: uses external target (new implementation)
-# When target_table var is not set: uses regular MV (dbt-clickhouse creates target table)
-MV_MODEL = """
-{{ config(materialized='materialized_view') }}
-{%- if not var('catchup', True) %}
-{{ config(catchup=False) }}
-{%- endif %}
-
-{%- if var('target_table', none) %}
-{{ materialization_target_table(ref(var('target_table'))) }}
-{%- endif %}
-
-select
-    id,
-    name,
-    case
-        when name like 'Dade' then 'crash_override'
-        when name like 'Kate' then 'acid burn'
-        else 'N/A'
-    end as hacker_alias
-from {{ source('raw', 'people') }}
-where department = 'engineering'
-"""
 
 
 class TestBasicExternalTargetMV:
@@ -66,8 +33,8 @@ class TestBasicExternalTargetMV:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers.sql": MV_MODEL,
+            "hackers_target.sql": TARGET_MODEL_HACKERS,
+            "hackers.sql": MV_MODEL_HACKERS,
         }
 
     def test_create(self, project):
@@ -119,8 +86,8 @@ class TestExternalTargetMVDisabledCatchup:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers.sql": MV_MODEL,
+            "hackers_target.sql": TARGET_MODEL_HACKERS,
+            "hackers.sql": MV_MODEL_HACKERS,
         }
 
     def test_disabled_catchup(self, project):
@@ -163,24 +130,7 @@ class TestUpdateExternalTargetMVWithSchemaChange:
     @pytest.fixture(scope="class")
     def models(self):
         # Use run_type variable to switch between normal and extended schema
-        target_model = """
-{{ config(materialized='table') }}
-
-{% if var('run_type', '') == 'extended_schema' %}
-SELECT
-    toInt32(0) AS id,
-    '' AS name,
-    '' AS hacker_alias,
-    toInt32(0) AS id2
-WHERE 0
-{% else %}
-SELECT
-    toInt32(0) AS id,
-    '' AS name,
-    '' AS hacker_alias
-WHERE 0
-{% endif %}
-"""
+        target_model = TARGET_MODEL_HACKERS
         mv_model = """
 {{ config(
        materialized='materialized_view'
@@ -198,7 +148,7 @@ select
         when name like 'Kate' then 'acid burn'
         else 'N/A'
     end as hacker_alias,
-    id as id2
+    id as extra_col
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 {% else %}
@@ -231,7 +181,12 @@ where department = 'engineering'
         assert result[0][0] == 3
 
         # re-run dbt with full-refresh and extended schema
-        run_vars = {"run_type": "extended_schema"}
+        # Disable repopulate_from_mvs_on_full_refresh to avoid double-insert:
+        # repopulation uses old MV SQL while catchup uses the new SQL
+        run_vars = {
+            "run_type": "extended_schema",
+            "enable_repopulate_from_mvs_on_full_refresh": False,
+        }
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 
         project.run_sql(
@@ -252,7 +207,7 @@ where department = 'engineering'
 
         # Verify extended schema column exists
         table_description = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description)
+        assert any(col[0] == "extra_col" and col[1] == "Int32" for col in table_description)
 
 
 class TestExternalTargetMVTargetChange:
@@ -268,9 +223,9 @@ class TestExternalTargetMVTargetChange:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "hackers_target_a.sql": TARGET_TABLE_MODEL,
-            "hackers_target_b.sql": TARGET_TABLE_MODEL,
-            "hackers_mv.sql": MV_MODEL,
+            "hackers_target_a.sql": TARGET_MODEL_HACKERS,
+            "hackers_target_b.sql": TARGET_MODEL_HACKERS,
+            "hackers_mv.sql": MV_MODEL_HACKERS,
         }
 
     def test_target_change_validation(self, project):
@@ -360,3 +315,193 @@ class TestExternalTargetMVTargetChange:
         # target_a should remain unchanged
         result = project.run_sql(f"select count(*) from {schema}.hackers_target_a", fetch="all")
         assert result[0][0] == 3
+
+
+# dbt-managed MV - engineering employees
+DBT_MV_ENGINEERING = """
+{{ config(
+       materialized='materialized_view',
+       catchup=False
+) }}
+
+{{ materialization_target_table(ref('employees_target')) }}
+
+select
+    p.id,
+    p.name,
+    'engineering' as department
+from {{ source('raw', 'people') }} p
+where p.department = 'engineering'
+"""
+
+
+def _create_outside_mv(project, schema):
+    """Create a materialized view directly in ClickHouse (outside dbt)."""
+    project.run_sql(
+        f"""
+        CREATE MATERIALIZED VIEW IF NOT EXISTS {schema}.outside_mv_sales
+        TO {schema}.employees_target
+        AS SELECT
+            id,
+            name,
+            department
+        FROM {schema}.people
+        WHERE department = 'sales'
+        """
+    )
+
+
+class TestOutsideMVsNotForceOnSchemaChangeFailInTable:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "employees_target.sql": TARGET_MODEL,
+        }
+
+    def test_outside_mv_does_not_force_on_schema_change_fail_in_table_models(self, project):
+        """Outside-only MVs should NOT make on_schema_change='fail' default."""
+        schema = quote_identifier(project.test_schema)
+
+        run_dbt(["seed"])
+        run_dbt(["run"])
+
+        _create_outside_mv(project, project.test_schema)
+
+        # Run with schema change — should succeed since outside MV is not in dbt's graph
+        run_vars = {"run_type": "extended_schema"}
+        run_dbt(["run", "--vars", json.dumps(run_vars)])
+
+        # Table should have been rebuilt with the new column
+        columns = project.run_sql(f"DESCRIBE TABLE {schema}.employees_target", fetch="all")
+        column_names = [col[0] for col in columns]
+        assert "extra_col" in column_names
+
+
+class TestMVWithExplicitTargetForcesOnSchemaChangeFailInTable:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "employees_target.sql": TARGET_MODEL,
+            "employees_mv_engineering.sql": DBT_MV_ENGINEERING,
+        }
+
+    def test_mv_with_explicit_target_forces_on_schema_change_fail_in_table(self, project):
+        run_dbt(["seed"])
+        run_dbt(["run"])
+
+        _create_outside_mv(project, project.test_schema)
+
+        run_vars = {"run_type": "extended_schema"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)], expect_pass=False)
+
+        target_result = next(r for r in results if r.node.name == "employees_target")
+        assert target_result.status == "error"
+        assert (
+            "The source and target schemas on this table model are out of sync"
+            in target_result.message
+        )
+
+
+class TestRepopulateOnlyDbtMVsNotOutside:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "employees_target.sql": TARGET_MODEL,
+            "employees_mv_engineering.sql": DBT_MV_ENGINEERING,
+        }
+
+    def test_repopulate_excludes_outside_mv(self, project):
+        schema = quote_identifier(project.test_schema)
+
+        run_dbt(["seed"])
+        run_dbt(["run"])
+
+        _create_outside_mv(project, project.test_schema)
+
+        # Insert data captured by both MVs
+        project.run_sql(
+            f"""
+            INSERT INTO {schema}.people ("id", "name", "age", "department")
+                VALUES (4001, 'NewEngineer', 30, 'engineering')
+            """
+        )
+        project.run_sql(
+            f"""
+            INSERT INTO {schema}.people ("id", "name", "age", "department")
+                VALUES (4002, 'NewSales', 25, 'sales')
+            """
+        )
+
+        # Full refresh with repopulation
+        run_vars = {"enable_repopulate_from_mvs_on_full_refresh": True}
+        results = run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+        assert len(results) == 2
+
+        # Only engineering (dbt MV) should be repopulated; sales (outside MV) should not
+        result = project.run_sql(
+            f"SELECT department, count(*) as cnt FROM {schema}.employees_target "
+            f"GROUP BY department ORDER BY department",
+            fetch="all",
+        )
+        assert len(result) == 1
+        assert result[0][0] == "engineering"
+        # 3 from seed + 1 inserted
+        assert result[0][1] == 4
+
+
+class TestRepopulateWithOnlyOutsideMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "employees_target.sql": TARGET_MODEL,
+        }
+
+    def test_repopulate_not_triggered_with_only_outside_mv(self, project):
+        schema = quote_identifier(project.test_schema)
+
+        run_dbt(["seed"])
+        run_dbt(["run"])
+
+        _create_outside_mv(project, project.test_schema)
+
+        project.run_sql(
+            f"""
+            INSERT INTO {schema}.people ("id", "name", "age", "department")
+                VALUES (4002, 'NewSales', 25, 'sales')
+            """
+        )
+
+        # Full refresh — no dbt MVs means no repopulation
+        run_vars = {"enable_repopulate_from_mvs_on_full_refresh": True}
+        run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
+
+        result = project.run_sql(f"SELECT count(*) FROM {schema}.employees_target", fetch="all")
+        assert result[0][0] == 0

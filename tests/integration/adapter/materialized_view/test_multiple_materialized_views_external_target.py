@@ -13,31 +13,12 @@ from dbt.tests.util import check_relation_types, run_dbt
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
-    query_table_type,
+    TARGET_MODEL_HACKERS,
 )
-
-# Target table model - this creates the destination table that the MVs will write to
-TARGET_TABLE_MODEL = """
-{{ config(
-       materialized='table',
-       engine='MergeTree()',
-       order_by='(id)',
-       schema='custom_schema_for_multiple_mv'
-) }}
-
-SELECT
-    toInt32(0) AS id,
-    '' AS name,
-    '' AS hacker_alias
-WHERE 0  -- Creates empty table with correct schema
-"""
 
 # MV model 1 - engineering employees
 MV_MODEL_1 = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema_for_multiple_mv'
-) }}
+{{ config(materialized='materialized_view') }}
 
 {{ materialization_target_table(ref('hackers_target')) }}
 
@@ -55,10 +36,7 @@ where department = 'engineering'
 
 # MV model 2 - sales employees
 MV_MODEL_2 = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema_for_multiple_mv'
-) }}
+{{ config(materialized='materialized_view') }}
 
 {{ materialization_target_table(ref('hackers_target')) }}
 
@@ -86,7 +64,7 @@ class TestMultipleExternalTargetMV:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers_target.sql": TARGET_MODEL_HACKERS,
             "hackers_mv1.sql": MV_MODEL_1,
             "hackers_mv2.sql": MV_MODEL_2,
         }
@@ -98,7 +76,7 @@ class TestMultipleExternalTargetMV:
         3. create two MVs pointing to the same target table
         4. insert data into the base table and make sure it reaches the target table
         """
-        schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
+        schema = quote_identifier(project.test_schema)
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
@@ -165,35 +143,8 @@ class TestUpdateMultipleExternalTargetMVFullRefresh:
 
     @pytest.fixture(scope="class")
     def models(self):
-        # Use run_type variable to switch between normal and extended schema
-        target_model = """
-{{ config(
-       materialized='table',
-       engine='MergeTree()',
-       order_by='(id)',
-       schema='custom_schema_for_multiple_mv'
-) }}
-
-{% if var('run_type', '') == 'extended_schema' %}
-SELECT
-    toInt32(0) AS id,
-    '' AS name,
-    '' AS hacker_alias,
-    toInt32(0) AS id2
-WHERE 0
-{% else %}
-SELECT
-    toInt32(0) AS id,
-    '' AS name,
-    '' AS hacker_alias
-WHERE 0
-{% endif %}
-"""
         mv_model_1 = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema_for_multiple_mv'
-) }}
+{{ config(materialized='materialized_view') }}
 
 {{ materialization_target_table(ref('hackers_target')) }}
 
@@ -207,7 +158,7 @@ select
         when name like 'Kate' then 'acid burn'
         else 'N/A'
     end as hacker_alias,
-    id as id2
+    id as extra_col
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 {% else %}
@@ -224,10 +175,7 @@ where department = 'engineering'
 {% endif %}
 """
         mv_model_2 = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema_for_multiple_mv'
-) }}
+{{ config(materialized='materialized_view') }}
 
 {{ materialization_target_table(ref('hackers_target')) }}
 
@@ -236,7 +184,7 @@ select
     id,
     name,
     'N/A' as hacker_alias,
-    id as id2
+    id as extra_col
 from {{ source('raw', 'people') }}
 where department = 'sales'
 {% else %}
@@ -249,13 +197,13 @@ where department = 'sales'
 {% endif %}
 """
         return {
-            "hackers_target.sql": target_model,
+            "hackers_target.sql": TARGET_MODEL_HACKERS,  # Use run_type variable to switch between normal and extended schema
             "hackers_mv1.sql": mv_model_1,
             "hackers_mv2.sql": mv_model_2,
         }
 
     def test_update_full_refresh(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized views
         run_dbt(["seed"])
         run_dbt()
@@ -286,7 +234,7 @@ where department = 'sales'
 
         # Verify extended schema column exists
         table_description = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description)
+        assert any(col[0] == "extra_col" and col[1] == "Int32" for col in table_description)
 
 
 class TestUpdateMultipleExternalTargetMVQueryOnly:
@@ -303,10 +251,7 @@ class TestUpdateMultipleExternalTargetMVQueryOnly:
     def models(self):
         # Use run_type variable to switch between query logic (without schema change)
         mv_model_1 = """
-{{ config(
-       materialized='materialized_view',
-       schema='custom_schema_for_multiple_mv'
-) }}
+{{ config(materialized='materialized_view') }}
 
 {{ materialization_target_table(ref('hackers_target')) }}
 
@@ -336,14 +281,14 @@ where department = 'engineering'
 {% endif %}
 """
         return {
-            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers_target.sql": TARGET_MODEL_HACKERS,
             "hackers_mv1.sql": mv_model_1,
             "hackers_mv2.sql": MV_MODEL_2,
         }
 
     def test_update_mv_query(self, project):
         """Test that MV query can be updated without schema changes (modify query)"""
-        schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized views
         run_dbt(["seed"])
         run_dbt()

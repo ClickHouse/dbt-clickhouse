@@ -79,7 +79,7 @@
       {%- endcall %}
       {{ log('on_schema_change strategy for table: ' + on_schema_change) }}
       {%- if on_schema_change != 'ignore' -%}
-        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
+        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, materialization='table') -%}
         {% if column_changes %}
           {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
           {% set existing_relation = load_cached_relation(this) %}
