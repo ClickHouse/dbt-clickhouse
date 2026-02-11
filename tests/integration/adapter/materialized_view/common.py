@@ -86,6 +86,29 @@ WHERE 0  -- Creates empty table with correct schema
 {% endif %}
 """
 
+MV_MODEL = """
+{{ config(materialized='materialized_view') }}
+
+{%- if var('alias', '') %}
+{{ config(alias=var('alias')) }}
+{%- endif %}
+
+{%- if not var('catchup', True) %}
+{{ config(catchup=False) }}
+{%- endif %}
+
+{%- if var('target_table', none) %}
+{{ materialization_target_table(ref(var('target_table'))) }}
+{%- endif %}
+
+select
+    p.id,
+    p.name,
+    'engineering' as department
+from {{ source('raw', 'people') }} p
+where p.department = 'engineering'
+"""
+
 TARGET_MODEL = """
 {{ config(materialized='table') }}
 

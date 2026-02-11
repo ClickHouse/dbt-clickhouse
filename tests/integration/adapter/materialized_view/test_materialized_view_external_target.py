@@ -11,6 +11,7 @@ from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
 
 from tests.integration.adapter.materialized_view.common import (
+    MV_MODEL,
     MV_MODEL_HACKERS,
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
@@ -317,24 +318,6 @@ class TestExternalTargetMVTargetChange:
         assert result[0][0] == 3
 
 
-# dbt-managed MV - engineering employees
-DBT_MV_ENGINEERING = """
-{{ config(
-       materialized='materialized_view',
-       catchup=False
-) }}
-
-{{ materialization_target_table(ref('employees_target')) }}
-
-select
-    p.id,
-    p.name,
-    'engineering' as department
-from {{ source('raw', 'people') }} p
-where p.department = 'engineering'
-"""
-
-
 def _create_outside_mv(project, schema):
     """Create a materialized view directly in ClickHouse (outside dbt)."""
     project.run_sql(
@@ -396,12 +379,12 @@ class TestMVWithExplicitTargetForcesOnSchemaChangeFailInTable:
     def models(self):
         return {
             "employees_target.sql": TARGET_MODEL,
-            "employees_mv_engineering.sql": DBT_MV_ENGINEERING,
+            "employees_mv_engineering.sql": MV_MODEL,
         }
 
     def test_mv_with_explicit_target_forces_on_schema_change_fail_in_table(self, project):
         run_dbt(["seed"])
-        run_dbt(["run"])
+        run_dbt(["run", "--vars", json.dumps({"target_table": "employees_target"})])
 
         _create_outside_mv(project, project.test_schema)
 
@@ -428,14 +411,16 @@ class TestRepopulateOnlyDbtMVsNotOutside:
     def models(self):
         return {
             "employees_target.sql": TARGET_MODEL,
-            "employees_mv_engineering.sql": DBT_MV_ENGINEERING,
+            "employees_mv_engineering.sql": MV_MODEL,
         }
 
     def test_repopulate_excludes_outside_mv(self, project):
         schema = quote_identifier(project.test_schema)
 
         run_dbt(["seed"])
-        run_dbt(["run"])
+        run_dbt(
+            ["run", "--vars", json.dumps({"target_table": "employees_target", "catchup": False})]
+        )
 
         _create_outside_mv(project, project.test_schema)
 
@@ -505,3 +490,53 @@ class TestRepopulateWithOnlyOutsideMV:
 
         result = project.run_sql(f"SELECT count(*) FROM {schema}.employees_target", fetch="all")
         assert result[0][0] == 0
+
+
+class TestAliasedMVRecognizedAsDbtManaged:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "employees_target.sql": TARGET_MODEL,
+            "employees_mv_engineering.sql": MV_MODEL,
+        }
+
+    def test_aliased_mv_forces_on_schema_change_fail(self, project):
+        """MV with custom alias should be recognized as dbt-managed and force on_schema_change='fail'."""
+        run_dbt(["seed"])
+        run_dbt(
+            [
+                "run",
+                "--vars",
+                json.dumps({"target_table": "employees_target", "alias": "engineering_mv_custom"}),
+            ]
+        )
+
+        # Run with schema change — should fail because the aliased MV is recognized as dbt-managed
+        results = run_dbt(
+            [
+                "run",
+                "--vars",
+                json.dumps(
+                    {
+                        "target_table": "employees_target",
+                        "alias": "engineering_mv_custom",
+                        "run_type": "extended_schema",
+                    }
+                ),
+            ],
+            expect_pass=False,
+        )
+
+        target_result = next(r for r in results if r.node.name == "employees_target")
+        assert target_result.status == "error"
+        assert (
+            "The source and target schemas on this table model are out of sync"
+            in target_result.message
+        )

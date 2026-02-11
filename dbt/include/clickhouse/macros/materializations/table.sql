@@ -184,7 +184,7 @@
         {%- if node.resource_type == 'model'
             and node.config.materialized == 'materialized_view'
             and node.schema == mv.schema
-            and node.name == mv.name -%}
+            and node.alias == mv.name -%}
           {%- do dbt_mvs.append(mv) -%}
           {%- do seen_mvs.append(mv_key) -%}
         {%- endif -%}
