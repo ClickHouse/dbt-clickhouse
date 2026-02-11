@@ -182,11 +182,9 @@ where department = 'engineering'
         assert result[0][0] == 3
 
         # re-run dbt with full-refresh and extended schema
-        # Disable repopulate_from_mvs_on_full_refresh to avoid double-insert:
         # repopulation uses old MV SQL while catchup uses the new SQL
         run_vars = {
             "run_type": "extended_schema",
-            "enable_repopulate_from_mvs_on_full_refresh": False,
         }
         run_dbt(["run", "--full-refresh", "--vars", json.dumps(run_vars)])
 

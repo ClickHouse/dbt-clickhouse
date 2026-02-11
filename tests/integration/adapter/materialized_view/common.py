@@ -112,7 +112,7 @@ where p.department = 'engineering'
 TARGET_MODEL = """
 {{ config(materialized='table') }}
 
-{%- if var('enable_repopulate_from_mvs_on_full_refresh', True) %}
+{%- if var('enable_repopulate_from_mvs_on_full_refresh', False) %}
 {{ config(repopulate_from_mvs_on_full_refresh=true) }}
 {%- endif %}
 
