@@ -9,18 +9,14 @@ import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
 
-PEOPLE_SEED_CSV = """
-id,name,age,department
-1231,Dade,33,engineering
-6666,Ksenia,48,engineering
-8888,Kate,50,engineering
-1000,Alfie,10,sales
-2000,Bill,20,sales
-3000,Charlie,30,sales
-""".lstrip()
+from tests.integration.adapter.materialized_view.common import (
+    PEOPLE_SEED_CSV,
+    SEED_SCHEMA_YML,
+    VIEW_MODEL_HACKERS,
+    query_table_type,
+)
 
 # This model is parameterized by three dbt project variables:
-# - schema_name: the schema name to use (default: 'custom_schema')
 # - catchup: whether to backfill existing data (default: True)
 # - use_updated_schema: whether to use the extended schema with id2 column (default: False)
 MV_MODEL = """
@@ -28,10 +24,15 @@ MV_MODEL = """
        materialized='materialized_view' if not var('use_view', False) else 'view',
        engine='MergeTree()',
        order_by='(id)',
-       on_schema_change=var('on_schema_change', 'ignore'),
-       schema=var('schema_name', 'custom_schema'),
-       **({'catchup': False} if not var('catchup', True) else {})
+       on_schema_change=var('on_schema_change', 'ignore')
 ) }}
+{%- if not var('catchup', True)%}
+{{ config(catchup=False) }}
+{%- endif %}
+{%- if var('schema_name', none) %}
+{{ config(schema=var('schema_name')) }}
+{%- endif %}
+
 
 {% if not var('use_updated_schema', False) %}
 select
@@ -63,16 +64,6 @@ where department = 'engineering'
 {% endif %}
 """
 
-SEED_SCHEMA_YML = """
-version: 2
-
-sources:
-  - name: raw
-    schema: "{{ target.schema }}"
-    tables:
-      - name: people
-"""
-
 
 class TestBasicMV:
     @pytest.fixture(scope="class")
@@ -97,7 +88,7 @@ class TestBasicMV:
         2. create a model as a materialized view, selecting from the table created in (1)
         3. insert data into the base table and make sure it's there in the target table created in (2)
         """
-        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema = quote_identifier(project.test_schema)
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
@@ -116,7 +107,7 @@ class TestBasicMV:
         check_relation_types(
             project.adapter,
             {
-                "hackers_mv": "view",
+                "hackers_mv": "materialized_view",
                 "hackers": "table",
             },
         )
@@ -131,36 +122,6 @@ class TestBasicMV:
 
         result = project.run_sql(f"select count(*) from {schema}.hackers", fetch="all")
         assert result[0][0] == 4
-
-
-# View model for testing view + MV coexistence
-VIEW_MODEL_HACKERS = """
-{{ config(
-       materialized='view',
-       schema='custom_schema'
-) }}
-
-select
-    id,
-    name,
-    case
-        when name like 'Dade' then 'crash_override'
-        when name like 'Kate' then 'acid burn'
-        else 'N/A'
-    end as hacker_alias
-from {{ source('raw', 'people') }}
-where department = 'engineering'
-"""
-
-
-def query_table_type(project, schema, table):
-    table_type = project.run_sql(
-        f"""
-        select engine from system.tables where database = '{schema}' and name = '{table}'
-    """,
-        fetch="all",
-    )
-    return table_type[0][0] if len(table_type) > 0 else None
 
 
 class TestUpdateMV:
@@ -182,7 +143,7 @@ class TestUpdateMV:
         }
 
     def test_update_incremental(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
@@ -213,7 +174,7 @@ class TestUpdateMV:
 
     # Test to verify that updates with incremental materialized views also update its destination table
     def test_update_incremental_on_schema_change_sync_all_columns(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
@@ -243,7 +204,7 @@ class TestUpdateMV:
         assert not any(col[0] == "id2" for col in table_description_after_revert_update)
 
     def test_update_incremental_on_schema_change_fail(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
@@ -264,7 +225,7 @@ class TestUpdateMV:
             assert msg in result.message
 
     def test_update_full_refresh(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema")
+        schema = quote_identifier(project.test_schema)
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
@@ -294,7 +255,7 @@ class TestUpdateMV:
         3. change the model to be a view and run with full refresh
         4. assert that the target table is now a view and the internal MV (_mv) no longer exists
         """
-        schema_unquoted = project.test_schema + "_custom_schema"
+        schema_unquoted = project.test_schema
 
         # Step 1: Create base table via dbt seed
         results = run_dbt(["seed"])
@@ -327,7 +288,7 @@ class TestUpdateMV:
         4. force a full refresh on hackers (the view)
         5. verify that hackers still works and hackers_mv and hackers_mv_mv are still present
         """
-        schema_unquoted = project.test_schema + "_custom_schema"
+        schema_unquoted = project.test_schema
 
         # Step 1: Create base table via dbt seed
         results = run_dbt(["seed"])
@@ -433,7 +394,7 @@ class TestCatchup:
         check_relation_types(
             project.adapter,
             {
-                "hackers_mv": "view",
+                "hackers_mv": "materialized_view",
                 "hackers": "table",
             },
         )

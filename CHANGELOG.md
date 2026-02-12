@@ -1,6 +1,7 @@
 ### Release [1.9.9], 2026-XX-XX
 
 #### Improvements
+* Huge new update for Materialized Views! Now you can define which target table will be used. For a full context on how to use it, check the [documentation](hthttps://clickhouse.com/docs/integrations/dbt) ([#582](https://github.com/ClickHouse/dbt-clickhouse/issues/582))..
 * Respect `catchup` configuration flag during full refresh operations for materialized views. When `catchup: False` is set, the target table will not be backfilled with historical data during full refresh, providing consistent behavior across initial creation and redeployment scenarios ([#589](https://github.com/ClickHouse/dbt-clickhouse/pull/589)).
 * Add update_field and update_lag, which is used in https://clickhouse.com/docs/sql-reference/dictionaries#refreshing-dictionary-data-using-lifetime and makes lifetime optional ([#580](https://github.com/ClickHouse/dbt-clickhouse/pull/580)).
 * Add `select_sequential_consistency` setting for SharedMergeTree (`database_engine: Shared`) to ensure read-after-write consistency. Shared engine also uses stricter `mutations_sync=3` and `alter_sync=3` defaults. All connection settings now use `setdefault()` allowing users to override defaults via `custom_settings` ([#596](https://github.com/ClickHouse/dbt-clickhouse/issues/596)).
