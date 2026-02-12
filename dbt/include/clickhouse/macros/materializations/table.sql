@@ -27,15 +27,7 @@
   -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
-  {# on_schema_change always have 'ignore' as default value, so we need a way to detect if the user has defined it.
-   In unrendered_config you can find the defined settings even if these are defined at dbt_project level #}
-  {% if 'on_schema_change' in config.model.unrendered_config %}
-    {# user has defined one, getting it #}
-    {%- set configured_on_schema_change = config.get('on_schema_change', 'ignore') -%}
-  {% else %}
-    {%- set configured_on_schema_change = none -%}
-  {% endif %}
-
+  {%- set configured_on_schema_change = none -%}
   {%- set repopulate_from_mvs_on_full_refresh = config.get('repopulate_from_mvs_on_full_refresh', False) -%}
   {%- set dbt_mvs_pointing_to_this_table = clickhouse__get_dbt_mvs_for_target(existing_relation) -%}
 
@@ -48,14 +40,22 @@
 
   {# If regular run was executed: Apply on_schema_change strategy #}
   {% elif not should_full_refresh() %}
-    
-    {# default to "fail" if this table is used by any dbt-managed MV. Added as a protection to prevent data loss -#}
-    {%- if dbt_mvs_pointing_to_this_table and configured_on_schema_change is none -%}
-      {{ log('Table ' ~ target_relation.name ~ ' is used as a target by a dbt-managed materialized view. Defaulting on_schema_change to "fail" to prevent data loss.', info=True) }}
-      {%- set configured_on_schema_change = 'fail' -%}
+    {# on_schema_change defaults to 'ignore' in dbt, so we need unrendered_config to know if the user actually set it #}
+    {%- set user_has_configured_on_schema_change = 'on_schema_change' in config.model.unrendered_config -%}
+
+    {# `on_schema_change` is only meaningful for tables targeted by dbt-managed MVs.
+      - For non-MV tables: always rebuild normally, ignoring any on_schema_change
+      - For MV-target tables: default to `fail` if it's not configured by the user #}
+    {%- if dbt_mvs_pointing_to_this_table -%}
+      {%- if user_has_configured_on_schema_change -%}
+        {%- set configured_on_schema_change = config.get('on_schema_change', 'ignore') -%}
+      {%- else -%}
+        {{ log('Table ' ~ target_relation.name ~ ' is used as a target by a dbt-managed materialized view. Defaulting on_schema_change to "fail" to prevent data loss.', info=True) }}
+        {%- set configured_on_schema_change = 'fail' -%}
+      {%- endif -%}
     {%- endif -%}
 
-    {# If definetively no on_schema_change is set, we behave as usual #}
+    {# If no on_schema_change is set, we behave as usual (rebuild the table) #}
     {% if configured_on_schema_change is none %}
       {% if existing_relation.can_exchange %}
       {% call statement('main') -%}
