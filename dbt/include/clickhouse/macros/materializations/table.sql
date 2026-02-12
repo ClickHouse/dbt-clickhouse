@@ -27,7 +27,7 @@
   -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
-  {%- set configured_on_schema_change = none -%}
+  {%- set configured_mv_on_schema_change = none -%}
   {%- set repopulate_from_mvs_on_full_refresh = config.get('repopulate_from_mvs_on_full_refresh', False) -%}
   {%- set dbt_mvs_pointing_to_this_table = clickhouse__get_dbt_mvs_for_target(existing_relation) -%}
 
@@ -38,25 +38,25 @@
       {{ get_create_table_as_sql(False, target_relation, sql) }}
     {%- endcall %}
 
-  {# If regular run was executed: Apply on_schema_change strategy #}
+  {# If regular run was executed: Apply mv_on_schema_change strategy #}
   {% elif not should_full_refresh() %}
-    {# on_schema_change defaults to 'ignore' in dbt, so we need unrendered_config to know if the user actually set it #}
-    {%- set user_has_configured_on_schema_change = 'on_schema_change' in config.model.unrendered_config -%}
+    {# mv_on_schema_change defaults to 'ignore' in dbt, so we need unrendered_config to know if the user actually set it #}
+    {%- set user_has_configured_mv_on_schema_change = 'mv_on_schema_change' in config.model.unrendered_config -%}
 
-    {# `on_schema_change` is only meaningful for tables targeted by dbt-managed MVs.
-      - For non-MV tables: always rebuild normally, ignoring any on_schema_change
+    {# `mv_on_schema_change` is only meaningful for tables targeted by dbt-managed MVs.
+      - For non-MV tables: always rebuild normally, ignoring any mv_on_schema_change
       - For MV-target tables: default to `fail` if it's not configured by the user #}
     {%- if dbt_mvs_pointing_to_this_table -%}
-      {%- if user_has_configured_on_schema_change -%}
-        {%- set configured_on_schema_change = config.get('on_schema_change', 'ignore') -%}
+      {%- if user_has_configured_mv_on_schema_change -%}
+        {%- set configured_mv_on_schema_change = config.get('mv_on_schema_change', 'ignore') -%}
       {%- else -%}
-        {{ log('Table ' ~ target_relation.name ~ ' is used as a target by a dbt-managed materialized view. Defaulting on_schema_change to "fail" to prevent data loss.', info=True) }}
-        {%- set configured_on_schema_change = 'fail' -%}
+        {{ log('Table ' ~ target_relation.name ~ ' is used as a target by a dbt-managed materialized view. Defaulting mv_on_schema_change to "fail" to prevent data loss.', info=True) }}
+        {%- set configured_mv_on_schema_change = 'fail' -%}
       {%- endif -%}
     {%- endif -%}
 
-    {# If no on_schema_change is set, we behave as usual (rebuild the table) #}
-    {% if configured_on_schema_change is none %}
+    {# If no mv_on_schema_change is set, we behave as usual (rebuild the table) #}
+    {% if configured_mv_on_schema_change is none %}
       {% if existing_relation.can_exchange %}
       {% call statement('main') -%}
             {{ get_create_table_as_sql(False, backup_relation, sql) }}
@@ -71,15 +71,15 @@
           {{ adapter.rename_relation(intermediate_relation, target_relation) }}
       {% endif %}
     
-    {# If on_schema_change is set, we apply the strategy #}
+    {# If mv_on_schema_change is set, we apply the strategy #}
     {% else %}
-      {%- set on_schema_change = incremental_validate_on_schema_change(configured_on_schema_change, default='ignore') -%}
+      {%- set mv_on_schema_change = incremental_validate_on_schema_change(configured_mv_on_schema_change, default='ignore') -%}
       {% call statement('main') -%}
         Select 1
       {%- endcall %}
-      {{ log('on_schema_change strategy for table: ' + on_schema_change) }}
-      {%- if on_schema_change != 'ignore' -%}
-        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, materialization='table') -%}
+      {{ log('on_schema_change strategy for table: ' + mv_on_schema_change) }}
+      {%- if mv_on_schema_change != 'ignore' -%}
+        {%- set column_changes = adapter.check_incremental_schema_changes(mv_on_schema_change, existing_relation, sql, materialization='table') -%}
         {% if column_changes %}
           {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
           {% set existing_relation = load_cached_relation(this) %}

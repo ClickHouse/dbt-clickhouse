@@ -43,15 +43,15 @@ class TestTableRebuildOnRun:
 
 
 # =============================================================================
-# on_schema_change tests for TABLE materialization
+# mv_on_schema_change tests for TABLE materialization
 #
-# on_schema_change is only meaningful for tables targeted by dbt-managed MVs.
-# For standalone (non-MV-target) tables, on_schema_change is ignored and the
+# mv_on_schema_change is only meaningful for tables targeted by dbt-managed MVs.
+# For standalone (non-MV-target) tables, mv_on_schema_change is ignored and the
 # table is always rebuilt on regular runs, even if the config is explicitly set.
 # This prevents inherited project-level configs (e.g. from dbt_project.yml)
 # from silently turning tables into no-ops.
 #
-# For MV-target tables, on_schema_change controls schema evolution:
+# For MV-target tables, mv_on_schema_change controls schema evolution:
 # - ignore: no schema changes applied, table left as-is
 # - fail: fail if schema changed
 # - append_new_columns: add new columns
@@ -63,7 +63,7 @@ table_schema_change_base = """
 {{{{
     config(
         materialized='table',
-        on_schema_change='{strategy}'
+        mv_on_schema_change='{strategy}'
     )
 }}}}
 select
@@ -77,7 +77,7 @@ table_schema_change_add_column = """
 {{{{
     config(
         materialized='table',
-        on_schema_change='{strategy}'
+        mv_on_schema_change='{strategy}'
     )
 }}}}
 select
@@ -95,7 +95,7 @@ class TestTableOnSchemaChangeIgnore:
             "table_ignore.sql": table_schema_change_base.format(strategy="ignore"),
         }
 
-    def test_on_schema_change_not_applied_if_no_mv_is_involved(self, project):
+    def test_mv_on_schema_change_not_applied_if_no_mv_is_involved(self, project):
         # First run - creates table with col_1, col_2
         run_dbt(["run"])
         result = project.run_sql("select * from table_ignore order by col_1", fetch="all")
@@ -108,21 +108,21 @@ class TestTableOnSchemaChangeIgnore:
         # Even when forcing this setting into the table, it should be ignored since this table is not targeted by an MV
         model_path.write(table_schema_change_add_column.format(strategy="fail"))
 
-        # Second run - standalone table is always rebuilt, on_schema_change is ignored
+        # Second run - standalone table is always rebuilt, mv_on_schema_change is ignored
         run_dbt(["run"])
         result = project.run_sql("select * from table_ignore order by col_1", fetch="all")
         assert len(result) == 3
         actual_cols = len(result[0])
         assert (
             actual_cols == 3
-        ), f"Standalone table should be rebuilt with 3 columns (on_schema_change ignored), but has {actual_cols} columns"
+        ), f"Standalone table should be rebuilt with 3 columns (mv_on_schema_change ignored), but has {actual_cols} columns"
 
 
 # =============================================================================
-# Test: MV target table automatically defaults to on_schema_change='fail'
+# Test: MV target table automatically defaults to mv_on_schema_change='fail'
 #
 # When a table is the target of a dbt-managed materialized view, and the user
-# has NOT explicitly configured on_schema_change, it should automatically
+# has NOT explicitly configured mv_on_schema_change, it should automatically
 # default to 'fail' to prevent data loss.
 # =============================================================================
 
@@ -142,7 +142,7 @@ sources:
       - name: mv_source_seed
 """
 
-# Target table - NO on_schema_change configured (will be auto-set to 'fail' when MV points to it)
+# Target table - NO mv_on_schema_change configured (will be auto-set to 'fail' when MV points to it)
 mv_target_table_base = """
 {{ config(materialized='table') }}
 select
@@ -173,7 +173,7 @@ select col_1, col_2 from {{ source('raw', 'mv_source_seed') }}
 class TestTableWithMVDefaultsToFail:
     """
     Test that a table targeted by a materialized view automatically defaults
-    to on_schema_change='fail' even when the user doesn't configure it.
+    to mv_on_schema_change='fail' even when the user doesn't configure it.
 
     This is a safety feature to prevent accidental data loss when schema changes
     would break the MV's ability to write to the target table.
@@ -193,7 +193,7 @@ class TestTableWithMVDefaultsToFail:
             "mv_pointing.sql": mv_pointing_to_target,
         }
 
-    def test_mv_target_defaults_to_fail_on_schema_change(self, project):
+    def test_mv_target_defaults_to_fail_mv_on_schema_change(self, project):
         # Seed the source data
         run_dbt(["seed"])
 
@@ -212,17 +212,17 @@ class TestTableWithMVDefaultsToFail:
         assert len(column_names) == 2
 
         # Update the target table model to add col_3 (schema change)
-        # Note: on_schema_change is NOT set, so it should auto-default to 'fail'
+        # Note: mv_on_schema_change is NOT set, so it should auto-default to 'fail'
         model_path = project.project_root.join("models", "mv_target_table.sql")
         model_path.write(mv_target_table_add_column)
 
         # Second run - should fail because:
         # 1. MV points to this table
-        # 2. on_schema_change was not set by user
+        # 2. mv_on_schema_change was not set by user
         # 3. Therefore it auto-defaults to 'fail'
         _, log_output = run_dbt_and_capture(["run"], expect_pass=False)
 
         assert "out of sync" in log_output.lower(), (
-            "Table with MV pointing to it should auto-default to on_schema_change='fail' "
+            "Table with MV pointing to it should auto-default to mv_on_schema_change='fail' "
             "and fail when schema changes. Got log: " + log_output
         )

@@ -259,6 +259,7 @@ class ClickHouseAdapter(SQLAdapter):
             raise DbtRuntimeError(
                 schema_change_fail_error.format(
                     materialization,
+                    'on_schema_change' if materialization != 'table' else 'mv_on_schema_change',
                     format_column_names(source_not_in_target),
                     format_column_names(target_not_in_source),
                     format_column_names(changed_data_types),

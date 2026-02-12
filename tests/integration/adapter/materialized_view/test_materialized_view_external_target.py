@@ -347,7 +347,7 @@ class TestOutsideMVsNotForceOnSchemaChangeFailInTable:
         }
 
     def test_outside_mv_does_not_force_on_schema_change_fail_in_table_models(self, project):
-        """Outside-only MVs should NOT make on_schema_change='fail' default."""
+        """Outside-only MVs should NOT make mv_on_schema_change='fail' default."""
         schema = quote_identifier(project.test_schema)
 
         run_dbt(["seed"])
@@ -380,7 +380,7 @@ class TestMVWithExplicitTargetForcesOnSchemaChangeFailInTable:
             "employees_mv_engineering.sql": MV_MODEL,
         }
 
-    def test_mv_with_explicit_target_forces_on_schema_change_fail_in_table(self, project):
+    def test_mv_with_explicit_target_forces_mv_on_schema_change_fail_in_table(self, project):
         run_dbt(["seed"])
         run_dbt(["run", "--vars", json.dumps({"target_table": "employees_target"})])
 
@@ -505,8 +505,8 @@ class TestAliasedMVRecognizedAsDbtManaged:
             "employees_mv_engineering.sql": MV_MODEL,
         }
 
-    def test_aliased_mv_forces_on_schema_change_fail(self, project):
-        """MV with custom alias should be recognized as dbt-managed and force on_schema_change='fail'."""
+    def test_aliased_mv_forces_mv_on_schema_change_fail(self, project):
+        """MV with custom alias should be recognized as dbt-managed and force mv_on_schema_change='fail'."""
         run_dbt(["seed"])
         run_dbt(
             [
