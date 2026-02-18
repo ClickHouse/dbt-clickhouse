@@ -1,3 +1,9 @@
+### Release [1.10.1], 2026-0X-XX
+
+#### Improvements
+* Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
+
+
 ### Release [1.10.0], 2026-02-16
 
 This is an interesting release with many changes! Please take some time to review the notes before upgrading it. All changes are expected to be backward compatible, but some of them may require adjustments in your code.

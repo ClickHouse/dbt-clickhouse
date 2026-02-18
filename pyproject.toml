@@ -33,6 +33,9 @@ dependencies = [
 Homepage = "https://github.com/ClickHouse/dbt-clickhouse"
 Repository = "https://github.com/ClickHouse/dbt-clickhouse"
 Issues = "https://github.com/ClickHouse/dbt-clickhouse/issues"
+Documentation = "https://github.com/ClickHouse/dbt-clickhouse#documentation"
+Changelog = "https://github.com/ClickHouse/dbt-clickhouse/blob/main/CHANGELOG.md"
+slack = "https://clickhouse.com/slack"
 
 [tool.setuptools]
 packages = {find = {include = ["dbt", "dbt.*"], namespaces = true}}
