@@ -34,6 +34,7 @@ Homepage = "https://github.com/ClickHouse/dbt-clickhouse"
 Repository = "https://github.com/ClickHouse/dbt-clickhouse"
 Issues = "https://github.com/ClickHouse/dbt-clickhouse/issues"
 Documentation = "https://github.com/ClickHouse/dbt-clickhouse#documentation"
+"ClickHouse Docs" = "https://clickhouse.com/docs/integrations/dbt"
 Changelog = "https://github.com/ClickHouse/dbt-clickhouse/blob/main/CHANGELOG.md"
 Slack = "https://clickhouse.com/slack"
 
