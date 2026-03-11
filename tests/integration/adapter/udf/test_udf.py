@@ -2,38 +2,22 @@
 test UDF creation support for dbt-clickhouse
 """
 
+import pytest
+
+import dbt.tests.adapter.functions.files as files
+from dbt.tests.adapter.functions.test_udfs import UDFsBasic
+
 # we'll import helper used by the core test project to write directories
 
-import pytest
-from dbt.tests.util import run_dbt
-
-UDF_MODEL = """
-x * 2
-""".strip()
-
-UDF_SCHEMA_YML = """
-functions:
-  - name: answer_to_everything
-    description: Computes the answer to life, universe and everything.
-    arguments:
-      - name: x
-        data_type: Int32
-    returns:
-      data_type: Int32
+MY_UDF_SQL = """
+price * 2
 """.strip()
 
 
-class TestUDFCreation:
-    # Original functions fixture: provide files for a dedicated 'functions' dir
+class TestUDFBasics(UDFsBasic):
     @pytest.fixture(scope="class")
     def functions(self):
         return {
-            "answer_to_everything.sql": UDF_MODEL,
-            "answer_to_everything.yml": UDF_SCHEMA_YML,
+            "price_for_xlarge.sql": MY_UDF_SQL,
+            "price_for_xlarge.yml": files.MY_UDF_YML,
         }
-
-    def test_create(self, project):
-        run_dbt(["build"])
-
-        result = project.run_sql("SELECT answer_to_everything(21)", fetch="one")
-        assert result[0] == 42

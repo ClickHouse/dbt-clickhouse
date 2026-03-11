@@ -3,10 +3,15 @@ import time
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
+from dbt_common.events.contextvars import get_node_info
+from dbt_common.events.functions import fire_event
+from dbt_common.utils import cast_to_str
+
 import dbt.exceptions
 from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.contracts.connection import AdapterResponse, Connection
+from dbt.adapters.events.types import SQLQuery
 from dbt.adapters.sql import SQLConnectionManager
 
 if TYPE_CHECKING:
@@ -87,7 +92,14 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         client = conn.handle
 
         with self.exception_handler(sql):
-            logger.debug(f'On {conn.name}: {sql}...')
+            fire_event(
+                SQLQuery(
+                    conn_name=cast_to_str(conn.name),
+                    node_info=get_node_info(),
+                    sql=sql,
+                )
+            )
+            logger.debug(f"On {conn.name}: {sql}...")
             pre = time.time()
             if fetch:
                 query_result = client.query(sql)
@@ -116,7 +128,20 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
         with self.exception_handler(sql):
-            logger.debug(f'On {conn.name}: {sql}...')
+            if abridge_sql_log:
+                log_sql = "{}...".format(sql[:512])
+            else:
+                log_sql = sql
+
+            fire_event(
+                SQLQuery(
+                    conn_name=cast_to_str(conn.name),
+                    node_info=get_node_info(),
+                    sql=log_sql,
+                )
+            )
+
+            logger.debug(f"On {conn.name}: {sql}...")
             pre = time.time()
             client.command(sql)
             status = self.get_status(client)
