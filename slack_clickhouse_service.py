@@ -279,7 +279,13 @@ class SlackQueryHandler(BaseHTTPRequestHandler):
             return
 
         body = self._read_body()
-        if not verify_slack_signature(self.headers, body, self.config.slack_signing_secret):
+        # Convert to a simple mapping so static typing matches verify_slack_signature.
+        request_headers = {key: value for key, value in self.headers.items()}
+        if not verify_slack_signature(
+            request_headers,
+            body,
+            self.config.slack_signing_secret,
+        ):
             self.send_error(HTTPStatus.UNAUTHORIZED, "Invalid Slack signature")
             return
 
