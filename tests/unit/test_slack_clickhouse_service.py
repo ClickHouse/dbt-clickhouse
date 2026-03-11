@@ -34,11 +34,14 @@ def test_verify_slack_signature() -> None:
     timestamp = "1710000000"
     secret = "my-secret"
     signature_payload = b"v0:" + timestamp.encode("utf-8") + b":" + body
-    signature = "v0=" + hmac.new(
-        secret.encode("utf-8"),
-        signature_payload,
-        hashlib.sha256,
-    ).hexdigest()
+    signature = (
+        "v0="
+        + hmac.new(
+            secret.encode("utf-8"),
+            signature_payload,
+            hashlib.sha256,
+        ).hexdigest()
+    )
     headers = {
         "X-Slack-Request-Timestamp": timestamp,
         "X-Slack-Signature": signature,

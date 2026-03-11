@@ -110,11 +110,14 @@ def verify_slack_signature(
         return False
 
     payload = b"v0:" + timestamp.encode("utf-8") + b":" + body
-    expected = "v0=" + hmac.new(
-        signing_secret.encode("utf-8"),
-        payload,
-        hashlib.sha256,
-    ).hexdigest()
+    expected = (
+        "v0="
+        + hmac.new(
+            signing_secret.encode("utf-8"),
+            payload,
+            hashlib.sha256,
+        ).hexdigest()
+    )
     return hmac.compare_digest(expected, signature)
 
 
