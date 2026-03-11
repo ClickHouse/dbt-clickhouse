@@ -150,6 +150,7 @@ class ClickHouseRelation(BaseRelation):
             if schema == relation_config.source_name and relation_config.database:
                 schema = relation_config.database
         elif relation_config.resource_type == NODE_TYPE_FUNCTION:
+            # ClickHouse functions are global and don't belong to a schema, so we ignore the schema.
             schema = None
         else:
             # quoting is only available for non-source nodes
