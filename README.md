@@ -62,3 +62,66 @@ instructions on setting up your environment, running tests, and submitting pull 
 
 ClickHouse wants to thank @[silentsokolov](https://github.com/silentsokolov) for creating this connector and for their
 valuable contributions.
+
+## Run ClickHouse queries from Slack
+
+This repository includes a lightweight slash-command service for running read-only ClickHouse queries from Slack:
+`slack_clickhouse_service.py`.
+
+### 1) Create a Slack app + slash command
+
+1. In Slack API, create an app (or reuse an existing one).
+2. Add a Slash Command (for example `/ch`).
+3. Set the Request URL to your deployed service endpoint, for example:
+   `https://your-domain.example/slack/commands`
+4. Install the app to your workspace.
+5. Copy the app **Signing Secret**.
+
+### 2) Configure environment variables
+
+```bash
+export SLACK_SIGNING_SECRET="..."
+export CLICKHOUSE_HOST="your-clickhouse-host"
+export CLICKHOUSE_PORT="8443"
+export CLICKHOUSE_USER="default"
+export CLICKHOUSE_PASSWORD="..."
+export CLICKHOUSE_DATABASE="default"
+export CLICKHOUSE_SECURE="true"
+export CLICKHOUSE_VERIFY="true"
+export SLACK_MAX_ROWS="50"
+export SLACK_MAX_EXECUTION_SECONDS="30"
+```
+
+Optional:
+
+- `SLACK_COMMAND_PATH` (default: `/slack/commands`)
+- `SLACK_ALLOW_UNSAFE_SQL` (default: `false`; keep this disabled unless you fully trust the command users)
+
+### 3) Start the service
+
+```bash
+python slack_clickhouse_service.py --host 0.0.0.0 --port 3000
+```
+
+Health check:
+
+```bash
+curl http://localhost:3000/health
+```
+
+### 4) Use from Slack
+
+In Slack:
+
+```text
+/ch SELECT now() AS current_time
+```
+
+The command responds immediately with an acknowledgement, then posts query results when complete.
+
+### Safety defaults
+
+- Rejects invalid Slack signatures.
+- Rejects multiple SQL statements.
+- Allows only read-only SQL prefixes by default (`SELECT`, `WITH`, `SHOW`, `DESCRIBE`, `EXPLAIN`).
+- Applies row and execution limits before sending results back to Slack.
