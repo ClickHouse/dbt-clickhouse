@@ -1,14 +1,16 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Type
 
-from dbt.adapters.base.relation import BaseRelation, EventTimeFilter, Path, Policy, Self
-from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.contracts.relation import HasQuoting, RelationConfig
 from dbt_common.dataclass_schema import StrEnum
 from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
 
-NODE_TYPE_SOURCE = 'source'
+from dbt.adapters.base.relation import BaseRelation, EventTimeFilter, Path, Policy, Self
+from dbt.adapters.clickhouse.query import quote_identifier
+from dbt.adapters.contracts.relation import HasQuoting, RelationConfig
+
+NODE_TYPE_SOURCE = "source"
+NODE_TYPE_FUNCTION = "function"
 
 
 @dataclass
@@ -33,6 +35,7 @@ class ClickHouseRelationType(StrEnum):
     External = "external"
     Ephemeral = "ephemeral"
     Dictionary = "dictionary"
+    Function = "function"
 
 
 @dataclass(frozen=True, eq=False, repr=False)
@@ -146,6 +149,9 @@ class ClickHouseRelation(BaseRelation):
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
                 schema = relation_config.database
+        elif relation_config.resource_type == NODE_TYPE_FUNCTION:
+            # ClickHouse functions are global and don't belong to a schema, so we ignore the schema.
+            schema = None
         else:
             # quoting is only available for non-source nodes
             cluster = quoting.credentials.cluster or ""
