@@ -103,7 +103,16 @@ class ClickHouseConnectionManager(SQLConnectionManager):
                 from dbt_common.clients.agate_helper import empty_table
 
                 table = empty_table()
-            return AdapterResponse(_message=status), table
+
+            query_id = ''
+            if fetch and hasattr(query_result, 'query_id'):
+                query_id = query_result.query_id or ''
+            elif not fetch and hasattr(query_result, 'summary') and isinstance(
+                query_result.summary, dict
+            ):
+                query_id = query_result.summary.get('query_id', '')
+
+            return AdapterResponse(_message=status, query_id=query_id), table
 
     def add_query(
         self,

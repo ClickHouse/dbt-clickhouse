@@ -1,6 +1,7 @@
 ### Release [1.10.1], 2026-0X-XX
 
 #### Improvements
+* Populate `query_id` in `AdapterResponse` from the ClickHouse driver result. The HTTP client exposes `query_id` via `QueryResult.query_id` (fetch queries) and `QuerySummary.summary['query_id']` (command queries). This enables users to correlate dbt model executions with `system.query_log` for debugging, resource tracking, and query profiling ([#617](https://github.com/ClickHouse/dbt-clickhouse/issues/617)).
 * Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
 
 
