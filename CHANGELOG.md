@@ -3,6 +3,9 @@
 #### Improvements
 * Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
 
+#### Bugs
+* Fix `dbt_valid_to_current` snapshot configuration being ignored in the ClickHouse adapter. The snapshot macros for both timestamp and check strategies now correctly read and apply the `dbt_valid_to_current` config value, matching dbt-core's expected behavior. Previously, snapshots configured with `dbt_valid_to_current` would produce duplicate rows on subsequent runs because the adapter always filtered current records with `WHERE dbt_valid_to IS NULL`, missing rows that had the configured sentinel value.
+
 
 ### Release [1.10.0], 2026-02-16
 
