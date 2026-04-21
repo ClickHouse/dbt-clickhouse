@@ -108,16 +108,6 @@ def get_row_count(project, snapshot_name):
     return result[0]
 
 
-def get_valid_to_values(project, snapshot_name):
-    """Return list of dbt_valid_to values for all rows, ordered by id and dbt_valid_from."""
-    relation = relation_from_name(project.adapter, snapshot_name)
-    result = project.run_sql(
-        f"select id, dbt_valid_to from {relation} order by id, dbt_valid_from",
-        fetch="all",
-    )
-    return result
-
-
 def get_current_row_count(project, snapshot_name):
     """Count rows where dbt_valid_to equals the configured current value."""
     relation = relation_from_name(project.adapter, snapshot_name)
@@ -166,16 +156,6 @@ def get_rows_for_id(project, snapshot_name, row_id):
         fetch="all",
     )
     return result
-
-
-def get_row_count_for_id(project, snapshot_name, row_id):
-    """Count rows for a specific id."""
-    relation = relation_from_name(project.adapter, snapshot_name)
-    result = project.run_sql(
-        f"select count(*) from {relation} where id = {row_id}",
-        fetch="one",
-    )
-    return result[0]
 
 
 class TestSnapshotTimestampDbtValidToCurrent:
