@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 
 from dbt.tests.util import relation_from_name, run_dbt
@@ -36,6 +38,21 @@ id,name,some_date
 7,Lily,1971-03-29T14:58:02
 8,Jonathan,1988-02-26T02:55:24
 9,Adrian,1994-02-09T13:14:23
+""".lstrip()
+
+# Seed with one row updated (id=1 name changed, some_date changed for timestamp strategy)
+seeds_updated_csv = """
+id,name,some_date
+1,Easton_updated,2020-01-01T00:00:00
+2,Lillian,1978-09-03T18:10:33
+3,Jeremiah,1982-03-11T03:59:51
+4,Nolan,1976-05-06T20:21:35
+5,Hannah,1982-06-23T05:41:26
+6,Eleanor,1991-08-10T23:12:21
+7,Lily,1971-03-29T14:58:02
+8,Jonathan,1988-02-26T02:55:24
+9,Adrian,1994-02-09T13:14:23
+10,Nora,1976-03-01T16:51:39
 """.lstrip()
 
 # Timestamp strategy snapshot with dbt_valid_to_current configured
@@ -141,12 +158,33 @@ def get_deleted_row_valid_to(project, snapshot_name):
     return result[0] if result else None
 
 
+def get_rows_for_id(project, snapshot_name, row_id):
+    """Return all rows for a specific id, ordered by dbt_valid_from (oldest first)."""
+    relation = relation_from_name(project.adapter, snapshot_name)
+    result = project.run_sql(
+        f"select id, name, dbt_valid_from, dbt_valid_to from {relation} where id = {row_id} order by dbt_valid_from",
+        fetch="all",
+    )
+    return result
+
+
+def get_row_count_for_id(project, snapshot_name, row_id):
+    """Count rows for a specific id."""
+    relation = relation_from_name(project.adapter, snapshot_name)
+    result = project.run_sql(
+        f"select count(*) from {relation} where id = {row_id}",
+        fetch="one",
+    )
+    return result[0]
+
+
 class TestSnapshotTimestampDbtValidToCurrent:
     @pytest.fixture(scope="class")
     def seeds(self):
         return {
             "base.csv": seeds_base_csv,
             "added.csv": seeds_added_csv,
+            "updated.csv": seeds_updated_csv,
         }
 
     @pytest.fixture(scope="class")
@@ -171,7 +209,7 @@ class TestSnapshotTimestampDbtValidToCurrent:
     def test_snapshot_valid_to_current_timestamp(self, project):
         # Seed the base data (10 rows)
         results = run_dbt(["seed"])
-        assert len(results) == 2
+        assert len(results) == 3
 
         # --- First snapshot run ---
         results = run_dbt(["snapshot"])
@@ -204,6 +242,37 @@ class TestSnapshotTimestampDbtValidToCurrent:
         assert get_current_row_count(project, "ts_snapshot") == 12
         assert get_expired_row_count(project, "ts_snapshot") == 0
 
+        # --- Fourth snapshot run with updated data ---
+        # Point at the "updated" seed so id=1 has a new name and later some_date
+        results = run_dbt(
+            ["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"]
+        )
+        assert len(results) == 1
+
+        # Should now have 13 rows (12 + 1 new version for updated id=1)
+        assert get_row_count(project, "ts_snapshot") == 13
+
+        # 12 rows should still be current (dbt_valid_to = sentinel)
+        assert get_current_row_count(project, "ts_snapshot") == 12
+
+        # 1 row should be expired (the old version of id=1)
+        assert get_expired_row_count(project, "ts_snapshot") == 1
+
+        # Verify id=1 has exactly 2 rows: old expired + new current
+        id_1_rows = get_rows_for_id(project, "ts_snapshot", 1)
+        assert len(id_1_rows) == 2, f"Expected 2 rows for id=1, got {len(id_1_rows)}"
+
+        # First row (oldest) should be the original version, now expired
+        old_row = id_1_rows[0]
+        assert old_row[1] == "Easton"  # original name
+        # dbt_valid_to should be a real timestamp (not the sentinel)
+        assert old_row[3] != datetime(2100, 1, 1, 0, 0)
+
+        # Second row (newest) should be the updated version, still current
+        new_row = id_1_rows[1]
+        assert new_row[1] == "Easton_updated"  # updated name
+        assert new_row[3] == datetime(2100, 1, 1, 0, 0)  # dbt_valid_to = sentinel
+
 
 class TestSnapshotCheckDbtValidToCurrent:
     @pytest.fixture(scope="class")
@@ -211,6 +280,7 @@ class TestSnapshotCheckDbtValidToCurrent:
         return {
             "base.csv": seeds_base_csv,
             "added.csv": seeds_added_csv,
+            "updated.csv": seeds_updated_csv,
         }
 
     @pytest.fixture(scope="class")
@@ -235,7 +305,7 @@ class TestSnapshotCheckDbtValidToCurrent:
     def test_snapshot_valid_to_current_check(self, project):
         # Seed the base data (10 rows)
         results = run_dbt(["seed"])
-        assert len(results) == 2
+        assert len(results) == 3
 
         # --- First snapshot run ---
         results = run_dbt(["snapshot"])
@@ -263,6 +333,37 @@ class TestSnapshotCheckDbtValidToCurrent:
         assert get_row_count(project, "cc_snapshot") == 12
         assert get_current_row_count(project, "cc_snapshot") == 12
         assert get_expired_row_count(project, "cc_snapshot") == 0
+
+        # --- Fourth snapshot run with updated data ---
+        # Point at the "updated" seed so id=1 has a changed name
+        results = run_dbt(
+            ["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"]
+        )
+        assert len(results) == 1
+
+        # Should now have 13 rows (12 + 1 new version for updated id=1)
+        assert get_row_count(project, "cc_snapshot") == 13
+
+        # 12 rows should still be current (dbt_valid_to = sentinel)
+        assert get_current_row_count(project, "cc_snapshot") == 12
+
+        # 1 row should be expired (the old version of id=1)
+        assert get_expired_row_count(project, "cc_snapshot") == 1
+
+        # Verify id=1 has exactly 2 rows: old expired + new current
+        id_1_rows = get_rows_for_id(project, "cc_snapshot", 1)
+        assert len(id_1_rows) == 2, f"Expected 2 rows for id=1, got {len(id_1_rows)}"
+
+        # First row (oldest) should be the original version, now expired
+        old_row = id_1_rows[0]
+        assert old_row[1] == "Easton"  # original name
+        # dbt_valid_to should be a real timestamp (not the sentinel)
+        assert old_row[3] != datetime(2100, 1, 1, 0, 0)
+
+        # Second row (newest) should be the updated version, still current
+        new_row = id_1_rows[1]
+        assert new_row[1] == "Easton_updated"  # updated name
+        assert new_row[3] == datetime(2100, 1, 1, 0, 0)  # dbt_valid_to = sentinel
 
 
 class TestSnapshotCheckDbtValidToCurrentWithHardDeletes:
