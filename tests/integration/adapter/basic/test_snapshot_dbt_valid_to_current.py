@@ -433,4 +433,4 @@ class TestSnapshotCheckDbtValidToCurrentWithHardDeletes:
         assert get_deleted_row_count(project, "cc_snapshot_hd") == 1
         deleted_valid_to = get_deleted_row_valid_to(project, "cc_snapshot_hd")
         # The deleted row should have a real timestamp, not the sentinel
-        assert deleted_valid_to != "2100-01-01 00:00:00"
+        assert deleted_valid_to != datetime(2100, 1, 1, 0, 0)
