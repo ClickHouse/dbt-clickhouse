@@ -11,8 +11,15 @@ from dbt_common.exceptions import DbtDatabaseError
 
 
 class ChHttpClient(ChClientWrapper):
+    @staticmethod
+    def _inject_query_id(kwargs):
+        query_id = kwargs.pop('query_id', None)
+        if query_id:
+            kwargs.setdefault('settings', {})['query_id'] = query_id
+
     def query(self, sql, **kwargs):
         try:
+            self._inject_query_id(kwargs)
             return self._client.query(sql, **kwargs)
         except DatabaseError as ex:
             err_msg = hide_stack_trace(ex)
@@ -20,6 +27,7 @@ class ChHttpClient(ChClientWrapper):
 
     def command(self, sql, **kwargs):
         try:
+            self._inject_query_id(kwargs)
             return self._client.command(sql, **kwargs)
         except DatabaseError as ex:
             err_msg = hide_stack_trace(ex)
