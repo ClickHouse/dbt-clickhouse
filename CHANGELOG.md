@@ -2,7 +2,7 @@
 
 #### Improvements
 * Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
-
+* Update dbt core dependencies dbt-adapters from `<1.22.6` to `<1.23.0` and dbt-core from `==1.10.*` to `==1.11.*` for local testing ([#638](https://github.com/ClickHouse/dbt-clickhouse/pull/638))
 
 ### Release [1.10.0], 2026-02-16
 
