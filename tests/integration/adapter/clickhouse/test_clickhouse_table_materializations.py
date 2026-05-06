@@ -12,6 +12,7 @@ from dbt.tests.util import (
 )
 
 from tests.integration.adapter.basic.test_basic import base_seeds_schema_yml
+from tests.integration.adapter.helpers import retry_until_assertion_passes
 
 
 class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
@@ -198,12 +199,18 @@ class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
         )
         assert table_count[0] == host_count[0]
 
-        sum_count = project.run_sql(
-            f"select count() From clusterAllReplicas('{cluster}',{table_relation})",
-            fetch="one",
-        )
+        # ReplicatedMergeTree replication via ZooKeeper is asynchronous: after the
+        # INSERT lands on one node, the other replicas pull the new parts on their
+        # own schedule. Poll clusterAllReplicas until at least two replicas have
+        # caught up to avoid spurious failures (assert 10 >= 20).
+        def check_replicated_row_count():
+            sum_count = project.run_sql(
+                f"select count() From clusterAllReplicas('{cluster}',{table_relation})",
+                fetch="one",
+            )
+            assert sum_count[0] >= 20
 
-        assert sum_count[0] >= 20
+        retry_until_assertion_passes(check_replicated_row_count)
 
     @pytest.mark.skipif(
         os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
