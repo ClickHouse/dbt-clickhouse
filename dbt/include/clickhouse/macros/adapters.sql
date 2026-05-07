@@ -111,8 +111,23 @@
 {% endmacro %}
 
 
+{#
+  ClickHouse only has a single namespace level (its "database"), which dbt models
+  to dbt's "schema" concept. To keep manifest.json and catalog.json in sync (so
+  that `dbt docs generate` can link catalog rows back to manifest nodes), the
+  resolved database for every node mirrors the resolved schema by reusing
+  generate_schema_name. This way `+schema:` overrides flow through identically.
+#}
 {% macro clickhouse__generate_database_name(custom_database_name=none, node=none) -%}
-  {% do return('') %}
+  {%- if custom_database_name is not none -%}
+    {{ custom_database_name | trim }}
+  {%- else -%}
+    {%- set custom_schema_name = none -%}
+    {%- if node is not none and node.config is not none -%}
+      {%- set custom_schema_name = node.config.get('schema') -%}
+    {%- endif -%}
+    {{ generate_schema_name(custom_schema_name, node) | trim }}
+  {%- endif -%}
 {%- endmacro %}
 
 {% macro clickhouse__get_columns_in_query(select_sql) %}

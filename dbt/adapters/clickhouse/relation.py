@@ -50,8 +50,15 @@ class ClickHouseRelation(BaseRelation):
     )  # List of {'schema', 'name', 'sql'}
 
     def __post_init__(self):
-        if self.database != self.schema and self.database:
-            raise DbtRuntimeError(f'Cannot set database {self.database} in clickhouse!')
+        # ClickHouse has no separate "database" concept above its schema, so any
+        # caller-supplied database is meaningless at the relation level and gets
+        # blanked. We previously raised when database != schema, but that check
+        # is too strict now that credentials.database may legitimately differ
+        # from the relation's schema (callers like the dbt test framework pass
+        # `credentials.database` together with an arbitrary schema, e.g. when
+        # creating alternate schemas). Validation that user-provided
+        # `database` matches `schema` still happens in
+        # ClickHouseCredentials.__post_init__.
         self.path.database = ''
 
     def render(self) -> str:

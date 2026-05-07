@@ -56,7 +56,13 @@ class ClickHouseCredentials(Credentials):
                 f'On Clickhouse, database must be omitted or have the same value as'
                 f' schema.'
             )
-        self.database = ''
+        # ClickHouse has a single namespace ("database") which the adapter maps
+        # to dbt's "schema". Mirror the schema onto `database` so that
+        # `target.database` and source nodes (whose `database` is sourced from
+        # credentials when not explicitly set) stay in sync with the actual
+        # ClickHouse database. This keeps `manifest.json`, `catalog.json` and
+        # `dbt docs generate` consistent with the data warehouse.
+        self.database = self.schema or ''
 
         # clickhouse_driver expects tcp_keepalive to be a tuple if it's not a boolean
         if isinstance(self.tcp_keepalive, list):

@@ -10,7 +10,13 @@ from dbt.tests.adapter.basic.test_docs_generate import (
 class TestBaseDocsGenerate(BaseDocsGenerate):
     @pytest.fixture(scope="class")
     def expected_catalog(self, project, profile_user):
-        return base_expected_catalog(
+        # In ClickHouse the "database" namespace and dbt's "schema" are the
+        # same thing, so every node's database equals its actual schema (the
+        # main schema for nodes that live there, the alternate schema for
+        # `second_model` which uses `+schema='test'`). dbt-core's generic
+        # `base_expected_catalog` assumes a separate database concept, so we
+        # rewrite each node's database to match its schema.
+        catalog = base_expected_catalog(
             project,
             role=None,
             id_type="Int32",
@@ -20,6 +26,10 @@ class TestBaseDocsGenerate(BaseDocsGenerate):
             table_type="table",
             model_stats=no_stats(),
         )
+        for section in ("nodes", "sources"):
+            for entry in catalog[section].values():
+                entry["metadata"]["database"] = entry["metadata"]["schema"]
+        return catalog
 
 
 ref_models__schema_yml = """
@@ -148,8 +158,12 @@ def expected_references_catalog(
     if view_summary_stats is None:
         view_summary_stats = model_stats
 
-    model_database = project.database
+    # ClickHouse only has a single namespace ("database"), which the adapter
+    # maps to dbt's "schema". Since `dbt docs generate` now reports the actual
+    # ClickHouse database for each node, we mirror the schema onto database
+    # below instead of using the credentials' database value.
     my_schema_name = case(project.test_schema)
+    model_database = my_schema_name
 
     summary_columns = {
         "first_name": {
@@ -204,7 +218,7 @@ def expected_references_catalog(
                 "unique_id": "seed.test.seed",
                 "metadata": {
                     "schema": my_schema_name,
-                    "database": project.database,
+                    "database": my_schema_name,
                     "name": case("seed"),
                     "type": table_type,
                     "comment": None,
@@ -245,7 +259,7 @@ def expected_references_catalog(
                 "unique_id": "source.test.my_source.my_table",
                 "metadata": {
                     "schema": my_schema_name,
-                    "database": project.database,
+                    "database": my_schema_name,
                     "name": case("seed"),
                     "type": table_type,
                     "comment": None,
