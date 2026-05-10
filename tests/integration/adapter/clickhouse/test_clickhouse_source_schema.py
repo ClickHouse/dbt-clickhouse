@@ -17,7 +17,7 @@ class TestSourceSchema:
     def models(self):
         sys_tables_sql = """
                 {{ config(order_by='(database, name)',
-                 engine='MergeTree()',
+                 engine='MergeTree',
                   materialized='table',
                   settings={'allow_nullable_key': 1}) }}
 

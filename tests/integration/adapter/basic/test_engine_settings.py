@@ -4,7 +4,7 @@ from dbt.tests.util import relation_from_name, run_dbt
 test_models_mergetree = """
 {{ config(
     materialized='table',
-    engine='MergeTree()',
+    engine='MergeTree',
     order_by='id'
 ) }}
 

@@ -22,7 +22,7 @@ from tests.integration.adapter.materialized_view.common import (
 MV_MODEL = """
 {{ config(
        materialized='materialized_view' if not var('use_view', False) else 'view',
-       engine='MergeTree()',
+       engine='MergeTree',
        order_by='(id)',
        on_schema_change=var('on_schema_change', 'ignore')
 ) }}

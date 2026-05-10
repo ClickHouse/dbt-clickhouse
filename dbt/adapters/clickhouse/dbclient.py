@@ -230,7 +230,7 @@ class ChClientWrapper(ABC):
             if not engine_can_atomic_exchange(db_engine):
                 return False
             create_cmd = (
-                'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree() ORDER BY tuple()'
+                'CREATE TABLE IF NOT EXISTS {} (test String) ENGINE MergeTree ORDER BY tuple()'
             )
             table_id = str(uuid.uuid1()).replace('-', '')
             swap_tables = [f'__dbt_exchange_test_{x}_{table_id}' for x in range(0, 2)]

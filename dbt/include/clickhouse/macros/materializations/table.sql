@@ -154,7 +154,7 @@
 {% endmaterialization %}
 
 {% macro engine_clause() %}
-  engine = {{ config.get('engine', default='MergeTree()') }}
+  engine = {{ config.get('engine', default='MergeTree') }}
 {%- endmacro -%}
 
 {#-
@@ -220,7 +220,7 @@
 
 {% macro order_cols(label) %}
   {%- set cols = config.get('order_by', validator=validation.any[list, basestring]) -%}
-  {%- set engine = config.get('engine', default='MergeTree()') -%}
+  {%- set engine = config.get('engine', default='MergeTree') -%}
   {%- set supported = [
     'HDFS',
     'MaterializedPostgreSQL',
