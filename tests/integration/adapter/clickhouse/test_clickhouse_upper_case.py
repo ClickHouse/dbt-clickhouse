@@ -31,7 +31,7 @@ class TestUpperCase:
     @pytest.fixture(scope="class")
     def models(self):
         config_table_sql = """
-             {{ config(order_by='(some_date, id, name)', engine='MergeTree()', materialized='table',
+             {{ config(order_by='(some_date, id, name)', engine='MergeTree', materialized='table',
                         settings={'allow_nullable_key': 1}) }}
 
             select * from {{ source('seeds', 'seeds_upper') }}

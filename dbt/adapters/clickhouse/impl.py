@@ -52,7 +52,7 @@ MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window'}
 
 @dataclass
 class ClickHouseConfig(AdapterConfig):
-    engine: str = 'MergeTree()'
+    engine: str = 'MergeTree'
     force_on_cluster: Optional[bool] = False
     order_by: Optional[Union[List[str], str]] = 'tuple()'
     partition_by: Optional[Union[List[str], str]] = None

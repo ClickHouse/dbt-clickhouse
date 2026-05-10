@@ -21,7 +21,7 @@ from tests.integration.adapter.materialized_view.common import (
 MULTIPLE_MV_MODEL = """
 {{ config(
        materialized='materialized_view',
-       engine='MergeTree()',
+       engine='MergeTree',
        order_by='(id)',
        on_schema_change=var('on_schema_change', 'ignore'),
        schema='custom_schema_for_multiple_mv',

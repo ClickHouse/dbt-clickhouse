@@ -20,7 +20,7 @@ class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
         config_materialized_table = """
           {{ config(
             order_by='(some_date, id, name)',
-            engine='MergeTree()',
+            engine='MergeTree',
             materialized='table',
             settings={'allow_nullable_key': 1},
             query_settings={'allow_nondeterministic_mutations': 1})
@@ -59,7 +59,7 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         config_distributed_table = """
             {{ config(
                 order_by='(some_date, id, name)',
-                engine='MergeTree()',
+                engine='MergeTree',
                 materialized='distributed_table',
                 settings={'allow_nullable_key': 1})
             }}

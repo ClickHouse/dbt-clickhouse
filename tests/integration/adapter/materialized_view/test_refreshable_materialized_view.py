@@ -20,7 +20,7 @@ from tests.integration.adapter.materialized_view.common import (
 MV_MODEL = """
 {{ config(
        materialized='materialized_view',
-       engine='MergeTree()',
+       engine='MergeTree',
        order_by='(department)',
        refreshable=(
            {

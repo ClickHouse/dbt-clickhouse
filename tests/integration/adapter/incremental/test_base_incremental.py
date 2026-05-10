@@ -20,7 +20,7 @@ models:
 uniq_source_model = """
 {{config(
         materialized='table',
-        engine='MergeTree()',
+        engine='MergeTree',
         order_by=['ts'],
         unique_key=['impid']
     )
@@ -33,7 +33,7 @@ uniq_incremental_model = """
 {{
     config(
         materialized='incremental',
-        engine='MergeTree()',
+        engine='MergeTree',
         order_by=['ts'],
         unique_key=['impid'],
         settings={'allow_nullable_key':'1'}

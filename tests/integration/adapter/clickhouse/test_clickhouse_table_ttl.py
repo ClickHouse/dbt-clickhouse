@@ -14,7 +14,7 @@ class TestTableTTL(BaseSimpleMaterializations):
         config_materialized_table = """
           {{ config(
             order_by='(some_date, id, name)',
-            engine='MergeTree()',
+            engine='MergeTree',
             materialized='table',
             settings={'allow_nullable_key': 1},
             ttl='some_date + INTERVAL 5 SECONDS',
@@ -67,7 +67,7 @@ DISTRIBUTED_TABLE_TTL_MODEL = """
 {{
     config(
         order_by='(id)',
-        engine='MergeTree()',
+        engine='MergeTree',
         materialized='distributed_table',
         incremental_strategy='append',
         ttl='expiration_date + interval 5 seconds',

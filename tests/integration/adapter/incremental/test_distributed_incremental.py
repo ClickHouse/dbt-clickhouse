@@ -15,7 +15,7 @@ from tests.integration.adapter.incremental.test_base_incremental import uniq_sch
 uniq_source_model = """
 {{config(
         materialized='distributed_table',
-        engine='MergeTree()',
+        engine='MergeTree',
         order_by=['ts'],
         unique_key=['impid']
     )
@@ -28,7 +28,7 @@ uniq_incremental_model = """
 {{
     config(
         materialized='distributed_incremental',
-        engine='MergeTree()',
+        engine='MergeTree',
         order_by=['ts'],
         unique_key=['impid']
     )

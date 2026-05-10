@@ -19,7 +19,7 @@ from tests.integration.adapter.materialized_view.common import (
 TARGET_TABLE_MODEL = """
 {{ config(
        materialized='table',
-       engine='MergeTree()',
+       engine='MergeTree',
        order_by='(department)'
 ) }}
 
