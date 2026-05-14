@@ -1,24 +1,36 @@
 {#-
   Create or update a materialized view in ClickHouse.
-  This involves creating both the materialized view itself and a
-  target table that the materialized view writes to.
 
-  External Target Mode:
-  When you want the MV to write to an existing table (not auto-created), use:
+  External Target Mode (recommended):
+  Point the MV to an existing table via the `target_table` config key OR via the
+  materialization_target_table() macro in the model body.
 
+  Config-based (preferred — works with dbt-fusion static analysis):
+    {{ config(
+        materialized='materialized_view',
+        target_table='my_schema.my_target'
+    ) }}
+    SELECT id, val FROM {{ ref('source_table') }}
+
+  Note: when using config-based target_table you must still include
+  {{ ref('my_target') }} somewhere in the model body so dbt-core registers
+  the DAG dependency. dbt-fusion resolves this through static analysis.
+
+  Macro-based (legacy — also still supported):
     {{ materialization_target_table(ref('my_target_table')) }}
 
-  This macro both:
-  1. Registers the DAG dependency (via ref())
-  2. Outputs the special comment that specifies the target table for the MV's TO clause
+  Standard Mode (auto-creates target table) is still supported but is not
+  compatible with dbt-fusion. Consider migrating to external-target mode.
+  See: https://github.com/ClickHouse/dbt-clickhouse/issues/644
 -#}
 {%- materialization materialized_view, adapter='clickhouse' -%}
 
-  {#- First check config, then try to extract from SQL comment -#}
-  {#- Extract target table from comment. Handles formats like:
-      `schema`.`table`, "schema"."table", schema.table -#}
+  {#- Config key takes precedence; fall back to the comment pattern for backward compat -#}
+  {%- set target_table_config = config.get('target_table') -%}
   {%- set target_match = modules.re.search('--\\s*materialization_target_table:\\s*(.+?)\\s*$', sql, modules.re.MULTILINE) -%}
-  {%- set materialization_target_table = target_match.group(1).strip() if target_match else none -%}
+  {%- set materialization_target_table = (target_table_config | string)
+      if target_table_config is not none
+      else (target_match.group(1).strip() if target_match else none) -%}
 
   {%- if materialization_target_table is not none -%}
     {%- set result = clickhouse__materialized_view_with_external_target(materialization_target_table, sql) -%}

@@ -3,6 +3,8 @@
 #### Improvements
 * Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
 * Populate `query_id` in `AdapterResponse` for every executed query. The query ID is generated as a UUID4 and forwarded to ClickHouse, making it available via `adapter_response` in dbt artifacts and enabling tools like Elementary to correlate dbt model runs with entries in `system.query_log`.
+* `materialized_view`: support `target_table` as a config key (e.g. `target_table='my_schema.my_target'`) as an ergonomic alternative to the `materialization_target_table(ref(...))` macro call. The config key takes precedence; the macro-based comment pattern remains supported for backward compatibility. Prefer the config-key form when using dbt-fusion, which resolves DAG dependencies through static analysis ([#644](https://github.com/ClickHouse/dbt-clickhouse/issues/644)).
+* `incremental`: accept `delete+insert` as an alias for `delete_insert` incremental strategy, matching the hyphen-style name used in dbt-fusion.
 
 
 ### Release [1.10.0], 2026-02-16

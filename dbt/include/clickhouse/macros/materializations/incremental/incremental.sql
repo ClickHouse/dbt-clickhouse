@@ -70,7 +70,7 @@
     {% if incremental_strategy == 'legacy' %}
       {% do clickhouse__incremental_legacy(existing_relation, intermediate_relation, column_changes, unique_key) %}
       {% set need_swap = true %}
-    {% elif incremental_strategy == 'delete_insert' %}
+    {% elif incremental_strategy == 'delete+insert' or incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'microbatch' %}
       {%- if config.get("__dbt_internal_microbatch_event_time_start") -%}
