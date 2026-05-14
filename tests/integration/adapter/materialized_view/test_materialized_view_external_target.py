@@ -1,7 +1,7 @@
 """
 Test materialized view creation with external target table.
 This tests the new implementation where the MV writes to an existing table
-using the `materialization_target_table()` macro.
+using the `target_table` config key and config.get_rendered.
 """
 
 import json
@@ -134,10 +134,9 @@ class TestUpdateExternalTargetMVWithSchemaChange:
         target_model = TARGET_MODEL_HACKERS
         mv_model = """
 {{ config(
-       materialized='materialized_view'
+       materialized='materialized_view',
+       target_table=ref('hackers_target')
 ) }}
-
-{{ materialization_target_table(ref('hackers_target')) }}
 
 {% if var('run_type', '') == 'extended_schema' %}
 select

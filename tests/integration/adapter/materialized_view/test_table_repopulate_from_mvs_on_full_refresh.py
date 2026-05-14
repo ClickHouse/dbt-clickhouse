@@ -40,7 +40,7 @@ MV_MODEL_1 = """
        catchup=False
 ) }}
 
-{{ materialization_target_table(ref('employees_target')) }}
+{{ config(target_table=ref('employees_target')) }}
 
 select
     p.id,
@@ -58,7 +58,7 @@ MV_MODEL_2 = """
        catchup=False
 ) }}
 
-{{ materialization_target_table(ref('employees_target')) }}
+{{ config(target_table=ref('employees_target')) }}
 
 select
     p.id,

@@ -1,7 +1,7 @@
 """
 Test multiple materialized views with external target table.
 This tests the new implementation where multiple MVs write to the same existing table
-using the `materialization_target_table()` macro.
+using the `target_table` config key and config.get_rendered.
 """
 
 import json
@@ -20,7 +20,7 @@ from tests.integration.adapter.materialized_view.common import (
 MV_MODEL_1 = """
 {{ config(materialized='materialized_view') }}
 
-{{ materialization_target_table(ref('hackers_target')) }}
+{{ config(target_table=ref('hackers_target')) }}
 
 select
     id,
@@ -38,7 +38,7 @@ where department = 'engineering'
 MV_MODEL_2 = """
 {{ config(materialized='materialized_view') }}
 
-{{ materialization_target_table(ref('hackers_target')) }}
+{{ config(target_table=ref('hackers_target')) }}
 
 select
     id,
@@ -146,7 +146,7 @@ class TestUpdateMultipleExternalTargetMVFullRefresh:
         mv_model_1 = """
 {{ config(materialized='materialized_view') }}
 
-{{ materialization_target_table(ref('hackers_target')) }}
+{{ config(target_table=ref('hackers_target')) }}
 
 {% if var('run_type', '') == 'extended_schema' %}
 select
@@ -177,7 +177,7 @@ where department = 'engineering'
         mv_model_2 = """
 {{ config(materialized='materialized_view') }}
 
-{{ materialization_target_table(ref('hackers_target')) }}
+{{ config(target_table=ref('hackers_target')) }}
 
 {% if var('run_type', '') == 'extended_schema' %}
 select
@@ -253,7 +253,7 @@ class TestUpdateMultipleExternalTargetMVQueryOnly:
         mv_model_1 = """
 {{ config(materialized='materialized_view') }}
 
-{{ materialization_target_table(ref('hackers_target')) }}
+{{ config(target_table=ref('hackers_target')) }}
 
 {% if var('run_type', '') == 'updated_query' %}
 select

@@ -1,7 +1,7 @@
 """
 Test refreshable materialized view creation with external target table.
 This tests the new implementation where a refreshable MV writes to an existing table
-using the `materialization_target_table()` macro.
+using the `target_table` config key and config.get_rendered.
 """
 
 import json
@@ -44,7 +44,7 @@ MV_MODEL = """
        )
 ) }}
 
-{{ materialization_target_table(ref('hackers_target')) }}
+{{ config(target_table=ref('hackers_target')) }}
 
 select
     department,

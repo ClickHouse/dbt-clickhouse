@@ -47,7 +47,7 @@ MV_MODEL_HACKERS = """
 {%- endif %}
 
 {%- if var('target_table', none) %}
-{{ materialization_target_table(ref(var('target_table'))) }}
+{{ config(target_table=ref(var('target_table'))) }}
 {%- endif %}
 
 select
@@ -98,7 +98,7 @@ MV_MODEL = """
 {%- endif %}
 
 {%- if var('target_table', none) %}
-{{ materialization_target_table(ref(var('target_table'))) }}
+{{ config(target_table=ref(var('target_table'))) }}
 {%- endif %}
 
 select

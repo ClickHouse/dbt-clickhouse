@@ -164,7 +164,7 @@ where 0  -- Creates empty table with correct schema
 mv_pointing_to_target = """
 {{ config(materialized='materialized_view', catchup=False) }}
 
-{{ materialization_target_table(ref('mv_target_table')) }}
+{{ config(target_table=ref('mv_target_table')) }}
 
 select col_1, col_2 from {{ source('raw', 'mv_source_seed') }}
 """
