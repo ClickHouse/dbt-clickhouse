@@ -18,9 +18,10 @@ from tests.integration.adapter.materialized_view.common import (
 
 # MV model 1 - engineering employees
 MV_MODEL_1 = """
-{{ config(materialized='materialized_view') }}
-
-{{ config(target_table=ref('hackers_target')) }}
+{{ config(
+    materialized='materialized_view',
+    target_table=ref('hackers_target')
+) }}
 
 select
     id,
@@ -36,9 +37,10 @@ where department = 'engineering'
 
 # MV model 2 - sales employees
 MV_MODEL_2 = """
-{{ config(materialized='materialized_view') }}
-
-{{ config(target_table=ref('hackers_target')) }}
+{{ config(
+    materialized='materialized_view',
+    target_table=ref('hackers_target')
+) }}
 
 select
     id,
@@ -144,9 +146,10 @@ class TestUpdateMultipleExternalTargetMVFullRefresh:
     @pytest.fixture(scope="class")
     def models(self):
         mv_model_1 = """
-{{ config(materialized='materialized_view') }}
-
-{{ config(target_table=ref('hackers_target')) }}
+{{ config(
+    materialized='materialized_view',
+    target_table=ref('hackers_target')
+) }}
 
 {% if var('run_type', '') == 'extended_schema' %}
 select
@@ -175,9 +178,10 @@ where department = 'engineering'
 {% endif %}
 """
         mv_model_2 = """
-{{ config(materialized='materialized_view') }}
-
-{{ config(target_table=ref('hackers_target')) }}
+{{ config(
+    materialized='materialized_view',
+    target_table=ref('hackers_target')
+) }}
 
 {% if var('run_type', '') == 'extended_schema' %}
 select
@@ -251,9 +255,10 @@ class TestUpdateMultipleExternalTargetMVQueryOnly:
     def models(self):
         # Use run_type variable to switch between query logic (without schema change)
         mv_model_1 = """
-{{ config(materialized='materialized_view') }}
-
-{{ config(target_table=ref('hackers_target')) }}
+{{ config(
+    materialized='materialized_view',
+    target_table=ref('hackers_target')
+) }}
 
 {% if var('run_type', '') == 'updated_query' %}
 select

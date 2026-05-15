@@ -6,7 +6,7 @@
 
     {{ config(
         materialized='materialized_view',
-        target_table=ref('my_target') | string
+        target_table=ref('my_target')
     ) }}
     SELECT id, val FROM {{ ref('source_table') }}
 
@@ -31,30 +31,20 @@
 
 {#-
   Deprecated: materialization_target_table() macro.
-  Use config(target_table=ref('my_target') | string) instead.
+  Use config(target_table=ref('my_target')) instead.
   See: https://github.com/ClickHouse/dbt-clickhouse/issues/644
 -#}
 
 {% macro materialization_target_table(target_relation) %}
+{%- set _deprecation_url = 'https://github.com/ClickHouse/dbt-clickhouse/issues/644' -%}
 {%- do exceptions.warn(
   "materialization_target_table() is deprecated. "
-  ~ "Use {{ config(target_table=ref('my_target') | string) }} instead. "
-  ~ "See https://github.com/ClickHouse/dbt-clickhouse/issues/644"
+  ~ "Use {{ config(target_table=ref('my_target')) }} instead. "
+  ~ "See " ~ _deprecation_url
 ) -%}
 {% endmacro %}
 
-{% macro strip_identifier_quotes(ident) %}
-  {%- set s = ident.strip() -%}
-  {%- if (s.startswith('`') and s.endswith('`')) or
-         (s.startswith('"') and s.endswith('"')) or
-         (s.startswith("'") and s.endswith("'")) -%}
-    {{- s[1:-1] -}}
-  {%- else -%}
-    {{- s -}}
-  {%- endif -%}
-{% endmacro %}
-
-{% macro clickhouse__materialized_view_with_external_target(target_table_str, sql) %}
+{% macro clickhouse__materialized_view_with_external_target(materialization_target_table, sql) %}
   {#- The MV relation - this is what we're creating -#}
   {%- set mv_relation = this.incorporate(type='materialized_view') -%}
   {%- set cluster_clause = on_cluster_clause(mv_relation) -%}
@@ -69,17 +59,15 @@
   {%- set view_created = True -%}
 
   {% if existing_relation is none %}
-    {{ clickhouse__create_mv(mv_relation, target_table_str, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
   {% elif should_full_refresh() %}
     {{ log('Dropping existing MV ' ~ mv_relation.name ~ ' for full refresh recreation') }}
     {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
-    {{ clickhouse__create_mv(mv_relation, target_table_str, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
   {% else %}
     {# Check if target table has changed - cannot be updated via MODIFY QUERY #}
     {% set existing_target = clickhouse__get_mv_current_target(mv_relation) %}
-    {#- Normalize quoted identifier string (e.g. '`schema`.`table`') to 'schema.table' for comparison -#}
-    {%- set parts = target_table_str.split('.') -%}
-    {%- set new_target_name = strip_identifier_quotes(parts[-2]) ~ '.' ~ strip_identifier_quotes(parts[-1]) -%}
+    {%- set new_target_name = materialization_target_table.schema ~ '.' ~ materialization_target_table.identifier -%}
 
     {% if existing_target != new_target_name %}
       {{ exceptions.raise_compiler_error(
@@ -98,9 +86,9 @@
 
   {% set catchup_data = config.get("catchup", True) %}
   {% if catchup_data == True and view_created == True %}
-    {{ log('Executing catchup data insertion into target table ' ~ target_table_str) }}
+    {{ log('Executing catchup data insertion into target table ' ~ materialization_target_table) }}
     {% set has_contract = config.get('contract').enforced %}
-    {% do run_query(clickhouse__insert_into(target_table_str, sql, has_contract, use_columns_from_sql=True)) %}
+    {% do run_query(clickhouse__insert_into(materialization_target_table, sql, has_contract, use_columns_from_sql=True)) %}
   {% endif %}
 
   {#- Cleanup and grants -#}
