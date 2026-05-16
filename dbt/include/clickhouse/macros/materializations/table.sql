@@ -70,7 +70,7 @@
           {{ adapter.rename_relation(existing_relation, backup_relation) }}
           {{ adapter.rename_relation(intermediate_relation, target_relation) }}
       {% endif %}
-    
+
     {# If mv_on_schema_change is set, we apply the strategy #}
     {% else %}
       {%- set mv_on_schema_change = incremental_validate_on_schema_change(configured_mv_on_schema_change, default='ignore') -%}
@@ -86,7 +86,7 @@
         {% endif %}
       {%- endif %}
     {% endif %}
-  
+
   {# Behaviour under full_refresh operations #}
   {% else %}
     {# Atomic full refresh with MV repopulation: when table is target of dbt MVs and repopulate_from_mvs_on_full_refresh is enabled #}
@@ -300,7 +300,30 @@
             ALTER TABLE {{ relation }}
             {%- if projections %}
                 {%- for projection in projections %}
-                    ADD PROJECTION {{ projection.get('name') }} ({{ projection.get('query') }})
+                    {%- set proj_name = projection.get('name') -%}
+                    {%- set proj_query = projection.get('query') -%}
+                    {%- set proj_index = projection.get('index') -%}
+                    {%- if proj_query and proj_index -%}
+                        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' cannot specify both 'query' and 'index'.") }}
+                    {%- elif not proj_query and not proj_index -%}
+                        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' must specify either 'query' or 'index'.") }}
+                    {%- elif proj_query -%}
+                        ADD PROJECTION {{ proj_name }} ({{ proj_query }})
+                    {%- else -%}
+                        {%- if adapter.is_before_version('25.6.1.1') -%}
+                            {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' with 'index' requires '_part_offset' virtual column available from ClickHouse 25.6 onwards.") }}
+                        {%- endif -%}
+                        {%- if proj_index is string -%}
+                            {%- set proj_index = [proj_index] -%}
+                        {%- endif -%}
+                        {%- set cols_str = proj_index | join(', ') -%}
+                        {%- set cols_index_expr = '(' ~ cols_str ~ ')' if proj_index | length > 1 else cols_str -%}
+                        {%- if not adapter.is_before_version('26.1.1.1') -%}
+                          ADD PROJECTION {{ proj_name }} INDEX {{ cols_index_expr }} TYPE basic
+                        {%- else -%}
+                          ADD PROJECTION {{ proj_name }} (SELECT _part_offset ORDER BY {{ cols_str }})
+                        {%- endif -%}
+                    {%- endif -%}
                     {%- if not loop.last or indexes | length > 0 -%}
                         ,
                     {% endif %}
