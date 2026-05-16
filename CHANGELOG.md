@@ -11,6 +11,7 @@
   * Related to ([#669](https://github.com/ClickHouse/dbt-clickhouse/issues/669), [#670](https://github.com/ClickHouse/dbt-clickhouse/pull/670)).
   * Related PRs:
     * Fix `reuse_connections: false` not actually distributing queries across replicas in the HTTP clinet. `clickhouse-connect` HTTP client shares a process-wide urllib3 `PoolManager` singleton that keeps TCP/TLS sockets alive even after `client.close()`. Each client now gets its own `PoolManager` when `reuse_connections` is disabled, ensuring connections are fully torn down and the load balancer can route the next model to a different replica. ([#686](https://github.com/ClickHouse/dbt-clickhouse/pull/686))
+* Add `index` parameter to the `projections` model config as syntax sugar for lightweight index projections (introduced in ClickHouse 25.6). When `index` is specified instead of `query`, dbt-clickhouse generates the appropriate `ADD PROJECTION` statement automatically: `SELECT _part_offset ORDER BY <cols>` on ClickHouse 25.6–26.0, and the cleaner `INDEX <cols> TYPE basic` syntax on ClickHouse 26.1+. Specifying both `query` and `index`, or neither, raises a compile-time error.
 
 #### Bugs
 * Prevent model-level S3 configuration from mutating profile-level configuration used by subsequent models ([#696](https://github.com/ClickHouse/dbt-clickhouse/pull/696)).
