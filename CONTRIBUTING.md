@@ -39,18 +39,32 @@ Make the necessary changes in your branch. Ensure that your code follows the exi
 project.
 We strongly recommend to stick to [this](https://www.conventionalcommits.org/en/v1.0.0/) official commit message conventions.
 
-### 5. Add or Adjust Tests
+### 5. Run Linting
+
+After making code changes to Python files, **always run `make lint`** to check for formatting and type errors:
+
+```bash
+make lint
+```
+
+Fix any issues before proceeding. This runs:
+- `black` - code formatting
+- `isort` - import sorting
+- `mypy` - type checking
+- `yamllint` - YAML validation
+
+### 6. Add or Adjust Tests
 
 The project tests are located under the `test` folder. Please look for the relevant test associated with
 your changes, and adjust it. If not such test, please create one.
 
-### 6. Run The Tests
+### 7. Run The Tests
 
 See [Running Tests](#running-tests) for more information.
 
 > **Important:** Please make sure the tests are running successfully before pushing your code.
 
-### 7. Create a PR
+### 8. Create a PR
 Create a pull request from your forked repository to the main one, include the following:
 * In case this is your first contribution, make sure to sign ClickHouse's CLA.
 * Link the related issue to your PR.

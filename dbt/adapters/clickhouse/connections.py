@@ -1,5 +1,6 @@
 import re
 import time
+import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
@@ -86,13 +87,14 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         conn = self.get_thread_connection()
         client = conn.handle
 
+        query_id = str(uuid.uuid4())
         with self.exception_handler(sql):
             logger.debug(f'On {conn.name}: {sql}...')
             pre = time.time()
             if fetch:
-                query_result = client.query(sql)
+                query_result = client.query(sql, query_id=query_id)
             else:
-                query_result = client.command(sql)
+                query_result = client.command(sql, query_id=query_id)
             status = self.get_status(client)
             logger.debug(f'SQL status: {status} in {(time.time() - pre):.2f} seconds')
             if fetch:
@@ -103,7 +105,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
                 from dbt_common.clients.agate_helper import empty_table
 
                 table = empty_table()
-            return AdapterResponse(_message=status), table
+            return AdapterResponse(_message=status, query_id=query_id), table
 
     def add_query(
         self,

@@ -3,6 +3,9 @@
 #### Improvements
 * Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
 * Update dbt core dependencies dbt-adapters from `<1.22.6` to `<1.23.0` and dbt-core from `==1.10.*` to `==1.11.*` for local testing ([#638](https://github.com/ClickHouse/dbt-clickhouse/pull/638))
+* Populate `query_id` in `AdapterResponse` for every executed query. The query ID is generated as a UUID4 and forwarded to ClickHouse, making it available via `adapter_response` in dbt artifacts and enabling tools like Elementary to correlate dbt model runs with entries in `system.query_log`.
+* Replaced legacy `docker-compose` commands with `docker compose` (V2)
+* Updated GitHub Actions workflow to use Docker Compose V2
 
 ### Release [1.10.0], 2026-02-16
 
