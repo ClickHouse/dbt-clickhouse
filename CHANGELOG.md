@@ -8,6 +8,7 @@
 * Updated GitHub Actions workflow to use Docker Compose V2
 * Reduce connection startup overhead from the `EXCHANGE TABLES` capability check. On ClickHouse Cloud (Shared engine), the check now short-circuits immediately after detecting the engine — skipping 5 DDL round-trips (2× `CREATE TABLE`, `EXCHANGE TABLES`, 2× `DROP TABLE`) that were previously run on every connection open. For all other engine types, the result is cached behind a process-level lock so the DDL test runs at most once per dbt invocation regardless of thread count. ([#653](https://github.com/ClickHouse/dbt-clickhouse/pull/653)).
 * Support the `dbt clone` command for tables. Tables backed by a MergeTree-family engine are cloned with ClickHouse's zero-copy `CREATE OR REPLACE TABLE ... CLONE AS ...`; other engines and Distributed tables fall back to dbt's view behavior ([#655](https://github.com/ClickHouse/dbt-clickhouse/pull/655)).
+* Add relation-scoped catalog metadata support with `clickhouse__get_catalog_relations`.
 
 
 ### Release [1.10.0], 2026-02-16
