@@ -76,7 +76,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     _capabilities: CapabilityDict = CapabilityDict(
         {
-            Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Unsupported),
+            Capability.SchemaMetadataByRelations: CapabilitySupport(support=Support.Full),
             Capability.TableLastModifiedMetadata: CapabilitySupport(support=Support.Unsupported),
         }
     )
@@ -419,7 +419,15 @@ class ClickHouseAdapter(SQLAdapter):
         used_schemas: FrozenSet[Tuple[str, str]],
         relations: Optional[Set[BaseRelation]] = None,
     ):
-        catalog, exceptions = self.get_catalog(relation_configs, used_schemas)
+        if (
+            relations is None
+            or len(relations) > self.MAX_SCHEMA_METADATA_RELATIONS
+            or not self.supports(Capability.SchemaMetadataByRelations)
+        ):
+            catalog, exceptions = self.get_catalog(relation_configs, used_schemas)
+        else:
+            catalog, exceptions = self.get_catalog_by_relations(used_schemas, relations)
+
         if relations and catalog:
             relation_map = {(r.schema, r.identifier) for r in relations}
 
