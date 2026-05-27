@@ -3,5 +3,5 @@
 {% endmacro %}
 
 {% macro clickhouse__create_or_replace_clone(this_relation, defer_relation) %}
-    create or replace table  {{ on_cluster_clause(relation)}} {{ this_relation.render() }} as {{ defer_relation.render() }}
+    create or replace table {{ this_relation.render() }} {{ on_cluster_clause(this_relation)}} as {{ defer_relation.render() }}
 {% endmacro %}
