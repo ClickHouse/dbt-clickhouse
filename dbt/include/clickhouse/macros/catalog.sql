@@ -1,26 +1,18 @@
 {% macro clickhouse__get_catalog(information_schema, schemas) -%}
   {%- call statement('catalog', fetch_result=True) -%}
-    {{ clickhouse__get_catalog_schemas_sql(information_schema, schemas) }}
+    {{ get_catalog_results_sql(get_catalog_schemas_where_clause_sql(schemas)) }}
   {%- endcall -%}
   {{ return(load_result('catalog').table) }}
 {%- endmacro %}
 
 {% macro clickhouse__get_catalog_relations(information_schema, relations) -%}
   {%- call statement('catalog', fetch_result=True) -%}
-    {{ clickhouse__get_catalog_relations_sql(information_schema, relations) }}
+    {{ get_catalog_results_sql(get_catalog_relations_where_clause_sql(relations)) }}
   {%- endcall -%}
   {{ return(load_result('catalog').table) }}
 {%- endmacro %}
 
-{% macro clickhouse__get_catalog_schemas_sql(information_schema, schemas) -%}
-  {{ clickhouse__get_catalog_results_sql(clickhouse__get_catalog_schemas_where_clause_sql(schemas)) }}
-{%- endmacro %}
-
-{% macro clickhouse__get_catalog_relations_sql(information_schema, relations) -%}
-  {{ clickhouse__get_catalog_results_sql(clickhouse__get_catalog_relations_where_clause_sql(relations)) }}
-{%- endmacro %}
-
-{% macro clickhouse__get_catalog_results_sql(where_clause) -%}
+{% macro get_catalog_results_sql(where_clause) -%}
     select
       '' as table_database,
       columns.database as table_schema,
@@ -38,7 +30,7 @@
     order by columns.database, columns.table, columns.position
 {%- endmacro %}
 
-{% macro clickhouse__get_catalog_schemas_where_clause_sql(schemas) -%}
+{% macro get_catalog_schemas_where_clause_sql(schemas) -%}
   {% if schemas | length == 0 %}
     where 1 = 0
   {% else %}
@@ -52,7 +44,7 @@
   {% endif %}
 {%- endmacro %}
 
-{% macro clickhouse__get_catalog_relations_where_clause_sql(relations) -%}
+{% macro get_catalog_relations_where_clause_sql(relations) -%}
   {% if relations | length == 0 %}
     where 1 = 0
   {% else %}
