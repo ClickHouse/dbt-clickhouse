@@ -25,8 +25,6 @@ jobs:
         include:
           # Rest of supported versions will get tested only with latest python version to reduce the number of jobs needed
           - python-version: '3.12'
-            clickhouse-version: '26.3'
-          - python-version: '3.12'
             clickhouse-version: '26.4'
           - python-version: '3.12'
             clickhouse-version: '26.5'
