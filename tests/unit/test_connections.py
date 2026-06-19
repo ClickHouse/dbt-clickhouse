@@ -62,6 +62,13 @@ class TestAdapterResponseQueryId:
         assert r1.query_id != r2.query_id
 
 
+def test_reuse_connections_defaults_to_true():
+    from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
+
+    creds = ClickHouseCredentials(host='localhost', schema='default')
+    assert creds.reuse_connections is True
+
+
 def _make_manager_with_reuse(reuse_connections: bool) -> ClickHouseConnectionManager:
     manager = ClickHouseConnectionManager.__new__(ClickHouseConnectionManager)
     manager.profile = MagicMock()

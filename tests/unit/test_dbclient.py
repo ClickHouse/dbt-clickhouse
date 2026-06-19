@@ -117,6 +117,13 @@ def test_check_lightweight_deletes_always_available(mock_ch_client):
     assert client.use_lw_deletes is True
 
 
+def test_check_lightweight_deletes_has_lw_true_even_when_not_requested(mock_ch_client):
+    """has_lw_deletes is always True (GA on all supported versions) even when use_lw_deletes=False."""
+    client = ChHttpClient(_lw_credentials(use_lw_deletes=False))
+    assert client.has_lw_deletes is True
+    assert client.use_lw_deletes is False
+
+
 def _exists_calls(mock_ch_client):
     client = mock_ch_client.return_value
     return [
