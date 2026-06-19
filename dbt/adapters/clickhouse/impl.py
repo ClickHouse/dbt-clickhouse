@@ -200,7 +200,7 @@ class ClickHouseAdapter(SQLAdapter):
             raise DbtRuntimeError(
                 f"The incremental strategy '{strategy}' is not valid for ClickHouse."
             )
-        if strategy in ('delete_insert', 'microbatch') and not conn.handle.has_lw_deletes:
+        if strategy in ('delete_insert', 'microbatch') and not conn.handle.use_lw_deletes:
             raise DbtRuntimeError(
                 f"'{strategy}' strategy requires setting the profile config 'use_lw_deletes' to true."
             )
