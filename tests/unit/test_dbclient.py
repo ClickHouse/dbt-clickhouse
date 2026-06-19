@@ -14,6 +14,12 @@ def mock_ch_client():
         yield mock_get_client
 
 
+@pytest.fixture(autouse=True)
+def reset_ensured_databases():
+    dbclient_module._ensured_databases.clear()
+    yield
+
+
 def _get_settings(mock_get_client):
     return mock_get_client.call_args.kwargs['settings']
 
@@ -122,8 +128,6 @@ def _exists_calls(mock_ch_client):
 
 def test_ensure_database_probes_only_once_per_process(mock_ch_client):
     """The EXISTS DATABASE probe is cached process-wide across client creations."""
-    dbclient_module._ensured_databases.clear()
-
     ChHttpClient(_lw_credentials(use_lw_deletes=False, schema='cache_test_db'))
     ChHttpClient(_lw_credentials(use_lw_deletes=False, schema='cache_test_db'))
 
@@ -133,8 +137,6 @@ def test_ensure_database_probes_only_once_per_process(mock_ch_client):
 
 def test_database_dropped_invalidates_existence_cache(mock_ch_client):
     """Dropping a schema forces the next client to probe again."""
-    dbclient_module._ensured_databases.clear()
-
     client = ChHttpClient(_lw_credentials(use_lw_deletes=False, schema='cache_test_db'))
     assert len(_exists_calls(mock_ch_client)) == 1
 
