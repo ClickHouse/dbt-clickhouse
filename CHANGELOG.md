@@ -1,3 +1,9 @@
+### Release [1.10.2], unreleased
+
+#### Bugs
+* Fix `get_model_settings` mutating model config in-place, causing adapter-injected settings (e.g. `replicated_deduplication_window='0'`) to leak into `manifest.json` and produce false `state:modified` hits on every deferred run ([#677](https://github.com/ClickHouse/dbt-clickhouse/pull/677)).
+
+
 ### Release [1.10.1], 2026-06-16
 
 #### Improvements
