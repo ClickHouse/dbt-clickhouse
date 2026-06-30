@@ -1,3 +1,4 @@
+import copy
 import csv
 import io
 import json
@@ -528,7 +529,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available
     def get_model_settings(self, model, engine='MergeTree'):
-        settings = model['config'].get('settings', {})
+        settings = copy.deepcopy(model['config'].get('settings', {}))
         materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
         conn.handle.update_model_settings(settings, materialization_type)
