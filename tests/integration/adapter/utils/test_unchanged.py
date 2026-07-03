@@ -18,70 +18,72 @@ from dbt.tests.adapter.utils.test_right import BaseRight
 from dbt.tests.adapter.utils.test_safe_cast import BaseSafeCast
 from dbt.tests.adapter.utils.test_string_literal import BaseStringLiteral
 
+from tests.integration.adapter.helpers import MigratedTestArgs
 
-class TestAnyValue(BaseAnyValue):
+
+class TestAnyValue(MigratedTestArgs, BaseAnyValue):
     pass
 
 
-class TestBaseBoolOr(BaseBoolOr):
+class TestBaseBoolOr(MigratedTestArgs, BaseBoolOr):
     pass
 
 
-class TestCastBoolToText(BaseCastBoolToText):
+class TestCastBoolToText(MigratedTestArgs, BaseCastBoolToText):
     pass
 
 
-class TestConcat(BaseConcat):
+class TestConcat(MigratedTestArgs, BaseConcat):
     pass
 
 
-class TestDateTrunc(BaseDateTrunc):
+class TestDateTrunc(MigratedTestArgs, BaseDateTrunc):
     pass
 
 
-class TestEscapeSingleQuotes(BaseEscapeSingleQuotesQuote):
+class TestEscapeSingleQuotes(MigratedTestArgs, BaseEscapeSingleQuotesQuote):
     pass
 
 
-class TestEscapeSingleQuotesBackslash(BaseEscapeSingleQuotesBackslash):
+class TestEscapeSingleQuotesBackslash(MigratedTestArgs, BaseEscapeSingleQuotesBackslash):
     pass
 
 
-class TestExcept(BaseExcept):
+class TestExcept(MigratedTestArgs, BaseExcept):
     pass
 
 
-class TestHash(BaseHash):
+class TestHash(MigratedTestArgs, BaseHash):
     pass
 
 
-class TestIntersect(BaseIntersect):
+class TestIntersect(MigratedTestArgs, BaseIntersect):
     pass
 
 
-class TestLength(BaseLength):
+class TestLength(MigratedTestArgs, BaseLength):
     pass
 
 
-class TestPosition(BasePosition):
+class TestPosition(MigratedTestArgs, BasePosition):
     pass
 
 
-class TestRight(BaseRight):
+class TestRight(MigratedTestArgs, BaseRight):
     pass
 
 
-class TestSafeCast(BaseSafeCast):
+class TestSafeCast(MigratedTestArgs, BaseSafeCast):
     pass
 
 
-class TestStringLiteral(BaseStringLiteral):
+class TestStringLiteral(MigratedTestArgs, BaseStringLiteral):
     pass
 
 
-class TestCurrentTimestampNaive(BaseCurrentTimestampNaive):
+class TestCurrentTimestampNaive(MigratedTestArgs, BaseCurrentTimestampNaive):
     pass
 
 
-class TestArrayConstruct(BaseArrayConstruct):
+class TestArrayConstruct(MigratedTestArgs, BaseArrayConstruct):
     pass
