@@ -266,7 +266,7 @@
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
     {% set create_table = create_table_or_empty(temporary, relation, sql, has_contract) %}
-    {% if adapter.is_before_version('22.7.1.2484') or temporary -%}
+    {% if temporary -%}
         {{ create_table }}
     {%- else %}
         {% call statement('create_table_empty') %}
@@ -340,9 +340,7 @@
         {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
-          {%- if not adapter.is_before_version('22.7.1.2484') %}
-            empty
-          {%- endif %}
+          empty
           as (
             {{ sql }}
           )
