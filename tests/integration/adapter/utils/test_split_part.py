@@ -2,6 +2,8 @@ import pytest
 from dbt.tests.adapter.utils.fixture_split_part import models__test_split_part_yml
 from dbt.tests.adapter.utils.test_split_part import BaseSplitPart
 
+from tests.integration.adapter.helpers import migrate_yml
+
 models__test_split_part_sql = """
 with data as (
 
@@ -37,6 +39,6 @@ class TestSplitPart(BaseSplitPart):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "test_split_part.yml": models__test_split_part_yml,
+            "test_split_part.yml": migrate_yml(models__test_split_part_yml),
             "test_split_part.sql": models__test_split_part_sql,
         }
