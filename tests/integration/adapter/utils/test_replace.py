@@ -2,6 +2,8 @@ import pytest
 from dbt.tests.adapter.utils.fixture_replace import models__test_replace_yml
 from dbt.tests.adapter.utils.test_replace import BaseReplace
 
+from tests.integration.adapter.helpers import migrate_yml
+
 models__test_replace_sql = """
 select
 
@@ -26,7 +28,7 @@ class TestReplace(BaseReplace):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "test_replace.yml": models__test_replace_yml,
+            "test_replace.yml": migrate_yml(models__test_replace_yml),
             "test_replace.sql": self.interpolate_macro_namespace(
                 models__test_replace_sql, "replace"
             ),

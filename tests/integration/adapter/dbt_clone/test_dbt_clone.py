@@ -10,13 +10,15 @@ from dbt.tests.adapter.dbt_clone.test_dbt_clone import (
 )
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
+from tests.integration.adapter.helpers import MigratedTestArgs
+
 
 def assert_cloned_data(project, other_schema):
     for name in ("seed", "table_model", "my_cool_snapshot"):
         assert project.run_sql(f"select count() from {other_schema}.{name}", fetch="one")[0] == 2
 
 
-class ClonePossible(BaseClonePossible):
+class ClonePossible(MigratedTestArgs, BaseClonePossible):
     def test_can_clone_true(self, project, unique_schema, other_schema):
         super().test_can_clone_true(project, unique_schema, other_schema)
         assert_cloned_data(project, other_schema)
@@ -48,13 +50,13 @@ class TestCloneReplicatedDatabase(TestCloneOnCluster):
         }
 
 
-class TestCloneNotPossible(BaseCloneNotPossible):
+class TestCloneNotPossible(MigratedTestArgs, BaseCloneNotPossible):
     def test_can_clone_false(self, project, unique_schema, other_schema):
         super().test_can_clone_false(project, unique_schema, other_schema)
         assert_cloned_data(project, other_schema)
 
 
-class TestCloneSameTargetAndState(BaseCloneSameTargetAndState):
+class TestCloneSameTargetAndState(MigratedTestArgs, BaseCloneSameTargetAndState):
     pass
 
 
