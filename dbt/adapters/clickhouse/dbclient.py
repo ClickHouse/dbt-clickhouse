@@ -5,11 +5,15 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
+from dbt.adapters.clickhouse.errors import (
+    nd_mutations_not_enabled_error,
+    nd_mutations_not_enabled_warning,
+)
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.util import compare_versions, engine_can_atomic_exchange
 from dbt.adapters.exceptions import FailedToConnectError
-from dbt_common.exceptions import DbtDatabaseError
+from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
 _exchange_lock = threading.Lock()
 _exchange_result: Optional[bool] = None
@@ -28,6 +32,12 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
     "ephemeral",
     "materialized_view",
 ]
+
+# Server-side (value, readonly) of `allow_nondeterministic_mutations`, probed once
+# per process and guarded by `_nd_mutation_lock`. With `reuse_connections: false` a
+# client is created per model, so without this cache every model would re-probe.
+_nd_mutation_lock = threading.Lock()
+_nd_mutation_probe: Optional[tuple] = None
 
 
 def get_db_client(credentials: ClickHouseCredentials):
@@ -88,11 +98,6 @@ class ChClientWrapper(ABC):
         self._conn_settings.setdefault('mutations_sync', '3')
         self._conn_settings.setdefault('alter_sync', '3')
         self._conn_settings.setdefault('insert_distributed_sync', '1')
-        # Lightweight deletes that read from other tables require nondeterministic
-        # mutations. Apply it via the connection settings (which both drivers read
-        # at client creation) so we don't probe + SET it on every client.
-        if credentials.use_lw_deletes:
-            self._conn_settings.setdefault(ND_MUTATION_SETTING, '1')
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:
@@ -171,10 +176,35 @@ class ChClientWrapper(ABC):
 
     def _check_lightweight_deletes(self, requested: bool):
         # Lightweight deletes have been generally available since ClickHouse 23.3,
-        # which is older than every version this adapter supports, so there's no
-        # capability to probe. The `allow_nondeterministic_mutations` setting they
-        # may require is applied through the connection settings in __init__.
-        return True, requested
+        # which is older than every version this adapter supports, so only the
+        # `allow_nondeterministic_mutations` setting they require still needs to be
+        # checked (and enabled when the user has permission to change it).
+        global _nd_mutation_probe
+        with _nd_mutation_lock:
+            if _nd_mutation_probe is None:
+                _nd_mutation_probe = self.get_ch_setting(ND_MUTATION_SETTING)
+            nd_mutations, nd_mutations_read_only = _nd_mutation_probe
+        if nd_mutations is None:
+            if requested:
+                logger.warning(nd_mutations_not_enabled_warning)
+            return False, False
+        nd_mutations = int(nd_mutations) > 0
+        if not nd_mutations:
+            if nd_mutations_read_only:
+                nd_mutations = False
+                if requested:
+                    raise DbtConfigError(nd_mutations_not_enabled_error)
+                logger.warning(nd_mutations_not_enabled_warning)
+            else:
+                try:
+                    self.command(f'SET {ND_MUTATION_SETTING} = 1')
+                    self._conn_settings[ND_MUTATION_SETTING] = '1'
+                    nd_mutations = True
+                except DbtDatabaseError:
+                    logger.warning(nd_mutations_not_enabled_warning)
+        if nd_mutations:
+            return True, requested
+        return False, False
 
     def _ensure_database(self, database_engine, cluster_name) -> None:
         if not self.database:
