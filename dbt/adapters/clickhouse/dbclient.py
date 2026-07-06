@@ -24,6 +24,12 @@ _exchange_result: Optional[bool] = None
 _database_lock = threading.Lock()
 _ensured_databases: set = set()
 
+# Server-side (value, readonly) of `allow_nondeterministic_mutations`, probed once
+# per process and guarded by `_nd_mutation_lock`. With `reuse_connections: false` a
+# client is created per model, so without this cache every model would re-probe.
+_nd_mutation_lock = threading.Lock()
+_nd_mutation_probe: Optional[tuple] = None
+
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
 DEDUP_WINDOW_SETTING = 'replicated_deduplication_window'
 DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
@@ -32,12 +38,6 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
     "ephemeral",
     "materialized_view",
 ]
-
-# Server-side (value, readonly) of `allow_nondeterministic_mutations`, probed once
-# per process and guarded by `_nd_mutation_lock`. With `reuse_connections: false` a
-# client is created per model, so without this cache every model would re-probe.
-_nd_mutation_lock = threading.Lock()
-_nd_mutation_probe: Optional[tuple] = None
 
 
 def get_db_client(credentials: ClickHouseCredentials):
