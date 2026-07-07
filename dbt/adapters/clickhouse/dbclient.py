@@ -1,4 +1,3 @@
-import copy
 import threading
 import uuid
 from abc import ABC, abstractmethod
@@ -13,7 +12,7 @@ from dbt.adapters.clickhouse.errors import (
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.clickhouse.util import compare_versions, engine_can_atomic_exchange
+from dbt.adapters.clickhouse.util import engine_can_atomic_exchange
 from dbt.adapters.exceptions import FailedToConnectError
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
@@ -29,6 +28,24 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
     "ephemeral",
     "materialized_view",
 ]
+
+
+def get_injected_model_settings(
+    credentials: ClickHouseCredentials, materialization_type: str
+) -> Dict[str, str]:
+    """Return adapter-level settings to inject for a given materialization.
+
+    Called at parse time (no connection required) so all injected settings
+    are written into the manifest and remain consistent across dbt invocations.
+    Add future adapter-injected settings here.
+    """
+    settings: Dict[str, str] = {}
+    if (
+        not credentials.allow_automatic_deduplication
+        and materialization_type in DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION
+    ):
+        settings[DEDUP_WINDOW_SETTING] = '0'
+    return settings
 
 
 def get_db_client(credentials: ClickHouseCredentials):
@@ -101,23 +118,6 @@ class ChClientWrapper(ABC):
         except Exception as ex:
             self.close()
             raise ex
-        self._model_settings: Dict = {
-            "table": {},
-            "view": {},
-            "incremental": {},
-            "ephemeral": {},
-            "materialized_view": {},
-            "snapshot": {},
-            "distributed_table": {},
-            "distributed_incremental": {},
-            "general": {},
-        }
-        if (
-            not credentials.allow_automatic_deduplication
-            and compare_versions(self._server_version(), '22.7.1.2484') >= 0
-        ):
-            for materialization in DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION:
-                self._model_settings[materialization][DEDUP_WINDOW_SETTING] = '0'
 
     @abstractmethod
     def query(self, sql: str, **kwargs):
@@ -153,14 +153,6 @@ class ChClientWrapper(ABC):
     @abstractmethod
     def _server_version(self):
         pass
-
-    def update_model_settings(self, model_settings: Dict[str, str], materialization_type: str):
-        settings = self._model_settings.get(materialization_type, {})
-        model_settings_to_add = copy.deepcopy(settings)
-        model_settings_to_add.update(self._model_settings['general'])
-        for key, value in model_settings_to_add.items():
-            if key not in model_settings:
-                model_settings[key] = value
 
     def _check_lightweight_deletes(self, requested: bool):
         lw_deletes, lw_read_only = self.get_ch_setting(LW_DELETE_SETTING)

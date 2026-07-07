@@ -1,4 +1,3 @@
-import copy
 import csv
 import io
 import json
@@ -25,10 +24,7 @@ from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySuppor
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
-from dbt.adapters.clickhouse.dbclient import (
-    DEDUP_WINDOW_SETTING,
-    DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION,
-)
+from dbt.adapters.clickhouse.dbclient import get_injected_model_settings
 from dbt.adapters.clickhouse.errors import (
     schema_change_datatype_error,
     schema_change_fail_error,
@@ -92,24 +88,26 @@ class ClickHouseAdapter(SQLAdapter):
 
     def set_macro_resolver(self, macro_resolver) -> None:
         super().set_macro_resolver(macro_resolver)
+        # NOTE: this override is unrelated to macro resolution — we piggyback on this hook
+        # because it is the earliest point where both credentials and the full manifest are
+        # available without a database connection.
         # Inject adapter-level settings into manifest nodes at parse time so that both
         # the parse manifest and the run manifest contain the same settings dict.
-        # Without this, `get_model_settings` only injects at run time, causing
-        # `state:modified` to fire on every deferred run even when nothing changed.
-        # Guard on `hasattr(nodes)` so this is a no-op when called with a MacroManifest
-        # (macro-only resolver that lacks the full node graph).
+        # Without this, settings would only appear after dbt run, causing false
+        # state:modified hits on every subsequent deferred run.
+        # Guard on `hasattr(nodes)` so this is a no-op for a MacroManifest.
         if not hasattr(macro_resolver, 'nodes'):
-            return
-        if self.config.credentials.allow_automatic_deduplication:
             return
         for node in macro_resolver.nodes.values():
             if node.resource_type != 'model':
                 continue
-            if node.config.materialized not in DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION:
-                continue
-            settings = dict(node.config.get('settings') or {})
-            if DEDUP_WINDOW_SETTING not in settings:
-                settings[DEDUP_WINDOW_SETTING] = '0'
+            injected = get_injected_model_settings(
+                self.config.credentials, node.config.materialized
+            )
+            if injected:
+                settings = dict(node.config.get('settings') or {})
+                for key, value in injected.items():
+                    settings.setdefault(key, value)
                 node.config['settings'] = settings
 
     @classmethod
@@ -555,10 +553,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available
     def get_model_settings(self, model, engine='MergeTree'):
-        settings = copy.deepcopy(model['config'].get('settings', {}))
-        materialization_type = model['config'].get('materialized')
-        conn = self.connections.get_if_exists()
-        conn.handle.update_model_settings(settings, materialization_type)
+        settings = dict(model['config'].get('settings', {}))
         settings = self.filter_settings_by_engine(settings, engine)
         settings_str = self._build_settings_str(settings)
         return f"""
