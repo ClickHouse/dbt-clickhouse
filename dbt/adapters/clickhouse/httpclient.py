@@ -52,6 +52,7 @@ class ChHttpClient(ChClientWrapper):
         return (setting.value, setting.readonly) if setting else (None, 0)
 
     def database_dropped(self, database: str):
+        super().database_dropped(database)
         # This is necessary for the http client to avoid exceptions when ClickHouse doesn't recognize the database
         # query parameter
         if self.database == database:
