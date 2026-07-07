@@ -25,6 +25,10 @@ from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySuppor
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.clickhouse.dbclient import (
+    DEDUP_WINDOW_SETTING,
+    DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION,
+)
 from dbt.adapters.clickhouse.errors import (
     schema_change_datatype_error,
     schema_change_fail_error,
@@ -85,6 +89,28 @@ class ClickHouseAdapter(SQLAdapter):
     def __init__(self, config, mp_context: SpawnContext):
         BaseAdapter.__init__(self, config, mp_context)
         self.cache = ClickHouseRelationsCache()
+
+    def set_macro_resolver(self, macro_resolver) -> None:
+        super().set_macro_resolver(macro_resolver)
+        # Inject adapter-level settings into manifest nodes at parse time so that both
+        # the parse manifest and the run manifest contain the same settings dict.
+        # Without this, `get_model_settings` only injects at run time, causing
+        # `state:modified` to fire on every deferred run even when nothing changed.
+        # Guard on `hasattr(nodes)` so this is a no-op when called with a MacroManifest
+        # (macro-only resolver that lacks the full node graph).
+        if not hasattr(macro_resolver, 'nodes'):
+            return
+        if self.config.credentials.allow_automatic_deduplication:
+            return
+        for node in macro_resolver.nodes.values():
+            if node.resource_type != 'model':
+                continue
+            if node.config.materialized not in DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION:
+                continue
+            settings = dict(node.config.get('settings') or {})
+            if DEDUP_WINDOW_SETTING not in settings:
+                settings[DEDUP_WINDOW_SETTING] = '0'
+                node.config['settings'] = settings
 
     @classmethod
     def date_function(cls):
