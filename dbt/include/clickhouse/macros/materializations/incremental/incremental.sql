@@ -296,6 +296,12 @@
                 from {{ new_data_relation }}
                 {{- ', ' if not loop.last }}
             {%- endfor %}
+            {#- The strategy relies on REPLACE PARTITION from a source with no parts in the partition
+                to clear shards that received no new data. ClickHouse 26.6+ refuses that by default,
+                so opt back in. Older servers don't know the setting and would reject the query. -#}
+            {%- if not adapter.is_before_version('26.6') %}
+                settings allow_replace_partition_from_empty_source = 1
+            {%- endif %}
       {% endcall %}
     {% endif %}
 

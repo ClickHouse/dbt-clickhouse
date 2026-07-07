@@ -1,3 +1,8 @@
+### Unreleased
+
+#### Bug Fixes
+* Fix the `insert_overwrite` incremental strategy failing on ClickHouse 26.6+ with `Code: 36 ... refusing REPLACE PARTITION because it would silently drop the destination partition's data`. The strategy intentionally replaces partitions from a source table that may have no parts for a partition (to clear shards that received no new data on distributed tables), which newer servers reject by default. The `REPLACE PARTITION` statement now includes `allow_replace_partition_from_empty_source=1` on servers 26.6 and newer; older servers keep their existing behavior.
+
 ### Release [1.10.1], 2026-06-16
 
 #### Improvements
