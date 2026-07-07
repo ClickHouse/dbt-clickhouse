@@ -105,7 +105,7 @@ class ClickHouseAdapter(SQLAdapter):
                 self.config.credentials, node.config.materialized
             )
             if injected:
-                settings = dict(node.config.get('settings') or {})
+                settings = node.config.get('settings') or {}
                 for key, value in injected.items():
                     settings.setdefault(key, value)
                 node.config['settings'] = settings
@@ -553,7 +553,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available
     def get_model_settings(self, model, engine='MergeTree'):
-        settings = dict(model['config'].get('settings', {}))
+        settings = model['config'].get('settings', {})
         settings = self.filter_settings_by_engine(settings, engine)
         settings_str = self._build_settings_str(settings)
         return f"""
