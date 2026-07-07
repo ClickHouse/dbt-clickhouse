@@ -12,7 +12,9 @@ def assert_row_count_after_ttl(project, relation, expected, optimize_relation=No
     """TTL rows are only guaranteed to be removed on part merges, so force a
     merge with OPTIMIZE FINAL, then poll until the expected count is reached."""
     optimize_relation = optimize_relation or relation
-    project.run_sql(f"OPTIMIZE TABLE {optimize_relation} FINAL")
+    cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '').strip()
+    cluster_clause = f'ON CLUSTER "{cluster}"' if cluster else ''
+    project.run_sql(f"OPTIMIZE TABLE {optimize_relation} {cluster_clause} FINAL")
     deadline = time.time() + timeout
     while True:
         result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
