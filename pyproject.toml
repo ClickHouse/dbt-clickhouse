@@ -67,23 +67,19 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = [
-    "C90",
-    "E",
-    "F",
-    "I",
+    "E", # pycodestyle errors
+    "F", # Pyflakes
+    "I", # isort (import sorting)
 ]
 ignore = [
-    "E203",
-    "E501",
-    "E731",
+    "E501", # Line too long (> 100 characters)
 ]
-per-file-ignores = {"__init__.py" = ["F401"]}
 
 [tool.ruff.lint.isort]
-known-third-party = ["pytest", "dbt"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 18
+known-third-party = [
+    "pytest",
+    "dbt",
+]
 
 [tool.ruff.format]
 quote-style = "preserve"
