@@ -31,7 +31,7 @@ from dbt.adapters.clickhouse.errors import (
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
-from dbt.adapters.clickhouse.util import engine_can_atomic_exchange
+from dbt.adapters.clickhouse.util import compare_versions, engine_can_atomic_exchange
 from dbt.adapters.contracts.relation import Path, RelationConfig
 from dbt.adapters.events.types import ConstraintNotSupported
 from dbt.adapters.sql import SQLAdapter
