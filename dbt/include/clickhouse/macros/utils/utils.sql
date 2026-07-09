@@ -108,4 +108,3 @@
 {% macro clickhouse__array_concat(array_1, array_2) -%}
    arrayConcat({{ array_1 }}, {{ array_2 }})
 {% endmacro %}
-
