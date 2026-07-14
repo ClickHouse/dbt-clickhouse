@@ -179,7 +179,7 @@
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
   -- extract the names of the materialized views from the sql
-  {% set view_names = modules.re.findall('--(?:\s)?([^:]+):begin', sql) %}
+  {% set view_names = modules.re.findall('--(?:\s)?([^:\s]+):begin', sql) %}
 
   -- extract the sql for each of the materialized view into a map
   {% set views = {} %}

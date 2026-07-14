@@ -89,6 +89,83 @@ where department = 'sales'
 """
 
 
+# A leading `--` comment with no colon before the first marker used to be
+# swallowed into mv1's name (the name regex matched across newlines), blanking
+# mv1's query and failing the run.
+MULTIPLE_MV_LEADING_COMMENT_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(id)',
+       schema='custom_schema_for_multiple_mv',
+) }}
+
+-- publishes engineering and sales people to the hackers table
+--mv1:begin
+select
+    id,
+    name,
+    case when name like 'Dade' then 'crash_override' else 'N/A' end as hacker_alias
+from {{ source('raw', 'people') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+select
+    id,
+    name,
+    'N/A' as hacker_alias
+from {{ source('raw', 'people') }}
+where department = 'sales'
+--mv2:end
+"""
+
+
+class TestMultipleMVLeadingComment:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": MULTIPLE_MV_LEADING_COMMENT_MODEL,
+        }
+
+    def test_create(self, project):
+        schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
+        run_dbt(["seed"])
+        run_dbt()
+
+        # both MVs must exist: before the fix, mv1 was dropped and its query blanked
+        assert project.run_sql(f"DESCRIBE {schema}.hackers_mv1", fetch="all")[0][1] == "Int32"
+        assert project.run_sql(f"DESCRIBE {schema}.hackers_mv2", fetch="all")[0][1] == "Int32"
+
+        project.run_sql(
+            f"""
+        insert into {quote_identifier(project.test_schema)}.people ("id", "name", "age", "department")
+            values (4000,'Dave',40,'sales'), (9999,'Eugene',40,'engineering');
+        """
+        )
+
+        result = project.run_sql(f"select * from {schema}.hackers order by id", fetch="all")
+        assert result == [
+            (1000, 'Alfie', 'N/A'),
+            (1231, 'Dade', 'crash_override'),
+            (2000, 'Bill', 'N/A'),
+            (3000, 'Charlie', 'N/A'),
+            (4000, 'Dave', 'N/A'),
+            (6666, 'Ksenia', 'N/A'),
+            (8888, 'Kate', 'N/A'),
+            (9999, 'Eugene', 'N/A'),
+        ]
+
+
 class TestMultipleMV:
     @pytest.fixture(scope="class")
     def seeds(self):
