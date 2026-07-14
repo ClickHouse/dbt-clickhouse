@@ -10,6 +10,9 @@
 * Support the `dbt clone` command for tables. Tables backed by a MergeTree-family engine are cloned with ClickHouse's zero-copy `CREATE OR REPLACE TABLE ... CLONE AS ...`; other engines and Distributed tables fall back to dbt's view behavior ([#655](https://github.com/ClickHouse/dbt-clickhouse/pull/655)).
 * Add relation-scoped catalog metadata support with `clickhouse__get_catalog_relations`.
 
+#### Bugs
+* Fix multiple materialized views breaking when a `--` comment precedes the first marker. The view-name regex matched across newlines, so a leading comment was pulled into the marker, blanking the view query (ClickHouse `SYNTAX_ERROR`), or silently dropping the first MV when several are defined ([#682](https://github.com/ClickHouse/dbt-clickhouse/issues/682)).
+
 
 ### Release [1.10.0], 2026-02-16
 
