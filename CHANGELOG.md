@@ -7,6 +7,9 @@
   * Dropping the now-redundant `allow_experimental_lightweight_delete` check (lightweight deletes are GA on all supported ClickHouse versions).
   * Related to ([#669](https://github.com/ClickHouse/dbt-clickhouse/issues/669), [#670](https://github.com/ClickHouse/dbt-clickhouse/pull/670)).
 
+#### Bugs
+* Replacing an existing view no longer fails with `UNSUPPORTED_METHOD` on filesystems without `renameat2(RENAME_EXCHANGE)` support (NFS, EFS, and others). ClickHouse implements `CREATE OR REPLACE VIEW` over an existing view with that syscall; when the server reports that atomic exchange is unsupported, the view materialization now falls back to a non-atomic `DROP` + `CREATE`, mirroring the existing fallback for table materializations ([#340](https://github.com/ClickHouse/dbt-clickhouse/issues/340)).
+
 
 ### Release [1.10.1], 2026-06-16
 
