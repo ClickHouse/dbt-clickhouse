@@ -2,6 +2,7 @@ from typing import List
 
 import clickhouse_connect
 from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError
+from clickhouse_connect.driver.httpclient import get_pool_manager
 from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt.adapters.clickhouse import ClickHouseColumn
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
@@ -11,6 +12,8 @@ from dbt_common.exceptions import DbtDatabaseError
 
 
 class ChHttpClient(ChClientWrapper):
+    _dedicated_pool = None
+
     @staticmethod
     def _inject_query_id(kwargs):
         query_id = kwargs.pop('query_id', None)
@@ -62,8 +65,26 @@ class ChHttpClient(ChClientWrapper):
 
     def close(self):
         self._client.close()
+        if self._dedicated_pool is not None:
+            self._dedicated_pool.clear()
+            self._dedicated_pool = None
 
     def _create_client(self, credentials):
+        # When reuse_connections is False, give each client its own
+        # PoolManager so that close() actually tears down the TCP/TLS
+        # connection. Without this, clickhouse-connect's process-wide
+        # pool singleton keeps sockets alive and the ClickHouse Cloud
+        # load balancer routes subsequent requests to the same replica.
+        kwargs = {}
+        if not credentials.reuse_connections:
+            self._dedicated_pool = get_pool_manager(
+                verify=credentials.verify,
+                ca_cert=None,
+                client_cert=credentials.client_cert,
+                client_cert_key=credentials.client_cert_key,
+            )
+            kwargs['pool_mgr'] = self._dedicated_pool
+
         try:
             return clickhouse_connect.get_client(
                 host=credentials.host,
@@ -81,8 +102,12 @@ class ChHttpClient(ChClientWrapper):
                 client_cert_key=credentials.client_cert_key,
                 query_limit=0,
                 settings=self._conn_settings,
+                **kwargs,
             )
         except OperationalError as ex:
+            if self._dedicated_pool is not None:
+                self._dedicated_pool.clear()
+                self._dedicated_pool = None
             raise ChRetryableException(str(ex)) from ex
 
     def _set_client_database(self):

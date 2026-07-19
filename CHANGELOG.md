@@ -8,6 +8,8 @@
   * Caching the `allow_nondeterministic_mutations` capability probe process-wide.
   * Dropping the now-redundant `allow_experimental_lightweight_delete` check (lightweight deletes are GA on all supported ClickHouse versions).
   * Related to ([#669](https://github.com/ClickHouse/dbt-clickhouse/issues/669), [#670](https://github.com/ClickHouse/dbt-clickhouse/pull/670)).
+  * Related PRs:
+    * Fix `reuse_connections: false` not actually distributing queries across replicas in the HTTP clinet. `clickhouse-connect` HTTP client shares a process-wide urllib3 `PoolManager` singleton that keeps TCP/TLS sockets alive even after `client.close()`. Each client now gets its own `PoolManager` when `reuse_connections` is disabled, ensuring connections are fully torn down and the load balancer can route the next model to a different replica. ([#686](https://github.com/ClickHouse/dbt-clickhouse/pull/686))
 
 #### Bugs
 * Snapshots no longer fail with `TABLE_ALREADY_EXISTS` on `<snapshot>__dbt_tmp` after an interrupted run. The snapshot staging table is now dropped (idempotently, with `ON CLUSTER SYNC` where applicable) before being recreated, so an orphaned `__dbt_tmp` left behind by a previous failed run self-heals on the next run instead of poisoning every subsequent run. Closes [#691](https://github.com/ClickHouse/dbt-clickhouse/issues/691).

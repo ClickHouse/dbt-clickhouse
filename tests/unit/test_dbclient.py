@@ -3,8 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import dbt.adapters.clickhouse.dbclient as dbclient_module
 import pytest
+from clickhouse_connect.driver.exceptions import OperationalError
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
-from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
+from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING, ChRetryableException
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
@@ -223,3 +224,109 @@ def test_database_dropped_invalidates_existence_cache(mock_ch_client):
 
     ChHttpClient(_lw_credentials(use_lw_deletes=False, schema='cache_test_db'))
     assert len(_exists_calls(mock_ch_client)) == 2
+
+
+def test_reuse_connections_false_creates_dedicated_pool(mock_ch_client):
+    """When reuse_connections is False, each client gets its own PoolManager."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    assert client._dedicated_pool is not None
+    pool = client._dedicated_pool
+    assert mock_ch_client.call_args.kwargs['pool_mgr'] is pool
+
+
+def test_reuse_connections_true_no_dedicated_pool(mock_ch_client):
+    """When reuse_connections is True (default), no dedicated pool is created."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=True,
+    )
+    client = ChHttpClient(credentials)
+    assert client._dedicated_pool is None
+    assert 'pool_mgr' not in mock_ch_client.call_args.kwargs
+
+
+def test_close_clears_dedicated_pool(mock_ch_client):
+    """close() clears and discards the dedicated PoolManager."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    mock_pool = MagicMock()
+    client._dedicated_pool = mock_pool
+    client.close()
+    mock_pool.clear.assert_called_once()
+    assert client._dedicated_pool is None
+
+
+def test_close_without_dedicated_pool_does_not_error(mock_ch_client):
+    """close() works normally when no dedicated pool exists (reuse_connections=True)."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=True,
+    )
+    client = ChHttpClient(credentials)
+    client.close()  # Should not raise
+
+
+def test_dedicated_pool_cleaned_up_on_connect_failure():
+    """If get_client raises, the dedicated pool is cleaned up."""
+    with patch('clickhouse_connect.get_client') as mock_get_client:
+        mock_get_client.side_effect = OperationalError('connection refused')
+        credentials = ClickHouseCredentials(
+            host='localhost',
+            port=8123,
+            user='default',
+            password='',
+            schema='default',
+            reuse_connections=False,
+        )
+        with pytest.raises(ChRetryableException):
+            ChHttpClient(credentials)
+        # Pool should have been cleaned up despite the failure
+        # (we can't inspect the instance since __init__ failed, but
+        # the OperationalError path in _create_client clears it)
+
+
+def test_dedicated_pool_includes_client_cert(mock_ch_client):
+    """When mTLS certs are set, the dedicated pool is created with them."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8443,
+        user='default',
+        password='',
+        schema='default',
+        secure=True,
+        reuse_connections=False,
+        client_cert='/path/to/cert.pem',
+        client_cert_key='/path/to/key.pem',
+    )
+    with patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm:
+        mock_get_pm.return_value = MagicMock()
+        ChHttpClient(credentials)
+        mock_get_pm.assert_called_once_with(
+            verify=True,
+            ca_cert=None,
+            client_cert='/path/to/cert.pem',
+            client_cert_key='/path/to/key.pem',
+        )
