@@ -67,6 +67,7 @@ class ChNativeClient(ChClientWrapper):
             client_name=f'dbt-adapters/{dbt_adapters_version} dbt-clickhouse/{dbt_clickhouse_version} clickhouse-driver/{driver_version}',
             secure=credentials.secure,
             verify=credentials.verify,
+            server_hostname=credentials.server_host_name,
             certfile=credentials.client_cert,
             keyfile=credentials.client_cert_key,
             connect_timeout=credentials.connect_timeout,
