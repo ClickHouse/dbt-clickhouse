@@ -19,8 +19,12 @@ def below_version(major: int, minor: int = 0, _ch_test_version_value: Optional[s
         or os.environ.get('DBT_CH_TEST_CH_VERSION', '0.0')
         or '0.0'  # Extra 0.0 to make Mypy happy
     )
-    actual_major, actual_minor = current_version.split('.')
-    return int(actual_major) < major or (int(actual_major) == major and int(actual_minor) < minor)
+    parts = current_version.split('.')
+    try:
+        actual_major, actual_minor = int(parts[0]), int(parts[1])
+    except (IndexError, ValueError):
+        return False  # treat 'latest', 'head', etc. as above any version threshold
+    return actual_major < major or (actual_major == major and actual_minor < minor)
 
 
 retry_config = TypedDict('retry_config', {'max_retries': int, 'delay': float})
