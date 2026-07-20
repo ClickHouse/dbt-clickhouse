@@ -291,6 +291,33 @@
     It means that this replica still not applied some of previous alters. Probably too many
     alters executing concurrently (highly not recommended).
 #}
+{% macro clickhouse_projection_ddl(projection, keyword='ADD PROJECTION') -%}
+    {%- set proj_name = projection.get('name') -%}
+    {%- set proj_query = projection.get('query') -%}
+    {%- set proj_index = projection.get('index') -%}
+    {%- if proj_query and proj_index -%}
+        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' cannot specify both 'query' and 'index'.") }}
+    {%- elif not proj_query and not proj_index -%}
+        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' must specify either 'query' or 'index'.") }}
+    {%- elif proj_query -%}
+        {{ keyword }} {{ proj_name }} ({{ proj_query }})
+    {%- else -%}
+        {%- if adapter.is_before_version('25.6.1.1') -%}
+            {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' with 'index' requires '_part_offset' virtual column available from ClickHouse 25.6 onwards.") }}
+        {%- endif -%}
+        {%- if proj_index is string -%}
+            {%- set proj_index = [proj_index] -%}
+        {%- endif -%}
+        {%- set cols_str = proj_index | join(', ') -%}
+        {%- set cols_index_expr = '(' ~ cols_str ~ ')' if proj_index | length > 1 else cols_str -%}
+        {%- if not adapter.is_before_version('26.1.1.1') -%}
+            {{ keyword }} {{ proj_name }} INDEX {{ cols_index_expr }} TYPE basic
+        {%- else -%}
+            {{ keyword }} {{ proj_name }} (SELECT _part_offset ORDER BY {{ cols_str }})
+        {%- endif -%}
+    {%- endif -%}
+{%- endmacro %}
+
 {% macro add_index_and_projections(relation) %}
     {%- set projections = config.get('projections', default=[]) -%}
     {%- set indexes = config.get('indexes', default=[]) -%}
@@ -300,30 +327,7 @@
             ALTER TABLE {{ relation }}
             {%- if projections %}
                 {%- for projection in projections %}
-                    {%- set proj_name = projection.get('name') -%}
-                    {%- set proj_query = projection.get('query') -%}
-                    {%- set proj_index = projection.get('index') -%}
-                    {%- if proj_query and proj_index -%}
-                        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' cannot specify both 'query' and 'index'.") }}
-                    {%- elif not proj_query and not proj_index -%}
-                        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' must specify either 'query' or 'index'.") }}
-                    {%- elif proj_query -%}
-                        ADD PROJECTION {{ proj_name }} ({{ proj_query }})
-                    {%- else -%}
-                        {%- if adapter.is_before_version('25.6.1.1') -%}
-                            {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' with 'index' requires '_part_offset' virtual column available from ClickHouse 25.6 onwards.") }}
-                        {%- endif -%}
-                        {%- if proj_index is string -%}
-                            {%- set proj_index = [proj_index] -%}
-                        {%- endif -%}
-                        {%- set cols_str = proj_index | join(', ') -%}
-                        {%- set cols_index_expr = '(' ~ cols_str ~ ')' if proj_index | length > 1 else cols_str -%}
-                        {%- if not adapter.is_before_version('26.1.1.1') -%}
-                          ADD PROJECTION {{ proj_name }} INDEX {{ cols_index_expr }} TYPE basic
-                        {%- else -%}
-                          ADD PROJECTION {{ proj_name }} (SELECT _part_offset ORDER BY {{ cols_str }})
-                        {%- endif -%}
-                    {%- endif -%}
+                    {{ clickhouse_projection_ddl(projection) }}
                     {%- if not loop.last or indexes | length > 0 -%}
                         ,
                     {% endif %}

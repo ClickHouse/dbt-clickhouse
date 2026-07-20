@@ -118,32 +118,7 @@
     {% if config.get('projections') %}
       {% set projections = config.get('projections') %}
       {% for projection in projections %}
-        {%- set proj_name = projection.get('name') -%}
-        {%- set proj_query = projection.get('query') -%}
-        {%- set proj_index = projection.get('index') -%}
-        {%- if proj_query and proj_index -%}
-            {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' cannot specify both 'query' and 'index'.") }}
-        {%- elif not proj_query and not proj_index -%}
-            {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' must specify either 'query' or 'index'.") }}
-        {%- elif proj_query -%}
-        , PROJECTION {{ proj_name }} (
-            {{ proj_query }}
-        )
-        {%- else -%}
-            {%- if adapter.is_before_version('25.6.1.1') -%}
-                {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' with 'index' requires '_part_offset' virtual column available from ClickHouse 25.6 onwards.") }}
-            {%- endif -%}
-            {%- if proj_index is string -%}
-                {%- set proj_index = [proj_index] -%}
-            {%- endif -%}
-            {%- set cols_str = proj_index | join(', ') -%}
-            {%- set cols_index_expr = '(' ~ cols_str ~ ')' if proj_index | length > 1 else cols_str -%}
-            {%- if not adapter.is_before_version('26.1.1.1') -%}
-        , PROJECTION {{ proj_name }} INDEX {{ cols_index_expr }} TYPE basic
-            {%- else -%}
-        , PROJECTION {{ proj_name }} (SELECT _part_offset ORDER BY {{ cols_str }})
-            {%- endif -%}
-        {%- endif %}
+        , {{ clickhouse_projection_ddl(projection, keyword='PROJECTION') }}
       {% endfor %}
   {% endif %}
   )
