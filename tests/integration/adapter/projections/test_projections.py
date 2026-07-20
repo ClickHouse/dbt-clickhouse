@@ -346,7 +346,9 @@ class TestIndexProjections:
             assert len(result) == 1
 
 
-class TestIndexProjectionValidation:
+class BaseIndexProjectionValidation:
+    materialized = "table"
+
     @pytest.fixture(scope="class")
     def seeds(self):
         return {
@@ -357,8 +359,12 @@ class TestIndexProjectionValidation:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "both_query_and_index.sql": PEOPLE_MODEL_WITH_QUERY_AND_INDEX,
-            "no_query_or_index.sql": PEOPLE_MODEL_WITH_NO_QUERY_OR_INDEX,
+            "both_query_and_index.sql": PEOPLE_MODEL_WITH_QUERY_AND_INDEX.replace(
+                "materialized='table'", f"materialized='{self.materialized}'"
+            ),
+            "no_query_or_index.sql": PEOPLE_MODEL_WITH_NO_QUERY_OR_INDEX.replace(
+                "materialized='table'", f"materialized='{self.materialized}'"
+            ),
         }
 
     def test_raises_when_both_query_and_index(self, project):
@@ -374,3 +380,11 @@ class TestIndexProjectionValidation:
         assert any(
             "must specify either 'query' or 'index'" in (r.message or "") for r in res.results
         )
+
+
+class TestIndexProjectionValidation(BaseIndexProjectionValidation):
+    pass
+
+
+class TestDistributedIndexProjectionValidation(BaseIndexProjectionValidation):
+    materialized = "distributed_table"
