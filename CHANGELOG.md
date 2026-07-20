@@ -1,6 +1,7 @@
 ### Release [1.10.2], 2026-XX-XX
 
 #### Improvements
+* Add a `server_host_name` profile option for both the HTTP and native backends. When set, it overrides the TLS SNI and hostname-verification target, allowing dbt to connect via a DNS alias (e.g. a friendly internal CNAME) while still validating the certificate issued for the real hostname. Particularly useful with AWS PrivateLink, where each ClickHouse Cloud service has a `*.vpce.aws.clickhouse.cloud` private DNS name but users connect through a shorter internal alias ([#687](https://github.com/ClickHouse/dbt-clickhouse/pull/687)).
 * Add a `reuse_connections` profile option (default `true`). When set to `false`, dbt closes the connection after each model so the next opens a fresh one. This is useful for multi-replica ClickHouse Cloud where connection-sticky load balancing would otherwise pin a `dbt run` to one replica. Per-model reconnects are kept cheap by doing some changes that also optimized regular multi-threaded runs:
   * Caching the `EXISTS DATABASE` probe.
   * Caching the `allow_nondeterministic_mutations` capability probe process-wide.
