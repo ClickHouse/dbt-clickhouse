@@ -369,6 +369,7 @@ class TestIndexProjectionValidation:
         )
 
     def test_raises_when_neither_query_nor_index(self, project):
+        run_dbt(["seed"])
         res = run_dbt(["run", "--select", "no_query_or_index"], expect_pass=False)
         assert any(
             "must specify either 'query' or 'index'" in (r.message or "") for r in res.results
