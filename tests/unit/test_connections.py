@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.sql import SQLConnectionManager
 
 
 def _make_manager_with_client(mock_client):
@@ -59,3 +60,31 @@ class TestAdapterResponseQueryId:
         r2, _ = manager.execute('SELECT 1')
 
         assert r1.query_id != r2.query_id
+
+
+def test_reuse_connections_defaults_to_true():
+    from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
+
+    creds = ClickHouseCredentials(host='localhost', schema='default')
+    assert creds.reuse_connections is True
+
+
+def _make_manager_with_reuse(reuse_connections: bool) -> ClickHouseConnectionManager:
+    manager = ClickHouseConnectionManager.__new__(ClickHouseConnectionManager)
+    manager.profile = MagicMock()
+    manager.profile.credentials.reuse_connections = reuse_connections
+    return manager
+
+
+class TestReleaseRespectsReuseConnections:
+    def test_release_is_a_noop_when_reuse_connections_is_true(self):
+        manager = _make_manager_with_reuse(reuse_connections=True)
+        with patch.object(SQLConnectionManager, 'release') as mock_super_release:
+            manager.release()
+        mock_super_release.assert_not_called()
+
+    def test_release_calls_super_when_reuse_connections_is_false(self):
+        manager = _make_manager_with_reuse(reuse_connections=False)
+        with patch.object(SQLConnectionManager, 'release') as mock_super_release:
+            manager.release()
+        mock_super_release.assert_called_once()

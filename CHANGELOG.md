@@ -1,4 +1,11 @@
-### Release [1.10.2], unreleased
+### Release [1.10.2], 2026-XX-XX
+
+#### Improvements
+* Add a `reuse_connections` profile option (default `true`). When set to `false`, dbt closes the connection after each model so the next opens a fresh one. This is useful for multi-replica ClickHouse Cloud where connection-sticky load balancing would otherwise pin a `dbt run` to one replica. Per-model reconnects are kept cheap by doing some changes that also optimized regular multi-threaded runs:
+  * Caching the `EXISTS DATABASE` probe.
+  * Caching the `allow_nondeterministic_mutations` capability probe process-wide.
+  * Dropping the now-redundant `allow_experimental_lightweight_delete` check (lightweight deletes are GA on all supported ClickHouse versions).
+  * Related to ([#669](https://github.com/ClickHouse/dbt-clickhouse/issues/669), [#670](https://github.com/ClickHouse/dbt-clickhouse/pull/670)).
 
 #### Bugs
 * Fix `get_model_settings` mutating model config in-place, causing adapter-injected settings (e.g. `replicated_deduplication_window='0'`) to leak into `manifest.json` and produce false `state:modified` hits on every deferred run ([#677](https://github.com/ClickHouse/dbt-clickhouse/pull/677)).

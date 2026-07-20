@@ -8,6 +8,22 @@ from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.util import relation_from_name, run_dbt
 
 
+def assert_row_count_after_ttl(project, relation, expected, optimize_relation=None, timeout=30):
+    """TTL rows are only guaranteed to be removed on part merges, so force a
+    merge with OPTIMIZE FINAL, then poll until the expected count is reached."""
+    optimize_relation = optimize_relation or relation
+    cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '').strip()
+    cluster_clause = f'ON CLUSTER "{cluster}"' if cluster else ''
+    project.run_sql(f"OPTIMIZE TABLE {optimize_relation} {cluster_clause} FINAL")
+    deadline = time.time() + timeout
+    while True:
+        result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
+        if result[0] == expected or time.time() >= deadline:
+            break
+        time.sleep(1)
+    assert result[0] == expected
+
+
 class TestTableTTL(BaseSimpleMaterializations):
     @pytest.fixture(scope="class")
     def models(self):
@@ -40,27 +56,21 @@ class TestTableTTL(BaseSimpleMaterializations):
 
         # base table rowcount
         relation = relation_from_name(project.adapter, "table_model")
-        result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
-        # the dates from the seed are too old, so those are expired
-        assert result[0] == 0
+        # the dates from the seed are too old, so those are expired. Forcing an optimization to make sure the rows are removed.
+        assert_row_count_after_ttl(project, relation, 0)
 
         # insert new data
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         project.run_sql(f"insert into {relation} (*) values (11, 'Elian', '{now}')")
 
         result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
-        # the dates from the seed are too old, so those are expired
         assert result[0] == 1
 
         # wait for TTL to expire
         time.sleep(6)
 
-        # optimize table
-        project.run_sql(f"OPTIMIZE TABLE {relation} FINAL")
-
         # make sure is empty
-        result = project.run_sql(f"select count(*) as num_rows from {relation}", fetch="one")
-        assert result[0] == 0
+        assert_row_count_after_ttl(project, relation, 0)
 
 
 DISTRIBUTED_TABLE_TTL_MODEL = """
@@ -102,8 +112,5 @@ class TestDistributedTableTTL:
         # wait for TTL to expire
         time.sleep(6)
 
-        project.run_sql(f"OPTIMIZE TABLE {relation_local} FINAL")
-
         # make sure is empty
-        cnt = project.run_sql(f"select count(*) from {relation}", fetch="all")
-        assert cnt[0][0] == 0
+        assert_row_count_after_ttl(project, relation, 0, optimize_relation=relation_local)
