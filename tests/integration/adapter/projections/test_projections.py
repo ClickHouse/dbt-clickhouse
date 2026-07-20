@@ -386,5 +386,9 @@ class TestIndexProjectionValidation(BaseIndexProjectionValidation):
     pass
 
 
+@pytest.mark.skipif(
+    os.environ.get("DBT_CH_TEST_CLUSTER", "").strip() == "",
+    reason="Not on a cluster",
+)
 class TestDistributedIndexProjectionValidation(BaseIndexProjectionValidation):
     materialized = "distributed_table"
