@@ -159,6 +159,15 @@ class ClickHouseAdapter(SQLAdapter):
             return compare_versions(version, server_version) > 0
         return False
 
+    @available
+    def is_at_or_after_version(self, version: str) -> bool:
+        """True if the server version is at or after (inclusive) the given version."""
+        conn = self.connections.get_if_exists()
+        if conn:
+            server_version = conn.handle.server_version
+            return compare_versions(server_version, version) >= 0
+        return False
+
     @available.parse_none
     def supports_atomic_exchange(self) -> bool:
         conn = self.connections.get_if_exists()
