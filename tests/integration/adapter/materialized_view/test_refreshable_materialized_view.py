@@ -41,6 +41,100 @@ group by department
 """
 
 
+# Refresh parameters change between runs to test in-place updates via MODIFY REFRESH
+MV_REFRESH_UPDATE_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(department)',
+       refreshable=(
+           {
+               "interval": "EVERY 5 MINUTE",
+               "randomize": "30 SECOND"
+           } if var('run_type', '') == 'update_refresh_params' else {
+               "interval": "EVERY 2 MINUTE"
+           }
+       )
+       )
+ }}
+select
+    department,
+    avg(age) as average
+    from {{ source('raw', 'people') }}
+group by department
+"""
+
+# Switches between a regular MV and a refreshable MV to test conversion handling
+PLAIN_TO_REFRESHABLE_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(department)',
+       refreshable=(
+           {
+               "interval": "EVERY 2 MINUTE"
+           } if var('run_type', '') == 'make_refreshable' else none
+       )
+       )
+ }}
+select
+    department,
+    avg(age) as average
+    from {{ source('raw', 'people') }}
+group by department
+"""
+
+REFRESHABLE_TO_PLAIN_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(department)',
+       refreshable=(
+           none if var('run_type', '') == 'make_regular' else {
+               "interval": "EVERY 2 MINUTE"
+           }
+       )
+       )
+ }}
+select
+    department,
+    avg(age) as average
+    from {{ source('raw', 'people') }}
+group by department
+"""
+
+# Toggles the APPEND setting, which cannot be changed via MODIFY REFRESH
+APPEND_TOGGLE_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(department)',
+       refreshable=(
+           {
+               "interval": "EVERY 2 MINUTE"
+           } if var('run_type', '') == 'drop_append' else {
+               "interval": "EVERY 2 MINUTE",
+               "append": True
+           }
+       )
+       )
+ }}
+select
+    department,
+    avg(age) as average
+    from {{ source('raw', 'people') }}
+group by department
+"""
+
+
+def get_mv_ddl_and_uuid(project, mv_name):
+    return project.run_sql(
+        f"select create_table_query, uuid from system.tables"
+        f" where database = '{project.test_schema}' and name = '{mv_name}'",
+        fetch="one",
+    )
+
+
 class TestBasicRefreshableMV:
     @pytest.fixture(scope="class")
     def seeds(self):
@@ -126,3 +220,156 @@ class TestBasicRefreshableMV:
         result = run_dbt(["run", "--vars", json.dumps(run_vars)], False)
         assert result[0].status == 'error'
         assert 'No existing MV found matching MV' in result[0].message
+
+
+class TestModifyRefreshParamsMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": MV_REFRESH_UPDATE_MODEL,
+        }
+
+    def test_update_refresh_params(self, project):
+        """
+        1. create a refreshable MV
+        2. re-run with changed refresh parameters (interval + randomize)
+        3. verify the new schedule was applied via MODIFY REFRESH, without recreating the MV
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 1
+
+        ddl, uuid_before = get_mv_ddl_and_uuid(project, 'hackers_mv')
+        assert 'REFRESH EVERY 2 MINUTE' in ddl
+
+        run_vars = {"run_type": "update_refresh_params"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 1
+
+        ddl, uuid_after = get_mv_ddl_and_uuid(project, 'hackers_mv')
+        assert 'REFRESH EVERY 5 MINUTE' in ddl
+        assert 'RANDOMIZE FOR 30 SECOND' in ddl
+        # the MV was altered in place, not dropped and recreated
+        assert uuid_before == uuid_after
+
+
+class TestRegularToRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": PLAIN_TO_REFRESHABLE_MODEL,
+        }
+
+    def test_regular_to_refreshable_requires_full_refresh(self, project):
+        """
+        1. create a regular (non-refreshable) MV
+        2. re-run with a refreshable config and expect a clear error
+        3. re-run with --full-refresh and verify the MV is now refreshable
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 1
+
+        run_vars = json.dumps({"run_type": "make_refreshable"})
+        result = run_dbt(["run", "--vars", run_vars], False)
+        assert result[0].status == 'error'
+        assert 'is not refreshable' in result[0].message
+        assert '--full-refresh' in result[0].message
+
+        results = run_dbt(["run", "--full-refresh", "--vars", run_vars])
+        assert len(results) == 1
+        ddl, _ = get_mv_ddl_and_uuid(project, 'hackers_mv')
+        assert 'REFRESH EVERY 2 MINUTE' in ddl
+
+
+class TestRefreshableToRegularMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": REFRESHABLE_TO_PLAIN_MODEL,
+        }
+
+    def test_refreshable_to_regular_requires_full_refresh(self, project):
+        """
+        1. create a refreshable MV
+        2. re-run without the refreshable config and expect a clear error
+        3. re-run with --full-refresh and verify the MV is now a regular MV
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 1
+
+        run_vars = json.dumps({"run_type": "make_regular"})
+        result = run_dbt(["run", "--vars", run_vars], False)
+        assert result[0].status == 'error'
+        assert 'is refreshable' in result[0].message
+        assert '--full-refresh' in result[0].message
+
+        results = run_dbt(["run", "--full-refresh", "--vars", run_vars])
+        assert len(results) == 1
+        ddl, _ = get_mv_ddl_and_uuid(project, 'hackers_mv')
+        assert ' REFRESH ' not in ddl
+
+
+class TestChangeAppendRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": APPEND_TOGGLE_MODEL,
+        }
+
+    def test_change_append_requires_full_refresh(self, project):
+        """
+        1. create a refreshable MV with APPEND
+        2. re-run without append and expect a clear error (APPEND can't be changed in place)
+        3. re-run with --full-refresh and verify the MV no longer has APPEND
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 1
+
+        ddl, _ = get_mv_ddl_and_uuid(project, 'hackers_mv')
+        assert ' APPEND ' in ddl
+
+        run_vars = json.dumps({"run_type": "drop_append"})
+        result = run_dbt(["run", "--vars", run_vars], False)
+        assert result[0].status == 'error'
+        assert 'APPEND' in result[0].message
+        assert '--full-refresh' in result[0].message
+
+        results = run_dbt(["run", "--full-refresh", "--vars", run_vars])
+        assert len(results) == 1
+        ddl, _ = get_mv_ddl_and_uuid(project, 'hackers_mv')
+        assert ' APPEND ' not in ddl

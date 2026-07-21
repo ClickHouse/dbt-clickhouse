@@ -145,3 +145,75 @@ class TestBasicExternalTargetRefreshableMV:
         error_results = [r for r in result if r.status == 'error']
         assert len(error_results) > 0
         assert 'No existing MV found matching MV' in error_results[0].message
+
+
+# Refresh parameters change between runs to test in-place updates via MODIFY REFRESH
+MV_REFRESH_UPDATE_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       refreshable=(
+           {
+               "interval": "EVERY 5 MINUTE",
+               "randomize": "30 SECOND"
+           } if var('run_type', '') == 'update_refresh_params' else {
+               "interval": "EVERY 2 MINUTE"
+           }
+       )
+) }}
+
+{{ materialization_target_table(ref('hackers_target')) }}
+
+select
+    department,
+    avg(age) as average
+from {{ source('raw', 'people') }}
+group by department
+"""
+
+
+class TestModifyRefreshParamsExternalTargetMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": MV_REFRESH_UPDATE_MODEL,
+        }
+
+    def test_update_refresh_params(self, project):
+        """
+        1. create a target table and a refreshable MV pointing to it
+        2. re-run with changed refresh parameters (interval + randomize)
+        3. verify the new schedule was applied via MODIFY REFRESH, without recreating the MV
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+
+        ddl, uuid_before = project.run_sql(
+            f"select create_table_query, uuid from system.tables"
+            f" where database = '{project.test_schema}' and name = 'hackers'",
+            fetch="one",
+        )
+        assert 'REFRESH EVERY 2 MINUTE' in ddl
+
+        run_vars = {"run_type": "update_refresh_params"}
+        results = run_dbt(["run", "--vars", json.dumps(run_vars)])
+        assert len(results) == 2
+
+        ddl, uuid_after = project.run_sql(
+            f"select create_table_query, uuid from system.tables"
+            f" where database = '{project.test_schema}' and name = 'hackers'",
+            fetch="one",
+        )
+        assert 'REFRESH EVERY 5 MINUTE' in ddl
+        assert 'RANDOMIZE FOR 30 SECOND' in ddl
+        # the MV was altered in place, not dropped and recreated
+        assert uuid_before == uuid_after
