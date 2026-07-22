@@ -101,7 +101,7 @@
 {% macro create_empty_table_from_relation(relation, source_relation, sql=none) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
   {%- if sql -%}
-    {%- set columns = adapter.get_column_schema_from_query(sql) | list -%}
+    {%- set columns = adapter.get_column_schema_from_query(sql, query_settings=config.get('query_settings', {})) | list -%}
   {%- else -%}
     {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
   {%- endif -%}
