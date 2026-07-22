@@ -343,46 +343,53 @@
 {#-
   Applies refresh parameter changes to an existing refreshable MV in place via
   ALTER TABLE ... MODIFY REFRESH (https://github.com/ClickHouse/dbt-clickhouse/issues/611).
-  Like MODIFY QUERY, the statement is issued on every run without diffing: it replaces the
-  whole schedule (interval, randomization and dependencies), so it is idempotent.
+  Like MODIFY QUERY, the statement is deliberately issued on every run without diffing
+  against the deployed schedule (simplicity over avoiding no-op DDL): it replaces the
+  whole schedule (interval, randomization and dependencies), so reissuing unchanged
+  parameters is a harmless no-op.
   The deployed state comes from the cached relation (is_refreshable / refreshable_append),
   so no extra round trip to ClickHouse is needed. Transitions that ClickHouse cannot apply
   in place (regular <-> refreshable, APPEND <-> non-APPEND) raise an error pointing the
   user to --full-refresh instead of being silently ignored.
+  mv_relation and existing_relation always refer to the same MV: both call sites resolve
+  existing_relation from mv_relation's own schema and identifier. The split exists because
+  mv_relation is the render target while existing_relation carries the cache-populated flags.
 -#}
 {% macro clickhouse__modify_mv_refresh(mv_relation, existing_relation, cluster_clause) %}
   {%- set refreshable_config = config.get('refreshable') -%}
-
-  {% if refreshable_config is none %}
-    {% if existing_relation.is_refreshable %}
+  {%- if refreshable_config is none or refreshable_config == false -%}
+    {%- if existing_relation.is_refreshable -%}
       {% do exceptions.raise_compiler_error(
         'Materialized view "' ~ mv_relation.name ~ '" is refreshable, but the model does not define a "refreshable" config. '
         ~ 'A refreshable MV cannot be converted to a regular MV in place. '
         ~ 'If you want to change this MV to a regular MV, please run with --full-refresh.'
       ) %}
-    {% endif %}
-  {% else %}
-    {% if not existing_relation.is_refreshable %}
+    {%- endif -%}
+  {%- else -%}
+    {%- if not existing_relation.is_refreshable -%}
       {% do exceptions.raise_compiler_error(
         'Materialized view "' ~ mv_relation.name ~ '" is not refreshable, but the model defines a "refreshable" config. '
         ~ 'A regular MV cannot be converted to a refreshable MV in place. '
         ~ 'If you want to change this MV to be refreshable, please run with --full-refresh.'
       ) %}
-    {% endif %}
+    {%- endif -%}
     {%- set config_append = true if (refreshable_config is mapping and refreshable_config.get('append', false)) else false -%}
-    {% if config_append != existing_relation.refreshable_append %}
+    {%- if config_append != existing_relation.refreshable_append -%}
       {% do exceptions.raise_compiler_error(
         'The APPEND setting of materialized view "' ~ mv_relation.name ~ '" does not match the model config. '
         ~ 'APPEND cannot be changed via ALTER TABLE ... MODIFY REFRESH. '
         ~ 'If you want to change it, please run with --full-refresh.'
       ) %}
-    {% endif %}
+    {%- endif -%}
     {{ log('Updating refresh parameters of existing MV ' ~ mv_relation.name) }}
-    {%- set modify_refresh_clause = refreshable_mv_clause(with_append=false) -%}
-    {% call statement('modify refresh of existing mv: ' + mv_relation.name) -%}
+    {#- ClickHouse requires the APPEND keyword in MODIFY REFRESH to match the view's
+        creation-time APPEND mode ("Adding or removing APPEND is not supported"), so the
+        full clause is used here; the guard above guarantees config and deployed agree. -#}
+    {%- set modify_refresh_clause = refreshable_mv_clause() -%}
+    {% call statement('modify refresh of existing mv: ' ~ mv_relation.name) -%}
       alter table {{ mv_relation }} {{ cluster_clause }} modify {{ modify_refresh_clause }}
     {%- endcall %}
-  {% endif %}
+  {%- endif -%}
 {% endmacro %}
 
 {% macro clickhouse__update_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql)  -%}
@@ -494,13 +501,11 @@
 {% endmacro %}
 
 {#-
-  Renders the refresh clause of a refreshable MV (REFRESH ... [RANDOMIZE FOR ...]
-  [DEPENDS ON ...] [APPEND]). With with_append=false the APPEND keyword is omitted,
-  which makes the output usable in ALTER TABLE ... MODIFY REFRESH (that statement
-  replaces the whole schedule but cannot change APPEND mode).
+  Renders the refresh clause of a refreshable MV
+  (REFRESH ... [RANDOMIZE FOR ...] [DEPENDS ON ...] [APPEND]).
 -#}
-{% macro refreshable_mv_clause(with_append=true) %}
-  {%- if config.get('refreshable') is not none -%}
+{% macro refreshable_mv_clause() %}
+  {%- if config.get('refreshable') is not none and config.get('refreshable') != false -%}
 
     {% set refreshable_config = config.get('refreshable') %}
     {% if refreshable_config is not mapping %}
@@ -562,7 +567,7 @@
       DEPENDS ON {{ depends_on_list | join(', ') }}
     {% endif %}
 
-    {%- if append and with_append -%}
+    {%- if append -%}
       APPEND
     {%- endif -%}
 
