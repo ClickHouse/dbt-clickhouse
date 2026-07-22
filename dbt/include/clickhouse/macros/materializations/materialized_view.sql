@@ -297,7 +297,18 @@
   {% else %}
     {{ log('Catchup config set to false, skipping table backfill for ' + relation.name) }}
     {% set has_contract = config.get('contract').enforced %}
-    {{ create_table_or_empty(False, relation, sql, has_contract) }}
+    {# Mirror clickhouse__create_table_as: CREATE EMPTY then add projections/indexes.
+       catchup only controls whether historical rows are inserted; schema DDL
+       (projections, indexes) must still run. Fixes #637. #}
+    {% if adapter.is_before_version('22.7.1.2484') -%}
+      {{ create_table_or_empty(False, relation, sql, has_contract) }}
+    {%- else -%}
+      {% call statement('create_table_empty') %}
+        {{ create_table_or_empty(False, relation, sql, has_contract) }}
+      {% endcall %}
+      {{ add_index_and_projections(relation) }}
+      select 1
+    {%- endif -%}
   {% endif %}
 {%- endmacro %}
 
