@@ -84,7 +84,14 @@
 
 {% macro clickhouse__drop_relation(relation, obj_type='table') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
-    drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause(relation, True)}}
+    {%- if relation.is_temporary -%}
+      {#- Temporary tables live outside databases: a qualified DROP never
+          matches them, and DROP TEMPORARY TABLE cannot target a regular
+          table by accident. -#}
+      drop temporary table if exists {{ relation.identifier }}
+    {%- else -%}
+      drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause(relation, True)}}
+    {%- endif -%}
   {%- endcall %}
 {% endmacro %}
 
