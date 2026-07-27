@@ -40,20 +40,6 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
 ]
 
 
-def reset_process_caches():
-    """Forget process-wide server-state caches. Call when the underlying engine
-    is replaced (e.g. the chdb driver switching engine path), since these caches
-    describe the previous engine and would otherwise be trusted for the new one.
-    """
-    global _exchange_result, _nd_mutation_probe
-    with _database_lock:
-        _ensured_databases.clear()
-    with _nd_mutation_lock:
-        _nd_mutation_probe = None
-    with _exchange_lock:
-        _exchange_result = None
-
-
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
     port = credentials.port

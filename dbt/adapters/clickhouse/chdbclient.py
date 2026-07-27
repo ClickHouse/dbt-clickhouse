@@ -1,13 +1,25 @@
 import atexit
 import threading
 
+from dbt.adapters.clickhouse import dbclient
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
-from dbt.adapters.clickhouse.dbclient import reset_process_caches
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
 from dbt.adapters.exceptions import FailedToConnectError
 
 _shared_lock = threading.Lock()
 _shared_client: dict = {'path': None, 'client': None}
+
+
+def _reset_engine_state_caches():
+    # dbclient caches server state (ensured databases, capability probes) once
+    # per process, assuming one engine. When the chdb engine is replaced by a
+    # different path, drop them so the new engine isn't judged by the old state.
+    with dbclient._database_lock:
+        dbclient._ensured_databases.clear()
+    with dbclient._nd_mutation_lock:
+        dbclient._nd_mutation_probe = None
+    with dbclient._exchange_lock:
+        dbclient._exchange_result = None
 
 
 def _release_shared_client():
@@ -17,9 +29,7 @@ def _release_shared_client():
             client.close()
         except Exception:
             pass
-        # Server-state caches describe the engine we just closed; drop them so a
-        # replacement engine (different path) isn't judged by the old one's state.
-        reset_process_caches()
+        _reset_engine_state_caches()
     _shared_client['path'] = None
     _shared_client['client'] = None
 
