@@ -40,6 +40,20 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
 ]
 
 
+def reset_process_caches():
+    """Forget process-wide server-state caches. Call when the underlying engine
+    is replaced (e.g. the chdb driver switching engine path), since these caches
+    describe the previous engine and would otherwise be trusted for the new one.
+    """
+    global _exchange_result, _nd_mutation_probe
+    with _database_lock:
+        _ensured_databases.clear()
+    with _nd_mutation_lock:
+        _nd_mutation_probe = None
+    with _exchange_lock:
+        _exchange_result = None
+
+
 def get_db_client(credentials: ClickHouseCredentials):
     driver = credentials.driver
     port = credentials.port
@@ -48,6 +62,18 @@ def get_db_client(credentials: ClickHouseCredentials):
             driver = 'native'
         else:
             driver = 'http'
+    if driver == 'chdb':
+        credentials.driver = driver
+        try:
+            import clickhouse_connect  # noqa
+            from dbt.adapters.clickhouse.chdbclient import ChDbClient
+
+            return ChDbClient(credentials)
+        except ImportError as ex:
+            raise FailedToConnectError(
+                'chdb driver requires clickhouse-connect>=1.6.0 with the embedded chDB backend: '
+                'pip install "clickhouse-connect[chdb]"'
+            ) from ex
     if driver == 'http':
         if not port:
             port = 8443 if credentials.secure else 8123

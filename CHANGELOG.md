@@ -1,6 +1,7 @@
 ### Release [1.10.2], 2026-XX-XX
 
 #### Improvements
+* Add an experimental embedded `chdb` driver: `driver: chdb` runs dbt against [chDB](https://github.com/chdb-io/chdb) (in-process ClickHouse) through clickhouse-connect's built-in chDB backend — no server or Docker required. Configured with a new `chdb_path` profile field (`:memory:` by default). Requires `clickhouse-connect[chdb]>=1.6.0`.
 * Add a `reuse_connections` profile option (default `true`). When set to `false`, dbt closes the connection after each model so the next opens a fresh one. This is useful for multi-replica ClickHouse Cloud where connection-sticky load balancing would otherwise pin a `dbt run` to one replica. Per-model reconnects are kept cheap by doing some changes that also optimized regular multi-threaded runs:
   * Caching the `EXISTS DATABASE` probe.
   * Caching the `allow_nondeterministic_mutations` capability probe process-wide.

@@ -14,6 +14,7 @@ class ClickHouseCredentials(Credentials):
     driver: Optional[str] = None
     host: str = 'localhost'
     port: Optional[int] = None
+    chdb_path: str = ':memory:'
     user: Optional[str] = 'default'
     retries: int = 1
     database: Optional[str] = ''
@@ -61,6 +62,14 @@ class ClickHouseCredentials(Credentials):
             )
         self.database = ''
 
+        if self.driver == 'chdb' and (
+            self.cluster or self.cluster_mode or self.database_engine == 'Replicated'
+        ):
+            raise DbtRuntimeError(
+                'driver "chdb" runs an embedded single-node engine and does not support '
+                'cluster, cluster_mode, or a Replicated database_engine.'
+            )
+
         # clickhouse_driver expects tcp_keepalive to be a tuple if it's not a boolean
         if isinstance(self.tcp_keepalive, list):
             self.tcp_keepalive = tuple(self.tcp_keepalive)
@@ -70,6 +79,7 @@ class ClickHouseCredentials(Credentials):
             'driver',
             'host',
             'port',
+            'chdb_path',
             'user',
             'schema',
             'retries',
