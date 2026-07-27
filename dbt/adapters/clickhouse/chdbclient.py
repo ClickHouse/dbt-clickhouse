@@ -1,8 +1,8 @@
 import atexit
 import threading
 
-from dbt.adapters.clickhouse import dbclient
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
+from dbt.adapters.clickhouse.dbclient import ChClientWrapper
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
 from dbt.adapters.exceptions import FailedToConnectError
 
@@ -10,34 +10,17 @@ _shared_lock = threading.Lock()
 _shared_client: dict = {'path': None, 'client': None}
 
 
-def _reset_engine_state_caches():
-    # dbclient caches server state (ensured databases, capability probes) once
-    # per process, assuming one engine. When the chdb engine is replaced by a
-    # different path, drop them so the new engine isn't judged by the old state.
-    with dbclient._database_lock:
-        dbclient._ensured_databases.clear()
-    with dbclient._nd_mutation_lock:
-        dbclient._nd_mutation_probe = None
-    with dbclient._exchange_lock:
-        dbclient._exchange_result = None
-
-
-def _release_shared_client():
-    client = _shared_client['client']
-    if client is not None:
-        try:
-            client.close()
-        except Exception:
-            pass
-        _reset_engine_state_caches()
-    _shared_client['path'] = None
-    _shared_client['client'] = None
-
-
 @atexit.register
 def _close_shared_client():
     with _shared_lock:
-        _release_shared_client()
+        client = _shared_client['client']
+        if client is not None:
+            try:
+                client.close()
+            except Exception:
+                pass
+        _shared_client['path'] = None
+        _shared_client['client'] = None
 
 
 class ChDbClient(ChHttpClient):
@@ -50,11 +33,15 @@ class ChDbClient(ChHttpClient):
     def _create_client(self, credentials: ClickHouseCredentials):
         import clickhouse_connect
 
+        # chDB is one engine per process, so all dbt connections share a single
+        # client for the configured path, closed at interpreter exit.
         key = credentials.chdb_path or ':memory:'
         with _shared_lock:
             if _shared_client['client'] is not None and _shared_client['path'] != key:
-                # Only one engine path per process; release the old one first.
-                _release_shared_client()
+                raise FailedToConnectError(
+                    f'chdb runs one engine per process; it is already using '
+                    f'{_shared_client["path"]!r} and cannot also open {key!r}.'
+                )
             if _shared_client['client'] is None:
                 try:
                     _shared_client['client'] = clickhouse_connect.get_client(
@@ -73,3 +60,8 @@ class ChDbClient(ChHttpClient):
     def close(self):
         # Shared, process-owned client; closed at interpreter exit, not here.
         pass
+
+    def database_dropped(self, database: str):
+        # The client is shared across dbt threads, so — unlike ChHttpClient —
+        # don't reset its default database; just forget the cached existence.
+        ChClientWrapper.database_dropped(self, database)
