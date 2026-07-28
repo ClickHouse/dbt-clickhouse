@@ -9,6 +9,10 @@
 
 #### Bugs
 * Fix the `insert_overwrite` incremental strategy failing on ClickHouse 26.6+ with `Code: 36 ... refusing REPLACE PARTITION because it would silently drop the destination partition's data`. The strategy intentionally replaces partitions from a source table that may have no parts for a partition (to clear shards that received no new data on distributed tables), which newer servers reject by default. The `REPLACE PARTITION` statement now includes `allow_replace_partition_from_empty_source=1` on servers 26.6 and newer; older servers keep their existing behavior.
+* Fix multiple materialized views breaking when a `--` comment precedes the first marker. The view-name regex matched across newlines, so a leading comment was pulled into the marker, blanking the view query (ClickHouse `SYNTAX_ERROR`), or silently dropping the first MV when several are defined ([#682](https://github.com/ClickHouse/dbt-clickhouse/issues/682), [#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
+
+#### Repository maintenance
+* Marker parsing for multiple materialized views moved into its own `clickhouse__extract_mv_views` macro, and unit tests can now call any macro in `dbt/include/clickhouse/macros` directly through the new `tests/unit/macro_harness.py` helper, without a dbt project or a running ClickHouse ([#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
 
 
 ### Release [1.10.1], 2026-06-16
@@ -24,9 +28,6 @@
 #### Repository maintenance
 * Replaced legacy `docker-compose` commands with `docker compose` (V2) and updated the GitHub Actions workflow to use Docker Compose V2 ([#647](https://github.com/ClickHouse/dbt-clickhouse/pull/647)).
 * AI-assisted development is now officially allowed for contributions. A new `AI_POLICY.md` describes the rules, and `AGENTS.md`/`CLAUDE.md` files were added to guide AI agents working in this repository ([#628](https://github.com/ClickHouse/dbt-clickhouse/pull/628), [#636](https://github.com/ClickHouse/dbt-clickhouse/pull/636)).
-
-#### Bugs
-* Fix multiple materialized views breaking when a `--` comment precedes the first marker. The view-name regex matched across newlines, so a leading comment was pulled into the marker, blanking the view query (ClickHouse `SYNTAX_ERROR`), or silently dropping the first MV when several are defined ([#682](https://github.com/ClickHouse/dbt-clickhouse/issues/682)).
 
 
 ### Release [1.10.0], 2026-02-16
