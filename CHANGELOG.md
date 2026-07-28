@@ -1,14 +1,29 @@
-### Release [1.10.1], 2026-0X-XX
+### Release [1.10.2], 2026-XX-XX
+
+#### Improvements
+* Add a `reuse_connections` profile option (default `true`). When set to `false`, dbt closes the connection after each model so the next opens a fresh one. This is useful for multi-replica ClickHouse Cloud where connection-sticky load balancing would otherwise pin a `dbt run` to one replica. Per-model reconnects are kept cheap by doing some changes that also optimized regular multi-threaded runs:
+  * Caching the `EXISTS DATABASE` probe.
+  * Caching the `allow_nondeterministic_mutations` capability probe process-wide.
+  * Dropping the now-redundant `allow_experimental_lightweight_delete` check (lightweight deletes are GA on all supported ClickHouse versions).
+  * Related to ([#669](https://github.com/ClickHouse/dbt-clickhouse/issues/669), [#670](https://github.com/ClickHouse/dbt-clickhouse/pull/670)).
+
+#### Bugs
+* Fix the `insert_overwrite` incremental strategy failing on ClickHouse 26.6+ with `Code: 36 ... refusing REPLACE PARTITION because it would silently drop the destination partition's data`. The strategy intentionally replaces partitions from a source table that may have no parts for a partition (to clear shards that received no new data on distributed tables), which newer servers reject by default. The `REPLACE PARTITION` statement now includes `allow_replace_partition_from_empty_source=1` on servers 26.6 and newer; older servers keep their existing behavior.
+
+
+### Release [1.10.1], 2026-06-16
 
 #### Improvements
 * Starting with this release the `dbt-clickhouse` packages will be published to PyPI using Github Actions as a [Trusted Publisher](https://docs.pypi.org/trusted-publishers/). This will improve both the usability and the security of the release process ([#614](https://github.com/ClickHouse/dbt-clickhouse/pull/614)).
 * Update dbt core dependencies dbt-adapters from `<1.22.6` to `<1.23.0` and dbt-core from `==1.10.*` to `==1.11.*` for local testing ([#638](https://github.com/ClickHouse/dbt-clickhouse/pull/638))
-* Populate `query_id` in `AdapterResponse` for every executed query. The query ID is generated as a UUID4 and forwarded to ClickHouse, making it available via `adapter_response` in dbt artifacts and enabling tools like Elementary to correlate dbt model runs with entries in `system.query_log`.
-* Replaced legacy `docker-compose` commands with `docker compose` (V2)
-* Updated GitHub Actions workflow to use Docker Compose V2
+* Populate `query_id` in `AdapterResponse` for every executed query. The query ID is generated as a UUID4 and forwarded to ClickHouse, making it available via `adapter_response` in dbt artifacts and enabling tools like Elementary to correlate dbt model runs with entries in `system.query_log` ([#634](https://github.com/ClickHouse/dbt-clickhouse/pull/634)).
 * Reduce connection startup overhead from the `EXCHANGE TABLES` capability check. On ClickHouse Cloud (Shared engine), the check now short-circuits immediately after detecting the engine — skipping 5 DDL round-trips (2× `CREATE TABLE`, `EXCHANGE TABLES`, 2× `DROP TABLE`) that were previously run on every connection open. For all other engine types, the result is cached behind a process-level lock so the DDL test runs at most once per dbt invocation regardless of thread count. ([#653](https://github.com/ClickHouse/dbt-clickhouse/pull/653)).
-* Support the `dbt clone` command for tables. Tables backed by a MergeTree-family engine are cloned with ClickHouse's zero-copy `CREATE OR REPLACE TABLE ... CLONE AS ...`; other engines and Distributed tables fall back to dbt's view behavior ([#655](https://github.com/ClickHouse/dbt-clickhouse/pull/655)).
-* Add relation-scoped catalog metadata support with `clickhouse__get_catalog_relations`.
+* `dbt clone` improvements: tables backed by a MergeTree-family engine are cloned with ClickHouse's zero-copy `CREATE OR REPLACE TABLE ... CLONE AS ...`; other engines and Distributed tables fall back to dbt's view behavior ([#655](https://github.com/ClickHouse/dbt-clickhouse/pull/655)).
+* Add relation-scoped catalog metadata support with `clickhouse__get_catalog_relations` ([#657](https://github.com/ClickHouse/dbt-clickhouse/pull/657)).
+
+#### Repository maintenance
+* Replaced legacy `docker-compose` commands with `docker compose` (V2) and updated the GitHub Actions workflow to use Docker Compose V2 ([#647](https://github.com/ClickHouse/dbt-clickhouse/pull/647)).
+* AI-assisted development is now officially allowed for contributions. A new `AI_POLICY.md` describes the rules, and `AGENTS.md`/`CLAUDE.md` files were added to guide AI agents working in this repository ([#628](https://github.com/ClickHouse/dbt-clickhouse/pull/628), [#636](https://github.com/ClickHouse/dbt-clickhouse/pull/636)).
 
 #### Bugs
 * Fix multiple materialized views breaking when a `--` comment precedes the first marker. The view-name regex matched across newlines, so a leading comment was pulled into the marker, blanking the view query (ClickHouse `SYNTAX_ERROR`), or silently dropping the first MV when several are defined ([#682](https://github.com/ClickHouse/dbt-clickhouse/issues/682)).

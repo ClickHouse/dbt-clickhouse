@@ -24,6 +24,7 @@ from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySuppor
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
 from dbt.adapters.clickhouse.errors import (
     schema_change_datatype_error,
     schema_change_fail_error,
@@ -158,6 +159,15 @@ class ClickHouseAdapter(SQLAdapter):
             return compare_versions(version, server_version) > 0
         return False
 
+    @available
+    def is_at_or_after_version(self, version: str) -> bool:
+        """True if the server version is at or after (inclusive) the given version."""
+        conn = self.connections.get_if_exists()
+        if conn:
+            server_version = conn.handle.server_version
+            return compare_versions(server_version, version) >= 0
+        return False
+
     @available.parse_none
     def supports_atomic_exchange(self) -> bool:
         conn = self.connections.get_if_exists()
@@ -202,7 +212,9 @@ class ClickHouseAdapter(SQLAdapter):
             )
         if strategy in ('delete_insert', 'microbatch') and not conn.handle.has_lw_deletes:
             raise DbtRuntimeError(
-                f"'{strategy}' strategy requires setting the profile config 'use_lw_deletes' to true."
+                f"'{strategy}' strategy requires lightweight deletes, but the required setting "
+                f"'{ND_MUTATION_SETTING}' could not be enabled on this ClickHouse server "
+                "(see the warnings logged at connection time)."
             )
         if strategy in ('delete_insert', 'microbatch') and not unique_key:
             raise DbtRuntimeError(f"'{strategy}' strategy requires a non-empty 'unique_key'.")

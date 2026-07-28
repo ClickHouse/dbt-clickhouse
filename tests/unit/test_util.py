@@ -1,6 +1,29 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+import pytest
+from dbt.adapters.clickhouse.impl import ClickHouseAdapter
 from dbt.adapters.clickhouse.util import compare_versions, hide_stack_trace
+
+
+def _adapter_with_server_version(server_version: str) -> ClickHouseAdapter:
+    adapter = ClickHouseAdapter.__new__(ClickHouseAdapter)
+    conn = MagicMock()
+    conn.handle.server_version = server_version
+    adapter.connections = MagicMock()
+    adapter.connections.get_if_exists.return_value = conn
+    return adapter
+
+
+@pytest.mark.parametrize(
+    'server_version,version,expected',
+    [
+        ('26.6.1.1193', '26.6', True),  # partial threshold matches inclusively
+        ('26.5.9.10', '26.6', False),
+    ],
+)
+def test_is_at_or_after_version(server_version, version, expected):
+    adapter = _adapter_with_server_version(server_version)
+    assert adapter.is_at_or_after_version(version) is expected
 
 
 def test_is_before_version():

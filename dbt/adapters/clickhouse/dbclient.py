@@ -6,8 +6,6 @@ from typing import Dict, Optional
 
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.errors import (
-    lw_deletes_not_enabled_error,
-    lw_deletes_not_enabled_warning,
     nd_mutations_not_enabled_error,
     nd_mutations_not_enabled_warning,
 )
@@ -20,7 +18,18 @@ from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 _exchange_lock = threading.Lock()
 _exchange_result: Optional[bool] = None
 
-LW_DELETE_SETTING = 'allow_experimental_lightweight_delete'
+# Databases whose existence has already been ensured in this process. Guarded by
+# `_database_lock`. With `reuse_connections: false` a client is created per model,
+# so without this cache the `EXISTS DATABASE` probe would run on every model.
+_database_lock = threading.Lock()
+_ensured_databases: set = set()
+
+# Server-side (value, readonly) of `allow_nondeterministic_mutations`, probed once
+# per process and guarded by `_nd_mutation_lock`. With `reuse_connections: false` a
+# client is created per model, so without this cache every model would re-probe.
+_nd_mutation_lock = threading.Lock()
+_nd_mutation_probe: Optional[tuple] = None
+
 ND_MUTATION_SETTING = 'allow_nondeterministic_mutations'
 DEDUP_WINDOW_SETTING = 'replicated_deduplication_window'
 DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
@@ -136,7 +145,10 @@ class ChClientWrapper(ABC):
         pass
 
     def database_dropped(self, database: str):
-        pass
+        # Forget the cached existence so a later model recreating the schema runs
+        # the EXISTS/CREATE path again instead of trusting a stale cache entry.
+        with _database_lock:
+            _ensured_databases.discard(database)
 
     @abstractmethod
     def close(self):
@@ -163,28 +175,21 @@ class ChClientWrapper(ABC):
                 model_settings[key] = value
 
     def _check_lightweight_deletes(self, requested: bool):
-        lw_deletes, lw_read_only = self.get_ch_setting(LW_DELETE_SETTING)
-        nd_mutations, nd_mutations_read_only = self.get_ch_setting(ND_MUTATION_SETTING)
-        if lw_deletes is None or nd_mutations is None:
+        # Lightweight deletes have been generally available since ClickHouse 23.3,
+        # which is older than every version this adapter supports, so only the
+        # `allow_nondeterministic_mutations` setting they require still needs to be
+        # checked (and enabled when the user has permission to change it).
+        global _nd_mutation_probe
+        with _nd_mutation_lock:
+            if _nd_mutation_probe is None:
+                _nd_mutation_probe = self.get_ch_setting(ND_MUTATION_SETTING)
+            nd_mutations, nd_mutations_read_only = _nd_mutation_probe
+        if nd_mutations is None:
             if requested:
-                logger.warning(lw_deletes_not_enabled_error)
+                logger.warning(nd_mutations_not_enabled_warning)
             return False, False
-        lw_deletes = int(lw_deletes) > 0
-        if not lw_deletes:
-            if lw_read_only:
-                lw_deletes = False
-                if requested:
-                    raise DbtConfigError(lw_deletes_not_enabled_error)
-                logger.warning(lw_deletes_not_enabled_warning)
-            else:
-                try:
-                    self.command(f'SET {LW_DELETE_SETTING} = 1')
-                    self._conn_settings[LW_DELETE_SETTING] = '1'
-                    lw_deletes = True
-                except DbtDatabaseError:
-                    logger.warning(lw_deletes_not_enabled_warning)
         nd_mutations = int(nd_mutations) > 0
-        if lw_deletes and not nd_mutations:
+        if not nd_mutations:
             if nd_mutations_read_only:
                 nd_mutations = False
                 if requested:
@@ -197,35 +202,41 @@ class ChClientWrapper(ABC):
                     nd_mutations = True
                 except DbtDatabaseError:
                     logger.warning(nd_mutations_not_enabled_warning)
-        if lw_deletes and nd_mutations:
+        if nd_mutations:
             return True, requested
         return False, False
 
     def _ensure_database(self, database_engine, cluster_name) -> None:
         if not self.database:
             return
-        check_db = f'EXISTS DATABASE {quote_identifier(self.database)}'
-        try:
-            db_exists = self.command(check_db)
-            if not db_exists:
-                engine_clause = f' ENGINE {database_engine} ' if database_engine else ''
-                cluster_clause = (
-                    f' ON CLUSTER "{cluster_name}" '
-                    if cluster_name is not None and cluster_name.strip() != ''
-                    else ''
-                )
-                self.command(
-                    f'CREATE DATABASE IF NOT EXISTS {quote_identifier(self.database)}{cluster_clause}{engine_clause}'
-                )
-                db_exists = self.command(check_db)
-                if not db_exists:
+        # The existence check/create only needs to happen once per process; cache
+        # the result so a per-model client (reuse_connections: false) doesn't probe
+        # on every model. The cache is invalidated by `database_dropped`.
+        with _database_lock:
+            if self.database not in _ensured_databases:
+                check_db = f'EXISTS DATABASE {quote_identifier(self.database)}'
+                try:
+                    db_exists = self.command(check_db)
+                    if not db_exists:
+                        engine_clause = f' ENGINE {database_engine} ' if database_engine else ''
+                        cluster_clause = (
+                            f' ON CLUSTER "{cluster_name}" '
+                            if cluster_name is not None and cluster_name.strip() != ''
+                            else ''
+                        )
+                        self.command(
+                            f'CREATE DATABASE IF NOT EXISTS {quote_identifier(self.database)}{cluster_clause}{engine_clause}'
+                        )
+                        db_exists = self.command(check_db)
+                        if not db_exists:
+                            raise FailedToConnectError(
+                                f'Failed to create database {self.database} for unknown reason'
+                            )
+                except DbtDatabaseError as ex:
                     raise FailedToConnectError(
-                        f'Failed to create database {self.database} for unknown reason'
-                    )
-        except DbtDatabaseError as ex:
-            raise FailedToConnectError(
-                f'Failed to create {self.database} database due to ClickHouse exception'
-            ) from ex
+                        f'Failed to create {self.database} database due to ClickHouse exception'
+                    ) from ex
+                _ensured_databases.add(self.database)
         self._set_client_database()
 
     def _check_atomic_exchange(self) -> bool:
