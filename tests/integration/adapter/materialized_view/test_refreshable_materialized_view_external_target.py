@@ -107,12 +107,12 @@ class TestBasicExternalTargetRefreshableMV:
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
                 f"""
-                        SELECT 
+                        SELECT
                             hostName() as replica,
                             status,
                             last_refresh_time
                         FROM clusterAllReplicas('default', 'system', 'view_refreshes')
-                        WHERE database = '{project.test_schema}' 
+                        WHERE database = '{project.test_schema}'
                           AND view = 'hackers'
                     """,
                 fetch="all",

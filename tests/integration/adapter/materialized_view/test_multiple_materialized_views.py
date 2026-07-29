@@ -67,7 +67,7 @@ select
         when name like 'Kate' then 'acid burn'
         else 'N/A'
     end as hacker_alias,
-    id as id2 
+    id as id2
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 --mv1:end
