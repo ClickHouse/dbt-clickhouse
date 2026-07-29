@@ -341,7 +341,11 @@
 
 {% macro clickhouse__get_mv_current_target(mv_relation) %}
   {% set query %}
-    select replaceRegexpOne(create_table_query, '.*TO\\s+`?([^`\\s(]+)`?\\.`?([^`\\s(]+)`?.*', '\\1.\\2') as target_table
+    {# 
+      '\x3F' is the ClickHouse string-literal escape for '?' (regex quantifier); some drivers treat a literal '?' in query text as a bind parameter.
+      Literal can be configured back to '?' after https://github.com/ClickHouse/adbc_clickhouse/issues/53 is fixed.
+    #}
+    select replaceRegexpOne(create_table_query, '.*TO\\s+`\x3F([^`\\s(]+)`\x3F\\.`\x3F([^`\\s(]+)`\x3F.*', '\\1.\\2') as target_table
     from system.tables
     where database = '{{ mv_relation.schema }}'
       and name = '{{ mv_relation.identifier }}'
