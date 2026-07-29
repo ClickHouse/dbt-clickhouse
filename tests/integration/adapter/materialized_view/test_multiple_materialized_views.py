@@ -8,6 +8,7 @@ import json
 import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
+from dbt_common.exceptions import DbtDatabaseError
 
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
@@ -131,8 +132,8 @@ class TestMultipleMV:
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv2", fetch="all")
         assert columns[0][1] == "Int32"
 
-        with pytest.raises(Exception):
-            columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
+        with pytest.raises(DbtDatabaseError, match="hackers_mv"):
+            project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
 
         check_relation_types(
             project.adapter,

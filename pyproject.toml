@@ -53,23 +53,14 @@ version = {attr = "dbt.adapters.clickhouse.__version__.version"}
 
 [tool.ruff]
 line-length = 100
-extend-exclude = [
-    ".eggs",
-    ".git",
-    ".mypy_cache",
-    ".venv",
-    "venv",
-    "env",
-    "_build",
-    "build",
-    "dist",
-]
 
 [tool.ruff.lint]
 select = [
     "E", # pycodestyle errors
     "F", # Pyflakes
     "I", # isort (import sorting)
+    "W", # pycodestyle warnings
+    "B", # flake8-bugbear
 ]
 ignore = [
     "E501", # Line too long (> 100 characters)
@@ -77,13 +68,11 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-third-party = [
-    "pytest",
     "dbt",
 ]
 
 [tool.ruff.format]
 quote-style = "preserve"
-indent-style = "space"
 
 [tool.pytest.ini_options]
 log_cli = true

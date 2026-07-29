@@ -77,7 +77,7 @@ class ClickHouseConnectionManager(SQLConnectionManager):
 
         data = []
         for row in response:
-            data.append(dict(zip(column_names, row)))
+            data.append(dict(zip(column_names, row, strict=True)))
 
         return table_from_data_flat(data, column_names)
 

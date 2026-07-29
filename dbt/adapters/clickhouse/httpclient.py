@@ -41,7 +41,7 @@ class ChHttpClient(ChClientWrapper):
             )
             return [
                 ClickHouseColumn.create(name, ch_type.name)
-                for name, ch_type in zip(query_result.column_names, query_result.column_types)
+                for name, ch_type in zip(query_result.column_names, query_result.column_types, strict=True)
             ]
         except DatabaseError as ex:
             err_msg = hide_stack_trace(ex)
