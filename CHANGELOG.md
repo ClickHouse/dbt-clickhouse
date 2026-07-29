@@ -13,6 +13,7 @@
 
 #### Repository maintenance
 * Marker parsing for multiple materialized views moved into its own `clickhouse__extract_mv_views` macro, and unit tests can now call any macro in `dbt/include/clickhouse/macros` directly through the new `tests/unit/macro_harness.py` helper, without a dbt project or a running ClickHouse ([#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
+* Replace black and isort with ruff ([#679](https://github.com/ClickHouse/dbt-clickhouse/pull/679)).
 
 
 ### Release [1.10.1], 2026-06-16
@@ -207,13 +208,16 @@ For example:
 * [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
 The index config should be added to the model config. for instance: 
   ```python
-  {{ config(
-         materialized='%s',
-         indexes=[{
-            'name': 'your_index_name',
-            'definition': 'your_column TYPE minmax GRANULARITY 2'
-         }]
-  ) }}
+  {
+      {
+          config(
+              materialized='%s',
+              indexes=[
+                  {'name': 'your_index_name', 'definition': 'your_column TYPE minmax GRANULARITY 2'}
+              ],
+          )
+      }
+  }
   ```
 
 ### Bug Fixes
@@ -271,15 +275,14 @@ The index config should be added to the model config. for instance:
 * [ClickHouse projections](https://clickhouse.com/docs/en/sql-reference/statements/alter/projection) are now fully supported for `table` materialization, and partly supported for `distributed_table` materialization.
 The projection config should be added to the model config ([#342](https://github.com/ClickHouse/dbt-clickhouse/pull/342)), for instance: 
   ```python
-  {{ config(
-         materialized='%s',
-         projections=[
-             {
-                 'name': 'your_projection_name',
-                 'query': 'your_projection_query'
-             }
-         ]
-  ) }}
+  {
+      {
+          config(
+              materialized='%s',
+              projections=[{'name': 'your_projection_name', 'query': 'your_projection_query'}],
+          )
+      }
+  }
   ```
  
 #### Bug Fixes

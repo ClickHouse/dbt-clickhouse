@@ -75,7 +75,7 @@ config(
     materialized='table',
     query_settings={{
         "join_algorithm": {setting_value}
-    }} 
+    }}
     )
 }}}}
 

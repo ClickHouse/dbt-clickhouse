@@ -172,6 +172,6 @@ class TestFullRefreshRepopulateDisabled:
         run_dbt(["run", "--full-refresh"])
 
         result = project.run_sql(f"select count(*) from {schema}.employees_target", fetch="all")
-        assert (
-            result[0][0] == 0
-        ), "Target should remain empty with repopulate_from_mvs_on_full_refresh=False"
+        assert result[0][0] == 0, (
+            "Target should remain empty with repopulate_from_mvs_on_full_refresh=False"
+        )

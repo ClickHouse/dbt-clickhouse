@@ -26,9 +26,7 @@ from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnCha
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
 from dbt.adapters.clickhouse.errors import (
-    schema_change_datatype_error,
     schema_change_fail_error,
-    schema_change_missing_source_error,
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier

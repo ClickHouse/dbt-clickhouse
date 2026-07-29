@@ -73,10 +73,10 @@ class TestBasicRefreshableMV:
         results = run_dbt()
         assert len(results) == 1
 
-        columns = project.run_sql(f"DESCRIBE TABLE hackers", fetch="all")
+        columns = project.run_sql("DESCRIBE TABLE hackers", fetch="all")
         assert columns[0][1] == "String"
 
-        columns = project.run_sql(f"DESCRIBE hackers_mv", fetch="all")
+        columns = project.run_sql("DESCRIBE hackers_mv", fetch="all")
         assert columns[0][1] == "String"
 
         check_relation_types(
@@ -90,12 +90,12 @@ class TestBasicRefreshableMV:
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
                 f"""
-                        SELECT 
+                        SELECT
                             hostName() as replica,
                             status,
                             last_refresh_time
                         FROM clusterAllReplicas('default', 'system', 'view_refreshes')
-                        WHERE database = '{project.test_schema}' 
+                        WHERE database = '{project.test_schema}'
                           AND view = 'hackers_mv'
                     """,
                 fetch="all",

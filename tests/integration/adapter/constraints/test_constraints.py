@@ -78,7 +78,7 @@ class ClickHouseContractColumnsEqual:
         contract_wrong_column_names(project)
 
     def test__contract_wrong_column_data_types(self, project, data_types):
-        for sql_column_value, schema_data_type, error_data_type in data_types:
+        for sql_column_value, _schema_data_type, error_data_type in data_types:
             # Write parametrized data_type to sql file
             write_file(
                 my_model_data_type_sql.format(sql_value=sql_column_value),

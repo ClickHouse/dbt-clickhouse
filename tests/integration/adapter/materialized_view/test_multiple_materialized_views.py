@@ -8,6 +8,7 @@ import json
 import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import check_relation_types, run_dbt
+from dbt_common.exceptions import DbtDatabaseError
 
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
@@ -67,7 +68,7 @@ select
         when name like 'Kate' then 'acid burn'
         else 'N/A'
     end as hacker_alias,
-    id as id2 
+    id as id2
 from {{ source('raw', 'people') }}
 where department = 'engineering'
 --mv1:end
@@ -131,8 +132,8 @@ class TestMultipleMV:
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv2", fetch="all")
         assert columns[0][1] == "Int32"
 
-        with pytest.raises(Exception):
-            columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
+        with pytest.raises(DbtDatabaseError, match="hackers_mv"):
+            project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
 
         check_relation_types(
             project.adapter,
@@ -242,7 +243,6 @@ class TestUpdateMultipleMV:
         assert not any(col[0] == "id2" for col in table_description_after_revert_update)
 
     def test_update_on_schema_change_fail(self, project):
-        schema = quote_identifier(project.test_schema + "_custom_schema_for_multiple_mv")
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()

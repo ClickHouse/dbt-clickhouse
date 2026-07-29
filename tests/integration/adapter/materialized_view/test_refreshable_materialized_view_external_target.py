@@ -89,11 +89,11 @@ class TestBasicExternalTargetRefreshableMV:
         assert len(results) == 2
 
         # Check the target table structure
-        columns = project.run_sql(f"DESCRIBE TABLE hackers_target", fetch="all")
+        columns = project.run_sql("DESCRIBE TABLE hackers_target", fetch="all")
         assert columns[0][1] == "String"
 
         # Check the MV exists
-        columns = project.run_sql(f"DESCRIBE hackers", fetch="all")
+        columns = project.run_sql("DESCRIBE hackers", fetch="all")
         assert columns[0][1] == "String"
 
         check_relation_types(
@@ -107,12 +107,12 @@ class TestBasicExternalTargetRefreshableMV:
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
                 f"""
-                        SELECT 
+                        SELECT
                             hostName() as replica,
                             status,
                             last_refresh_time
                         FROM clusterAllReplicas('default', 'system', 'view_refreshes')
-                        WHERE database = '{project.test_schema}' 
+                        WHERE database = '{project.test_schema}'
                           AND view = 'hackers'
                     """,
                 fetch="all",
