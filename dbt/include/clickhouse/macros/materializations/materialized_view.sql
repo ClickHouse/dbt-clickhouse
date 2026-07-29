@@ -28,6 +28,33 @@
     {{ return(result) }}
 {%- endmaterialization -%}
 
+{#-
+  Split a model's sql into individual materialized view queries (if multiple exist).
+
+  Views are delimited by `--<name>:begin` / `--<name>:end` marker comments.
+  The returned mapping is keyed by marker name in the order the markers appear.
+  Each key becomes a suffix on the model's relation, so marker `mv1` creates the
+  view `<model>_mv1`. A model without any markers yields the single key `mv`
+  covering the whole sql, yielding one `<model>_mv` view.
+-#}
+{% macro clickhouse__extract_mv_views(sql) %}
+  {#- the name must be a single token. If the pattern permits a space in the name, an
+      unrelated `--` comment becomes a part of the marker, and the name is then wrong -#}
+  {% set view_names = modules.re.findall('--(?:\\s)?([^:\\s]+):begin', sql) %}
+
+  {% set views = {} %}
+  {% if view_names %}
+    {% for view_name in view_names %}
+      {% set view_sql = modules.re.findall('--(?:\\s)?' + view_name + ':begin(.*)--(?:\\s)?' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
+      {%- set _ = views.update({view_name: view_sql}) -%}
+    {% endfor %}
+  {% else %}
+    {%- set _ = views.update({"mv": sql}) -%}
+  {% endif %}
+
+  {{ return(views) }}
+{% endmacro %}
+
 {% macro strip_identifier_quotes(ident) %}
   {%- set s = ident.strip() -%}
   {%- if (s.startswith('`') and s.endswith('`')) or
@@ -178,19 +205,8 @@
   -- `BEGIN` happens here:
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
-  -- extract the names of the materialized views from the sql
-  {% set view_names = modules.re.findall('--(?:\s)?([^:]+):begin', sql) %}
-
-  -- extract the sql for each of the materialized view into a map
-  {% set views = {} %}
-  {% if view_names %}
-    {% for view_name in view_names %}
-      {% set view_sql = modules.re.findall('--(?:\s)?' + view_name + ':begin(.*)--(?:\s)?' + view_name + ':end', sql, flags=modules.re.DOTALL)[0] %}
-      {%- set _ = views.update({view_name: view_sql}) -%}
-    {% endfor %}
-  {% else %}
-    {%- set _ = views.update({"mv": sql}) -%}
-  {% endif %}
+  -- extract the sql for each of the materialized views into a map
+  {% set views = clickhouse__extract_mv_views(sql) %}
 
   {% if backup_relation is none %}
     {{ log('Creating new materialized view ' + target_relation.name )}}
