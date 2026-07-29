@@ -204,7 +204,6 @@ class TestUpdateMV:
         assert not any(col[0] == "id2" for col in table_description_after_revert_update)
 
     def test_update_incremental_on_schema_change_fail(self, project):
-        schema = quote_identifier(project.test_schema)
         # create our initial materialized view
         run_dbt(["seed"])
         run_dbt()
