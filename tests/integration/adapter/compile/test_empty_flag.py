@@ -12,7 +12,7 @@ class TestAliasesWithEmptyFlag:
             """,
             "model_with_alias.sql": """
                 {{ config(materialized='table') }}
-                SELECT 
+                SELECT
                     base_alias.id,
                     base_alias.name,
                     base_alias.active
@@ -31,7 +31,7 @@ class TestAliasesWithEmptyFlag:
                     incremental_strategy='append',
                     unique_key='event_id'
                 ) }}
-                SELECT 
+                SELECT
                     src_alias.event_id,
                     src_alias.event_type,
                     src_alias.event_date
@@ -39,7 +39,7 @@ class TestAliasesWithEmptyFlag:
             """,
             "view_with_alias.sql": """
                 {{ config(materialized='view') }}
-                SELECT 
+                SELECT
                     base_alias.id,
                     base_alias.name
                 FROM {{ ref('base_table') }} base_alias

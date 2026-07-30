@@ -210,7 +210,7 @@ class TestProjections:
         relation = relation_from_name(project.adapter, "distributed_people_with_projection")
         unique_query_identifier = str(uuid.uuid4())
         query = f"""-- {unique_query_identifier}
-                 SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY 
+                 SELECT department, avg(age) AS avg_age FROM {project.test_schema}.{relation.name} GROUP BY
                  department ORDER BY department"""
 
         # Check that the projection works as expected
