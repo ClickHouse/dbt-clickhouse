@@ -212,6 +212,13 @@
 
 {% macro primary_key_clause(label) %}
   {%- set primary_key = config.get('primary_key', validator=validation.any[basestring]) -%}
+  {#- Fusion compatibility: Fusion's typed primary_key config arrives as a list
+      (scalar inputs are listified), so join it back into the raw string this
+      clause renders. No-op in Python, where the basestring validator raises
+      before a non-string value can reach this point. -#}
+  {%- if primary_key is not none and primary_key is not string -%}
+    {%- set primary_key = primary_key | join(', ') -%}
+  {%- endif %}
 
   {%- if primary_key is not none %}
     {{ label }} {{ primary_key }}
@@ -266,7 +273,7 @@
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
     {% set create_table = create_table_or_empty(temporary, relation, sql, has_contract) %}
-    {% if adapter.is_before_version('22.7.1.2484') or temporary -%}
+    {% if temporary -%}
         {{ create_table }}
     {%- else %}
         {% call statement('create_table_empty') %}
@@ -340,9 +347,7 @@
         {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
-          {%- if not adapter.is_before_version('22.7.1.2484') %}
-            empty
-          {%- endif %}
+          empty
           as (
             {{ sql }}
           )
