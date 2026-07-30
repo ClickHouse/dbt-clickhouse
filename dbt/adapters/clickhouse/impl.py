@@ -366,7 +366,16 @@ class ClickHouseAdapter(SQLAdapter):
 
         relations = []
         for row in results:
-            name, schema, type_info, db_engine, mvs_pointing_to_it, on_cluster = row
+            (
+                name,
+                schema,
+                type_info,
+                db_engine,
+                mvs_pointing_to_it,
+                is_refreshable,
+                refreshable_append,
+                on_cluster,
+            ) = row
             if type_info == 'materialized_view':
                 rel_type = ClickHouseRelationType.MaterializedView
             elif type_info == 'view':
@@ -390,6 +399,8 @@ class ClickHouseAdapter(SQLAdapter):
                 can_exchange=can_exchange,
                 can_on_cluster=can_on_cluster,
                 mvs_pointing_to_it=json.loads(mvs_pointing_to_it) or [],
+                is_refreshable=bool(is_refreshable),
+                refreshable_append=bool(refreshable_append),
             )
             relations.append(relation)
 

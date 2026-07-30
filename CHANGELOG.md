@@ -1,6 +1,7 @@
 ### Release [1.10.2], 2026-XX-XX
 
 #### Improvements
+* Refresh parameters of refreshable materialized views (`interval`, `randomize`, `depends_on`) are now updated in place on every `dbt run` using `ALTER TABLE ... MODIFY REFRESH`, the same way the MV query is updated via `MODIFY QUERY`. Previously, changing them required `dbt run --full-refresh`, which dropped and recreated the MV. Changes that ClickHouse cannot apply in place — converting a regular MV to a refreshable one (or back), and toggling the `append` setting — now fail with a clear error asking for a `--full-refresh` run instead of being silently ignored ([#611](https://github.com/ClickHouse/dbt-clickhouse/issues/611)).
 * Add a `reuse_connections` profile option (default `true`). When set to `false`, dbt closes the connection after each model so the next opens a fresh one. This is useful for multi-replica ClickHouse Cloud where connection-sticky load balancing would otherwise pin a `dbt run` to one replica. Per-model reconnects are kept cheap by doing some changes that also optimized regular multi-threaded runs:
   * Caching the `EXISTS DATABASE` probe.
   * Caching the `allow_nondeterministic_mutations` capability probe process-wide.
