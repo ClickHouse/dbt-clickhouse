@@ -92,7 +92,7 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         )
         total_count = 0
         # total count should be equal to sum(count of each shard * replica_counts)
-        for shard_num, host_name, replica_counts in cluster_info:
+        for _shard_num, host_name, replica_counts in cluster_info:
             count = project.run_sql(
                 f"select count() From remote('{host_name}',{table_relation})",
                 fetch="one",

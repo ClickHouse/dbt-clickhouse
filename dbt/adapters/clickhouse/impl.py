@@ -26,9 +26,7 @@ from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnCha
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
 from dbt.adapters.clickhouse.errors import (
-    schema_change_datatype_error,
     schema_change_fail_error,
-    schema_change_missing_source_error,
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
@@ -368,7 +366,16 @@ class ClickHouseAdapter(SQLAdapter):
 
         relations = []
         for row in results:
-            name, schema, type_info, db_engine, mvs_pointing_to_it, on_cluster = row
+            (
+                name,
+                schema,
+                type_info,
+                db_engine,
+                mvs_pointing_to_it,
+                is_refreshable,
+                refreshable_append,
+                on_cluster,
+            ) = row
             if type_info == 'materialized_view':
                 rel_type = ClickHouseRelationType.MaterializedView
             elif type_info == 'view':
@@ -392,6 +399,8 @@ class ClickHouseAdapter(SQLAdapter):
                 can_exchange=can_exchange,
                 can_on_cluster=can_on_cluster,
                 mvs_pointing_to_it=json.loads(mvs_pointing_to_it) or [],
+                is_refreshable=bool(is_refreshable),
+                refreshable_append=bool(refreshable_append),
             )
             relations.append(relation)
 
