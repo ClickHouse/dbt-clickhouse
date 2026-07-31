@@ -113,9 +113,9 @@ class TestTableOnSchemaChangeIgnore:
         result = project.run_sql("select * from table_ignore order by col_1", fetch="all")
         assert len(result) == 3
         actual_cols = len(result[0])
-        assert (
-            actual_cols == 3
-        ), f"Standalone table should be rebuilt with 3 columns (mv_on_schema_change ignored), but has {actual_cols} columns"
+        assert actual_cols == 3, (
+            f"Standalone table should be rebuilt with 3 columns (mv_on_schema_change ignored), but has {actual_cols} columns"
+        )
 
 
 # =============================================================================

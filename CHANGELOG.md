@@ -1,6 +1,7 @@
 ### Release [1.10.2], 2026-XX-XX
 
 #### Improvements
+* Refresh parameters of refreshable materialized views (`interval`, `randomize`, `depends_on`) are now updated in place on every `dbt run` using `ALTER TABLE ... MODIFY REFRESH`, the same way the MV query is updated via `MODIFY QUERY`. Previously, changing them required `dbt run --full-refresh`, which dropped and recreated the MV. Changes that ClickHouse cannot apply in place — converting a regular MV to a refreshable one (or back), and toggling the `append` setting — now fail with a clear error asking for a `--full-refresh` run instead of being silently ignored ([#611](https://github.com/ClickHouse/dbt-clickhouse/issues/611)).
 * Add a `reuse_connections` profile option (default `true`). When set to `false`, dbt closes the connection after each model so the next opens a fresh one. This is useful for multi-replica ClickHouse Cloud where connection-sticky load balancing would otherwise pin a `dbt run` to one replica. Per-model reconnects are kept cheap by doing some changes that also optimized regular multi-threaded runs:
   * Caching the `EXISTS DATABASE` probe.
   * Caching the `allow_nondeterministic_mutations` capability probe process-wide.
@@ -9,6 +10,12 @@
 
 #### Bugs
 * Replacing an existing view no longer fails with `UNSUPPORTED_METHOD` on filesystems without `renameat2(RENAME_EXCHANGE)` support (NFS, EFS, and others). ClickHouse implements `CREATE OR REPLACE VIEW` over an existing view with that syscall; when the server reports that atomic exchange is unsupported, the view materialization now falls back to a non-atomic `DROP` + `CREATE`, mirroring the existing fallback for table materializations ([#340](https://github.com/ClickHouse/dbt-clickhouse/issues/340)).
+* Fix the `insert_overwrite` incremental strategy failing on ClickHouse 26.6+ with `Code: 36 ... refusing REPLACE PARTITION because it would silently drop the destination partition's data`. The strategy intentionally replaces partitions from a source table that may have no parts for a partition (to clear shards that received no new data on distributed tables), which newer servers reject by default. The `REPLACE PARTITION` statement now includes `allow_replace_partition_from_empty_source=1` on servers 26.6 and newer; older servers keep their existing behavior.
+* Fix multiple materialized views breaking when a `--` comment precedes the first marker. The view-name regex matched across newlines, so a leading comment was pulled into the marker, blanking the view query (ClickHouse `SYNTAX_ERROR`), or silently dropping the first MV when several are defined ([#682](https://github.com/ClickHouse/dbt-clickhouse/issues/682), [#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
+
+#### Repository maintenance
+* Marker parsing for multiple materialized views moved into its own `clickhouse__extract_mv_views` macro, and unit tests can now call any macro in `dbt/include/clickhouse/macros` directly through the new `tests/unit/macro_harness.py` helper, without a dbt project or a running ClickHouse ([#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
+* Replace black and isort with ruff ([#679](https://github.com/ClickHouse/dbt-clickhouse/pull/679)).
 
 
 ### Release [1.10.1], 2026-06-16
@@ -203,13 +210,16 @@ For example:
 * [ClickHouse indexes](https://clickhouse.com/docs/en/optimize/sparse-primary-indexes) are now fully supported for `table` materialization.
 The index config should be added to the model config. for instance: 
   ```python
-  {{ config(
-         materialized='%s',
-         indexes=[{
-            'name': 'your_index_name',
-            'definition': 'your_column TYPE minmax GRANULARITY 2'
-         }]
-  ) }}
+  {
+      {
+          config(
+              materialized='%s',
+              indexes=[
+                  {'name': 'your_index_name', 'definition': 'your_column TYPE minmax GRANULARITY 2'}
+              ],
+          )
+      }
+  }
   ```
 
 ### Bug Fixes
@@ -267,15 +277,14 @@ The index config should be added to the model config. for instance:
 * [ClickHouse projections](https://clickhouse.com/docs/en/sql-reference/statements/alter/projection) are now fully supported for `table` materialization, and partly supported for `distributed_table` materialization.
 The projection config should be added to the model config ([#342](https://github.com/ClickHouse/dbt-clickhouse/pull/342)), for instance: 
   ```python
-  {{ config(
-         materialized='%s',
-         projections=[
-             {
-                 'name': 'your_projection_name',
-                 'query': 'your_projection_query'
-             }
-         ]
-  ) }}
+  {
+      {
+          config(
+              materialized='%s',
+              projections=[{'name': 'your_projection_name', 'query': 'your_projection_query'}],
+          )
+      }
+  }
   ```
  
 #### Bug Fixes

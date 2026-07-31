@@ -1,13 +1,13 @@
 # Check style and linting
-.PHONY: check-black check-isort check-mypy lint
+.PHONY: check-ruff-format check-ruff check-mypy lint
 
-check-black:
-	@echo "--> Running black checks"
-	@black --check --diff .
+check-ruff-format:
+	@echo "--> Running ruff format checks"
+	@ruff format --check --diff .
 
-check-isort:
-	@echo "--> Running isort checks"
-	@isort --check-only --diff .
+check-ruff:
+	@echo "--> Running ruff checks"
+	@ruff check .
 
 check-mypy:
 	@echo "--> Running mypy checks"
@@ -17,13 +17,13 @@ check-yamllint:
 	@echo "--> Running yamllint checks"
 	@yamllint dbt tests .github 
 
-lint: check-black check-isort check-mypy check-yamllint
+lint: check-ruff-format check-ruff check-mypy check-yamllint
 
 # Format code
 .PHONY: fmt
 
 fmt:
-	@echo "--> Running isort"
-	@isort .
-	@echo "--> Running black"
-	@black .
+	@echo "--> Running ruff fixes"
+	@ruff check --fix .
+	@echo "--> Running ruff format"
+	@ruff format .

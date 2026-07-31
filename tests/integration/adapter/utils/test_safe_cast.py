@@ -11,33 +11,33 @@ select
   -- String types
   {{ safe_cast("null", "String") }} as string_default,
   {{ safe_cast("null", "FixedString(10)") }} as fixedstring_default,
-  
+
   -- Integer types
   {{ safe_cast("null", "Int32") }} as int_default,
   {{ safe_cast("null", "UInt32") }} as uint_default,
-  
+
   -- Floating point types
   {{ safe_cast("null", "Float32") }} as float_default,
   {{ safe_cast("null", "Decimal(10, 2)") }} as decimal_default,
-  
+
   -- Date/Time types
   {{ safe_cast("null", "Date") }} as date_default,
   {{ safe_cast("null", "DateTime") }} as datetime_default,
   {{ safe_cast("null", "DateTime64(3)") }} as datetime64_default,
   {{ safe_cast("null", "DateTime('Europe/Paris')") }} as datetime_tz_default,
-  
+
   -- Other types
   {{ safe_cast("null", "UUID") }} as uuid_default,
   {{ safe_cast("null", "Bool") }} as bool_default,
-  
+
   -- Complex types
   {{ safe_cast("null", "Array(String)") }} as array_default,
   {{ safe_cast("null", "Map(String, Int32)") }} as map_default,
   {{ safe_cast("null", "Tuple(String, Int32)") }} as tuple_default,
-  
+
   -- Nullable
   {{ safe_cast("null", "Nullable(String)") }} as nullable_default,
-  
+
   -- Provided values (non-null)
   {{ safe_cast("'Alice'", "String") }} as provided_string,
   {{ safe_cast("42", "Int32") }} as provided_int,

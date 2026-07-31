@@ -51,18 +51,28 @@ packages = {find = {include = ["dbt", "dbt.*"], namespaces = true}}
 [tool.setuptools.dynamic]
 version = {attr = "dbt.adapters.clickhouse.__version__.version"}
 
-[tool.black]
+[tool.ruff]
 line-length = 100
-skip-string-normalization = true
-target-version = ['py310', 'py311', 'py312']
-exclude = '(\.eggs|\.git|\.mypy_cache|\.venv|venv|env|_build|build|dist)'
 
-[tool.isort]
-line_length = 100
-profile = "black"
-use_parentheses = true
-skip = '.eggs/,.mypy_cache/,.venv/,venv/,env/'
-known_third_party = ["pytest", "dbt"]
+[tool.ruff.lint]
+select = [
+    "E", # pycodestyle errors
+    "F", # Pyflakes
+    "I", # isort (import sorting)
+    "W", # pycodestyle warnings
+    "B", # flake8-bugbear
+]
+ignore = [
+    "E501", # Line too long (> 100 characters)
+]
+
+[tool.ruff.lint.isort]
+known-third-party = [
+    "dbt",
+]
+
+[tool.ruff.format]
+quote-style = "preserve"
 
 [tool.pytest.ini_options]
 log_cli = true
