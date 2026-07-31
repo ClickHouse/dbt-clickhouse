@@ -39,6 +39,7 @@ class ChNativeClient(ChClientWrapper):
             _, columns = self._client.execute(
                 f"SELECT * FROM ( \n{sql} \n) LIMIT 0",
                 with_column_types=True,
+                **kwargs,
             )
             return [ClickHouseColumn.create(column[0], column[1]) for column in columns]
         except clickhouse_driver.errors.Error as ex:

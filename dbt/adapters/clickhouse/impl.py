@@ -234,6 +234,7 @@ class ClickHouseAdapter(SQLAdapter):
         existing,
         target_sql,
         materialization: str = 'incremental',
+        query_settings: Optional[Dict[str, Any]] = None,
     ) -> ClickHouseColumnChanges:
         if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
             raise DbtRuntimeError(
@@ -242,7 +243,7 @@ class ClickHouseAdapter(SQLAdapter):
 
         source = self.get_columns_in_relation(existing)
         source_map = {column.name: column for column in source}
-        target = self.get_column_schema_from_query(target_sql)
+        target = self.get_column_schema_from_query(target_sql, query_settings=query_settings)
         target_map = {column.name: column for column in target}
 
         source_not_in_target = [column for column in source if column.name not in target_map.keys()]
@@ -586,9 +587,21 @@ class ClickHouseAdapter(SQLAdapter):
         )
 
     @available.parse_none
-    def get_column_schema_from_query(self, sql: str, *_) -> List[ClickHouseColumn]:
-        """Get a list of the Columns with names and data types from the given sql."""
+    def get_column_schema_from_query(
+        self, sql: str, *args, query_settings: Optional[Dict[str, Any]] = None, **_
+    ) -> List[ClickHouseColumn]:
+        """Get a list of the Columns with names and data types from the given sql.
+
+        query_settings: optional ClickHouse settings applied when introspecting the
+        query schema so contract validation and schema-change detection match runtime
+        query behavior (e.g. join_use_nulls). Accepts a dict positionally as the second
+        argument for convenience from macros.
+        """
         conn = self.connections.get_if_exists()
+        if query_settings is None and args and isinstance(args[0], dict):
+            query_settings = args[0]
+        if query_settings:
+            return conn.handle.columns_in_query(sql, settings=dict(query_settings))
         return conn.handle.columns_in_query(sql)
 
     @available.parse_none
