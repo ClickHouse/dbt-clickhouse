@@ -293,8 +293,7 @@ class ClickHouseAdapter(SQLAdapter):
         role_arn: str,
         compression: str = '',
     ) -> str:
-        s3config = self.config.vars.vars.get(config_name, {})
-        s3config.update(s3_model_config)
+        s3config = {**self.config.vars.vars.get(config_name, {}), **s3_model_config}
 
         structure = structure or s3config.get('structure', '')
         struct = ''
@@ -307,7 +306,7 @@ class ClickHouseAdapter(SQLAdapter):
             else:
                 struct = f",'{structure}'"
 
-        fmt = fmt or s3config.get('fmt')
+        fmt = fmt or s3config.get('fmt', '')
 
         bucket = bucket or s3config.get('bucket', '')
         path = path or s3config.get('path', '')
@@ -332,7 +331,7 @@ class ClickHouseAdapter(SQLAdapter):
             comp = f"', {comp}'"
 
         extra_credentials = ''
-        role_arn = role_arn or s3config.get('role_arn')
+        role_arn = role_arn or s3config.get('role_arn', '')
         if role_arn:
             extra_credentials = f", extra_credentials(role_arn='{role_arn}')"
 
