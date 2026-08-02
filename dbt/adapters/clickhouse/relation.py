@@ -112,9 +112,10 @@ class ClickHouseRelation(BaseRelation):
     def get_on_cluster(
         cls: Type[Self],
         cluster: str = '',
-        database_engine: str = '',
+        database_engine: Optional[str] = None,
     ) -> bool:
         # not using ternary expression for simplicity
+        database_engine = database_engine or ''
         if not cluster.strip() or 'replicated' in database_engine.lower():
             return False
         else:
