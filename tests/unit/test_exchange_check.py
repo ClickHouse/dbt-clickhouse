@@ -1,5 +1,5 @@
 import threading
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import dbt.adapters.clickhouse.dbclient as dbclient_module
 import pytest

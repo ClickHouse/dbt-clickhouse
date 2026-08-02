@@ -16,18 +16,22 @@ Start by forking the repository on GitHub. This will create a copy of the reposi
 * Make sure Python is installed locally, please refer to [dbt's python compatibility](https://docs.getdbt.com/faqs/Core/install-python-compatibility) (We recommend using version 3.12+).
 * Create a dedicated virtual environment (optional but recommended)
 * Install all the development requirements and the local project as an editable package:
+
     ```bash
     pip install -e . -r dev_requirements.txt
     ```
+
 * Verify the package was installed successfully:
-  ```bash
+
+    ```bash
     pip list | grep dbt-clickhouse
     ```
+
   the package will be directed to your local project.
 
 ### 3. Create a Branch
 
-Create a new branch for your feature or bug fix, please make sure to follow 
+Create a new branch for your feature or bug fix, please make sure to follow
 
 ```bash
 git checkout -b my-new-feature
@@ -48,10 +52,11 @@ make lint
 ```
 
 Fix any issues before proceeding. This runs:
-- `black` - code formatting
-- `isort` - import sorting
-- `mypy` - type checking
-- `yamllint` - YAML validation
+
+* `ruff format` - code formatting
+* `ruff check` - linting and import sorting
+* `mypy` - type checking
+* `yamllint` - YAML validation
 
 ### 6. Add or Adjust Tests
 
@@ -65,14 +70,15 @@ See [Running Tests](#running-tests) for more information.
 > **Important:** Please make sure the tests are running successfully before pushing your code.
 
 ### 8. Create a PR
+
 Create a pull request from your forked repository to the main one, include the following:
+
 * In case this is your first contribution, make sure to sign ClickHouse's CLA.
 * Link the related issue to your PR.
 * Add a sensible description of the feature/issue and detail the use case.
 * Make sure to update [CHANGELOG.md](CHANGELOG.md).
 
-
-# Running Tests
+## Running Tests
 
 This adapter passes all of dbt basic tests as presented in dbt's [official docs](https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter).
 Use `pytest tests` to run tests.
@@ -119,8 +125,8 @@ Use `dbt compile` to see the SQL queries that dbt is building. This is useful fo
 
 Interesting links:
 
-- [dbt debug() method documentation](https://docs.getdbt.com/reference/dbt-jinja-functions/debug-method)
-- [Guide to Jinja debugging](https://docs.getdbt.com/blog/guide-to-jinja-debug)
+* [dbt debug() method documentation](https://docs.getdbt.com/reference/dbt-jinja-functions/debug-method)
+* [Guide to Jinja debugging](https://docs.getdbt.com/blog/guide-to-jinja-debug)
 
 ### TL, DR: enabling macro debugging
 
@@ -149,13 +155,12 @@ locals()['<variable>']
 locals()['<variable>'].__dict__
 ```
 
-
 ### TL, DR: pdb Commands
 
 Reference: [Python pdb debugger commands](https://docs.python.org/3/library/pdb.html#debugger-commands)
 
 | Command | Description |
-|---------|-------------|
+| :------ | :---------- |
 | `c(ontinue)` | Continue execution |
 | `s(tep)` | Step into functions |
 | `n(ext)` | Execute next line (step over) |
@@ -171,7 +176,8 @@ Reference: [Python pdb debugger commands](https://docs.python.org/3/library/pdb.
 
 **Log a warning: [dbt warnings documentation](https://docs.getdbt.com/reference/dbt-jinja-functions/exceptions)**
 
-Remeber to execute your `dbt` commands with 
+Remeber to execute your `dbt` commands with
+
 ```jinja2
 {% do exceptions.warn("Invalid `number`. Got: " ~ number) %}
 ```

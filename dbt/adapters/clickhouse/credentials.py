@@ -42,6 +42,7 @@ class ClickHouseCredentials(Credentials):
     # When False, close the connection after each model so the next opens a
     # fresh TCP socket — lets a Cloud LB rebalance dbt across replicas.
     reuse_connections: bool = True
+    server_host_name: Optional[str] = None
 
     @property
     def type(self):
@@ -101,4 +102,5 @@ class ClickHouseCredentials(Credentials):
             'allow_automatic_deduplication',
             'tcp_keepalive',
             'reuse_connections',
+            'server_host_name',
         )

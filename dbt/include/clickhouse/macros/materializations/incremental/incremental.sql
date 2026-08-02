@@ -61,7 +61,7 @@
     {% set partition_by = config.get('partition_by') %}
     {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
-      {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql) -%}
+      {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, query_settings=config.get('query_settings', {})) -%}
       {% if column_changes and incremental_strategy != 'legacy' %}
         {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
         {% set existing_relation = load_cached_relation(this) %}

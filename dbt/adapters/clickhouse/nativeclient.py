@@ -37,8 +37,9 @@ class ChNativeClient(ChClientWrapper):
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
             _, columns = self._client.execute(
-                f"SELECT * FROM ( \n" f"{sql} \n" f") LIMIT 0",
+                f"SELECT * FROM ( \n{sql} \n) LIMIT 0",
                 with_column_types=True,
+                **kwargs,
             )
             return [ClickHouseColumn.create(column[0], column[1]) for column in columns]
         except clickhouse_driver.errors.Error as ex:
@@ -67,6 +68,7 @@ class ChNativeClient(ChClientWrapper):
             client_name=f'dbt-adapters/{dbt_adapters_version} dbt-clickhouse/{dbt_clickhouse_version} clickhouse-driver/{driver_version}',
             secure=credentials.secure,
             verify=credentials.verify,
+            server_hostname=credentials.server_host_name,
             certfile=credentials.client_cert,
             keyfile=credentials.client_cert_key,
             connect_timeout=credentials.connect_timeout,

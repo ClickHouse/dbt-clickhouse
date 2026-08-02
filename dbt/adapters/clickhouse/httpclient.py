@@ -36,12 +36,14 @@ class ChHttpClient(ChClientWrapper):
     def columns_in_query(self, sql: str, **kwargs) -> List[ClickHouseColumn]:
         try:
             query_result = self._client.query(
-                f"SELECT * FROM ( \n" f"{sql} \n" f") LIMIT 0",
+                f"SELECT * FROM ( \n{sql} \n) LIMIT 0",
                 **kwargs,
             )
             return [
                 ClickHouseColumn.create(name, ch_type.name)
-                for name, ch_type in zip(query_result.column_names, query_result.column_types)
+                for name, ch_type in zip(
+                    query_result.column_names, query_result.column_types, strict=True
+                )
             ]
         except DatabaseError as ex:
             err_msg = hide_stack_trace(ex)
@@ -74,6 +76,7 @@ class ChHttpClient(ChClientWrapper):
                 send_receive_timeout=credentials.send_receive_timeout,
                 client_name=f'dbt-adapters/{dbt_adapters_version} dbt-clickhouse/{dbt_clickhouse_version}',
                 verify=credentials.verify,
+                server_host_name=credentials.server_host_name,
                 client_cert=credentials.client_cert,
                 client_cert_key=credentials.client_cert_key,
                 query_limit=0,

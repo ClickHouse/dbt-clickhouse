@@ -97,7 +97,7 @@ def test_config(ch_test_users, ch_test_version):
             url = f"http://{test_host}:{client_port}"
             wait_until_responsive(timeout=30.0, pause=0.5, check=lambda: is_responsive(url))
         except Exception as e:
-            raise Exception('Failed to run docker compose: {}', str(e))
+            raise Exception('Failed to run docker compose: {}', str(e)) from e
     elif not client_port:
         if test_driver == 'native':
             client_port = 8443 if test_port == 9440 else 8123
@@ -137,7 +137,7 @@ def test_config(ch_test_users, ch_test_version):
         try:
             run_cmd(['docker', 'compose', '-f', compose_file, 'down', '-v'])
         except Exception as e:
-            raise Exception('Failed to run docker compose while cleaning up: {}', str(e))
+            raise Exception('Failed to run docker compose while cleaning up: {}', str(e)) from e
     else:
         for test_user in ch_test_users:
             test_client.command('DROP USER %s', (test_user,))
