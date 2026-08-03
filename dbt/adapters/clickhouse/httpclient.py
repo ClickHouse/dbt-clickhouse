@@ -64,8 +64,10 @@ class ChHttpClient(ChClientWrapper):
             self._client.database = None
 
     def close(self):
-        self._client.close()
-        self._discard_dedicated_pool()
+        try:
+            self._client.close()
+        finally:
+            self._discard_dedicated_pool()
 
     def _discard_dedicated_pool(self):
         if self._dedicated_pool is not None:

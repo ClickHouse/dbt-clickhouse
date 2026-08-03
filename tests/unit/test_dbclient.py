@@ -309,6 +309,25 @@ def test_close_removes_dedicated_pool_from_registry(mock_ch_client):
     assert pool not in all_managers
 
 
+def test_close_discards_pool_even_if_client_close_fails(mock_ch_client):
+    """The dedicated pool is torn down even when the underlying client close raises."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    pool = client._dedicated_pool
+    mock_ch_client.return_value.close.side_effect = RuntimeError('boom')
+    with pytest.raises(RuntimeError):
+        client.close()
+    assert client._dedicated_pool is None
+    assert pool not in all_managers
+
+
 def test_dedicated_pool_cleaned_up_on_connect_failure():
     """If get_client raises, the dedicated pool is cleared and unregistered."""
     with patch('clickhouse_connect.get_client') as mock_get_client:
