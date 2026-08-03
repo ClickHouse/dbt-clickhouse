@@ -30,6 +30,10 @@ s3_taxis_full_source = """
 select * from {{ clickhouse_s3source('taxi_s3', path='/trips_5.gz') }} LIMIT 1000
 """
 
+s3_taxis_external_id_source = """
+select * from {{ clickhouse_s3source('taxi_s3', path='/trips_5.gz', external_id='my-external-id') }} LIMIT 1000
+"""
+
 s3_taxis_inc = """
 {{ config(
     materialized='incremental',
@@ -176,4 +180,35 @@ class TestS3RoleArnGlobal:
         assert (
             "extra_credentials(role_arn='arn:aws:iam::123456789012:role/my-role')"
             in result.results[0].node.compiled_code
+        )
+
+
+class TestS3ExternalId:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            'vars': {
+                'taxi_s3': {
+                    'bucket': 'https://datasets-documentation.s3.eu-west-3.amazonaws.com/nyc-taxi/',
+                    'fmt': 'TabSeparatedWithNames',
+                    'role_arn': 'arn:aws:iam::123456789012:role/my-role',
+                }
+            }
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "s3_taxis_source.sql": s3_taxis_external_id_source,
+            "schema.yml": schema_yaml,
+        }
+
+    def test_external_id_in_compiled_sql(self, project):
+        # Only compile, don't run
+        result = run_dbt(["compile", "--select", "s3_taxis_source.sql"], expect_pass=True)
+
+        # Assert the external_id macro argument reaches the compiled SQL
+        assert (
+            "extra_credentials(role_arn='arn:aws:iam::123456789012:role/my-role', "
+            "external_id='my-external-id')" in result.results[0].node.compiled_code
         )

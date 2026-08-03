@@ -292,6 +292,7 @@ class ClickHouseAdapter(SQLAdapter):
         aws_secret_access_key: str,
         role_arn: str,
         compression: str = '',
+        external_id: str = '',
     ) -> str:
         s3config = {**self.config.vars.vars.get(config_name, {}), **s3_model_config}
 
@@ -332,8 +333,12 @@ class ClickHouseAdapter(SQLAdapter):
 
         extra_credentials = ''
         role_arn = role_arn or s3config.get('role_arn', '')
+        external_id = external_id or s3config.get('external_id', '')
+        if external_id and not role_arn:
+            raise DbtRuntimeError('S3 external_id specified without role_arn')
         if role_arn:
-            extra_credentials = f", extra_credentials(role_arn='{role_arn}')"
+            ext_id = f", external_id='{external_id}'" if external_id else ''
+            extra_credentials = f", extra_credentials(role_arn='{role_arn}'{ext_id})"
 
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
 
