@@ -40,3 +40,47 @@ def test_aws_credentials_from_config():
         "s3('https://test-bucket.s3.amazonaws.com/test/path', 'test_key_123', 'test_secret_456', 'Parquet')"
         == result
     )
+
+
+def test_model_config_does_not_mutate_global_config():
+    mock_config = MagicMock()
+    mock_vars = MagicMock()
+    s3_config = {
+        'bucket': 'test-bucket.s3.amazonaws.com',
+        'path': '/global/path',
+        'fmt': 'Parquet',
+    }
+    mock_vars.vars = {'test_s3': s3_config}
+    mock_config.vars = mock_vars
+
+    adapter = ClickHouseAdapter(mock_config, Mock(spec=SpawnContext))
+    adapter.config = mock_config
+
+    model_result = adapter.s3source_clause(
+        config_name='test_s3',
+        s3_model_config={'path': '/model/path'},
+        bucket='',
+        path='',
+        fmt='',
+        structure='',
+        aws_access_key_id='',
+        aws_secret_access_key='',
+        role_arn='',
+        compression='',
+    )
+    global_result = adapter.s3source_clause(
+        config_name='test_s3',
+        s3_model_config={},
+        bucket='',
+        path='',
+        fmt='',
+        structure='',
+        aws_access_key_id='',
+        aws_secret_access_key='',
+        role_arn='',
+        compression='',
+    )
+
+    assert s3_config['path'] == '/global/path'
+    assert '/model/path' in model_result
+    assert '/global/path' in global_result

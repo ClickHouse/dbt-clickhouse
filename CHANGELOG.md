@@ -10,6 +10,7 @@
   * Related to ([#669](https://github.com/ClickHouse/dbt-clickhouse/issues/669), [#670](https://github.com/ClickHouse/dbt-clickhouse/pull/670)).
 
 #### Bugs
+* Prevent model-level S3 configuration from mutating profile-level configuration used by subsequent models ([#696](https://github.com/ClickHouse/dbt-clickhouse/pull/696)).
 * Allow clustered profiles without `database_engine`; an omitted value is now handled as an empty engine instead of failing during compilation ([#697](https://github.com/ClickHouse/dbt-clickhouse/pull/697)).
 * Snapshots no longer fail with `TABLE_ALREADY_EXISTS` on `<snapshot>__dbt_tmp` after an interrupted run. The snapshot staging table is now dropped (idempotently, with `ON CLUSTER SYNC` where applicable) before being recreated, so an orphaned `__dbt_tmp` left behind by a previous failed run self-heals on the next run instead of poisoning every subsequent run. Closes [#691](https://github.com/ClickHouse/dbt-clickhouse/issues/691).
 * Replacing an existing view no longer fails with `UNSUPPORTED_METHOD` on filesystems without `renameat2(RENAME_EXCHANGE)` support (NFS, EFS, and others). ClickHouse implements `CREATE OR REPLACE VIEW` over an existing view with that syscall; when the server reports that atomic exchange is unsupported, the view materialization now falls back to a non-atomic `DROP` + `CREATE`, mirroring the existing fallback for table materializations ([#340](https://github.com/ClickHouse/dbt-clickhouse/issues/340)).
