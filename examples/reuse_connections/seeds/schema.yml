@@ -1,0 +1,11 @@
+version: 2
+
+seeds:
+  - name: events
+    config:
+      types:
+        event_id: UInt32
+        payload: String
+        category: LowCardinality(String)
+        amount: UInt32
+        created_at: DateTime
