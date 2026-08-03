@@ -265,18 +265,23 @@
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
-    {% set create_table = create_table_or_empty(temporary, relation, sql, has_contract) %}
-    {% if adapter.is_before_version('22.7.1.2484') or temporary -%}
-        {{ create_table }}
-    {%- else %}
-        {% call statement('create_table_empty') %}
-            {{ create_table }}
-        {% endcall %}
-         {{ add_index_and_projections(relation) }}
-
+    {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
+    {%- if not temporary %}
         {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
 {%- endmacro %}
+
+{#
+    "CREATE TABLE" step extracted from clickhouse__create_table_as so it can be used by other macros.
+#}
+{% macro clickhouse__create_empty_table(temporary, relation, sql, has_contract, statement_name='create_table_empty') %}
+    {% call statement(statement_name) %}
+        {{ create_table_or_empty(temporary, relation, sql, has_contract) }}
+    {% endcall %}
+    {%- if not temporary %}
+        {{ add_index_and_projections(relation) }}
+    {%- endif %}
+{% endmacro %}
 
 {#
     A macro that adds any configured projections or indexes at the same time.
@@ -340,9 +345,7 @@
         {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
-          {%- if not adapter.is_before_version('22.7.1.2484') %}
-            empty
-          {%- endif %}
+          empty
           as (
             {{ sql }}
           )

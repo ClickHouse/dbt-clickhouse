@@ -229,9 +229,7 @@
       {% endfor %}
     {% endif %}
     {% if should_full_refresh() %}
-      {% call statement('main') -%}
-        {{ clickhouse__create_target_table(backup_relation, sql, catchup_data) }}
-      {%- endcall %}
+      {% do clickhouse__create_target_table(backup_relation, sql, catchup_data) %}
 
       {# Drop MV just before exchange to minimize blind period while avoiding old MV writing to new table #}
       {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
@@ -292,12 +290,14 @@
   If catchup is False, creates an empty table without backfilling.
 #}
 {% macro clickhouse__create_target_table(relation, sql, catchup=True) -%}
-  {% if catchup == True %}
-    {{ get_create_table_as_sql(False, relation, sql) }}
+  {% if catchup %}
+    {% call statement('main') %}
+      {{ get_create_table_as_sql(False, relation, sql) }}
+    {% endcall %}
   {% else %}
     {{ log('Catchup config set to false, skipping table backfill for ' + relation.name) }}
     {% set has_contract = config.get('contract').enforced %}
-    {{ create_table_or_empty(False, relation, sql, has_contract) }}
+    {{ clickhouse__create_empty_table(False, relation, sql, has_contract, statement_name='main') }}
   {% endif %}
 {%- endmacro %}
 
@@ -309,9 +309,7 @@
   data into the table creating during step 1
 #}
 {% macro clickhouse__get_create_materialized_view_as_sql(relation, sql, views, catchup=True ) -%}
-  {% call statement('main') %}
-    {{ clickhouse__create_target_table(relation, sql, catchup) }}
-  {% endcall %}
+  {% do clickhouse__create_target_table(relation, sql, catchup) %}
   {%- set cluster_clause = on_cluster_clause(relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
@@ -506,9 +504,7 @@
   {{ clickhouse__drop_mvs_by_suffixes(target_relation, cluster_clause, views) }}
 
   {# recreate the target table #}
-  {% call statement('main') -%}
-    {{ clickhouse__create_target_table(intermediate_relation, sql, catchup) }}
-  {%- endcall %}
+  {% do clickhouse__create_target_table(intermediate_relation, sql, catchup) %}
   {{ adapter.rename_relation(existing_relation, backup_relation) }}
   {{ adapter.rename_relation(intermediate_relation, target_relation) }}
 
