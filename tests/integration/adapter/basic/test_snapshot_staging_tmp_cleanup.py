@@ -20,7 +20,7 @@ class TestSnapshotStagingTmpCleanup(BaseSnapshotTimestamp):
         orphan = f"{project.test_schema}.ts_snapshot__dbt_tmp"
         project.run_sql(f"DROP TABLE IF EXISTS {orphan}")
         project.run_sql(
-            f"CREATE TABLE {orphan} ENGINE = MergeTree ORDER BY tuple() " f"AS SELECT 1 AS id"
+            f"CREATE TABLE {orphan} ENGINE = MergeTree ORDER BY tuple() AS SELECT 1 AS id"
         )
 
         # Without the fix this raises TABLE_ALREADY_EXISTS; with the fix the
