@@ -2,7 +2,7 @@ from typing import List
 
 import clickhouse_connect
 from clickhouse_connect.driver.exceptions import DatabaseError, OperationalError
-from clickhouse_connect.driver.httpclient import get_pool_manager
+from clickhouse_connect.driver.httputil import all_managers, check_env_proxy, get_pool_manager
 from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt.adapters.clickhouse import ClickHouseColumn
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
@@ -65,9 +65,35 @@ class ChHttpClient(ChClientWrapper):
 
     def close(self):
         self._client.close()
+        self._discard_dedicated_pool()
+
+    def _discard_dedicated_pool(self):
         if self._dedicated_pool is not None:
             self._dedicated_pool.clear()
+            # get_pool_manager registers every pool in clickhouse-connect's
+            # module-level all_managers registry; without this pop each
+            # per-model pool stays pinned there for the process lifetime.
+            all_managers.pop(self._dedicated_pool, None)
             self._dedicated_pool = None
+
+    def _create_dedicated_pool(self, credentials):
+        interface = 'https' if credentials.secure else 'http'
+        options = {
+            'verify': credentials.verify,
+            'client_cert': credentials.client_cert,
+            'client_cert_key': credentials.client_cert_key,
+        }
+        # Passing pool_mgr to get_client bypasses clickhouse-connect's own
+        # pool construction and env proxy handling, so the dedicated pool
+        # must replicate both (see HttpClient.__init__ in clickhouse-connect).
+        if credentials.secure and credentials.server_host_name:
+            if credentials.verify:
+                options['assert_hostname'] = credentials.server_host_name
+            options['server_hostname'] = credentials.server_host_name
+        proxy = check_env_proxy(interface, credentials.host, credentials.port)
+        if proxy:
+            options['https_proxy' if credentials.secure else 'http_proxy'] = proxy
+        return get_pool_manager(**options)
 
     def _create_client(self, credentials):
         # When reuse_connections is False, give each client its own
@@ -77,12 +103,7 @@ class ChHttpClient(ChClientWrapper):
         # load balancer routes subsequent requests to the same replica.
         kwargs = {}
         if not credentials.reuse_connections:
-            self._dedicated_pool = get_pool_manager(
-                verify=credentials.verify,
-                ca_cert=None,
-                client_cert=credentials.client_cert,
-                client_cert_key=credentials.client_cert_key,
-            )
+            self._dedicated_pool = self._create_dedicated_pool(credentials)
             kwargs['pool_mgr'] = self._dedicated_pool
 
         try:
@@ -105,9 +126,7 @@ class ChHttpClient(ChClientWrapper):
                 **kwargs,
             )
         except OperationalError as ex:
-            if self._dedicated_pool is not None:
-                self._dedicated_pool.clear()
-                self._dedicated_pool = None
+            self._discard_dedicated_pool()
             raise ChRetryableException(str(ex)) from ex
 
     def _set_client_database(self):

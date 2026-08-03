@@ -1,13 +1,16 @@
+import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import dbt.adapters.clickhouse.dbclient as dbclient_module
 import pytest
 from clickhouse_connect.driver.exceptions import OperationalError
+from clickhouse_connect.driver.httputil import all_managers
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING, ChRetryableException
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
+from urllib3.poolmanager import ProxyManager
 
 
 @pytest.fixture
@@ -289,8 +292,25 @@ def test_close_without_dedicated_pool_does_not_error(mock_ch_client):
     client.close()  # Should not raise
 
 
+def test_close_removes_dedicated_pool_from_registry(mock_ch_client):
+    """close() unregisters the dedicated pool from clickhouse-connect's all_managers."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    pool = client._dedicated_pool
+    assert pool in all_managers
+    client.close()
+    assert pool not in all_managers
+
+
 def test_dedicated_pool_cleaned_up_on_connect_failure():
-    """If get_client raises, the dedicated pool is cleaned up."""
+    """If get_client raises, the dedicated pool is cleared and unregistered."""
     with patch('clickhouse_connect.get_client') as mock_get_client:
         mock_get_client.side_effect = OperationalError('connection refused')
         credentials = ClickHouseCredentials(
@@ -303,9 +323,8 @@ def test_dedicated_pool_cleaned_up_on_connect_failure():
         )
         with pytest.raises(ChRetryableException):
             ChHttpClient(credentials)
-        # Pool should have been cleaned up despite the failure
-        # (we can't inspect the instance since __init__ failed, but
-        # the OperationalError path in _create_client clears it)
+        pool = mock_get_client.call_args.kwargs['pool_mgr']
+        assert pool not in all_managers
 
 
 def test_dedicated_pool_includes_client_cert(mock_ch_client):
@@ -321,12 +340,86 @@ def test_dedicated_pool_includes_client_cert(mock_ch_client):
         client_cert='/path/to/cert.pem',
         client_cert_key='/path/to/key.pem',
     )
-    with patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm:
+    with (
+        patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm,
+        patch('dbt.adapters.clickhouse.httpclient.check_env_proxy', return_value=None),
+    ):
         mock_get_pm.return_value = MagicMock()
         ChHttpClient(credentials)
         mock_get_pm.assert_called_once_with(
             verify=True,
-            ca_cert=None,
             client_cert='/path/to/cert.pem',
             client_cert_key='/path/to/key.pem',
         )
+
+
+def test_dedicated_pool_includes_server_host_name(mock_ch_client):
+    """server_host_name is applied to the dedicated pool (SNI + hostname assertion)."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8443,
+        user='default',
+        password='',
+        schema='default',
+        secure=True,
+        reuse_connections=False,
+        server_host_name='clickhouse.example.com',
+    )
+    with (
+        patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm,
+        patch('dbt.adapters.clickhouse.httpclient.check_env_proxy', return_value=None),
+    ):
+        mock_get_pm.return_value = MagicMock()
+        ChHttpClient(credentials)
+        mock_get_pm.assert_called_once_with(
+            verify=True,
+            client_cert=None,
+            client_cert_key=None,
+            assert_hostname='clickhouse.example.com',
+            server_hostname='clickhouse.example.com',
+        )
+
+
+def test_dedicated_pool_server_host_name_without_verify(mock_ch_client):
+    """With verify disabled, server_host_name sets SNI but no hostname assertion."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8443,
+        user='default',
+        password='',
+        schema='default',
+        secure=True,
+        verify=False,
+        reuse_connections=False,
+        server_host_name='clickhouse.example.com',
+    )
+    with (
+        patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm,
+        patch('dbt.adapters.clickhouse.httpclient.check_env_proxy', return_value=None),
+    ):
+        mock_get_pm.return_value = MagicMock()
+        ChHttpClient(credentials)
+        mock_get_pm.assert_called_once_with(
+            verify=False,
+            client_cert=None,
+            client_cert_key=None,
+            server_hostname='clickhouse.example.com',
+        )
+
+
+def test_dedicated_pool_honors_env_proxy(mock_ch_client):
+    """With reuse_connections False, the dedicated pool still respects proxy env vars."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    env = {'http_proxy': 'http://proxy.example:3128', 'no_proxy': '', 'NO_PROXY': ''}
+    with patch.dict(os.environ, env):
+        client = ChHttpClient(credentials)
+    assert isinstance(client._dedicated_pool, ProxyManager)
+    assert str(client._dedicated_pool.proxy.url) == 'http://proxy.example:3128'
+    client.close()
