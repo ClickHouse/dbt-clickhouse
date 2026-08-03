@@ -64,7 +64,9 @@ class ClickHouseCredentials(Credentials):
         self.database = ''
 
         if self.driver == 'chdb' and (
-            self.cluster or self.cluster_mode or self.database_engine == 'Replicated'
+            self.cluster
+            or self.cluster_mode
+            or 'replicated' in (self.database_engine or '').lower()
         ):
             raise DbtRuntimeError(
                 'driver "chdb" runs an embedded single-node engine and does not support '
