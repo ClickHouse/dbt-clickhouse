@@ -1,12 +1,16 @@
+import os
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import dbt.adapters.clickhouse.dbclient as dbclient_module
 import pytest
+from clickhouse_connect.driver.exceptions import OperationalError
+from clickhouse_connect.driver.httputil import all_managers
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
-from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
+from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING, ChRetryableException
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
+from urllib3.poolmanager import ProxyManager
 
 
 @pytest.fixture
@@ -223,3 +227,192 @@ def test_database_dropped_invalidates_existence_cache(mock_ch_client):
 
     ChHttpClient(_lw_credentials(use_lw_deletes=False, schema='cache_test_db'))
     assert len(_exists_calls(mock_ch_client)) == 2
+
+
+def test_reuse_connections_false_creates_dedicated_pool(mock_ch_client):
+    """When reuse_connections is False, each client gets its own PoolManager."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    assert client._dedicated_pool is not None
+    pool = client._dedicated_pool
+    assert mock_ch_client.call_args.kwargs['pool_mgr'] is pool
+
+
+def test_reuse_connections_true_no_dedicated_pool(mock_ch_client):
+    """When reuse_connections is True (default), no dedicated pool is created."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=True,
+    )
+    client = ChHttpClient(credentials)
+    assert client._dedicated_pool is None
+    assert 'pool_mgr' not in mock_ch_client.call_args.kwargs
+
+
+def test_close_clears_dedicated_pool(mock_ch_client):
+    """close() clears and discards the dedicated PoolManager."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    mock_pool = MagicMock()
+    client._dedicated_pool = mock_pool
+    client.close()
+    mock_pool.clear.assert_called_once()
+    assert client._dedicated_pool is None
+
+
+def test_close_without_dedicated_pool_does_not_error(mock_ch_client):
+    """close() works normally when no dedicated pool exists (reuse_connections=True)."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=True,
+    )
+    client = ChHttpClient(credentials)
+    client.close()  # Should not raise
+
+
+def test_close_removes_dedicated_pool_from_registry(mock_ch_client):
+    """close() unregisters the dedicated pool from clickhouse-connect's all_managers."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    pool = client._dedicated_pool
+    assert pool in all_managers
+    client.close()
+    assert pool not in all_managers
+
+
+def test_close_discards_pool_even_if_client_close_fails(mock_ch_client):
+    """The dedicated pool is torn down even when the underlying client close raises."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    pool = client._dedicated_pool
+    mock_ch_client.return_value.close.side_effect = RuntimeError('boom')
+    with pytest.raises(RuntimeError):
+        client.close()
+    assert client._dedicated_pool is None
+    assert pool not in all_managers
+
+
+def test_dedicated_pool_cleaned_up_on_connect_failure():
+    """If get_client raises, the dedicated pool is cleared and unregistered."""
+    with patch('clickhouse_connect.get_client') as mock_get_client:
+        mock_get_client.side_effect = OperationalError('connection refused')
+        credentials = ClickHouseCredentials(
+            host='localhost',
+            port=8123,
+            user='default',
+            password='',
+            schema='default',
+            reuse_connections=False,
+        )
+        with pytest.raises(ChRetryableException):
+            ChHttpClient(credentials)
+        pool = mock_get_client.call_args.kwargs['pool_mgr']
+        assert pool not in all_managers
+
+
+def test_reuse_connections_false_secure_flips_pool_ownership(mock_ch_client):
+    """Over HTTPS, no dedicated pool is built; server_host_name defaults to the
+    connect host so clickhouse-connect builds and owns its pool (a TLS no-op
+    that makes close() tear down the transport)."""
+    credentials = ClickHouseCredentials(
+        host='cloud.example.com',
+        port=8443,
+        user='default',
+        password='',
+        schema='default',
+        secure=True,
+        reuse_connections=False,
+    )
+    client = ChHttpClient(credentials)
+    assert client._dedicated_pool is None
+    assert 'pool_mgr' not in mock_ch_client.call_args.kwargs
+    assert mock_ch_client.call_args.kwargs['server_host_name'] == 'cloud.example.com'
+
+
+def test_reuse_connections_false_secure_preserves_user_server_host_name(mock_ch_client):
+    """A user-configured server_host_name is passed through unchanged (it already
+    flips clickhouse-connect onto a client-owned pool)."""
+    credentials = ClickHouseCredentials(
+        host='127.0.0.1',
+        port=8443,
+        user='default',
+        password='',
+        schema='default',
+        secure=True,
+        reuse_connections=False,
+        server_host_name='clickhouse.example.com',
+    )
+    ChHttpClient(credentials)
+    kwargs = mock_ch_client.call_args.kwargs
+    assert 'pool_mgr' not in kwargs
+    assert kwargs['server_host_name'] == 'clickhouse.example.com'
+
+
+def test_reuse_connections_true_does_not_force_server_host_name(mock_ch_client):
+    """With connection reuse, server_host_name stays unset so the shared pool
+    keeps being used."""
+    credentials = ClickHouseCredentials(
+        host='cloud.example.com',
+        port=8443,
+        user='default',
+        password='',
+        schema='default',
+        secure=True,
+        reuse_connections=True,
+    )
+    ChHttpClient(credentials)
+    assert mock_ch_client.call_args.kwargs['server_host_name'] is None
+
+
+def test_dedicated_pool_honors_env_proxy(mock_ch_client):
+    """With reuse_connections False, the dedicated pool still respects proxy env vars."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+        reuse_connections=False,
+    )
+    env = {'http_proxy': 'http://proxy.example:3128', 'no_proxy': '', 'NO_PROXY': ''}
+    with patch.dict(os.environ, env):
+        client = ChHttpClient(credentials)
+    assert isinstance(client._dedicated_pool, ProxyManager)
+    assert str(client._dedicated_pool.proxy.url) == 'http://proxy.example:3128'
+    client.close()
