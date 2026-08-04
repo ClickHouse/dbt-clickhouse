@@ -329,7 +329,9 @@ class ClickHouseAdapter(SQLAdapter):
 
         comp = compression or s3config.get('compression', '')
         if comp:
-            comp = f"', {comp}'"
+            if not struct:
+                struct = ", ''"
+            comp = f", '{comp}'"
 
         extra_credentials = ''
         role_arn = role_arn or s3config.get('role_arn', '')
