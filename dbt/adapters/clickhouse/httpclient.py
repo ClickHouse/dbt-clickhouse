@@ -79,34 +79,38 @@ class ChHttpClient(ChClientWrapper):
             self._dedicated_pool = None
 
     def _create_dedicated_pool(self, credentials):
-        interface = 'https' if credentials.secure else 'http'
-        options = {
-            'verify': credentials.verify,
-            'client_cert': credentials.client_cert,
-            'client_cert_key': credentials.client_cert_key,
-        }
-        # Passing pool_mgr to get_client bypasses clickhouse-connect's own
-        # pool construction and env proxy handling, so the dedicated pool
-        # must replicate both (see HttpClient.__init__ in clickhouse-connect).
-        if credentials.secure and credentials.server_host_name:
-            if credentials.verify:
-                options['assert_hostname'] = credentials.server_host_name
-            options['server_hostname'] = credentials.server_host_name
-        proxy = check_env_proxy(interface, credentials.host, credentials.port)
+        # Passing pool_mgr to get_client bypasses clickhouse-connect's env
+        # proxy handling, so replicate it here. Plain-HTTP pools need no
+        # TLS options.
+        proxy = check_env_proxy('http', credentials.host, credentials.port)
         if proxy:
-            options['https_proxy' if credentials.secure else 'http_proxy'] = proxy
-        return get_pool_manager(**options)
+            return get_pool_manager(http_proxy=proxy)
+        return get_pool_manager()
 
     def _create_client(self, credentials):
-        # When reuse_connections is False, give each client its own
-        # PoolManager so that close() actually tears down the TCP/TLS
-        # connection. Without this, clickhouse-connect's process-wide
-        # pool singleton keeps sockets alive and the ClickHouse Cloud
-        # load balancer routes subsequent requests to the same replica.
+        # When reuse_connections is False, each model needs a fresh TCP/TLS
+        # connection so the ClickHouse Cloud load balancer can distribute
+        # models across replicas. In clickhouse-connect, close() only tears
+        # down the transport when the client owns its pool manager; in the
+        # standard path clients share a process-wide pool singleton that
+        # keeps sockets alive across close().
+        server_host_name = credentials.server_host_name
         kwargs = {}
         if not credentials.reuse_connections:
-            self._dedicated_pool = self._create_dedicated_pool(credentials)
-            kwargs['pool_mgr'] = self._dedicated_pool
+            if credentials.secure:
+                # Passing server_host_name flips clickhouse-connect onto an
+                # internally built, client-owned pool (SNI, certs, and proxy
+                # handling wired as usual), which close() then fully tears
+                # down. Defaulting it to the connect host makes TLS a no-op:
+                # SNI and hostname assertion match what the standard path
+                # verifies anyway.
+                server_host_name = server_host_name or credentials.host
+            else:
+                # clickhouse-connect only builds client-owned pools for
+                # HTTPS, so over plain HTTP we must supply a dedicated pool
+                # and discard it ourselves on close().
+                self._dedicated_pool = self._create_dedicated_pool(credentials)
+                kwargs['pool_mgr'] = self._dedicated_pool
 
         try:
             return clickhouse_connect.get_client(
@@ -120,7 +124,7 @@ class ChHttpClient(ChClientWrapper):
                 send_receive_timeout=credentials.send_receive_timeout,
                 client_name=f'dbt-adapters/{dbt_adapters_version} dbt-clickhouse/{dbt_clickhouse_version}',
                 verify=credentials.verify,
-                server_host_name=credentials.server_host_name,
+                server_host_name=server_host_name,
                 client_cert=credentials.client_cert,
                 client_cert_key=credentials.client_cert_key,
                 query_limit=0,

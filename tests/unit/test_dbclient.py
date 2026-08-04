@@ -346,36 +346,30 @@ def test_dedicated_pool_cleaned_up_on_connect_failure():
         assert pool not in all_managers
 
 
-def test_dedicated_pool_includes_client_cert(mock_ch_client):
-    """When mTLS certs are set, the dedicated pool is created with them."""
+def test_reuse_connections_false_secure_flips_pool_ownership(mock_ch_client):
+    """Over HTTPS, no dedicated pool is built; server_host_name defaults to the
+    connect host so clickhouse-connect builds and owns its pool (a TLS no-op
+    that makes close() tear down the transport)."""
     credentials = ClickHouseCredentials(
-        host='localhost',
+        host='cloud.example.com',
         port=8443,
         user='default',
         password='',
         schema='default',
         secure=True,
         reuse_connections=False,
-        client_cert='/path/to/cert.pem',
-        client_cert_key='/path/to/key.pem',
     )
-    with (
-        patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm,
-        patch('dbt.adapters.clickhouse.httpclient.check_env_proxy', return_value=None),
-    ):
-        mock_get_pm.return_value = MagicMock()
-        ChHttpClient(credentials)
-        mock_get_pm.assert_called_once_with(
-            verify=True,
-            client_cert='/path/to/cert.pem',
-            client_cert_key='/path/to/key.pem',
-        )
+    client = ChHttpClient(credentials)
+    assert client._dedicated_pool is None
+    assert 'pool_mgr' not in mock_ch_client.call_args.kwargs
+    assert mock_ch_client.call_args.kwargs['server_host_name'] == 'cloud.example.com'
 
 
-def test_dedicated_pool_includes_server_host_name(mock_ch_client):
-    """server_host_name is applied to the dedicated pool (SNI + hostname assertion)."""
+def test_reuse_connections_false_secure_preserves_user_server_host_name(mock_ch_client):
+    """A user-configured server_host_name is passed through unchanged (it already
+    flips clickhouse-connect onto a client-owned pool)."""
     credentials = ClickHouseCredentials(
-        host='localhost',
+        host='127.0.0.1',
         port=8443,
         user='default',
         password='',
@@ -384,46 +378,26 @@ def test_dedicated_pool_includes_server_host_name(mock_ch_client):
         reuse_connections=False,
         server_host_name='clickhouse.example.com',
     )
-    with (
-        patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm,
-        patch('dbt.adapters.clickhouse.httpclient.check_env_proxy', return_value=None),
-    ):
-        mock_get_pm.return_value = MagicMock()
-        ChHttpClient(credentials)
-        mock_get_pm.assert_called_once_with(
-            verify=True,
-            client_cert=None,
-            client_cert_key=None,
-            assert_hostname='clickhouse.example.com',
-            server_hostname='clickhouse.example.com',
-        )
+    ChHttpClient(credentials)
+    kwargs = mock_ch_client.call_args.kwargs
+    assert 'pool_mgr' not in kwargs
+    assert kwargs['server_host_name'] == 'clickhouse.example.com'
 
 
-def test_dedicated_pool_server_host_name_without_verify(mock_ch_client):
-    """With verify disabled, server_host_name sets SNI but no hostname assertion."""
+def test_reuse_connections_true_does_not_force_server_host_name(mock_ch_client):
+    """With connection reuse, server_host_name stays unset so the shared pool
+    keeps being used."""
     credentials = ClickHouseCredentials(
-        host='localhost',
+        host='cloud.example.com',
         port=8443,
         user='default',
         password='',
         schema='default',
         secure=True,
-        verify=False,
-        reuse_connections=False,
-        server_host_name='clickhouse.example.com',
+        reuse_connections=True,
     )
-    with (
-        patch('dbt.adapters.clickhouse.httpclient.get_pool_manager') as mock_get_pm,
-        patch('dbt.adapters.clickhouse.httpclient.check_env_proxy', return_value=None),
-    ):
-        mock_get_pm.return_value = MagicMock()
-        ChHttpClient(credentials)
-        mock_get_pm.assert_called_once_with(
-            verify=False,
-            client_cert=None,
-            client_cert_key=None,
-            server_hostname='clickhouse.example.com',
-        )
+    ChHttpClient(credentials)
+    assert mock_ch_client.call_args.kwargs['server_host_name'] is None
 
 
 def test_dedicated_pool_honors_env_proxy(mock_ch_client):
