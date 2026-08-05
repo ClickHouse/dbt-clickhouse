@@ -1,6 +1,7 @@
 import os
 import random
 import sys
+import tempfile
 import time
 import timeit
 import uuid
@@ -10,6 +11,13 @@ from subprocess import PIPE, Popen
 import pytest
 import requests
 from clickhouse_connect import get_client
+
+# Import pandas before any test can freeze time: importing it under a frozen
+# clock (freezegun, via sample_mode) corrupts its C init and segfaults.
+try:
+    import pandas  # noqa: F401
+except ImportError:
+    pass
 
 
 # Ensure that test users exist in environment
@@ -54,6 +62,25 @@ def test_config(ch_test_users, ch_test_version):
     )
     if ch_test_version.startswith('22.3'):
         os.environ['DBT_CH_TEST_SETTINGS'] = '22_3'
+
+    if test_driver == 'chdb':
+        chdb_path = os.environ.get('DBT_CH_TEST_CHDB_PATH') or tempfile.mkdtemp(
+            prefix='dbt_chdb_test_'
+        )
+        yield {
+            'driver': 'chdb',
+            'chdb_path': chdb_path,
+            'host': '',
+            'port': 0,
+            'user': 'default',
+            'password': '',
+            'cluster': '',
+            'db_engine': test_db_engine,
+            'secure': False,
+            'cluster_mode': False,
+            'database': '',
+        }
+        return
 
     docker = os.environ.get('DBT_CH_TEST_USE_DOCKER', '').lower() in ('1', 'true', 'yes')
 
@@ -143,6 +170,18 @@ def dbt_profile_target(test_config):
             }
         )
 
+    if test_config['driver'] == 'chdb':
+        return {
+            'type': 'clickhouse',
+            'threads': 4,
+            'driver': 'chdb',
+            'chdb_path': test_config['chdb_path'],
+            'user': 'default',
+            'check_exchange': False,
+            'use_lw_deletes': True,
+            'custom_settings': custom_settings,
+        }
+
     return {
         'type': 'clickhouse',
         'threads': 4,
@@ -170,6 +209,29 @@ def prefix():
 def unique_schema(request, prefix) -> str:
     test_file = request.module.__name__.split(".")[-1]
     return f"{prefix}_{test_file}_{int(time.time() * 1000)}"
+
+
+# Tests that cannot run on the embedded chdb driver, matched against the test
+# node id. Each entry documents why.
+CHDB_SKIP_PATTERNS = {
+    'grants': 'embedded single-user engine has no access control',
+    'Distributed': 'distributed tables require a cluster',
+    'projections/': 'verification reads system.query_log, not populated embedded',
+    'test_query_id_round_trips': 'system.query_log is not populated on the embedded engine',
+    'test_clickhouse_sql_header': (
+        'asserts the HTTP multi-statement error; chdb executes multi-statements'
+    ),
+}
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get('DBT_CH_TEST_DRIVER', '').lower() != 'chdb':
+        return
+    for item in items:
+        for pattern, reason in CHDB_SKIP_PATTERNS.items():
+            if pattern in item.nodeid:
+                item.add_marker(pytest.mark.skip(reason=f'chdb driver: {reason}'))
+                break
 
 
 def run_cmd(cmd):

@@ -29,6 +29,9 @@ dependencies = [
     "clickhouse-driver>=0.2.10"
 ]
 
+[project.optional-dependencies]
+chdb = ["clickhouse-connect[chdb]>=1.6.0"]
+
 [project.urls]
 Homepage = "https://github.com/ClickHouse/dbt-clickhouse"
 Repository = "https://github.com/ClickHouse/dbt-clickhouse"

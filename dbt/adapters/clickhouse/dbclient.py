@@ -48,6 +48,18 @@ def get_db_client(credentials: ClickHouseCredentials):
             driver = 'native'
         else:
             driver = 'http'
+    if driver == 'chdb':
+        credentials.driver = driver
+        try:
+            import clickhouse_connect  # noqa
+            from dbt.adapters.clickhouse.chdbclient import ChDbClient
+
+            return ChDbClient(credentials)
+        except ImportError as ex:
+            raise FailedToConnectError(
+                'chdb driver requires clickhouse-connect>=1.6.0 with the embedded chDB backend: '
+                'pip install "clickhouse-connect[chdb]"'
+            ) from ex
     if driver == 'http':
         if not port:
             port = 8443 if credentials.secure else 8123
