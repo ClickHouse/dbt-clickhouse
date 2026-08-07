@@ -70,7 +70,7 @@
           {{ adapter.rename_relation(existing_relation, backup_relation) }}
           {{ adapter.rename_relation(intermediate_relation, target_relation) }}
       {% endif %}
-    
+
     {# If mv_on_schema_change is set, we apply the strategy #}
     {% else %}
       {%- set mv_on_schema_change = incremental_validate_on_schema_change(configured_mv_on_schema_change, default='ignore') -%}
@@ -86,7 +86,7 @@
         {% endif %}
       {%- endif %}
     {% endif %}
-  
+
   {# Behaviour under full_refresh operations #}
   {% else %}
     {# Atomic full refresh with MV repopulation: when table is target of dbt MVs and repopulate_from_mvs_on_full_refresh is enabled #}
@@ -283,6 +283,48 @@
     {%- endif %}
 {% endmacro %}
 
+{% macro validate_projection(projection) -%}
+    {%- set proj_name = projection.get('name') -%}
+    {%- set proj_query = projection.get('query') -%}
+    {%- set proj_index = projection.get('index') -%}
+    {%- if proj_query and proj_index -%}
+        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' cannot specify both 'query' and 'index'.") }}
+    {%- elif not proj_query and not proj_index -%}
+        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' must specify either 'query' or 'index'.") }}
+    {%- endif -%}
+{%- endmacro %}
+
+{# Validates every configured projection without emitting DDL, so materializations
+   can fail fast on bad configs before dropping or renaming any relation. #}
+{% macro validate_projections() -%}
+    {%- for projection in config.get('projections', default=[]) -%}
+        {%- do validate_projection(projection) -%}
+    {%- endfor -%}
+{%- endmacro %}
+
+{# Renders a projection declaration (PROJECTION <name> <body>), the unit shared by
+   CREATE TABLE and ALTER TABLE — ALTER call sites prepend ADD themselves. #}
+{% macro clickhouse_projection_ddl(projection) -%}
+    {%- do validate_projection(projection) -%}
+    {%- set proj_name = projection.get('name') -%}
+    {%- set proj_query = projection.get('query') -%}
+    {%- set proj_index = projection.get('index') -%}
+    {%- if proj_query -%}
+        PROJECTION {{ proj_name }} ({{ proj_query }})
+    {%- else -%}
+        {%- if proj_index is string -%}
+            {%- set proj_index = [proj_index] -%}
+        {%- endif -%}
+        {%- set cols_str = proj_index | join(', ') -%}
+        {%- set cols_index_expr = '(' ~ cols_str ~ ')' if proj_index | length > 1 else cols_str -%}
+        {%- if not adapter.is_before_version('26.1.1.1') -%}
+            PROJECTION {{ proj_name }} INDEX {{ cols_index_expr }} TYPE basic
+        {%- else -%}
+            PROJECTION {{ proj_name }} (SELECT _part_offset ORDER BY {{ cols_str }})
+        {%- endif -%}
+    {%- endif -%}
+{%- endmacro %}
+
 {#
     A macro that adds any configured projections or indexes at the same time.
     We optimise to reduce the number of ALTER TABLE statements that are run to avoid
@@ -300,7 +342,7 @@
             ALTER TABLE {{ relation }}
             {%- if projections %}
                 {%- for projection in projections %}
-                    ADD PROJECTION {{ projection.get('name') }} ({{ projection.get('query') }})
+                    ADD {{ clickhouse_projection_ddl(projection) }}
                     {%- if not loop.last or indexes | length > 0 -%}
                         ,
                     {% endif %}
