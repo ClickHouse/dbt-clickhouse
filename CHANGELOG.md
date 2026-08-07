@@ -27,6 +27,9 @@
 * Marker parsing for multiple materialized views moved into its own `clickhouse__extract_mv_views` macro, and unit tests can now call any macro in `dbt/include/clickhouse/macros` directly through the new `tests/unit/macro_harness.py` helper, without a dbt project or a running ClickHouse ([#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
 * Replace black and isort with ruff ([#679](https://github.com/ClickHouse/dbt-clickhouse/pull/679)).
 
+#### Bugs
+* Fix `get_model_settings` mutating model config in-place, causing adapter-injected settings (e.g. `replicated_deduplication_window='0'`) to leak into `manifest.json` and produce false `state:modified` hits on every deferred run ([#677](https://github.com/ClickHouse/dbt-clickhouse/pull/677)).
+
 
 ### Release [1.10.1], 2026-06-16
 
