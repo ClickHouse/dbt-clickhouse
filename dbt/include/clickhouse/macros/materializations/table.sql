@@ -291,8 +291,6 @@
         {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' cannot specify both 'query' and 'index'.") }}
     {%- elif not proj_query and not proj_index -%}
         {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' must specify either 'query' or 'index'.") }}
-    {%- elif proj_index and adapter.is_before_version('25.6.1.1') -%}
-        {{ exceptions.raise_compiler_error("Projection '" ~ proj_name ~ "' with 'index' requires '_part_offset' virtual column available from ClickHouse 25.6 onwards.") }}
     {%- endif -%}
 {%- endmacro %}
 

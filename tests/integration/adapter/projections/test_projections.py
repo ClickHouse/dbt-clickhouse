@@ -1,4 +1,3 @@
-import contextlib
 import os
 import uuid
 
@@ -7,7 +6,6 @@ from dbt.tests.util import relation_from_name, run_dbt, write_file
 
 from tests.integration.adapter.helpers import (
     DEFAULT_RETRY_CONFIG,
-    below_version,
     retry_until_assertion_passes,
 )
 
@@ -332,18 +330,14 @@ class TestIndexProjections:
     )
     def test_index_projection(self, project, model_name, proj_name):
         run_dbt(["seed"])
-        unsupported_version = below_version(25, 6)
-        ctx = pytest.raises(AssertionError) if unsupported_version else contextlib.nullcontext()
-        with ctx:
-            run_dbt(["run", "--select", model_name])
-        if not unsupported_version:
-            result = project.run_sql(
-                f"SELECT name FROM system.projections "
-                f"WHERE database = '{project.test_schema}' "
-                f"AND table = '{model_name}' AND name = '{proj_name}'",
-                fetch="all",
-            )
-            assert len(result) == 1
+        run_dbt(["run", "--select", model_name])
+        result = project.run_sql(
+            f"SELECT name FROM system.projections "
+            f"WHERE database = '{project.test_schema}' "
+            f"AND table = '{model_name}' AND name = '{proj_name}'",
+            fetch="all",
+        )
+        assert len(result) == 1
 
 
 class BaseIndexProjectionValidation:
