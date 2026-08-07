@@ -28,8 +28,9 @@
       {%- endfor -%}
     )
     {{ engine_clause() }}
-    {{ order_cols(label='order by') }}
-    {{ partition_cols(label='partition by') }}
+    {{ order_by_clause(label='order by') }}
+    {{ partition_by_clause(label='partition by') }}
+    {{ primary_key_clause(label="primary key") }}
   {% endset %}
 
   {% call statement('_') -%}

@@ -126,9 +126,9 @@
   )
   
   {{ engine_clause() }}
-  {{ order_cols(label="order by") }}
+  {{ order_by_clause(label="order by") }}
+  {{ partition_by_clause(label="partition by") }}
   {{ primary_key_clause(label="primary key") }}
-  {{ partition_cols(label="partition by") }}
   {{ ttl_config(label="ttl")}}
   {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 {%- endmacro %}
