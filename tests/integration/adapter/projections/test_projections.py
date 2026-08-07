@@ -3,7 +3,7 @@ import os
 import uuid
 
 import pytest
-from dbt.tests.util import relation_from_name, run_dbt
+from dbt.tests.util import relation_from_name, run_dbt, write_file
 
 from tests.integration.adapter.helpers import (
     DEFAULT_RETRY_CONFIG,
@@ -392,3 +392,45 @@ class TestIndexProjectionValidation(BaseIndexProjectionValidation):
 )
 class TestDistributedIndexProjectionValidation(BaseIndexProjectionValidation):
     materialized = "distributed_table"
+
+
+@pytest.mark.skipif(
+    os.environ.get("DBT_CH_TEST_CLUSTER", "").strip() == "",
+    reason="Not on a cluster",
+)
+class TestDistributedProjectionValidationPreservesTable:
+    """A projection config error must fail before the materialization drops or
+    renames anything, leaving the previously built model fully queryable."""
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"people_distributed.sql": PEOPLE_MODEL_WITH_PROJECTION % "distributed_table"}
+
+    def test_invalid_config_leaves_existing_model_intact(self, project):
+        run_dbt(["seed"])
+        run_dbt(["run", "--select", "people_distributed"])
+
+        relation = relation_from_name(project.adapter, "people_distributed")
+        count_query = f"SELECT count(*) FROM {project.test_schema}.{relation.name}"
+        assert project.run_sql(count_query, fetch="one")[0] == 5
+
+        invalid_model = PEOPLE_MODEL_WITH_QUERY_AND_INDEX.replace(
+            "materialized='table'", "materialized='distributed_table'"
+        )
+        write_file(invalid_model, project.project_root, "models", "people_distributed.sql")
+        res = run_dbt(["run", "--select", "people_distributed"], expect_pass=False)
+        assert any(
+            "cannot specify both 'query' and 'index'" in (r.message or "") for r in res.results
+        )
+
+        # Both the distributed proxy and the underlying local table must survive
+        assert project.run_sql(count_query, fetch="one")[0] == 5
+        local_count_query = f"SELECT count(*) FROM {project.test_schema}.{relation.name}_local"
+        assert project.run_sql(local_count_query, fetch="one")[0] == 5
