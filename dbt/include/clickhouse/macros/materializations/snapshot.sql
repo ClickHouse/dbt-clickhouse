@@ -101,6 +101,8 @@
 
 {% macro clickhouse__snapshot_staging_table_check_strategy(strategy, source_sql, target_relation) -%}
 
+    {% set dbt_valid_to_current = config.get('dbt_valid_to_current') %}
+
     with snapshot_time as (
         select {{ strategy.updated_at }} as ts  -- Single timestamp
     ),
@@ -116,7 +118,12 @@
             {{ strategy.unique_key }} as dbt_unique_key
 
         from {{ target_relation }}
-        where dbt_valid_to is null
+        where
+            {% if dbt_valid_to_current %}
+                ( dbt_valid_to = {{ dbt_valid_to_current }} or dbt_valid_to is null )
+            {% else %}
+                dbt_valid_to is null
+            {% endif %}
 
     ),
 
@@ -127,7 +134,7 @@
             {{ strategy.unique_key }} as dbt_unique_key,
             snapshot_time.ts as dbt_updated_at,
             snapshot_time.ts as dbt_valid_from,
-            nullif(snapshot_time.ts, snapshot_time.ts) as dbt_valid_to,
+            coalesce(nullif(snapshot_time.ts, snapshot_time.ts), {{ dbt_valid_to_current or 'null' }}) as dbt_valid_to,
             {{ strategy.scd_id }} as dbt_scd_id
 
         from snapshot_query, snapshot_time
@@ -219,6 +226,8 @@
 
 {% macro clickhouse__snapshot_staging_table_timestamp_strategy(strategy, source_sql, target_relation) -%}
 
+    {% set dbt_valid_to_current = config.get('dbt_valid_to_current') %}
+
     with snapshot_query as (
 
         {{ source_sql }}
@@ -231,7 +240,12 @@
             {{ strategy.unique_key }} as dbt_unique_key
 
         from {{ target_relation }}
-        where dbt_valid_to is null
+        where
+            {% if dbt_valid_to_current %}
+                ( dbt_valid_to = {{ dbt_valid_to_current }} or dbt_valid_to is null )
+            {% else %}
+                dbt_valid_to is null
+            {% endif %}
 
     ),
 
@@ -242,7 +256,7 @@
             {{ strategy.unique_key }} as dbt_unique_key,
             {{ strategy.updated_at }} as dbt_updated_at,
             {{ strategy.updated_at }} as dbt_valid_from,
-            nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to,
+            coalesce(nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}), {{ dbt_valid_to_current or 'null' }}) as dbt_valid_to,
             {{ strategy.scd_id }} as dbt_scd_id
 
         from snapshot_query
