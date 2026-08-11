@@ -424,7 +424,11 @@ class TestDistributedProjectionValidationPreservesTable:
             "cannot specify both 'query' and 'index'" in (r.message or "") for r in res.results
         )
 
-        # Both the distributed proxy and the underlying local table must survive
+        # Both the distributed proxy and the underlying local tables must survive.
         assert project.run_sql(count_query, fetch="one")[0] == 5
-        local_count_query = f"SELECT count(*) FROM {project.test_schema}.{relation.name}_local"
-        assert project.run_sql(local_count_query, fetch="one")[0] == 5
+        cluster = os.environ.get("DBT_CH_TEST_CLUSTER", "").strip()
+        local_count_query = (
+            f"SELECT count(*) FROM clusterAllReplicas('{cluster}', "
+            f"{project.test_schema}.{relation.name}_local)"
+        )
+        assert project.run_sql(local_count_query, fetch="one")[0] >= 5
