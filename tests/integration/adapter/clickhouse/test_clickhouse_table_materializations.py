@@ -85,11 +85,14 @@ class TestTableMaterializationPrimaryKey:
 
         def primary_key_of(model_name):
             relation = relation_from_name(project.adapter, model_name)
-            return project.run_sql(
+            primary_key = project.run_sql(
                 f"select primary_key from system.tables "
                 f"where database='{relation.schema}' and name='{relation.identifier}'",
                 fetch="one",
             )[0]
+            # Some ClickHouse versions report the key expression with its original
+            # parentheses (e.g. '(id)'), others normalize to bare columns ('id')
+            return primary_key.strip('()')
 
         assert primary_key_of("pk_string") == "id, name"
         assert primary_key_of("pk_list") == "id, name"
