@@ -52,6 +52,51 @@ class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
         assert result[0] == 10
 
 
+class TestTableMaterializationPrimaryKey:
+    '''primary_key accepts a string or a list (Fusion listifies scalar configs),
+    and empty values must omit the PRIMARY KEY clause entirely.'''
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        pk_string = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='(id, name)', primary_key='(id, name)') }}
+            select 1 as id, 'one' as name
+        """
+        pk_list = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='(id, name)', primary_key=['id', 'name']) }}
+            select 1 as id, 'one' as name
+        """
+        pk_empty_list = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='id', primary_key=[]) }}
+            select 1 as id
+        """
+        return {
+            "pk_string.sql": pk_string,
+            "pk_list.sql": pk_list,
+            "pk_empty_list.sql": pk_empty_list,
+        }
+
+    def test_primary_key_variants(self, project):
+        results = run_dbt(["run"])
+        assert len(results) == 3
+
+        def primary_key_of(model_name):
+            relation = relation_from_name(project.adapter, model_name)
+            return project.run_sql(
+                f"select primary_key from system.tables "
+                f"where database='{relation.schema}' and name='{relation.identifier}'",
+                fetch="one",
+            )[0]
+
+        assert primary_key_of("pk_string") == "id, name"
+        assert primary_key_of("pk_list") == "id, name"
+        # With the clause omitted, ClickHouse defaults the primary key to the sorting key
+        assert primary_key_of("pk_empty_list") == "id"
+
+
 class TestDistributedMaterializations(BaseSimpleMaterializations):
     '''Test distributed materializations and check if data is properly distributed/replicated'''
 
