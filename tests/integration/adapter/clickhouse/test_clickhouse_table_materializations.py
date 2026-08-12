@@ -53,7 +53,7 @@ class TestMergeTreeTableMaterialization(BaseSimpleMaterializations):
 
 
 class TestTableMaterializationPrimaryKey:
-    '''primary_key accepts a string or a list (Fusion listifies scalar configs),
+    '''primary_key accepts a string or a list (v2 listifies scalar configs),
     and empty values must omit the PRIMARY KEY clause entirely.'''
 
     @pytest.fixture(scope="class")
