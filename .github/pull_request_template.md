@@ -4,5 +4,5 @@
 ## Checklist
 Delete items not relevant to your PR:
 - [ ] Unit and integration tests covering the common scenarios were added
-- [ ] A human-readable description of the changes was provided to include in CHANGELOG
+- [ ] A changelog entry was added following [Updating the Changelog](../CONTRIBUTING.md#updating-the-changelog) (user-facing, concise, PR link)
 - [ ] For significant changes, documentation in https://github.com/ClickHouse/clickhouse-docs was updated with further explanations or tutorials

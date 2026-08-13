@@ -41,3 +41,4 @@ These are mistakes agents commonly make that aren't obvious from reading CONTRIB
 - **New fields in `credentials.py` need defaults.** It's a frozen dataclass; omitting defaults breaks backwards compatibility.
 - **Jinja whitespace matters.** Use `{%- -%}` for whitespace control to keep generated SQL clean.
 - **Macro names prefixed with `clickhouse__` override dbt-core defaults** via `adapter.dispatch()`. Don't rename them without understanding the dispatch chain.
+- **Don't paste the PR body into CHANGELOG.md.** An entry is one or two sentences of user-visible change, then a link to the **pull request** (not the issue). Implementation details stay in the PR. See CONTRIBUTING.md "Updating the Changelog".
