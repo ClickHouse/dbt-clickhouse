@@ -78,6 +78,17 @@ Create a pull request from your forked repository to the main one, include the f
 * Add a sensible description of the feature/issue and detail the use case.
 * Make sure to update [CHANGELOG.md](CHANGELOG.md).
 
+## Updating the Changelog
+
+Add a user-facing entry to the unreleased section at the top of [CHANGELOG.md](CHANGELOG.md). Readers scan it when upgrading, so keep it short: what changed, and who it applies to if that is not obvious. Implementation details belong in the PR.
+
+```
+* Add an optional `external_id` argument to `clickhouse_s3source()` for S3 role-based access ([#698](https://github.com/ClickHouse/dbt-clickhouse/pull/698)).
+```
+
+* One or two sentences. Put it under **New Features**, **Improvements**, **Bugs**, or **Repository maintenance**.
+* Link the **pull request** at the end, not the issue.
+
 ## Running Tests
 
 This adapter passes all of dbt basic tests as presented in dbt's [official docs](https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter).
