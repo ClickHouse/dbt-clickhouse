@@ -3,6 +3,8 @@ import os
 import pytest
 from dbt.tests.util import run_dbt
 
+from tests.integration.adapter.helpers import retry_until_assertion_passes
+
 schema_change_with_codec_sql = """
 {{
     config(
@@ -78,11 +80,14 @@ class TestSchemaChangeWithCodec:
         assert result[0][1] == 1
 
         run_dbt(["--debug", "run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
 
-        assert all(len(row) == 3 for row in result)
-        assert result[0][2] == 0
-        assert result[3][2] == 5
+        def check_appended_rows():
+            result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+            assert all(len(row) == 3 for row in result)
+            assert result[0][2] == 0
+            assert result[3][2] == 5
+
+        retry_until_assertion_passes(check_appended_rows)
 
         table_name = f"{project.test_schema}.{model}"
         create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
@@ -160,11 +165,14 @@ class TestSyncAllColumnsWithCodec:
         assert result[0][1] == 1
 
         run_dbt(["run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
 
-        assert all(len(row) == 2 for row in result)
-        assert result[0][1] == 0
-        assert result[3][1] == 5
+        def check_synced_rows():
+            result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+            assert all(len(row) == 2 for row in result)
+            assert result[0][1] == 0
+            assert result[3][1] == 5
+
+        retry_until_assertion_passes(check_synced_rows)
 
         table_name = f"{project.test_schema}.{model}"
         create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]

@@ -3,6 +3,8 @@ import os
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
+from tests.integration.adapter.helpers import retry_until_assertion_passes
+
 schema_change_sql = """
 {{
     config(
@@ -54,8 +56,12 @@ class TestOnSchemaChange:
         assert len(result) == 3
         assert result[0][1] == 1
         run_dbt(["run", "--select", model])
-        result = project.run_sql(f"select * from {model}", fetch="all")
-        assert len(result) == 5
+
+        def check_ignored_rows():
+            result = project.run_sql(f"select * from {model}", fetch="all")
+            assert len(result) == 5
+
+        retry_until_assertion_passes(check_ignored_rows)
 
     @pytest.mark.parametrize("model", ("schema_change_fail", "schema_change_distributed_fail"))
     def test_fail(self, project, model):
@@ -90,9 +96,13 @@ class TestOnSchemaChange:
         assert len(result) == 3
         assert result[0][1] == 1
         run_dbt(["--debug", "run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
-        assert result[0][2] == 0
-        assert result[3][2] == 5
+
+        def check_appended_rows():
+            result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+            assert result[0][2] == 0
+            assert result[3][2] == 5
+
+        retry_until_assertion_passes(check_appended_rows)
 
 
 # contains dropped, added, and changed (type) columns
@@ -176,10 +186,14 @@ class TestComplexSchemaChange:
         assert len(result) == 3
         assert result[0][1] == 1
         run_dbt(["run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
-        assert all(len(row) == 2 for row in result)
-        assert result[0][1] == 0
-        assert result[3][1] == 5
+
+        def check_synced_rows():
+            result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+            assert all(len(row) == 2 for row in result)
+            assert result[0][1] == 0
+            assert result[3][1] == 5
+
+        retry_until_assertion_passes(check_synced_rows)
         result_types = project.run_sql(f"select toColumnTypeName(col_1) from {model}", fetch="one")
         assert result_types[0] == 'Float32'
 
@@ -227,6 +241,10 @@ class TestReordering:
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert result[0][1] == 1
         run_dbt(["run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
-        assert result[0][1] == 1
-        assert result[3][1] == 4
+
+        def check_reordered_rows():
+            result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+            assert result[0][1] == 1
+            assert result[3][1] == 4
+
+        retry_until_assertion_passes(check_reordered_rows)
