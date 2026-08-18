@@ -1,6 +1,7 @@
 import pytest
+from dbt.tests.adapter.basic.files import schema_base_yml, seeds_base_csv
 from dbt.tests.adapter.basic.test_table_materialization import BaseTableMaterialization
-from dbt.tests.util import run_dbt, run_dbt_and_capture
+from dbt.tests.util import relation_from_name, run_dbt, run_dbt_and_capture
 
 
 class TestTableMat(BaseTableMaterialization):
@@ -226,3 +227,102 @@ class TestTableWithMVDefaultsToFail:
             "Table with MV pointing to it should auto-default to mv_on_schema_change='fail' "
             "and fail when schema changes. Got log: " + log_output
         )
+
+
+table_schema_with_pk = """
+version: 2
+models:
+  - name: table_primary_key
+    config:
+      materialized: table
+      primary_key:
+        - event_date
+        - id
+        - event_datetime
+      contract:
+        enforced: true
+"""
+
+table_schema_with_pk_and_order = """
+models:
+  - name: table_primary_key_and_order_by
+    config:
+      materialized: table
+      primary_key:
+        - event_date
+        - id
+      order_by:
+        - event_date
+        - id
+        - event_datetime
+      contract:
+        enforced: true
+"""
+
+table_schema_columns = """
+    columns:
+      - name: event_date
+        data_type: Date
+      - name: id
+        data_type: Int32
+      - name: name
+        data_type: String
+      - name: event_datetime
+        data_type: DateTime
+"""
+
+table_model_with_pk = """
+SELECT
+    toDate(some_date) AS event_date
+    , id
+    , name
+    , some_date AS event_datetime
+FROM {{ source('raw', 'seed') }}
+"""
+
+
+def get_table_columns(project, table_name):
+    """Helper function to get the primary_key, sorting_key columns of a table."""
+    relation = relation_from_name(project.adapter, table_name)
+
+    result = project.run_sql(
+        f"SELECT primary_key, sorting_key FROM system.tables "
+        f"WHERE database = '{relation.path.schema}' AND name = '{relation.identifier}'",
+        fetch="one",
+    )
+    return (result[0], result[1])
+
+
+class TestTableWithPrimaryKeyDeclare:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "base.csv": seeds_base_csv,
+            "schema.yml": schema_base_yml,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "table_primary_key.sql": table_model_with_pk,
+            "table_primary_key.yml": table_schema_with_pk + table_schema_columns,
+            "table_primary_key_and_order_by.sql": table_model_with_pk,
+            "table_primary_key_and_order_by.yml": table_schema_with_pk_and_order
+            + table_schema_columns,
+        }
+
+    def test_primary_key_and_order_by_definitions(self, project):
+        # Seed the source data
+        run_dbt(["seed"])
+        # Run dbt to create the models
+        run_dbt(["run"])
+
+        # Validate PRIMARY KEY and ORDER BY columns when PRIMARY KEY is declared
+        columns = get_table_columns(project, 'table_primary_key')
+        assert 'event_date, id, event_datetime' == columns[0]
+        assert columns[0] == columns[1]
+
+        # Validate PRIMARY KEY and ORDER BY columns when PRIMARY KEY and ORDER BY is declared
+        columns = get_table_columns(project, 'table_primary_key_and_order_by')
+        assert 'event_date, id' == columns[0]
+        assert 'event_date, id, event_datetime' == columns[1]
