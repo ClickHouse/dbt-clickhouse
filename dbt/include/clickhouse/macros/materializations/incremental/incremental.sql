@@ -222,13 +222,16 @@
     {% endif %}
 
     {% call statement('delete_existing_data') %}
+      {#- The delete mutation may run on a replica that has not yet synced the new data;
+          embedding the setting in the subquery makes it read a fresh snapshot. -#}
+      {%- set subquery_settings = ' settings select_sequential_consistency = 1' if target.database_engine == 'Shared' else '' -%}
       {% if is_distributed %}
           {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
             delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }})
+                                          from {{ inserting_relation }}{{ subquery_settings }})
       {% else %}
             delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }})
+                                          from {{ inserting_relation }}{{ subquery_settings }})
       {% endif %}
       {%- if incremental_predicates %}
         {% for predicate in incremental_predicates %}
