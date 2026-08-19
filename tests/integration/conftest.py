@@ -45,7 +45,8 @@ def test_config(ch_test_users, ch_test_version):
     test_user = os.environ.get('DBT_CH_TEST_USER', 'default')
     test_password = os.environ.get('DBT_CH_TEST_PASSWORD', '')
     test_cluster = os.environ.get('DBT_CH_TEST_CLUSTER', '')
-    test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', '')
+    test_cloud = os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes')
+    test_db_engine = os.environ.get('DBT_CH_TEST_DB_ENGINE', 'Shared' if test_cloud else '')
     test_secure = test_port in (8443, 9440)
     test_cluster_mode = os.environ.get('DBT_CH_TEST_CLUSTER_MODE', '').lower() in (
         '1',
@@ -130,16 +131,11 @@ def dbt_profile_target(test_config):
         custom_settings.update(
             {
                 'enable_parallel_replicas': 0,
-                # CRITICAL SETTINGS FOR CONSISTENCY
-                'mutations_sync': 3,
-                'replication_alter_partitions_sync': 2,
-                'insert_quorum': 'auto',
                 # DEDUPLICATION SETTINGS
                 'insert_deduplicate': 1,
                 # ADDITIONAL HELPFUL SETTINGS
                 'max_replica_delay_for_distributed_queries': 10,
                 'fallback_to_stale_replicas_for_distributed_queries': 0,
-                'distributed_foreground_insert': 1,
             }
         )
 
