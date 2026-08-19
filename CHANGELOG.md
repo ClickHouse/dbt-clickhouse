@@ -1,3 +1,8 @@
+### Release [1.10.3], 2026-XX-XX
+
+#### Improvements
+* Test against `dbt-core` 1.12 and widen the `dbt-adapters` upper bound to `<2.0` ([#665](https://github.com/ClickHouse/dbt-clickhouse/issues/665)).
+
 ### Release [1.10.2], 2026-08-13
 
 #### Improvements
