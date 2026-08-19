@@ -62,6 +62,7 @@ def test_shared_engine_default_settings(mock_ch_client):
 
     assert settings['select_sequential_consistency'] == '1'
     assert settings['mutations_sync'] == '3'
+    assert settings['lightweight_deletes_sync'] == '3'
     assert settings['alter_sync'] == '3'
 
 
@@ -77,6 +78,7 @@ def test_shared_engine_custom_settings_override(mock_ch_client):
         custom_settings={
             'select_sequential_consistency': '0',
             'mutations_sync': '1',
+            'lightweight_deletes_sync': '1',
             'alter_sync': '0',
         },
     )
@@ -85,6 +87,7 @@ def test_shared_engine_custom_settings_override(mock_ch_client):
 
     assert settings['select_sequential_consistency'] == '0'
     assert settings['mutations_sync'] == '1'
+    assert settings['lightweight_deletes_sync'] == '1'
     assert settings['alter_sync'] == '0'
 
 
@@ -101,6 +104,7 @@ def test_default_engine_settings(mock_ch_client):
     settings = _get_settings(mock_ch_client)
 
     assert settings['mutations_sync'] == '3'
+    assert settings['lightweight_deletes_sync'] == '3'
     assert settings['alter_sync'] == '3'
     assert 'select_sequential_consistency' not in settings
 

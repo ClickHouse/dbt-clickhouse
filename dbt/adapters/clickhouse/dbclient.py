@@ -96,6 +96,7 @@ class ChClientWrapper(ABC):
         if credentials.database_engine == 'Shared':
             self._conn_settings.setdefault('select_sequential_consistency', '1')
         self._conn_settings.setdefault('mutations_sync', '3')
+        self._conn_settings.setdefault('lightweight_deletes_sync', '3')
         self._conn_settings.setdefault('alter_sync', '3')
         self._conn_settings.setdefault('insert_distributed_sync', '1')
         self._client = self._create_client(credentials)
