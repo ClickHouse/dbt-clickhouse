@@ -24,7 +24,10 @@ from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySuppor
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
 from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
-from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
+from dbt.adapters.clickhouse.dbclient import (
+    get_injected_model_settings, 
+    ND_MUTATION_SETTING,
+)
 from dbt.adapters.clickhouse.errors import (
     schema_change_fail_error,
 )
@@ -83,6 +86,30 @@ class ClickHouseAdapter(SQLAdapter):
     def __init__(self, config, mp_context: SpawnContext):
         BaseAdapter.__init__(self, config, mp_context)
         self.cache = ClickHouseRelationsCache()
+
+    def set_macro_resolver(self, macro_resolver) -> None:
+        super().set_macro_resolver(macro_resolver)
+        # NOTE: this override is unrelated to macro resolution — we piggyback on this hook
+        # because it is the earliest point where both credentials and the full manifest are
+        # available without a database connection.
+        # Inject adapter-level settings into manifest nodes at parse time so that both
+        # the parse manifest and the run manifest contain the same settings dict.
+        # Without this, settings would only appear after dbt run, causing false
+        # state:modified hits on every subsequent deferred run.
+        # Guard on `hasattr(nodes)` so this is a no-op for a MacroManifest.
+        if not hasattr(macro_resolver, 'nodes'):
+            return
+        for node in macro_resolver.nodes.values():
+            if node.resource_type != 'model':
+                continue
+            injected = get_injected_model_settings(
+                self.config.credentials, node.config.materialized
+            )
+            if injected:
+                settings = node.config.get('settings') or {}
+                for key, value in injected.items():
+                    settings.setdefault(key, value)
+                node.config['settings'] = settings
 
     @classmethod
     def date_function(cls):
@@ -557,9 +584,6 @@ class ClickHouseAdapter(SQLAdapter):
     @available
     def get_model_settings(self, model, engine='MergeTree'):
         settings = model['config'].get('settings', {})
-        materialization_type = model['config'].get('materialized')
-        conn = self.connections.get_if_exists()
-        conn.handle.update_model_settings(settings, materialization_type)
         settings = self.filter_settings_by_engine(settings, engine)
         settings_str = self._build_settings_str(settings)
         return f"""

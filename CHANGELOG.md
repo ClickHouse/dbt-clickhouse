@@ -27,6 +27,9 @@
 * Extract multi-MV marker parsing into its own macro and add a unit-test harness for macros ([#683](https://github.com/ClickHouse/dbt-clickhouse/pull/683)).
 * Replace black and isort with ruff ([#679](https://github.com/ClickHouse/dbt-clickhouse/pull/679)).
 
+#### Bugs
+* Fix `get_model_settings` mutating model config in-place, causing adapter-injected settings (e.g. `replicated_deduplication_window='0'`) to leak into `manifest.json` and produce false `state:modified` hits on every deferred run ([#677](https://github.com/ClickHouse/dbt-clickhouse/pull/677)).
+
 
 ### Release [1.10.1], 2026-06-16
 
