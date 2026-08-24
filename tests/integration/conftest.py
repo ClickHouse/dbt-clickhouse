@@ -194,6 +194,23 @@ def _dbt_core_v2_load_catalog(project_root, start):
         return DbtCoreV2Artifact(data)
 
 
+def _dbt_core_v2_mocked_event_time_end():
+    # Upstream microbatch/sample tests control "now" via
+    # mock.patch.object(MicrobatchBuilder, 'build_end_time', return_value=dt) —
+    # an in-process patch the v2 subprocess never sees, so it falls back to
+    # Utc::now() and back-fills every daily batch from `begin` to today
+    # (~2,400 batches, minutes per run). Detect an active patch and return the
+    # mocked end time so it can be forwarded to the CLI.
+    from unittest import mock
+
+    from dbt.materializations.incremental.microbatch import MicrobatchBuilder
+
+    build_end_time = MicrobatchBuilder.build_end_time
+    if isinstance(build_end_time, mock.Mock):
+        return build_end_time()
+    return None
+
+
 def _dbt_core_v2_invoke(args):
     # Python's dbtRunner tolerates non-string args (e.g. --limit 5); subprocess doesn't.
     args = [str(a) for a in args]
@@ -213,6 +230,12 @@ def _dbt_core_v2_invoke(args):
         invoke_args += ['--log-level', 'debug']
     if not any(a.startswith('--log-path') for a in invoke_args):
         invoke_args += ['--log-path', 'logs_v2']
+    if invoke_args and invoke_args[0] in ('run', 'build') and not any(
+        a.startswith('--event-time-end') for a in invoke_args
+    ):
+        mocked_end = _dbt_core_v2_mocked_event_time_end()
+        if mocked_end is not None:
+            invoke_args += ['--event-time-end', mocked_end.strftime('%Y-%m-%d %H:%M:%S')]
     proc = subprocess.run([DBT_CORE_V2_BINARY] + invoke_args, capture_output=True, text=True)
     output = proc.stdout + proc.stderr
     print(output)
