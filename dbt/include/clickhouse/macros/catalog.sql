@@ -1,18 +1,18 @@
 {% macro clickhouse__get_catalog(information_schema, schemas) -%}
   {%- call statement('catalog', fetch_result=True) -%}
-    {{ get_catalog_results_sql(get_catalog_schemas_where_clause_sql(schemas)) }}
+    {{ clickhouse__get_catalog_results_sql(clickhouse__get_catalog_schemas_where_clause_sql(schemas)) }}
   {%- endcall -%}
   {{ return(load_result('catalog').table) }}
 {%- endmacro %}
 
 {% macro clickhouse__get_catalog_relations(information_schema, relations) -%}
   {%- call statement('catalog', fetch_result=True) -%}
-    {{ get_catalog_results_sql(get_catalog_relations_where_clause_sql(relations)) }}
+    {{ clickhouse__get_catalog_results_sql(clickhouse__get_catalog_relations_where_clause_sql(relations)) }}
   {%- endcall -%}
   {{ return(load_result('catalog').table) }}
 {%- endmacro %}
 
-{% macro get_catalog_results_sql(where_clause) -%}
+{% macro clickhouse__get_catalog_results_sql(where_clause) -%}
     select
       '' as table_database,
       columns.database as table_schema,
@@ -23,14 +23,14 @@
       columns.position as column_index,
       columns.type as column_type,
       nullIf(columns.comment, '') as column_comment,
-      null as table_owner
+      cast(null as Nullable(String)) as table_owner
     from system.columns as columns
     join system.tables as tables on tables.database = columns.database and tables.name = columns.table
     {{ where_clause }}
     order by columns.database, columns.table, columns.position
 {%- endmacro %}
 
-{% macro get_catalog_schemas_where_clause_sql(schemas) -%}
+{% macro clickhouse__get_catalog_schemas_where_clause_sql(schemas) -%}
   {% if schemas | length == 0 %}
     where 1 = 0
   {% else %}
@@ -44,7 +44,7 @@
   {% endif %}
 {%- endmacro %}
 
-{% macro get_catalog_relations_where_clause_sql(relations) -%}
+{% macro clickhouse__get_catalog_relations_where_clause_sql(relations) -%}
   {% if relations | length == 0 %}
     where 1 = 0
   {% else %}
