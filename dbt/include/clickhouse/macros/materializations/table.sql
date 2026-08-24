@@ -385,7 +385,7 @@
           {{ sql }}
         )
     {%- else %}
-        create table {{ relation }}
+        create table {% if config.get('create_if_not_exists', false) %}if not exists {% endif %}{{ relation }}
         {{ on_cluster_clause(relation)}}
         {%- if has_contract%}
           {{ get_assert_columns_equivalent(sql) }}
