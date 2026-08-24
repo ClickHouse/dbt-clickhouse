@@ -96,16 +96,24 @@ Use `pytest tests` to run tests.
 
 There are two ways to run the integration tests:
 
-* **Sequential (default):** plain `pytest tests`. With `DBT_CH_TEST_USE_DOCKER=True` the test session
-  starts and stops the ClickHouse cluster from
-  [tests/integration/docker-compose.yml](./tests/integration/docker-compose.yml) for you.
-* **Parallel:** `pytest tests -n 4 --dist loadscope` (requires `pytest-xdist`, part of
-  `dev_requirements.txt`; `--dist loadscope` is required because the project/schema fixtures are
-  class-scoped). In this mode the ClickHouse cluster must be **started externally before the run**
-  (e.g. `docker compose -f tests/integration/docker-compose.yml up -d`) and
-  `DBT_CH_TEST_USE_DOCKER` must stay unset — each xdist worker would otherwise restart the cluster
-  underneath the others, and the tests will refuse the combination. This is how the GitHub Actions
-  workflows run.
+**Sequential (default):**  
+```shell
+# If you add DBT_CH_TEST_USE_DOCKER=True, as an environment variable or in the test.env file, pytest will automatically start and stop the ClickHouse cluster from tests/integration/docker-compose.yml for you.
+pytest tests
+```
+**Parallel:** 
+This method is incompatible with `DBT_CH_TEST_USE_DOCKER=True`. You need to start and stop the Docker container yourself. You can use the tests docker compose file to start the ClickHouse cluster:
+
+```shell
+docker compose -f tests/integration/docker-compose.yml up -d
+```
+
+And then:
+```shell
+pytest tests -n 10 --dist loadscope
+```
+
+#### Test configuration
 
 You can customize the test environment via environment variables. We recommend doing so with the pytest `pytest-dotenv` plugin combined with root level `test.env`
 configuration file (this file should not be checked into git).  The following environment variables are recognized:
