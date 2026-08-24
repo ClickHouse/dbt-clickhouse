@@ -277,10 +277,21 @@
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
-    {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
-    {%- if not temporary %}
-        {{ clickhouse__insert_into(relation, sql, has_contract) }}
-    {%- endif %}
+    {%- set create_if_not_exists = config.get('create_if_not_exists', false) and not temporary -%}
+    {%- if create_if_not_exists -%}
+        {%- if has_contract or config.get('projections', default=[]) or config.get('indexes', default=[]) -%}
+            {{ exceptions.raise_compiler_error(
+                "create_if_not_exists is not supported together with contract, projections, or indexes.") }}
+        {%- endif -%}
+        {% call statement('create_table') %}
+            {{ create_table_or_empty(temporary, relation, sql, has_contract) }}
+        {% endcall %}
+    {%- else -%}
+        {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
+        {%- if not temporary %}
+            {{ clickhouse__insert_into(relation, sql, has_contract) }}
+        {%- endif %}
+    {%- endif -%}
 {%- endmacro %}
 
 {#
@@ -399,7 +410,9 @@
         {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
+          {%- if not config.get('create_if_not_exists', false) %}
           empty
+          {%- endif %}
           as (
             {{ sql }}
           )
