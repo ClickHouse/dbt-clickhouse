@@ -147,15 +147,19 @@ class TestProjections:
             % "table",
         }
 
+    def _get_cluster(self) -> str:
+        # In Cloud we don't need to use `ON CLUSTER` for regular operations, but it's still useful for some
+        # edge cases like flushing/querying all the different query_log.
+        cluster = os.environ.get("DBT_CH_TEST_CLUSTER", "").strip()
+        on_cloud = os.environ.get("DBT_CH_TEST_CLOUD", "").lower() in ("1", "true", "yes")
+        return "default" if not cluster and on_cloud else cluster
+
     def _get_table_reference(self, table: str) -> str:
-        return (
-            table
-            if os.environ.get("DBT_CH_TEST_CLUSTER", "").strip() == ""
-            else f"clusterAllReplicas({os.environ.get('DBT_CH_TEST_CLUSTER')}, {table})"
-        )
+        cluster = self._get_cluster()
+        return table if not cluster else f"clusterAllReplicas('{cluster}', {table})"
 
     def _flush_system_logs(self, project) -> None:
-        cluster = os.environ.get("DBT_CH_TEST_CLUSTER", "").strip()
+        cluster = self._get_cluster()
         cluster_clause = f'ON CLUSTER "{cluster}"' if cluster else ""
         project.run_sql(f"SYSTEM FLUSH LOGS {cluster_clause}", fetch="all")
 
