@@ -284,7 +284,7 @@
                 "create_if_not_exists is not supported together with contract, projections, or indexes.") }}
         {%- endif -%}
         {% call statement('create_table') %}
-            {{ create_table_or_empty(temporary, relation, sql, has_contract) }}
+            {{ create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=true, empty=false) }}
         {% endcall %}
     {%- else -%}
         {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
@@ -383,7 +383,7 @@
     {% endif %}
 {% endmacro %}
 
-{% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
+{% macro create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=false, empty=true) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
     {{ sql_header if sql_header is not none }}
@@ -396,7 +396,7 @@
           {{ sql }}
         )
     {%- else %}
-        create table {% if config.get('create_if_not_exists', false) %}if not exists {% endif %}{{ relation }}
+        create table {% if if_not_exists %}if not exists {% endif %}{{ relation }}
         {{ on_cluster_clause(relation)}}
         {%- if has_contract%}
           {{ get_assert_columns_equivalent(sql) }}
@@ -410,7 +410,7 @@
         {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
-          {%- if not config.get('create_if_not_exists', false) %}
+          {%- if empty %}
           empty
           {%- endif %}
           as (
