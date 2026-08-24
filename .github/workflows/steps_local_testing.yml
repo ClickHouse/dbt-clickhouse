@@ -64,7 +64,7 @@ jobs:
           DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
-          pytest tests -n 4 --dist loadscope --timeout=300
+          pytest tests -n 5 --dist loadscope --timeout=300
 
       - name: Run Native tests
         env:
@@ -72,4 +72,4 @@ jobs:
           DBT_CH_TEST_CLUSTER: test_shard
         run: |
           PYTHONPATH="${PYTHONPATH}:dbt"
-          pytest tests -n 4 --dist loadscope --timeout=300
+          pytest tests -n 5 --dist loadscope --timeout=300
