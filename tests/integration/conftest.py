@@ -230,8 +230,10 @@ def _dbt_core_v2_invoke(args):
         invoke_args += ['--log-level', 'debug']
     if not any(a.startswith('--log-path') for a in invoke_args):
         invoke_args += ['--log-path', 'logs_v2']
-    if invoke_args and invoke_args[0] in ('run', 'build') and not any(
-        a.startswith('--event-time-end') for a in invoke_args
+    if (
+        invoke_args
+        and invoke_args[0] in ('run', 'build')
+        and not any(a.startswith('--event-time-end') for a in invoke_args)
     ):
         mocked_end = _dbt_core_v2_mocked_event_time_end()
         if mocked_end is not None:
@@ -252,9 +254,7 @@ def _dbt_core_v2_invoke(args):
         # here to match the Python artifact shape.
         ephemeral_ids = _dbt_core_v2_ephemeral_node_ids(project_root)
         entries = [
-            r
-            for r in run_results.get('results', [])
-            if r.get('unique_id') not in ephemeral_ids
+            r for r in run_results.get('results', []) if r.get('unique_id') not in ephemeral_ids
         ]
         # Python's CloneRunner reports "No-op" for clone targets that already
         # exist (the clone materialization returns without running a `main`
@@ -299,16 +299,12 @@ def _dbt_core_v2_run_dbt(args=None, expect_pass=True, callbacks=None):
         # No run_results.json means the invocation died before running nodes
         # (parse/config error). Python's run_dbt propagates those as exceptions
         # regardless of expect_pass; only node-level failures return results.
-        raise DbtRuntimeError(
-            f"dbt core v2 exited with rc={proc.returncode}\n{output}"
-        )
+        raise DbtRuntimeError(f"dbt core v2 exited with rc={proc.returncode}\n{output}")
     if expect_pass is not None:
         if expect_pass and not success:
             # Python's run_dbt surfaces failures as DbtRuntimeError subclasses,
             # which upstream negative tests catch with pytest.raises(...).
-            raise DbtRuntimeError(
-                f"dbt core v2 exited with rc={proc.returncode}\n{output}"
-            )
+            raise DbtRuntimeError(f"dbt core v2 exited with rc={proc.returncode}\n{output}")
         assert success == expect_pass, (
             f"dbt core v2 exit state did not match expected (rc={proc.returncode})\n{output}"
         )
@@ -325,9 +321,7 @@ def _dbt_core_v2_run_dbt_and_capture(args=None, expect_pass=True):
     if not success and results is None:
         # Mirror Python: invocation-level failures (parse/config) raise even
         # when expect_pass=False.
-        raise DbtRuntimeError(
-            f"dbt core v2 exited with rc={proc.returncode}\n{output}"
-        )
+        raise DbtRuntimeError(f"dbt core v2 exited with rc={proc.returncode}\n{output}")
     if expect_pass is not None:
         assert success == expect_pass, (
             f"dbt core v2 exit state did not match expected (rc={proc.returncode})\n{output}"
