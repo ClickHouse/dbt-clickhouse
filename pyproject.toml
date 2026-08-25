@@ -52,6 +52,7 @@ dev = [
     "pytest-xdist==3.8.0",
     "ruff==0.16.0",
     "mypy==1.19.1",
+    "types-PyYAML>=6.0",
     "yamllint==1.37.1",
     "requests~=2.34.2",
 ]
