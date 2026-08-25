@@ -78,14 +78,17 @@ def ch_test_users(test_config):
             os.environ[key] = dbt_user
         yield test_users
     finally:
-        for dbt_user in test_users:
-            test_client.command(f'DROP USER IF EXISTS %s {cluster_clause}', (dbt_user,))
-        test_client.close()
+        # Restore the environment first: it cannot fail, unlike the DROPs below
         for key, value in saved_env.items():
             if value is None:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
+        try:
+            for dbt_user in test_users:
+                test_client.command(f'DROP USER IF EXISTS %s {cluster_clause}', (dbt_user,))
+        finally:
+            test_client.close()
 
 
 @pytest.fixture(scope="session", autouse=True)
