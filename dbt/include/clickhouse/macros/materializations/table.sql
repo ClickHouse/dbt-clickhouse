@@ -283,9 +283,7 @@
             {{ exceptions.raise_compiler_error(
                 "create_if_not_exists is not supported together with contract, projections, or indexes.") }}
         {%- endif -%}
-        {% call statement('create_table') %}
-            {{ create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=true, empty=false) }}
-        {% endcall %}
+        {{ create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=true, empty=false) }}
     {%- else -%}
         {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
         {%- if not temporary %}
