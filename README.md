@@ -9,6 +9,7 @@ This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https:
 ## Documentation
 
 See the [ClickHouse website](https://clickhouse.com/docs/integrations/dbt) for the full documentation entry.
+The documentation source is maintained in [`docs/clickhouse-docs`](docs/clickhouse-docs).
 
 ## Installation
 

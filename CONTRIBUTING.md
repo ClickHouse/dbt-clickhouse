@@ -89,6 +89,19 @@ Add a user-facing entry to the unreleased section at the top of [CHANGELOG.md](C
 * One or two sentences. Put it under **New Features**, **Improvements**, **Bugs**, or **Repository maintenance**.
 * Link the **pull request** at the end, not the issue.
 
+## Updating the Documentation
+
+The public `dbt-clickhouse` documentation is maintained in
+[`docs/clickhouse-docs`](docs/clickhouse-docs) and published on the
+[ClickHouse website](https://clickhouse.com/docs/integrations/dbt). Update the
+vendored source in this repository rather than the mirrored copy in
+`ClickHouse/ClickHouse`.
+
+Documentation changes are verified against the ClickHouse Mintlify site in CI.
+The sync workflow opens or refreshes a pull request in `ClickHouse/ClickHouse`
+after a release, when run manually, or when a merged pull request has the
+`sync-docs` label.
+
 ## Running Tests
 
 This adapter passes all of dbt basic tests as presented in dbt's [official docs](https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter).
