@@ -92,7 +92,7 @@ Add a user-facing entry to the unreleased section at the top of [CHANGELOG.md](C
 ## Updating the Documentation
 
 The public `dbt-clickhouse` documentation is maintained in
-[`docs/clickhouse-docs`](docs/clickhouse-docs) and published on the
+[`docs`](docs) directory and published on the
 [ClickHouse website](https://clickhouse.com/docs/integrations/dbt). Update the
 vendored source in this repository rather than the mirrored copy in
 `ClickHouse/ClickHouse`.

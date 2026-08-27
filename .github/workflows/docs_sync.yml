@@ -41,7 +41,7 @@ env:
   # every sync so deletions and renames propagate.
   TARGET_DOCS_PATH: docs/integrations/connectors/data-ingestion/etl-tools/dbt
   # This repo's docs file or folder (the source of truth).
-  SOURCE_DOCS_PATH: docs/clickhouse-docs
+  SOURCE_DOCS_PATH: docs
   # Stable branch on TARGET_REPO, force-pushed each run.
   SYNC_BRANCH: robot/docs-sync-dbt-clickhouse
   # Label the sync PR gets on TARGET_REPO.

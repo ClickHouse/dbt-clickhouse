@@ -9,13 +9,13 @@ on:
     branches:
       - main
     paths:
-      - 'docs/clickhouse-docs/**'
+      - 'docs/**'
       - '.github/workflows/docs_verify.yml'
   push:
     branches:
       - main
     paths:
-      - 'docs/clickhouse-docs/**'
+      - 'docs/**'
       - '.github/workflows/docs_verify.yml'
 
 env:
@@ -52,5 +52,5 @@ jobs:
           python3 /tmp/mintlify_docs_check.py \
             --repo https://github.com/ClickHouse/ClickHouse.git \
             --ref "${CLICKHOUSE_DOCS_REF}" \
-            --replace docs/clickhouse-docs:integrations/connectors/data-ingestion/etl-tools/dbt \
+            --replace docs:integrations/connectors/data-ingestion/etl-tools/dbt \
             --scoped
