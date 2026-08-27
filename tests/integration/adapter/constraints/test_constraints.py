@@ -64,6 +64,7 @@ class ClickHouseContractColumnsEqual:
         return [
             ["1::Int32", "Int32", "Int32"],
             ["'1'", "String", "String"],
+            ["toFixedString('1', 16)", "FixedString(16)", "FixedString(16)"],
             ["true", "Bool", "Bool"],
             ["'2013-11-03'::DateTime", "DateTime", "DateTime"],
             ["['a','b','c']", "Array(String)", "Array(String)"],

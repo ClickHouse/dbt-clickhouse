@@ -55,7 +55,12 @@ class ClickHouseColumn(Column):
     @property
     def data_type(self) -> str:
         if self.is_string():
-            data_t = self.string_type(self.string_size())
+            # Parameterized FixedString must render exactly: contract enforcement
+            # compares data_type strings verbatim against YAML data_type declarations
+            if self.dtype.lower().startswith('fixedstring') and self.char_size is not None:
+                data_t = f'FixedString({self.char_size})'
+            else:
+                data_t = self.string_type(self.string_size())
         elif self.is_numeric():
             data_t = self.numeric_type(self.dtype, self.numeric_precision, self.numeric_scale)
         else:
