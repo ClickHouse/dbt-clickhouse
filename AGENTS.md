@@ -29,6 +29,7 @@ This maps common tasks to files. For detailed guidance on each scenario, see "Ma
 | Fix MV dependency tracking | `dbt/adapters/clickhouse/cache.py` |
 | Add utility SQL functions | `dbt/include/clickhouse/macros/utils.sql` or `datatypes.sql` |
 | Update version | `dbt/adapters/clickhouse/__version__.py` |
+| Update public documentation | `docs/` |
 
 ## Agent-Specific Pitfalls
 
