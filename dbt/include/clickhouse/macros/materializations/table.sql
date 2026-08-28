@@ -278,26 +278,18 @@
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
     {%- set create_if_not_exists = config.get('create_if_not_exists', false) and not temporary -%}
-    {%- if create_if_not_exists -%}
-        {%- if has_contract or config.get('projections', default=[]) or config.get('indexes', default=[]) -%}
-            {{ exceptions.raise_compiler_error(
-                "create_if_not_exists is not supported together with contract, projections, or indexes.") }}
-        {%- endif -%}
-        {{ create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=true, empty=false) }}
-    {%- else -%}
-        {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
-        {%- if not temporary %}
-            {{ clickhouse__insert_into(relation, sql, has_contract) }}
-        {%- endif %}
-    {%- endif -%}
+    {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract, if_not_exists=create_if_not_exists) }}
+    {%- if not temporary %}
+        {{ clickhouse__insert_into(relation, sql, has_contract) }}
+    {%- endif %}
 {%- endmacro %}
 
 {#
     "CREATE TABLE" step extracted from clickhouse__create_table_as so it can be used by other macros.
 #}
-{% macro clickhouse__create_empty_table(temporary, relation, sql, has_contract, statement_name='create_table_empty') %}
+{% macro clickhouse__create_empty_table(temporary, relation, sql, has_contract, statement_name='create_table_empty', if_not_exists=false) %}
     {% call statement(statement_name) %}
-        {{ create_table_or_empty(temporary, relation, sql, has_contract) }}
+        {{ create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=if_not_exists) }}
     {% endcall %}
     {%- if not temporary %}
         {{ add_index_and_projections(relation) }}
@@ -381,7 +373,7 @@
     {% endif %}
 {% endmacro %}
 
-{% macro create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=false, empty=true) -%}
+{% macro create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=false) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
     {{ sql_header if sql_header is not none }}
@@ -408,9 +400,7 @@
         {{ adapter.get_model_settings(model, config.get('engine', default='MergeTree')) }}
 
         {%- if not has_contract %}
-          {%- if empty %}
           empty
-          {%- endif %}
           as (
             {{ sql }}
           )

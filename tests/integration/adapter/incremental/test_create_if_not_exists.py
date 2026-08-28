@@ -32,34 +32,50 @@ class TestCreateIfNotExists:
     def models(self):
         return {"cine_on.sql": cine_on, "cine_off.sql": cine_off}
 
-    def test_builds_with_correct_row_count(self, project):
-        run_dbt(["run"])
-        assert project.run_sql("select count() from cine_on", fetch="one")[0] == 10
-        assert project.run_sql("select count() from cine_off", fetch="one")[0] == 10
-
-    def test_flag_emits_atomic_create(self, project):
+    def test_first_build_uses_if_not_exists_and_separate_insert(self, project):
         run_dbt(["run", "--select", "cine_on cine_off"])
+        assert project.run_sql("select count() from cine_on", fetch="one")[0] == 10
+
         project.run_sql("system flush logs")
-        on_atomic = project.run_sql(
+        on_empty_ine = project.run_sql(
             "select count() from system.query_log where type = 'QueryFinish' "
             "and lower(query) like '%create table if not exists%cine_on%' "
-            "and lower(query) not like '%empty%'",
-            fetch="one",
-        )[0]
-        off_empty = project.run_sql(
-            "select count() from system.query_log where type = 'QueryFinish' "
-            "and lower(query) like '%create table%cine_off%' "
             "and lower(query) like '%empty%'",
             fetch="one",
         )[0]
-        assert on_atomic >= 1, "flagged model should CREATE ... IF NOT EXISTS ... AS SELECT"
-        assert off_empty >= 1, "default model should keep the empty-create-then-insert path"
-
-    def test_losing_create_does_not_double(self, project):
-        run_dbt(["run", "--select", "cine_on"])
-        assert project.run_sql("select count() from cine_on", fetch="one")[0] == 10
-        project.run_sql(
-            "create table if not exists cine_on engine = MergeTree order by id as "
-            "select toInt32(number) as id, concat('v', toString(number)) as val from numbers(10)"
+        on_separate_insert = project.run_sql(
+            "select count() from system.query_log where type = 'QueryFinish' "
+            "and lower(query) like '%insert into%cine_on%'",
+            fetch="one",
+        )[0]
+        off_plain = project.run_sql(
+            "select count() from system.query_log where type = 'QueryFinish' "
+            "and lower(query) like '%create table%cine_off%' "
+            "and lower(query) not like '%if not exists%'",
+            fetch="one",
+        )[0]
+        assert on_empty_ine >= 1, "flagged first build should CREATE TABLE IF NOT EXISTS ... empty"
+        assert on_separate_insert >= 1, (
+            "flagged first build must run a SEPARATE INSERT (not atomic CTAS)"
         )
-        assert project.run_sql("select count() from cine_on", fetch="one")[0] == 10
+        assert off_plain >= 1, "default model should CREATE TABLE without IF NOT EXISTS"
+
+    def test_two_concurrent_first_builds_keep_all_rows(self, project):
+        project.run_sql("drop table if exists cine_on")
+
+        def first_build(offset):
+            project.run_sql(
+                "create table if not exists cine_on engine = MergeTree order by id empty as "
+                f"(select toInt32(number) + {offset} as id, "
+                f"concat('v', toString(number + {offset})) as val from numbers(10))"
+            )
+            project.run_sql(
+                f"insert into cine_on select toInt32(number) + {offset} as id, "
+                f"concat('v', toString(number + {offset})) as val from numbers(10)"
+            )
+
+        first_build(0)  # invocation A: ids 0-9   (wins the create)
+        first_build(100)  # invocation B: ids 100-109 (create no-ops, insert still lands)
+
+        assert project.run_sql("select count() from cine_on", fetch="one")[0] == 20
+        assert project.run_sql("select count() from cine_on where id >= 100", fetch="one")[0] == 10
