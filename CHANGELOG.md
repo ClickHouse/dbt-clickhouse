@@ -1,7 +1,7 @@
 ### Release [1.10.3], 2026-XX-XX
 
 #### New Features
-* Add an opt-in `create_if_not_exists` model config. When set, the model's table is populated by a single atomic `CREATE TABLE IF NOT EXISTS ... AS SELECT`, so independent concurrent dbt runs building the same table into a shared database no longer collide with `Code: 57 Table already exists` on first creation — the destination-table analogue of the temp-table fix in [#150](https://github.com/ClickHouse/dbt-clickhouse/issues/150). A run that loses the create no-ops the whole statement (no separate `INSERT`), so rows are never doubled. Defaults off (no behavior change). Not supported with `contract`, `projections`, or `indexes` (which need the empty-create-then-insert path), and not intended for `Replicated` engines, where `CREATE TABLE IF NOT EXISTS` can raise `REPLICA_ALREADY_EXISTS` ([#722](https://github.com/ClickHouse/dbt-clickhouse/pull/722)).
+* Add an opt-in `create_if_not_exists` model config for first-creation races when concurrent runs build the same non-replicated table. It defaults to disabled and cannot be combined with contracts, projections, or indexes ([#722](https://github.com/ClickHouse/dbt-clickhouse/pull/722)).
 
 #### Improvements
 * Test against `dbt-core` 1.12 and widen the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
