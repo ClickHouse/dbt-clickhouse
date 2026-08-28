@@ -7,6 +7,9 @@
 #### Bugs
 * Fixed the `delete+insert` incremental strategy occasionally missing deletes when the table being read had just received new data that the replica had not yet synced. The subquery now embeds `select_sequential_consistency=1` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
 
+#### Repository maintenance
+* Fix the broken Catalog Support link in the README ([#733](https://github.com/ClickHouse/dbt-clickhouse/pull/733)).
+
 
 ### Release [1.10.2], 2026-08-13
 
