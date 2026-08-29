@@ -50,6 +50,9 @@
 * Replaced legacy `docker-compose` commands with `docker compose` (V2) and updated the GitHub Actions workflow to use Docker Compose V2 ([#647](https://github.com/ClickHouse/dbt-clickhouse/pull/647)).
 * AI-assisted development is now officially allowed for contributions. A new `AI_POLICY.md` describes the rules, and `AGENTS.md`/`CLAUDE.md` files were added to guide AI agents working in this repository ([#628](https://github.com/ClickHouse/dbt-clickhouse/pull/628), [#636](https://github.com/ClickHouse/dbt-clickhouse/pull/636)).
 
+#### Bugs
+* Fix `dbt_valid_to_current` snapshot configuration being ignored in the ClickHouse adapter. The snapshot macros for both timestamp and check strategies now correctly read and apply the `dbt_valid_to_current` config value, matching dbt-core's expected behavior. Previously, snapshots configured with `dbt_valid_to_current` would produce duplicate rows on subsequent runs because the adapter always filtered current records with `WHERE dbt_valid_to IS NULL`, missing rows that had the configured sentinel value.
+
 
 ### Release [1.10.0], 2026-02-16
 
