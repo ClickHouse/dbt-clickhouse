@@ -94,6 +94,27 @@ Add a user-facing entry to the unreleased section at the top of [CHANGELOG.md](C
 This adapter passes all of dbt basic tests as presented in dbt's [official docs](https://docs.getdbt.com/docs/contributing/testing-a-new-adapter#testing-your-adapter).
 Use `pytest tests` to run tests.
 
+There are two ways to run the integration tests:
+
+**Sequential (default):**  
+```shell
+# If you add DBT_CH_TEST_USE_DOCKER=True, as an environment variable or in the test.env file, pytest will automatically start and stop the ClickHouse cluster from tests/integration/docker-compose.yml for you.
+pytest tests
+```
+**Parallel:** 
+This method is incompatible with `DBT_CH_TEST_USE_DOCKER=True`. You need to start and stop the Docker container yourself. You can use the tests docker compose file to start the ClickHouse cluster:
+
+```shell
+docker compose -f tests/integration/docker-compose.yml up -d
+```
+
+And then:
+```shell
+pytest tests -n 10 --dist loadscope
+```
+
+#### Test configuration
+
 You can customize the test environment via environment variables. We recommend doing so with the pytest `pytest-dotenv` plugin combined with root level `test.env`
 configuration file (this file should not be checked into git).  The following environment variables are recognized:
 
@@ -111,7 +132,7 @@ configuration file (this file should not be checked into git).  The following en
 
 ### Example Configurations
 
-Local development using the docker compose file included (cluster start/stop will be managed by the tests)
+Local development using the docker compose file included (cluster start/stop will be managed by the tests; sequential runs only, see above)
 
 ```env
 DBT_CH_TEST_USE_DOCKER=True

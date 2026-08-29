@@ -11,7 +11,7 @@ from dbt.adapters.clickhouse.errors import (
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.clickhouse.util import engine_can_atomic_exchange
+from dbt.adapters.clickhouse.util import engine_can_atomic_exchange, retry_on_database_error
 from dbt.adapters.exceptions import FailedToConnectError
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
@@ -130,8 +130,30 @@ class ChClientWrapper(ABC):
     def query(self, sql: str, **kwargs):
         pass
 
+    def command(self, sql: str, retries: int = 1, **kwargs):
+        """Run a ClickHouse statement. Pass `retries` > 1 to retry transient
+        failures — only safe for idempotent statements."""
+        return retry_on_database_error(
+            lambda: self._command(sql, **kwargs), 'ClickHouse command', retries
+        )
+
+    def get_ch_setting(self, setting_name, retries: int = 3):
+        """Return (value, readonly) for a server setting, retrying transient
+        failures; (None, 0) when the setting could not be read."""
+        try:
+            return retry_on_database_error(
+                lambda: self._get_ch_setting(setting_name),
+                f'Reading ClickHouse setting {setting_name}',
+                retries,
+            )
+        except DbtDatabaseError as ex:
+            logger.warning(
+                f'Failed to read ClickHouse setting {setting_name} after {retries} attempts: {ex}'
+            )
+            return (None, 0)
+
     @abstractmethod
-    def command(self, sql: str, **kwargs):
+    def _command(self, sql: str, **kwargs):
         pass
 
     @abstractmethod
@@ -139,7 +161,7 @@ class ChClientWrapper(ABC):
         pass
 
     @abstractmethod
-    def get_ch_setting(self, setting_name):
+    def _get_ch_setting(self, setting_name):
         pass
 
     def database_dropped(self, database: str):
@@ -179,12 +201,25 @@ class ChClientWrapper(ABC):
         # checked (and enabled when the user has permission to change it).
         global _nd_mutation_probe
         with _nd_mutation_lock:
-            if _nd_mutation_probe is None:
-                _nd_mutation_probe = self.get_ch_setting(ND_MUTATION_SETTING)
-            nd_mutations, nd_mutations_read_only = _nd_mutation_probe
+            probe = _nd_mutation_probe
+            if probe is None:
+                probe = self.get_ch_setting(ND_MUTATION_SETTING)
+                if probe[0] is not None:
+                    _nd_mutation_probe = probe
+                else:
+                    # Failed probe: leave the cache empty so the next connection
+                    # probes again instead of poisoning the whole process.
+                    logger.warning(
+                        f'Could not read the {ND_MUTATION_SETTING} setting from the server; '
+                        f'lightweight deletes are disabled for this connection only'
+                    )
+            nd_mutations, nd_mutations_read_only = probe
         if nd_mutations is None:
             if requested:
-                logger.warning(nd_mutations_not_enabled_warning)
+                logger.warning(
+                    f'The {ND_MUTATION_SETTING} setting could not be determined, so lightweight '
+                    f'deletes and the delete+insert incremental strategy are disabled'
+                )
             return False, False
         nd_mutations = int(nd_mutations) > 0
         if not nd_mutations:
@@ -194,12 +229,19 @@ class ChClientWrapper(ABC):
                     raise DbtConfigError(nd_mutations_not_enabled_error)
                 logger.warning(nd_mutations_not_enabled_warning)
             else:
+                # A failure here silently downgrades the connection to the legacy
+                # incremental strategy, so command() retries transient errors and
+                # the final error is logged for diagnosis.
                 try:
-                    self.command(f'SET {ND_MUTATION_SETTING} = 1')
+                    self.command(f'SET {ND_MUTATION_SETTING} = 1', retries=3)
                     self._conn_settings[ND_MUTATION_SETTING] = '1'
                     nd_mutations = True
-                except DbtDatabaseError:
-                    logger.warning(nd_mutations_not_enabled_warning)
+                except DbtDatabaseError as ex:
+                    logger.warning(
+                        f'Could not enable {ND_MUTATION_SETTING} for this connection, so '
+                        f'lightweight deletes and the delete+insert incremental strategy '
+                        f'are disabled: {ex}'
+                    )
         if nd_mutations:
             return True, requested
         return False, False
