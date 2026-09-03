@@ -110,8 +110,22 @@ def _migrate_test_entry(entry):
     return out, changed
 
 
-def _migrate_node(node):
+# dbt 1.10 deprecations (hard errors in dbt core v2): node-level `docs`,
+# `meta` and `tags` belong under `config:`.
+_CONFIG_KEYS = ('docs', 'meta', 'tags')
+
+
+def _migrate_config_keys(node):
     changed = False
+    for key in _CONFIG_KEYS:
+        if key in node:
+            node.setdefault('config', {})[key] = node.pop(key)
+            changed = True
+    return changed
+
+
+def _migrate_node(node):
+    changed = _migrate_config_keys(node)
     for key in ('tests', 'data_tests'):
         if isinstance(node.get(key), list):
             new_list = []
@@ -128,8 +142,9 @@ def _migrate_node(node):
 
 
 def migrate_yml(yml_str):
-    """Rewrite deprecated generic-test yml (top-level custom args / config keys)
-    into the modern `arguments:` / `config:` form. No-op if nothing to migrate."""
+    """Rewrite deprecated yml (top-level generic-test args, node-level
+    docs/meta/tags) into the modern `arguments:` / `config:` form. No-op if
+    nothing to migrate."""
     doc = yaml.safe_load(yml_str)
     if not isinstance(doc, dict):
         return yml_str
@@ -138,6 +153,9 @@ def migrate_yml(yml_str):
         for node in doc.get(section) or []:
             if isinstance(node, dict):
                 changed = _migrate_node(node) or changed
+    for node in doc.get('exposures') or []:
+        if isinstance(node, dict):
+            changed = _migrate_config_keys(node) or changed
     return yaml.safe_dump(doc) if changed else yml_str
 
 
