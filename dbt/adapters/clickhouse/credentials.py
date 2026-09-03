@@ -62,10 +62,6 @@ class ClickHouseCredentials(Credentials):
             )
         self.database = ''
 
-        # clickhouse_driver expects tcp_keepalive to be a tuple if it's not a boolean
-        if isinstance(self.tcp_keepalive, list):
-            self.tcp_keepalive = tuple(self.tcp_keepalive)
-
     def _connection_keys(self):
         return (
             'driver',
