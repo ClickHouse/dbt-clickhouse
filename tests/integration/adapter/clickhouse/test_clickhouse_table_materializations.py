@@ -73,15 +73,21 @@ class TestTableMaterializationPrimaryKey:
                       order_by='id', primary_key=[]) }}
             select 1 as id
         """
+        pk_whitespace_string = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='id', primary_key='   ') }}
+            select 1 as id
+        """
         return {
             "pk_string.sql": pk_string,
             "pk_list.sql": pk_list,
             "pk_empty_list.sql": pk_empty_list,
+            "pk_whitespace_string.sql": pk_whitespace_string,
         }
 
     def test_primary_key_variants(self, project):
         results = run_dbt(["run"])
-        assert len(results) == 3
+        assert len(results) == 4
 
         def primary_key_of(model_name):
             relation = relation_from_name(project.adapter, model_name)
@@ -98,6 +104,8 @@ class TestTableMaterializationPrimaryKey:
         assert primary_key_of("pk_list") == "id, name"
         # With the clause omitted, ClickHouse defaults the primary key to the sorting key
         assert primary_key_of("pk_empty_list") == "id"
+        # Whitespace-only strings are trimmed and treated as unset, like '' and []
+        assert primary_key_of("pk_whitespace_string") == "id"
 
 
 class TestDistributedMaterializations(BaseSimpleMaterializations):

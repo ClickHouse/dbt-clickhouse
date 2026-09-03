@@ -6,6 +6,14 @@ from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
 
 
+def _change_db_engine_to_replicated(original_config: dict) -> dict:
+    # mutating it in place leaks the Replicated db_engine into every test
+    # that runs after this module in the same session.
+    config = dict(original_config)
+    config["db_engine"] = "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
+    return config
+
+
 @pytest.mark.skipif(
     os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
     reason='Replicated is not supported for cloud',
@@ -15,11 +23,7 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
 
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-
-        test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
-        )
-        return test_config
+        return _change_db_engine_to_replicated(test_config)
 
 
 @pytest.mark.skipif(
@@ -29,10 +33,7 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
 class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-        test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
-        )
-        return test_config
+        return _change_db_engine_to_replicated(test_config)
 
     @pytest.fixture(scope="class")
     def models(self):

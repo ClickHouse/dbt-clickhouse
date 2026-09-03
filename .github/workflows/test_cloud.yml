@@ -33,12 +33,14 @@ jobs:
       - name: Install requirements
         run: pip3 install . -r dev_requirements.txt
 
+      # -n 4 --dist loadscope: run test classes concurrently on 4 xdist workers
+      # (loadscope is required — the project/schema fixtures are class-scoped).
       - name: Run HTTP tests
         env:
           DBT_CH_TEST_PORT: 8443
-        run: pytest tests
+        run: pytest tests -n 4 --dist loadscope --timeout=300
 
       - name: Run Native tests
         env:
           DBT_CH_TEST_PORT: 9440
-        run: pytest tests
+        run: pytest tests -n 4 --dist loadscope --timeout=300
