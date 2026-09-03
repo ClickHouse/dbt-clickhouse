@@ -23,9 +23,7 @@ class TestInvalidInput(BaseUnitTestInvalidInput):
             ["test", "--select", "test_name:test_invalid_input_column_name"], expect_pass=False
         )
         assert "Invalid column name(s): 'invalid_column_name'" in out
-        assert (
-            'Accepted columns for \'ref(\'my_upstream_model\')\' are: ["tested_column"]' in out
-        )
+        assert 'Accepted columns for \'ref(\'my_upstream_model\')\' are: ["tested_column"]' in out
 
         _, out = run_dbt_and_capture(
             ["test", "--select", "test_name:test_invalid_expect_column_name"], expect_pass=False
