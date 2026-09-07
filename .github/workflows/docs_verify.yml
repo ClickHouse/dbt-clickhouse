@@ -1,0 +1,56 @@
+---
+name: 'Verify Docs'
+
+permissions: {}
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs_verify.yml'
+  push:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - '.github/workflows/docs_verify.yml'
+
+env:
+  CLICKHOUSE_DOCS_REF: f0a219f5638fe0e8c93130f5b537bfc3b5053ad3
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    name: Mintlify checks
+    # Run inside the docs image so every dependency (git, python3, mint, node)
+    # is present -- nothing is installed, and this repo vendors no scripts.
+    container:
+      image: clickhouse/docs-builder@sha256:66ec42db137f92bb59d6c61dbee8be671089d043446d5a4063532d9995d68adf
+    steps:
+      - name: Checkout docs source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # Pin the driver and the aggregator snapshot it clones to the same reviewed
+      # commit so the docs checks are deterministic and reproducible.
+      - name: Fetch the docs check driver
+        run: |
+          curl -fsSL -o /tmp/mintlify_docs_check.py \
+            "https://raw.githubusercontent.com/ClickHouse/ClickHouse/${CLICKHOUSE_DOCS_REF}/ci/jobs/scripts/docs/mintlify_docs_check.py"
+
+      # The driver clones the aggregator, replaces the dbt documentation folder
+      # with this repo's canonical docs (wiping it first), and
+      # runs the checks from the docs root. --scoped swaps the full site-wide
+      # `mint validate` (~13 min) for a scoped validate of just the replaced
+      # slice (docs.json schema, navigation, MDX parse, snippet imports);
+      # link integrity is still checked site-wide by the lychee check.
+      # It exits non-zero if any check fails, so a green step means all passed.
+      - name: Run Mintlify docs checks
+        run: |
+          python3 /tmp/mintlify_docs_check.py \
+            --repo https://github.com/ClickHouse/ClickHouse.git \
+            --ref "${CLICKHOUSE_DOCS_REF}" \
+            --replace docs:integrations/connectors/data-ingestion/etl-tools/dbt \
+            --scoped
