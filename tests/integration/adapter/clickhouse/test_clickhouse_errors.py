@@ -2,7 +2,7 @@ import pytest
 from dbt.tests.util import run_dbt
 
 oom_table_sql = """
-SELECT a FROM system.numbers_mt GROUP BY repeat(toString(number), 100000) as a
+select sum(number) as a from system.numbers limit 1000 SETTINGS max_memory_usage = 1
 """
 
 schema_yaml = """
