@@ -230,3 +230,91 @@ class TestReordering:
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert result[0][1] == 1
         assert result[3][1] == 4
+
+
+fixed_string_append_sql = """
+{{
+    config(
+        materialized='%s',
+        unique_key='col_1',
+        on_schema_change='append_new_columns'
+    )
+}}
+
+{%% if not is_incremental() %%}
+select
+    number as col_1,
+    toFixedString(toString(number + 1), 16) as col_2
+from numbers(3)
+{%% else %%}
+select
+    number as col_1,
+    toFixedString(toString(number + 1), 16) as col_2,
+    toFixedString(toString(number + 2), 16) as col_3
+from numbers(2, 3)
+{%% endif %%}
+"""
+
+fixed_string_sync_sql = """
+{{
+    config(
+        materialized='%s',
+        unique_key='col_1',
+        on_schema_change='sync_all_columns'
+    )
+}}
+
+{%% if not is_incremental() %%}
+select
+    number as col_1,
+    toFixedString(toString(number + 1), 16) as col_2
+from numbers(3)
+{%% else %%}
+select
+    number as col_1,
+    toFixedString(toString(number + 1), 32) as col_2
+from numbers(2, 3)
+{%% endif %%}
+"""
+
+
+class TestFixedStringSchemaChange:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "fixed_string_append.sql": fixed_string_append_sql % "incremental",
+            "fixed_string_append_distributed.sql": fixed_string_append_sql
+            % "distributed_incremental",
+            "fixed_string_sync.sql": fixed_string_sync_sql % "incremental",
+            "fixed_string_sync_distributed.sql": fixed_string_sync_sql % "distributed_incremental",
+        }
+
+    def column_type(self, project, model, column):
+        result = project.run_sql(
+            f"select type from system.columns "
+            f"where database = currentDatabase() and table = '{model}' and name = '{column}'",
+            fetch="one",
+        )
+        return result[0]
+
+    @pytest.mark.parametrize("model", ("fixed_string_append", "fixed_string_append_distributed"))
+    def test_append(self, project, model):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+        run_dbt(["run", "--select", model])
+        run_dbt(["run", "--select", model])
+        # The ALTER that adds col_3 must use the exact type; the collapsed String
+        # rendering silently widened the column instead
+        assert self.column_type(project, model, 'col_3') == 'FixedString(16)'
+        # With the collapsed rendering, this run failed the raw-dtype drift check
+        run_dbt(["run", "--select", model])
+
+    @pytest.mark.parametrize("model", ("fixed_string_sync", "fixed_string_sync_distributed"))
+    def test_sync(self, project, model):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+        run_dbt(["run", "--select", model])
+        run_dbt(["run", "--select", model])
+        # The MODIFY COLUMN that widens col_2 must use the exact type, not String
+        assert self.column_type(project, model, 'col_2') == 'FixedString(32)'
+        run_dbt(["run", "--select", model])
