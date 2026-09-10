@@ -92,17 +92,17 @@ class TestBasicMV:
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # create the model
         results = run_dbt()
         assert len(results) == 1
 
         columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         check_relation_types(
             project.adapter,
@@ -194,7 +194,10 @@ class TestUpdateMV:
         table_description_after_update = project.run_sql(
             f"DESCRIBE TABLE {schema}.hackers_mv", fetch="all"
         )
-        assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description_after_update)
+        assert any(
+            col[0] == "id2" and col[1] in ("Int32", "Int64")
+            for col in table_description_after_update
+        )
 
         # run again without extended schema, to make sure table is updated back without the id2 column
         run_dbt(["run", "--vars", json.dumps({"on_schema_change": "sync_all_columns"})])
@@ -217,7 +220,9 @@ class TestUpdateMV:
         expected_messages = [
             'The source and target schemas on this materialized view model are out of sync',
             'Source columns not in target: []',
-            "Target columns not in source: ['id2 Int32']",
+            # Type left open: Python seeds infer Int32, dbt core v2 seeds keep the
+            # arrow-native Int64 (accepted wide-type divergence).
+            "Target columns not in source: ['id2 Int",
             'New column types: []',
         ]
         for msg in expected_messages:
@@ -377,7 +382,7 @@ class TestCatchup:
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # Step 2: Create the model with catchup disabled
         run_vars = {"schema_name": "catchup_initial", "catchup": False}
@@ -385,10 +390,10 @@ class TestCatchup:
         assert len(results) == 1
 
         columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         check_relation_types(
             project.adapter,

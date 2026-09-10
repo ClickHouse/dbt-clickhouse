@@ -1,3 +1,5 @@
+import os
+
 from dbt.tests.adapter.concurrency.test_concurrency import BaseConcurrency, seeds__update_csv
 from dbt.tests.util import (
     check_relations_equal,
@@ -7,6 +9,8 @@ from dbt.tests.util import (
     run_dbt_and_capture,
     write_file,
 )
+
+IS_CORE_V2 = bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY'))
 
 
 class TestConcurrency(BaseConcurrency):
@@ -30,4 +34,7 @@ class TestConcurrency(BaseConcurrency):
         check_relations_equal(project.adapter, ["seed", "table_b"])
         check_table_does_not_exist(project.adapter, "invalid")
         check_table_does_not_exist(project.adapter, "skip")
-        assert "PASS=5 WARN=0 ERROR=1 SKIP=1 NO-OP=0 REUSED=0 TOTAL=7" in output
+        if IS_CORE_V2:
+            assert "Summary: 7 total | 5 success | 1 error | 1 skipped" in output
+        else:
+            assert "PASS=5 WARN=0 ERROR=1 SKIP=1 NO-OP=0 REUSED=0 TOTAL=7" in output
