@@ -1,0 +1,56 @@
+---
+name: 'Docs Drift Check'
+
+# Advisory docs-drift check. The shared workflow dispatches the PR to the
+# central AI automation repo through the Workflow Authentication GitHub App.
+# The worker compares the diff with this repo's docs, README, and examples
+# using .claude/agents/docs-drift-reviewer.md. It maintains the needs-docs
+# label and one sticky comment. Model credentials stay in the central repo.
+#
+# Pushes to matching PRs rerun the check, so a later docs fix can clear the
+# label. Automatic fork PR runs are skipped. A maintainer can check a reviewed
+# fork manually with workflow_dispatch and the PR number.
+#
+# The worker checks out the trusted base and reads its rubric. A missing base
+# rubric is a no-op; new or edited rubrics take effect after merge. A run on
+# the same PR does not validate the new rubric.
+
+# yamllint disable-line rule:truthy
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - main
+    # Include adapter Python, SQL macros and profile templates, all docs and
+    # examples, Markdown anywhere (including the rubric), and this workflow.
+    # The rubric decides whether a matching change affects user documentation.
+    paths:
+      - 'dbt/**'
+      - 'docs/**'
+      - 'examples/**'
+      - '**/*.md'
+      - 'pyproject.toml'
+      - 'dev_requirements.txt'
+      - '.github/workflows/docs_drift_check.yml'
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to check'
+        required: true
+        type: string
+
+permissions:
+  pull-requests: read
+
+jobs:
+  docs-drift:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.pull_request.head.repo.full_name == github.repository
+    uses: ClickHouse/integrations-shared-workflows/.github/workflows/claude-docs-drift.yml@main
+    # PR runs use the event number. Manual runs forward the dispatch input.
+    with:
+      pr_number: ${{ github.event.inputs.pr_number }}
+    secrets:
+      WORKFLOW_AUTH_PUBLIC_APP_ID: ${{ secrets.WORKFLOW_AUTH_PUBLIC_APP_ID }}
+      WORKFLOW_AUTH_PUBLIC_PRIVATE_KEY: ${{ secrets.WORKFLOW_AUTH_PUBLIC_PRIVATE_KEY }}
