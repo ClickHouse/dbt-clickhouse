@@ -13,30 +13,30 @@ import { BetaBadge } from "/snippets/components/BetaBadge/BetaBadge.jsx";
 <ClickHouseSupportedBadge/>
 <BetaBadge link="https://github.com/ClickHouse/dbt-clickhouse/issues/660"/>
 
-dbt is being rebuilt on a new engine, and ClickHouse is part of that from the start. You can now run dbt against ClickHouse on the new Rust engine (dbt Core v2 and dbt Fusion), and for the first time you can connect ClickHouse from the dbt platform with the v2 connector. Your project does not change: the same models, tests and profiles that run on dbt Core 1.x today run on the new engine, only the binary is different.
+dbt is being rebuilt on a new engine, and ClickHouse is part of that from the start. You can now run dbt against ClickHouse on the new Rust engine (dbt Core v2 and dbt Fusion), and for the first time you can connect to ClickHouse from the dbt platform with the v2 connector. Your project does not change: the same models, tests and profiles that run on dbt Core 1.x today run on the new engine; only the binary is different.
 
-ClickHouse is the first community adapter on dbt v2 and in the dbt platform. dbt's own first-party adapters are launching alongside us; we are the first from outside dbt Labs. The dbt Core 1.x Python adapter, `dbt-clickhouse`, is not going away: we keep it current with dbt 1.x releases and maintain both in parallel, and the rest of these pages describe it.
+ClickHouse is the first community adapter on dbt v2 and in the dbt platform. dbt's own first-party adapters are launching alongside us; we are the first from outside dbt Labs. The dbt Core 1.x Python adapter, `dbt-clickhouse`, is not going away: we keep it current with dbt 1.x releases and maintain both adapters in parallel.
 
 <Warning>
-**Not production-ready.** Neither the dbt Core v2 engine, the ClickHouse adapter for it, nor the dbt platform connection is GA. Only use them in a development or staging project.
+**Not production-ready.** The dbt Core v2 engine, its ClickHouse adapter and the dbt platform connection are not yet generally available (GA). Use them only in development or staging projects.
 </Warning>
 
 <Note>
-**The v2 documentation applies to dbt Core v2 functionality too.** The adapter behaves the same way on both engines: profiles, model configs, materializations, macros and guides described in the other dbt pages work unchanged on dbt Core v2, dbt Fusion and the dbt platform. The only exceptions are the features mentioned in the [v1 vs v2 parity](#parity) table below.
+**The dbt Core 1.x documentation also applies to dbt Core v2.** The adapter behaves the same way on both engines: the profiles, model configs, materializations and macros described in the other dbt pages work unchanged on dbt Core v2, dbt Fusion and the dbt platform. The exceptions are documented in the [v1 vs v2 parity](#parity) table below.
 </Note>
 
 Live status is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660) (dbt Core v2 parity, one sub-issue per area) and [ClickHouse/dbt-clickhouse#555](https://github.com/ClickHouse/dbt-clickhouse/issues/555) (dbt Fusion).
 
 ## Terminology and availability {#terminology}
 
-dbt now comes in several flavors, and the same adapter shows up in more than one of them. This table says what each name means and where ClickHouse stands in it.
+dbt is available in several forms, and the same adapter can run in more than one of them. This table explains each name and the current level of ClickHouse support.
 
 | Term | What it is | ClickHouse status and how to get it |
 |------|------------|-------------------------------------|
-| **dbt Core 1.x** | The Python dbt engine everyone runs today. Our adapter is `dbt-clickhouse`, maintained in the [ClickHouse GitHub organization](https://github.com/ClickHouse/dbt-clickhouse) and installed next to `dbt-core`. | **GA, maintained.** Keeps receiving releases in parallel with v2. |
-| **dbt Core v2** | Full rewrite of the dbt engine in Rust, open source (Apache 2.0). Adapters live inside the [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core) repository. Connectivity goes through the [`adbc_clickhouse`](https://github.com/ClickHouse/adbc_clickhouse) ADBC driver (Arrow over HTTP), downloaded automatically by dbt. | **Public beta.** Follow the [dbt v2 upgrade guide](https://docs.getdbt.com/docs/dbt-versions/core-upgrade/upgrading-to-v2). The ClickHouse adapter ships inside the dbt binary; there is no separate package to install. |
-| **dbt Fusion** | dbt v2 plus dbt Labs' extras: SQL comprehension and static analysis, LSP, VS Code extension, column awareness. Dialect-specific SQL intelligence is built per database. | **Public beta.** The adapter runs under the Fusion binary, but the new SQL features are not available for ClickHouse yet. |
-| **dbt platform** | Hosted dbt, formerly dbt Cloud: Studio IDE, scheduled jobs, environments, Catalog, Semantic Layer. The platform runs dbt v2 only, so ClickHouse in the platform means the v2 adapter. | **Private beta.** Access is enabled per account by dbt; talk to your dbt account representative to enable it. |
+| **dbt Core 1.x** | The Python-based dbt engine. Our adapter is `dbt-clickhouse`, maintained in the [ClickHouse GitHub organization](https://github.com/ClickHouse/dbt-clickhouse) and installed alongside `dbt-core`. | **GA, maintained.** Keeps receiving releases in parallel with v2. |
+| **dbt Core v2** | Full rewrite of the dbt engine in Rust, open source (Apache 2.0). Adapters live inside the [dbt-labs/dbt-core](https://github.com/dbt-labs/dbt-core) repository. Connectivity goes through the [`adbc_clickhouse`](https://github.com/ClickHouse/adbc_clickhouse) ADBC driver (Arrow over HTTP), downloaded automatically by dbt. | **Public Beta.** Follow the [dbt v2 upgrade guide](https://docs.getdbt.com/docs/dbt-versions/core-upgrade/upgrading-to-v2). The ClickHouse adapter ships inside the dbt binary; there is no separate package to install. |
+| **dbt Fusion** | dbt v2 plus additional features from dbt Labs: SQL comprehension, static analysis, LSP, a VS Code extension and column awareness. Dialect-specific SQL intelligence is built per database. | **Beta.** The adapter runs with the Fusion binary, but the new SQL features are not available for ClickHouse yet. |
+| **dbt platform** | Hosted dbt, formerly dbt Cloud: Studio IDE, scheduled jobs, environments, Catalog, Semantic Layer. The platform runs dbt v2 only, so ClickHouse in the platform means the v2 adapter. | **Private Beta.** Access is enabled per account by dbt; talk to your dbt account representative to enable it. |
 
 ## Beta status {#beta-status}
 
