@@ -49,7 +49,7 @@ pip install dbt-clickhouse
 
 All features up to dbt-core 1.10 are supported, including `--sample` flag and all deprecation warnings fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 are not yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/features-and-configurations#catalog-support) for details.
 
-This adapter is still not available for use inside [dbt Cloud](https://docs.getdbt.com/docs/dbt-cloud/cloud-overview), but we expect to make it available soon. Please reach out to support to get more information on this.
+ClickHouse support in the dbt Platform is available in Private Beta through the dbt Core v2 adapter. See the [dbt Core v2 documentation](https://clickhouse.com/docs/integrations/dbt/dbt-core-v2-fusion-and-platform) for availability and known limitations.
 
 ## Contributing
 
