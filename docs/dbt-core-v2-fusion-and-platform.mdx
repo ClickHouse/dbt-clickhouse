@@ -42,25 +42,25 @@ dbt is available in several forms, and the same adapter can run in more than one
 
 We measure dbt Core v2 against the dbt Core 1.x integration test suite of `dbt-clickhouse`. Beta means that core dbt workflows and the ClickHouse Cloud feature set work with documented limits; full v1 parity and self-managed cluster support come after.
 
-**Today** the adapter passes more than 81% of the whole v1 suite, and 92% of the tests that apply to ClickHouse Cloud. Every materialization is at parity (`view`, `table`, `incremental`, `materialized_view`, `dictionary`, `snapshot`, `seed`, `ephemeral`), with the full set of table configs, model contracts, data and unit tests, docs persistence, `clickhouse_s3source()` and the dbt Core 1.x connection settings. The remaining failures are the self-managed cluster work listed below plus a handful of engine-side differences. See [v1 vs v2 parity](#parity) for the feature-by-feature picture.
+**Today,** the adapter passes more than 81% of the full v1 suite and 92% of the tests that apply to ClickHouse Cloud. Every materialization is at parity (`view`, `table`, `incremental`, `materialized_view`, `dictionary`, `snapshot`, `seed`, `ephemeral`), with the full set of table configs, model contracts, data and unit tests, docs persistence, `clickhouse_s3source()` and the dbt Core 1.x connection settings. The remaining failures relate to the self-managed cluster work listed below and a handful of engine-side differences. See [v1 vs v2 parity](#parity) for the feature-by-feature picture.
 
-**Next will come the rest of the remaining features**: `ON CLUSTER` DDL and the distributed materializations for self-managed clusters, grants, `dbt clone`, `dbt source freshness` from table metadata, fixes of the small bugs and of course, 100% of the v1 coverage to ensure full parity.
+**Next steps**: `ON CLUSTER` DDL and the distributed materializations for self-managed clusters, grants, `dbt clone`, `dbt source freshness` from table metadata, fixes for the remaining bugs and passing the full v1 test suite to ensure full parity.
 
-GA is in the roadmap and will come soon. We'll update the docs once it's ready.
+GA is on the roadmap and will come soon. We'll update the docs once it's ready.
 
-### Out of scope for beta {#out-of-scope}
+### Out of scope for Beta {#out-of-scope}
 
-Apart from the features mentioned in the next section from the v1 parity, there are a few v2 exclusive items that are outside the current work scope, but will come soon:
+In addition to the v1 parity gaps listed below, a few features exclusive to v2 are outside the current scope but will come soon:
 
 - **Semantic Layer / MetricFlow.** ClickHouse support has not been added yet.
-- **ClickHouse SQL intelligence in Fusion** (dialect-aware validation, static analysis, LSP, column awareness in the VS Code extension). The adapter runs under the Fusion binary today but doesn't include these features yet. Until then, static analysis is forced to `off` for ClickHouse projects and the engine writes no column-level lineage. Tracked in [#736](https://github.com/ClickHouse/dbt-clickhouse/issues/736).
+- **ClickHouse SQL intelligence in Fusion** (dialect-aware validation, static analysis, LSP, column awareness in the VS Code extension). The adapter runs with the Fusion binary today but doesn't include these features yet. Until then, static analysis is forced to `off` for ClickHouse projects and the engine writes no column-level lineage. Tracked in [#736](https://github.com/ClickHouse/dbt-clickhouse/issues/736).
 - **Additional auth methods** beyond username and password in the dbt platform.
 
 ## v1 vs v2 parity {#parity}
 
-What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt Core v2 adapter stands. Every feature listed is supported in v1 unless the notes say otherwise; the status column is for dbt Core v2.
+The tables below compare the features available in `dbt-clickhouse` (v1) with their status in the dbt Core v2 adapter. Every feature listed is supported in v1 unless the notes say otherwise; the status column is for dbt Core v2.
 
-<Badge color="green">Supported</Badge> works today · <Badge color="yellow">Partial</Badge> works with limits · <Badge color="red">Not yet</Badge> pending to be implemented.
+<Badge color="green">Supported</Badge> works today · <Badge color="yellow">Partial</Badge> works with limits · <Badge color="red">Not yet</Badge> pending implementation.
 
 ### Materializations {#parity-materializations}
 
@@ -72,7 +72,7 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 | `materialized_view` | ClickHouse MV that transforms at insert time. | <Badge color="green">Supported</Badge> | |
 | `dictionary` | ClickHouse dictionary for key lookups and joins. | <Badge color="green">Supported</Badge> | |
 | `snapshot` | Type 2 slowly changing dimensions. | <Badge color="green">Supported</Badge> | |
-| `seed` | Load CSVs as tables. | <Badge color="green">Supported</Badge> | Numeric columns infer as `Int64`/`Float64` instead of `Int32`/`Float32`; pin with `column_types` if it matters. |
+| `seed` | Load CSVs as tables. | <Badge color="green">Supported</Badge> | Numeric column types are inferred as `Int64`/`Float64` instead of `Int32`/`Float32`; use `column_types` to set them explicitly. |
 | `ephemeral` | Inline CTE, no object created. | <Badge color="green">Supported</Badge> | |
 | `distributed_table`, `distributed_incremental` | Sharded tables behind a Distributed engine. | <Badge color="red">Not yet</Badge> | |
 
@@ -85,7 +85,7 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 | Table and query settings | Per-model `SETTINGS` on DDL and on the insert. | <Badge color="green">Supported</Badge> | |
 | Projections, indexes, `sql_header` | Secondary structures and prefix SQL. | <Badge color="green">Supported</Badge> | |
 | Model contracts and constraints | Column types and constraints enforced at build time. | <Badge color="green">Supported</Badge> | |
-| Schema evolution on incremental | `on_schema_change` adds or syncs columns. | <Badge color="green">Supported</Badge> | |
+| Schema evolution on incremental models | `on_schema_change` adds or syncs columns. | <Badge color="green">Supported</Badge> | |
 | Column `codec` and `ttl` | Per-column compression and expiration. | <Badge color="green">Supported</Badge> | |
 
 ### Testing and docs {#parity-testing-and-docs}
@@ -102,9 +102,9 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 
 | Feature | What it does | dbt Core v2 | Notes |
 |---------|--------------|-------------|-------|
-| ClickHouse Cloud | Recommended beta setup. | <Badge color="green">Supported</Badge> | |
+| ClickHouse Cloud | Recommended Beta setup. | <Badge color="green">Supported</Badge> | |
 | Multi-replica consistency | `select_sequential_consistency` and related read-after-write settings. | <Badge color="green">Supported</Badge> | |
-| `ON CLUSTER` and replicated engines | DDL fan-out on self-managed clusters. | <Badge color="red">Not yet</Badge> | Multi-node clusters in ClickHouse Cloud are supported. Other setups that require ON CLUSTER for DDL propagation is not supported yet, so in these cases, tests only against single-node clusters |
+| `ON CLUSTER` and replicated engines | DDL fan-out on self-managed clusters. | <Badge color="red">Not yet</Badge> | Multi-node clusters in ClickHouse Cloud are supported. Other setups that require `ON CLUSTER` for DDL propagation are not supported yet. For self-managed deployments, test only against single-node clusters. |
 | `EXCHANGE TABLES` | Atomic swap on rebuild. | <Badge color="green">Supported</Badge> | |
 | Custom connection settings | Profile-level `custom_settings`. | <Badge color="green">Supported</Badge> | |
 | ClickHouse server version | Minimum server version. | <Badge color="green">Supported</Badge> | 25.3+ on both engines. Reading `UUID` columns on v2 requires 26.7+ (older servers cannot convert `UUID` to Arrow). |
@@ -114,11 +114,11 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 | Feature | What it does | dbt Core v2 | Notes |
 |---------|--------------|-------------|-------|
 | S3 table function macro | `clickhouse_s3source()` reads S3 directly in a model. | <Badge color="green">Supported</Badge> | |
-| Cross-database macros | dbt utils style helpers. | <Badge color="green">Supported</Badge> | |
+| Cross-database macros | Helpers such as those in `dbt-utils`. | <Badge color="green">Supported</Badge> | |
 | Grants | `GRANT` statements from model config. | <Badge color="red">Not yet</Badge> | |
 | `dbt clone` | Zero-copy `CLONE AS` between environments. | <Badge color="red">Not yet</Badge> | |
 | Query ID in run results | `query_id` in `adapter_response` for `system.query_log` correlation. | <Badge color="red">Not yet</Badge> | |
-| `query-comment` | Query comment configuration. | <Badge color="red">Not yet</Badge> | `query-comment: null` not honored yet. |
+| `query-comment` | Query comment configuration. | <Badge color="red">Not yet</Badge> | `query-comment: null` is not honored yet. |
 | Catalog integration (Iceberg) | Materialize into external catalogs. | <Badge color="red">Not yet</Badge> | Not in v1 either; workarounds documented. |
 
 ### Connectivity and auth {#parity-connectivity-and-auth}
@@ -128,4 +128,4 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 | Protocol | How dbt talks to ClickHouse. | <Badge color="green">Supported</Badge> | ADBC (Arrow over HTTP) on v2; HTTP and native on v1. |
 | Username and password, TLS | Standard auth. | <Badge color="green">Supported</Badge> | |
 | mTLS client certificates | `client_cert`, `client_cert_key`, `verify`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored. |
-| HTTP client options | `connect_timeout`, `send_receive_timeout`, `sync_request_timeout`, `compress_block_size`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Accepted but ignored; `server_host_name` unavailable. |
+| HTTP client options | `connect_timeout`, `send_receive_timeout`, `sync_request_timeout`, `compress_block_size`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Accepted but ignored; `server_host_name` is unavailable. |
