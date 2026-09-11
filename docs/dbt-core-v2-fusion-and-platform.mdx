@@ -95,7 +95,7 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 | Data tests | Generic and singular tests. | <Badge color="green">Supported</Badge> | |
 | Unit tests | Model logic against fixture inputs. | <Badge color="green">Supported</Badge> | |
 | Docs persistence | Descriptions written as ClickHouse comments. | <Badge color="yellow">Partial</Badge> | Descriptions containing `;` fail. |
-| Catalog and docs generation | Column metadata for the docs site. | <Badge color="green">Supported</Badge> | Use `dbt compile --write-catalog`; v2 has no `docs generate` command (v1 uses `dbt docs generate`). |
+| Catalog and docs generation | Column metadata for the docs site. | <Badge color="green">Supported</Badge> | |
 | Column-level lineage | Trace columns through the DAG. | <Badge color="yellow">Partial</Badge> | New in v2 via the SQL compiler, not available in v1. dbt platform lineage renders only with identifier quoting disabled in `dbt_project.yml`; engine-side lineage needs the ClickHouse SQL dialect. |
 
 ### Cluster and Cloud {#parity-cluster-and-cloud}
@@ -104,7 +104,7 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 |---------|--------------|-------------|-------|
 | ClickHouse Cloud | Recommended beta setup. | <Badge color="green">Supported</Badge> | |
 | Multi-replica consistency | `select_sequential_consistency` and related read-after-write settings. | <Badge color="green">Supported</Badge> | |
-| `ON CLUSTER` and replicated engines | DDL fan-out on self-managed clusters. | <Badge color="yellow">Partial</Badge> | Single server only until then. |
+| `ON CLUSTER` and replicated engines | DDL fan-out on self-managed clusters. | <Badge color="red">Not yet</Badge> | Multi-node clusters in ClickHouse Cloud are supported. Other setups that require ON CLUSTER for DDL propagation is not supported yet, so in these cases, tests only against single-node clusters |
 | `EXCHANGE TABLES` | Atomic swap on rebuild. | <Badge color="green">Supported</Badge> | |
 | Custom connection settings | Profile-level `custom_settings`. | <Badge color="green">Supported</Badge> | |
 | ClickHouse server version | Minimum server version. | <Badge color="green">Supported</Badge> | 25.3+ on both engines. Reading `UUID` columns on v2 requires 26.7+ (older servers cannot convert `UUID` to Arrow). |
@@ -115,10 +115,10 @@ What a ClickHouse dbt user gets today in `dbt-clickhouse` (v1) and where the dbt
 |---------|--------------|-------------|-------|
 | S3 table function macro | `clickhouse_s3source()` reads S3 directly in a model. | <Badge color="green">Supported</Badge> | |
 | Cross-database macros | dbt utils style helpers. | <Badge color="green">Supported</Badge> | |
-| Grants | `GRANT` statements from model config. | <Badge color="yellow">Partial</Badge> | |
-| `dbt clone` | Zero-copy `CLONE AS` between environments. | <Badge color="yellow">Partial</Badge> | |
-| Query ID in run results | `query_id` in `adapter_response` for `system.query_log` correlation. | <Badge color="yellow">Partial</Badge> | |
-| `query-comment` | Query comment configuration. | <Badge color="yellow">Partial</Badge> | `query-comment: null` not honored yet. |
+| Grants | `GRANT` statements from model config. | <Badge color="red">Not yet</Badge> | |
+| `dbt clone` | Zero-copy `CLONE AS` between environments. | <Badge color="red">Not yet</Badge> | |
+| Query ID in run results | `query_id` in `adapter_response` for `system.query_log` correlation. | <Badge color="red">Not yet</Badge> | |
+| `query-comment` | Query comment configuration. | <Badge color="red">Not yet</Badge> | `query-comment: null` not honored yet. |
 | Catalog integration (Iceberg) | Materialize into external catalogs. | <Badge color="red">Not yet</Badge> | Not in v1 either; workarounds documented. |
 
 ### Connectivity and auth {#parity-connectivity-and-auth}
