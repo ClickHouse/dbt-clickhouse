@@ -52,6 +52,13 @@
         <coordination_settings>
             <operation_timeout_ms>10000</operation_timeout_ms>
             <session_timeout_ms>30000</session_timeout_ms>
+            <!-- All three raft members share one host with the test workers; spurious
+                 leader elections under CPU-starvation bursts drop keeper sessions and
+                 fail in-flight ON CLUSTER DDL (Code 999). Widen the election window so
+                 brief stalls don't trigger re-elections. -->
+            <heart_beat_interval_ms>1000</heart_beat_interval_ms>
+            <election_timeout_lower_bound_ms>4000</election_timeout_lower_bound_ms>
+            <election_timeout_upper_bound_ms>8000</election_timeout_upper_bound_ms>
         </coordination_settings>
 
         <raft_configuration>
@@ -72,6 +79,17 @@
             </server>
         </raft_configuration>
     </keeper_server>
+    <!-- The test suites issue thousands of ON CLUSTER DDLs per run (schemas, users,
+         SYSTEM FLUSH LOGS). With the default 7-day task_max_lifetime the DDL task
+         queue pins at max_tasks_in_queue and every new distributed DDL contends at
+         the cap, surfacing as sporadic "Coordination error: Operation timeout"
+         (Code 999). Prune finished tasks aggressively instead. -->
+    <distributed_ddl>
+        <path>/clickhouse/task_queue/ddl</path>
+        <task_max_lifetime>300</task_max_lifetime>
+        <cleanup_delay_period>15</cleanup_delay_period>
+        <max_tasks_in_queue>3000</max_tasks_in_queue>
+    </distributed_ddl>
     <zookeeper>
         <node index="1">
             <host>ch0</host>
