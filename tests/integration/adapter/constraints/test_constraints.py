@@ -64,6 +64,7 @@ class ClickHouseContractColumnsEqual:
         return [
             ["1::Int32", "Int32", "Int32"],
             ["'1'", "String", "String"],
+            ["toFixedString('1', 16)", "FixedString(16)", "FixedString(16)"],
             ["true", "Bool", "Bool"],
             ["'2013-11-03'::DateTime", "DateTime", "DateTime"],
             ["['a','b','c']", "Array(String)", "Array(String)"],
@@ -107,6 +108,29 @@ class ClickHouseContractColumnsEqual:
                 "data type mismatch",
             ]
             assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
+
+    def test__contract_fixedstring_string_mismatch(self, project):
+        # A String contract must not silently pass against a FixedString(N) model
+        # column: it previously passed preflight and broke later incremental runs (#726)
+        write_file(
+            my_model_data_type_sql.format(sql_value="toFixedString('1', 16)"),
+            "models",
+            "my_model_data_type.sql",
+        )
+        write_file(
+            model_data_type_schema_yml.format(data_type='String'),
+            "models",
+            "contract_schema.yml",
+        )
+
+        _, log_output = run_dbt_and_capture(["run", "-s", "my_model_data_type"], expect_pass=False)
+        expected = [
+            "wrong_data_type_column_name",
+            "FixedString(16)",
+            "String",
+            "data type mismatch",
+        ]
+        assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
     def test__contract_correct_column_data_types(self, project, data_types):
         for sql_column_value, schema_data_type, _ in data_types:
