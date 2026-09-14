@@ -7,7 +7,7 @@
 
 #### Bugs
 * Fixed the `delete+insert` incremental strategy occasionally missing deletes when the table being read had just received new data that the replica had not yet synced. The subquery now embeds `select_sequential_consistency=1` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
-* Apply column-level `codec` and `ttl` to distributed models on create and on add/modify column. Storage clauses now target the shard-local table instead of the Distributed proxy.
+* Apply column-level `codec` and `ttl` to distributed models on create and on add/modify column. Storage clauses now target the shard-local table instead of the Distributed proxy ([#741](https://github.com/ClickHouse/dbt-clickhouse/pull/741)).
 
 #### Repository maintenance
 * Add an advisory docs drift check for pull requests and manual runs.
