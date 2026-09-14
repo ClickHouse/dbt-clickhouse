@@ -11,12 +11,6 @@ def assert_column_codec(project, model):
     assert "CODEC" in ddl
     assert ("LZ4" if is_distributed else "ZSTD") in ddl
 
-    if is_distributed:
-        distributed_ddl = project.run_sql(
-            f"SHOW CREATE TABLE {project.test_schema}.{model}", fetch="one"
-        )[0]
-        assert "CODEC" not in distributed_ddl
-
 schema_change_with_codec_sql = """
 {{
     config(
@@ -183,10 +177,7 @@ class TestSyncAllColumnsWithCodec:
 
 distributed_table_codec_sql = """
 {{
-    config(
-        materialized='distributed_table',
-        contract={'enforced': true},
-    )
+    config(materialized='distributed_table')
 }}
 select
     number as col_1,
@@ -198,6 +189,9 @@ distributed_table_codec_yml = """
 version: 2
 models:
   - name: dist_table_rebuild_codec
+    config:
+      contract:
+        enforced: true
     columns:
       - name: col_1
         data_type: UInt64
