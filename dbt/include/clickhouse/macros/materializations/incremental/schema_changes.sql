@@ -18,10 +18,12 @@
 
 {% endmacro %}
 
-{% macro column_storage_clauses(column_name) -%}
-    {%- set codec = model['columns'].get(column_name, {}).get('codec') -%}
-    {%- set ttl = model['columns'].get(column_name, {}).get('ttl') -%}
-    {{ codec_clause(codec) }} {{ ttl_clause(ttl) }}
+{% macro column_codec_clause(column_name) -%}
+    {{ codec_clause(model['columns'].get(column_name, {}).get('codec')) }}
+{%- endmacro %}
+
+{% macro column_ttl_clause(column_name) -%}
+    {{ ttl_clause(model['columns'].get(column_name, {}).get('ttl')) }}
 {%- endmacro %}
 
 {% macro exec_alter_table(relation, action, on_cluster='') %}
@@ -35,8 +37,8 @@
     {% set command = 'add column if not exists' %}
     {% for column in columns %}
         {% set decl = '`' ~ column.name ~ '` ' ~ column.data_type %}
-        {% set local_action = command ~ ' ' ~ decl ~ ' ' ~ column_storage_clauses(column.name) %}
-        {% set distributed_action = command ~ ' ' ~ decl %}
+        {% set local_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) ~ ' ' ~ column_ttl_clause(column.name) %}
+        {% set distributed_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) %}
         {% do clickhouse__run_alter_table_command(local_action, existing_relation, existing_local, is_distributed, distributed_action) %}
     {% endfor %}
 
@@ -56,8 +58,8 @@
     {% set command = 'modify column if exists' %}
     {% for column in columns %}
         {% set decl = '`' ~ column.name ~ '` ' ~ column.data_type %}
-        {% set local_action = command ~ ' ' ~ decl ~ ' ' ~ column_storage_clauses(column.name) %}
-        {% set distributed_action = command ~ ' ' ~ decl %}
+        {% set local_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) ~ ' ' ~ column_ttl_clause(column.name) %}
+        {% set distributed_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) %}
         {% do clickhouse__run_alter_table_command(local_action, existing_relation, existing_local, is_distributed, distributed_action) %}
     {% endfor %}
 
