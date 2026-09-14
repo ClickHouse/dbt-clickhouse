@@ -199,6 +199,13 @@ models:
         ttl: event_date + toIntervalDay(60)
       - name: event_date
         data_type: Date
+  - name: dist_table_ttl_no_contract
+    columns:
+      - name: col_1
+        data_type: UInt64
+        ttl: event_date + toIntervalDay(60)
+      - name: event_date
+        data_type: Date
 """
 
 
@@ -207,6 +214,7 @@ class TestDistributedTableRebuildWithTTL:
     def models(self):
         return {
             "dist_table_rebuild_ttl.sql": distributed_table_ttl_sql,
+            "dist_table_ttl_no_contract.sql": distributed_table_ttl_sql,
             "schema.yml": distributed_table_ttl_yml,
         }
 
@@ -219,6 +227,19 @@ class TestDistributedTableRebuildWithTTL:
 
         ddl = project.run_sql(
             f"SHOW CREATE TABLE {project.test_schema}.dist_table_rebuild_ttl_local", fetch="one"
+        )[0]
+        assert "TTL" in ddl
+        assert "toIntervalDay(60)" in ddl
+
+    def test_ttl_applied_without_contract(self, project):
+        if os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+
+        run_dbt(["run", "--select", "dist_table_ttl_no_contract"])
+
+        ddl = project.run_sql(
+            f"SHOW CREATE TABLE {project.test_schema}.dist_table_ttl_no_contract_local",
+            fetch="one",
         )[0]
         assert "TTL" in ddl
         assert "toIntervalDay(60)" in ddl

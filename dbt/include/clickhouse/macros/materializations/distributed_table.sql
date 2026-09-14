@@ -117,7 +117,7 @@
     {%- endif -%}
     {%- set column_defs = [] -%}
     {% for col in columns %}
-      {{ column_defs.append(col.name + ' ' + col.data_type) or '' }}
+      {{ column_defs.append(col.name + ' ' + col.data_type + ' ' + column_codec_clause(col.name) + ' ' + column_ttl_clause(col.name)) or '' }}
     {% endfor %}
   {%- endif %}
 

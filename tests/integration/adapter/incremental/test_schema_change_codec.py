@@ -198,6 +198,13 @@ models:
       - name: col_2
         data_type: UInt64
         codec: LZ4
+  - name: dist_table_codec_no_contract
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_2
+        data_type: UInt64
+        codec: LZ4
 """
 
 
@@ -206,6 +213,7 @@ class TestDistributedTableRebuildWithCodec:
     def models(self):
         return {
             "dist_table_rebuild_codec.sql": distributed_table_codec_sql,
+            "dist_table_codec_no_contract.sql": distributed_table_codec_sql,
             "schema.yml": distributed_table_codec_yml,
         }
 
@@ -218,6 +226,19 @@ class TestDistributedTableRebuildWithCodec:
 
         ddl = project.run_sql(
             f"SHOW CREATE TABLE {project.test_schema}.dist_table_rebuild_codec_local", fetch="one"
+        )[0]
+        assert "CODEC" in ddl
+        assert "LZ4" in ddl
+
+    def test_codec_applied_without_contract(self, project):
+        if os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+
+        run_dbt(["run", "--select", "dist_table_codec_no_contract"])
+
+        ddl = project.run_sql(
+            f"SHOW CREATE TABLE {project.test_schema}.dist_table_codec_no_contract_local",
+            fetch="one",
         )[0]
         assert "CODEC" in ddl
         assert "LZ4" in ddl
