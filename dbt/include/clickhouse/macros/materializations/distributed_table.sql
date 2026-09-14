@@ -102,8 +102,16 @@
     )
  {% endmacro %}
 
-{% macro create_empty_table_from_relation(relation, source_relation, sql=none) -%}
+{% macro create_empty_table_from_relation(relation, source_relation, sql=none, has_contract=false) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
+  {{ sql_header if sql_header is not none }}
+
+  create table {{ relation.include(database=False) }}
+  {{ on_cluster_clause(relation) }}
+  {%- if has_contract %}
+  {% if sql is not none %}{{ get_assert_columns_equivalent(sql) }}{% endif %}
+  {{ get_table_columns_and_constraints() }}
+  {%- else %}
   {%- if sql -%}
     {%- set columns = adapter.get_column_schema_from_query(sql, query_settings=config.get('query_settings', {})) | list -%}
   {%- else -%}
@@ -113,10 +121,7 @@
   {% for col in columns %}
     {{col_list.append(col.name + ' ' + col.data_type) or '' }}
   {% endfor %}
-  {{ sql_header if sql_header is not none }}
-
-  create table {{ relation.include(database=False) }}
-  {{ on_cluster_clause(relation) }} (
+  (
       {{col_list | join(', ')}}
 
     {% if config.get('projections') %}
@@ -126,7 +131,8 @@
       {% endfor %}
   {% endif %}
   )
-  
+  {%- endif %}
+
   {{ engine_clause() }}
   {{ order_cols(label="order by") }}
   {{ primary_key_clause(label="primary key") }}
@@ -139,7 +145,7 @@
   {{ drop_relation_if_exists(shard_relation) }}
   {{ drop_relation_if_exists(distributed_relation) }}
   {{ create_schema(shard_relation) }}
-  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query)) or '' %}
+  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query, has_contract)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
   {% if sql_query is not none %}
     {% do run_query(clickhouse__insert_into(distributed_relation, sql_query, has_contract)) or '' %}
