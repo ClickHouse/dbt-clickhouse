@@ -73,7 +73,12 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         :param response: ClickHouse query result
         :param column_names: Table column names
         """
-        from dbt_common.clients.agate_helper import table_from_data_flat
+        from dbt_common.clients.agate_helper import empty_table, table_from_data_flat
+
+        # clickhouse-connect returns DDL/DCL responses (e.g. GRANT ... ON CLUSTER) with no
+        # column metadata; there is no table to build from them.
+        if not column_names:
+            return empty_table()
 
         data = []
         for row in response:
