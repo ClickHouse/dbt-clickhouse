@@ -7,6 +7,7 @@
 
 #### Bugs
 * Fix the `delete+insert` incremental strategy occasionally missing deletes on `database_engine: Shared` when the replica serving the subquery had not yet synced the newly inserted data ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
+* Fix a 1.10.2 regression where `run_query()` on statements that return no column metadata over HTTP (e.g. `GRANT ... ON CLUSTER`) failed with `zip() argument 2 is longer than argument 1` ([#743](https://github.com/ClickHouse/dbt-clickhouse/pull/743)).
 
 #### Repository maintenance
 * Remove code paths for ClickHouse versions older than 22.7, which are long past end of life ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
