@@ -58,7 +58,7 @@ List of supported features:
 - [x] ClickHouse-specific column configurations (Codec, TTL...)
 - [x] ClickHouse-specific table settings (indexes, projections...)
 
-All features up to dbt-core 1.10 are supported, including `--sample` flag and all deprecation warnings fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 aren't yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](/integrations/connectors/data-ingestion/etl-tools/dbt/features-and-configurations#catalog-support) for details.
+Features up to dbt-core 1.12 are supported, including the `--sample` flag, and all deprecation warnings are fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 aren't yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](/integrations/connectors/data-ingestion/etl-tools/dbt/features-and-configurations#catalog-support) for details.
 
 ## dbt concepts and supported materializations {#concepts-and-supported-materializations}
 
@@ -84,6 +84,10 @@ The following are [experimental features](/reference/settings/beta-and-experimen
 | Dictionary materialization              | Yes, Experimental                             | Creates a [dictionary](/reference/engines/table-engines/special/dictionary).                                                                                                                      |
 
 ## Setup of dbt and the ClickHouse adapter {#setup-of-dbt-and-the-clickhouse-adapter}
+
+<Tip>
+If you'd rather start from a working project, our [Jaffle Shop for ClickHouse](https://github.com/ClickHouse/jaffle-shop-clickhouse) fork of dbt's sample project ships with profiles for a local ClickHouse and for ClickHouse Cloud, sample data, and a README that covers dbt Core 1.x, dbt Core v2 and the dbt platform. The [guides page](/integrations/connectors/data-ingestion/etl-tools/dbt/guides) builds on it.
+</Tip>
 
 ### Install dbt-core and dbt-clickhouse {#install-dbt-core-and-dbt-clickhouse}
 
@@ -206,7 +210,6 @@ The current ClickHouse adapter for dbt has several limitations you should be awa
 - The adapter currently materializes models as tables using an [INSERT INTO SELECT](/reference/statements/insert-into#inserting-the-results-of-select). This effectively means data duplication if the run is executed again. Very large datasets (PB) can result in extremely long run times, making some models unviable. To improve performance, use ClickHouse Materialized Views by implementing the view as `materialized: materialization_view`. Additionally, aim to minimize the number of rows returned by any query by utilizing `GROUP BY` where possible. Prefer models that summarize data over those that simply transform while maintaining row counts of the source.
 - To use Distributed tables to represent a model, you must create the underlying replicated tables on each node manually. The Distributed table can, in turn, be created on top of these. The adapter doesn't manage cluster creation.
 - When dbt creates a relation (table/view) in a database, it usually creates it as: `{{ database }}.{{ schema }}.{{ table/view id }}`. ClickHouse has no notion of schemas. The adapter therefore uses `{{schema}}.{{ table/view id }}`, where `schema` is the ClickHouse database.
-- Ephemeral models/CTEs don't work if placed before the `INSERT INTO` in a ClickHouse insert statement, see https://github.com/ClickHouse/ClickHouse/issues/30323. This shouldn't affect most models, but care should be taken where an ephemeral model is placed in model definitions and other SQL statements. {/* TODO review this limitation, looks like the issue was already closed and the fix was introduced in 24.10 */}
 
 ## Fivetran {#fivetran}
 

@@ -274,7 +274,7 @@ Configurations that are specific for this materialization type are listed below:
 
 ### Incremental Model Strategies {#incremental-model-strategies}
 
-`dbt-clickhouse` supports three incremental model strategies.
+`dbt-clickhouse` supports the following incremental model strategies.
 
 #### The Default (Legacy) Strategy {#default-legacy-strategy}
 
@@ -534,23 +534,37 @@ CREATE TABLE db.table on cluster cluster (
 
 ## Snapshot {#snapshot}
 
-dbt snapshots allow a record to be made of changes to a mutable model over time. This in turn allows point-in-time
-queries on models, where analysts can "look back in time" at the previous state of a model. This functionality is
-supported by the ClickHouse connector and is configured using the following syntax:
+dbt [snapshots](https://docs.getdbt.com/docs/build/snapshots) record how the rows of a mutable model change over time as [type-2 slowly changing dimensions](https://en.wikipedia.org/wiki/Slowly_changing_dimension#Type_2:_add_new_row), so analysts can "look back in time" at a previous state of a model. The ClickHouse adapter supports both the `timestamp` and the `check` strategies. It builds each new version of the snapshot table in a staging table and swaps it in with `EXCHANGE TABLES` (or a drop and rename where the server can't exchange tables), so readers always see a complete version of the snapshot.
 
-Config block in `snapshots/<model_name>.sql`:
+Since dbt 1.9, snapshots are defined in YAML, in `snapshots/<name>.yml`:
+
+```yaml
+snapshots:
+  - name: <snapshot-name>
+    relation: ref('<model-name>')
+    config:
+      unique_key: <column-name>
+      strategy: timestamp             # or check
+      updated_at: <column-name>       # timestamp strategy
+      # check_cols: [<column-name>, ...]  # check strategy
+```
+
+The older Jinja form in `snapshots/<name>.sql` keeps working:
+
 ```python
+{% snapshot <snapshot-name> %}
 {{
    config(
-     schema = "<schema-name>",
      unique_key = "<column-name>",
      strategy = "<strategy>",
      updated_at = "<updated-at-column-name>",
    )
 }}
+select * from {{ ref('<model-name>') }}
+{% endsnapshot %}
 ```
 
-For more information on configuration, check out the [snapshot configs](https://docs.getdbt.com/docs/build/snapshots#snapshot-configs) reference page.
+For a worked example on the Jaffle Shop, see the [snapshot section of the guides](/integrations/connectors/data-ingestion/etl-tools/dbt/guides#snapshot). For all options, check out the [snapshot configs](https://docs.getdbt.com/docs/build/snapshots#snapshot-configs) reference page.
 
 ## Contracts and Constraints {#contracts-and-constraints}
 
