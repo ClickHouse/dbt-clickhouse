@@ -1,17 +1,23 @@
-### Release [1.10.3], 2026-XX-XX
+### Release [1.10.3], 2026-09-15
 
 #### Improvements
-* Test against `dbt-core` 1.12 and widen the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
-* Add `lightweight_deletes_sync=3` to the default connection settings for `Shared` database engine so it only waits for active replicas (overridable via `custom_settings`). ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
-* Documentation source from dbt-clickhouse is now tracked from this repository. Check the [CONTRIBUTING.md](./CONTRIBUTING.md#updating-the-documentation) file to get more context ([#728](https://github.com/ClickHouse/dbt-clickhouse/pull/728)).
+* Unlocks support for `dbt-core` 1.12 and tests against it. Widens the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
+* Add `lightweight_deletes_sync=3` to the default connection settings so lightweight deletes wait for all active replicas before returning. Like the other defaults, it can be overridden via `custom_settings` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
+* The public dbt-clickhouse documentation is now maintained in this repository under [`docs`](./docs). See [CONTRIBUTING.md](./CONTRIBUTING.md#updating-the-documentation) for how to update it ([#728](https://github.com/ClickHouse/dbt-clickhouse/pull/728)).
 
 #### Bugs
-* Fixed the `delete+insert` incremental strategy occasionally missing deletes when the table being read had just received new data that the replica had not yet synced. The subquery now embeds `select_sequential_consistency=1` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
+* Fix the `delete+insert` incremental strategy occasionally missing deletes on `database_engine: Shared` when the replica serving the subquery had not yet synced the newly inserted data ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
 * Fix a 1.10.2 regression where `run_query()` on statements that return no column metadata over HTTP (e.g. `GRANT ... ON CLUSTER`) failed with `zip() argument 2 is longer than argument 1` ([#743](https://github.com/ClickHouse/dbt-clickhouse/pull/743)).
 
 #### Repository maintenance
-* Add an advisory docs drift check for pull requests and manual runs.
+* Remove code paths for ClickHouse versions older than 22.7, which are long past end of life ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
+* Add an advisory docs drift check for pull requests and manual runs ([#738](https://github.com/ClickHouse/dbt-clickhouse/pull/738)).
 * Fix the broken Catalog Support link in the README ([#733](https://github.com/ClickHouse/dbt-clickhouse/pull/733)).
+* Bump `requests` in the development requirements to fix PYSEC-2026-2275 ([#716](https://github.com/ClickHouse/dbt-clickhouse/pull/716)).
+* Update `actions/checkout` and `actions/setup-python` in the CI workflows to their current major versions ([#725](https://github.com/ClickHouse/dbt-clickhouse/pull/725)).
+* Small refactors related to v2 compatibility:
+  * The `primary_key` model config now also accepts a list of columns, and an empty value omits the `PRIMARY KEY` clause instead of emitting invalid DDL ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
+  * The internal catalog helper macros (`get_catalog_results_sql` and friends) are now prefixed with `clickhouse__` to avoid clashing with dbt-core macros. Update any project that overrides them ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
 
 
 ### Release [1.10.2], 2026-08-13
