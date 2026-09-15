@@ -1,10 +1,8 @@
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
-* Test against `dbt-core` 1.12 and widen the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
+* Unlocks support for `dbt-core` 1.12 and tests against it. Widens the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
 * Add `lightweight_deletes_sync=3` to the default connection settings so lightweight deletes wait for all active replicas before returning. Like the other defaults, it can be overridden via `custom_settings` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
-* The `primary_key` model config now also accepts a list of columns, and an empty value omits the `PRIMARY KEY` clause instead of emitting invalid DDL ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
-* The internal catalog helper macros (`get_catalog_results_sql` and friends) are now prefixed with `clickhouse__` to avoid clashing with dbt-core macros. Update any project that overrides them ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
 * The public dbt-clickhouse documentation is now maintained in this repository under [`docs`](./docs). See [CONTRIBUTING.md](./CONTRIBUTING.md#updating-the-documentation) for how to update it ([#728](https://github.com/ClickHouse/dbt-clickhouse/pull/728)).
 
 #### Bugs
