@@ -17,10 +17,6 @@ dbt is being rebuilt on a new engine, and ClickHouse is part of that from the st
 
 ClickHouse is the first community adapter on dbt v2 and in the dbt platform. dbt's own first-party adapters are launching alongside us; we are the first from outside dbt Labs. The dbt Core 1.x Python adapter, `dbt-clickhouse`, is not going away: we keep it current with dbt 1.x releases and maintain both adapters in parallel.
 
-<Tip>
-**Want to try ClickHouse in the dbt platform?** The connection is in private beta. Request access through the [private beta form](https://docs.google.com/forms/d/e/1FAIpQLScjHwRchnKarq_RpNM7hATjphNFxqBEePmAwRtSpMWG1snGHA/viewform); dbt enables it per account. Once enabled, follow [Connect ClickHouse](https://docs.getdbt.com/docs/platform/connect-data-platform/connect-clickhouse) in the dbt documentation to set up the connection.
-</Tip>
-
 <Warning>
 **Not production-ready.** The dbt Core v2 engine, its ClickHouse adapter and the dbt platform connection are not yet generally available (GA). Use them only in development or staging projects.
 </Warning>
@@ -31,6 +27,10 @@ ClickHouse is the first community adapter on dbt v2 and in the dbt platform. dbt
 
 Live status is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660) (dbt Core v2 parity, one sub-issue per area) and [ClickHouse/dbt-clickhouse#555](https://github.com/ClickHouse/dbt-clickhouse/issues/555) (dbt Fusion).
 
+#### Try ClickHouse in the dbt platform {#request-access}
+
+If you're interested in testing the private beta, sign up through [dbt Labs' private beta form](https://docs.google.com/forms/d/e/1FAIpQLScjHwRchnKarq_RpNM7hATjphNFxqBEePmAwRtSpMWG1snGHA/viewform). The form belongs to dbt Labs, so the information you submit goes to dbt Labs, not to ClickHouse. Once enabled, follow [Connect ClickHouse](https://docs.getdbt.com/docs/platform/connect-data-platform/connect-clickhouse) in the dbt documentation to set up the connection.
+
 ## Terminology and availability {#terminology}
 
 dbt is available in several forms, and the same adapter can run in more than one of them. This table explains each name and the current level of ClickHouse support.
@@ -40,7 +40,7 @@ dbt is available in several forms, and the same adapter can run in more than one
 | **dbt Core 1.x** | The Python-based dbt engine, open source (Apache 2.0). Our adapter is `dbt-clickhouse`, maintained in the [ClickHouse GitHub organization](https://github.com/ClickHouse/dbt-clickhouse) and installed alongside `dbt-core`. | **GA, maintained.** Keeps receiving releases in parallel with v2. |
 | **dbt Core v2** | Full rewrite of the dbt engine in Rust, open source (Apache 2.0). This new version includes all v1 features plus several performance improvements. | **Beta.** Follow the [dbt v2 upgrade guide](https://docs.getdbt.com/docs/dbt-versions/core-upgrade/upgrading-to-v2) and the [ClickHouse setup page for v2](https://docs.getdbt.com/docs/local/connect-data-platform/clickhouse-setup?version=2) in the dbt documentation. The ClickHouse adapter ships inside the dbt binary; there is no separate package to install. |
 | **dbt Fusion** | dbt v2 plus additional features from dbt Labs: SQL comprehension, static analysis, LSP, a VS Code extension and column awareness. Dialect-specific SQL intelligence is built per database. Closed source, licensed under the [dbt Product Licensing Agreement](https://www.getdbt.com/dbt-fusion-engine-license-agreement). | **Beta.** The adapter runs with the Fusion binary, but the new SQL features are not available for ClickHouse yet. |
-| **dbt platform** | Hosted dbt, formerly dbt Cloud: Studio IDE, scheduled jobs, environments, Catalog, Semantic Layer. The platform runs dbt v2 only, so ClickHouse in the platform means the v2 adapter. | **Private Beta.** Access is enabled per account through the [private beta form](https://docs.google.com/forms/d/e/1FAIpQLScjHwRchnKarq_RpNM7hATjphNFxqBEePmAwRtSpMWG1snGHA/viewform). Setup: [Connect ClickHouse](https://docs.getdbt.com/docs/platform/connect-data-platform/connect-clickhouse) in the dbt documentation. |
+| **dbt platform** | Hosted dbt, formerly dbt Cloud: Studio IDE, scheduled jobs, environments, Catalog, Semantic Layer. The platform runs dbt v2 only, so ClickHouse in the platform means the v2 adapter. | **Private Beta.** See [how to request access](#request-access). Setup: [Connect ClickHouse](https://docs.getdbt.com/docs/platform/connect-data-platform/connect-clickhouse) in the dbt documentation. |
 
 ## Beta status {#beta-status}
 
