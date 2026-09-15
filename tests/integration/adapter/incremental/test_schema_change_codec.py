@@ -11,6 +11,7 @@ def assert_column_codec(project, model):
     assert "CODEC" in ddl
     assert ("LZ4" if is_distributed else "ZSTD") in ddl
 
+
 schema_change_with_codec_sql = """
 {{
     config(
