@@ -14,6 +14,9 @@
 * Fix the broken Catalog Support link in the README ([#733](https://github.com/ClickHouse/dbt-clickhouse/pull/733)).
 * Bump `requests` in the development requirements to fix PYSEC-2026-2275 ([#716](https://github.com/ClickHouse/dbt-clickhouse/pull/716)).
 * Update `actions/checkout` and `actions/setup-python` in the CI workflows to their current major versions ([#725](https://github.com/ClickHouse/dbt-clickhouse/pull/725)).
+* Small refactors related to v2 compatibility:
+  * The `primary_key` model config now also accepts a list of columns, and an empty value omits the `PRIMARY KEY` clause instead of emitting invalid DDL ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
+  * The internal catalog helper macros (`get_catalog_results_sql` and friends) are now prefixed with `clickhouse__` to avoid clashing with dbt-core macros. Update any project that overrides them ([#678](https://github.com/ClickHouse/dbt-clickhouse/pull/678)).
 
 
 ### Release [1.10.2], 2026-08-13
