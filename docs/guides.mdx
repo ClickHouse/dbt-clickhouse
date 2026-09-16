@@ -114,8 +114,8 @@ The Jaffle Shop uses dbt [seeds](https://docs.getdbt.com/docs/build/seeds) to lo
 
 Seeds are still a good place to learn how dbt creates ClickHouse tables. dbt infers a column type for each CSV column, and the inferred types differ between engines:
 
-| CSV value | dbt Core 1.x | dbt v2 |
-|-----------|--------------|--------|
+| CSV value | dbt v1 | v2 engine |
+|-----------|--------|-----------|
 | `700` | `Int32` | `Int64` |
 | `0.06` | `Float32` | `Float64` |
 | `2024-09-01T15:01:00` | `DateTime` | `DateTime64(6)` |

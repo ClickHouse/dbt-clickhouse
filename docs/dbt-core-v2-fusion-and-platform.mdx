@@ -3,7 +3,7 @@ sidebarTitle: 'dbt OSS, v2 and Platform (Beta)'
 slug: /integrations/dbt/dbt-core-v2-fusion-and-platform
 description: 'Status of the ClickHouse adapter in dbt OSS, dbt v2 and the dbt platform'
 keywords: ['dbt', 'dbt v2', 'dbt platform', 'dbt oss', 'dbt fusion', 'dbt core v2']
-title: 'dbt v2 and dbt Platform'
+title: 'dbt OSS, v2 and Platform (Beta)'
 doc_type: 'reference'
 ---
 
@@ -15,7 +15,7 @@ import { BetaBadge } from "/snippets/components/BetaBadge/BetaBadge.jsx";
 
 dbt is being rebuilt on a new engine, and ClickHouse is part of that from the start. ClickHouse now works with the new Rust-based dbt engine, in both dbt OSS and dbt v2, and for the first time you can connect to ClickHouse from the dbt platform. Your project does not change: the same models, tests and profiles that run on dbt Core 1.x today run on the new engine; only the binary is different.
 
-ClickHouse is the first community adapter on dbt v2 and in the dbt platform. dbt's own first-party adapters are launching alongside us; we are the first from outside dbt Labs. The dbt Core 1.x Python adapter, `dbt-clickhouse`, is not going away: we keep it current with dbt 1.x releases and maintain both adapters in parallel.
+ClickHouse is the first community adapter on dbt OSS, dbt v2 and the dbt platform. dbt's own first-party adapters are launching alongside us; we are the first from outside dbt Labs. The dbt Core 1.x Python adapter, `dbt-clickhouse`, is not going away: we keep it current with dbt 1.x releases and maintain both adapters in parallel.
 
 <Warning>
 **Not production-ready.** The ClickHouse adapter for dbt OSS and dbt v2, and the dbt platform connection, are not yet generally available (GA). Use them only in development or staging projects.
@@ -26,7 +26,7 @@ ClickHouse is the first community adapter on dbt v2 and in the dbt platform. dbt
 </Note>
 
 <Note>
-**dbt OSS.** ClickHouse is supported in dbt OSS, the open-source (Apache 2.0) version of v2. See [terminology and availability](#terminology) for more information.
+**dbt OSS** is the open-source (Apache 2.0) build of the v2 engine. See [terminology and availability](#terminology) for how it relates to dbt v2 and the dbt platform.
 </Note>
 
 Live status is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660) (v2 parity with v1, one sub-issue per area) and [ClickHouse/dbt-clickhouse#555](https://github.com/ClickHouse/dbt-clickhouse/issues/555) (dbt v2).
