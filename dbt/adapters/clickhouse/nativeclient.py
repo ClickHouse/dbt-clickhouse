@@ -7,7 +7,6 @@ from dbt.adapters.__about__ import version as dbt_adapters_version
 from dbt.adapters.clickhouse import ClickHouseColumn, ClickHouseCredentials
 from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_version
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
-from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.util import hide_stack_trace
 from dbt_common.exceptions import DbtDatabaseError
 
@@ -25,7 +24,7 @@ class ChNativeClient(ChClientWrapper):
             err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
-    def command(self, sql, **kwargs):
+    def _command(self, sql, **kwargs):
         try:
             result = self._client.execute(sql, **kwargs)
             if len(result) and len(result[0]):
@@ -46,14 +45,14 @@ class ChNativeClient(ChClientWrapper):
             err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
-    def get_ch_setting(self, setting_name):
+    def _get_ch_setting(self, setting_name):
         try:
             result = self._client.execute(
                 f"SELECT value, readonly FROM system.settings WHERE name = '{setting_name}'"
             )
         except clickhouse_driver.errors.Error as ex:
-            logger.warn('Unexpected error retrieving ClickHouse server setting', ex)
-            return None
+            err_msg = hide_stack_trace(ex)
+            raise DbtDatabaseError(err_msg) from ex
         return (result[0][0], result[0][1]) if result else (None, 0)
 
     def close(self):

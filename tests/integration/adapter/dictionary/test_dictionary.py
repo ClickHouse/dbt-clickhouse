@@ -223,7 +223,7 @@ class TestQueryDictionary:
         run_dbt(["seed"])
 
         result = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert result[0][1] == "Int32"
+        assert result[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         run_dbt()
         result = project.run_sql("select count(distinct id) from hackers", fetch="all")

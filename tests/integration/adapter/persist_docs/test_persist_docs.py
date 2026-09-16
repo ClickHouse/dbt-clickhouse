@@ -168,7 +168,7 @@ class BasePersistDocsCommentOnQuotedColumn:
         return {
             "models": {
                 "test": {
-                    "materialized": "table",
+                    "+materialized": "table",
                     "+persist_docs": {
                         "relation": True,
                         "columns": True,

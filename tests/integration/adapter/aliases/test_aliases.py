@@ -14,6 +14,8 @@ from dbt.tests.adapter.aliases.test_aliases import (
 )
 from dbt.tests.util import relation_from_name, run_dbt
 
+from tests.integration.adapter.helpers import MigratedTestArgs, migrate_yml
+
 MODELS__DISTRIBUTED_FOO_ALIAS_SQL = """
 
 {{
@@ -48,27 +50,61 @@ select {{ string_literal(this.name) }} as tablename
 """
 
 
-class TestAliases(BaseAliases):
+# dbt core v2 requires the canonical `+`-prefixed keys in dbt_project.yml
+# (unprefixed `alias:`/`schema:` are dbt1013 "custom keys must go under +meta");
+# the `+` form is equally valid under Python dbt, so these overrides keep both
+# engines green. Mirrors upstream fixtures with `+` prefixes added.
+class CanonicalAliasProjectConfig:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {
+            "config-version": 2,
+            "macro-paths": ["macros"],
+            "models": {
+                "test": {
+                    "alias_in_project": {
+                        "+alias": "project_alias",
+                    },
+                    "alias_in_project_with_override": {
+                        "+alias": "project_alias",
+                    },
+                }
+            },
+        }
+
+
+class TestAliases(MigratedTestArgs, CanonicalAliasProjectConfig, BaseAliases):
     pass
 
 
-class TestAliasErrors(BaseAliasErrors):
+class TestAliasErrors(MigratedTestArgs, BaseAliasErrors):
     pass
 
 
-class TestSameAliasDifferentSchemas(BaseSameAliasDifferentSchemas):
+class TestSameAliasDifferentSchemas(MigratedTestArgs, BaseSameAliasDifferentSchemas):
     pass
 
 
-class TestSameAliasDifferentDatabases(BaseSameAliasDifferentDatabases):
-    pass
+class TestSameAliasDifferentDatabases(MigratedTestArgs, BaseSameAliasDifferentDatabases):
+    @pytest.fixture(scope="class")
+    def project_config_update(self, unique_schema):
+        return {
+            "config-version": 2,
+            "macro-paths": ["macros"],
+            "models": {
+                "test": {
+                    "+alias": "duped_alias",
+                    "model_b": {"+schema": unique_schema + "_alt"},
+                },
+            },
+        }
 
 
-class TestDistributedAliases(BaseAliases):
+class TestDistributedAliases(CanonicalAliasProjectConfig, BaseAliases):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "schema.yml": MODELS__SCHEMA_YML,
+            "schema.yml": migrate_yml(MODELS__SCHEMA_YML),
             "foo_alias.sql": MODELS__DISTRIBUTED_FOO_ALIAS_SQL,
             "alias_in_project.sql": MODELS__ALIAS_IN_PROJECT_SQL,
             "alias_in_project_with_override.sql": MODELS__ALIAS_IN_PROJECT_WITH_OVERRIDE_SQL,
