@@ -58,11 +58,11 @@
   {% elif existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
-      {{ create_empty_table_from_relation(backup_relation, view_relation) }}
+      {{ create_empty_table_from_relation(backup_relation, view_relation, none, has_contract) }}
     {%- endcall %}
     {% do exchange_tables_atomic(backup_relation, existing_relation_local) %}
   {% else %}
-    {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation)) or '' %}
+    {% do run_query(create_empty_table_from_relation(intermediate_relation, view_relation, none, has_contract)) or '' %}
     {{ adapter.rename_relation(existing_relation_local, backup_relation) }}
     {{ adapter.rename_relation(intermediate_relation, target_relation_local) }}
   {% endif %}
@@ -102,31 +102,36 @@
     )
  {% endmacro %}
 
-{% macro create_empty_table_from_relation(relation, source_relation, sql=none) -%}
+{% macro create_empty_table_from_relation(relation, source_relation, sql=none, has_contract=false) -%}
   {%- set sql_header = config.get('sql_header', none) -%}
-  {%- if sql -%}
-    {%- set columns = adapter.get_column_schema_from_query(sql, query_settings=config.get('query_settings', {})) | list -%}
-  {%- else -%}
-    {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
-  {%- endif -%}
-  {%- set col_list = [] -%}
-  {% for col in columns %}
-    {{col_list.append(col.name + ' ' + col.data_type) or '' }}
-  {% endfor %}
   {{ sql_header if sql_header is not none }}
+
+  {%- if has_contract %}
+    {% if sql is not none %}{{ get_assert_columns_equivalent(sql) }}{% endif %}
+    {%- set column_defs = adapter.render_raw_columns_constraints(raw_columns=model['columns']) + adapter.render_raw_model_constraints(raw_constraints=model['constraints']) -%}
+  {%- else %}
+    {%- if sql -%}
+      {%- set columns = adapter.get_column_schema_from_query(sql, query_settings=config.get('query_settings', {})) | list -%}
+    {%- else -%}
+      {%- set columns = adapter.get_columns_in_relation(source_relation) | list -%}
+    {%- endif -%}
+    {%- set column_defs = [] -%}
+    {% for col in columns %}
+      {{ column_defs.append(col.name + ' ' + col.data_type + ' ' + column_codec_clause(col.name) + ' ' + column_ttl_clause(col.name)) or '' }}
+    {% endfor %}
+  {%- endif %}
 
   create table {{ relation.include(database=False) }}
   {{ on_cluster_clause(relation) }} (
-      {{col_list | join(', ')}}
+      {{ column_defs | join(', ') }}
 
     {% if config.get('projections') %}
-      {% set projections = config.get('projections') %}
-      {% for projection in projections %}
+      {% for projection in config.get('projections') %}
         , {{ clickhouse_projection_ddl(projection) }}
       {% endfor %}
-  {% endif %}
+    {% endif %}
   )
-  
+
   {{ engine_clause() }}
   {{ order_cols(label="order by") }}
   {{ primary_key_clause(label="primary key") }}
@@ -139,7 +144,7 @@
   {{ drop_relation_if_exists(shard_relation) }}
   {{ drop_relation_if_exists(distributed_relation) }}
   {{ create_schema(shard_relation) }}
-  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query)) or '' %}
+  {% do run_query(create_empty_table_from_relation(shard_relation, structure_relation, sql_query, has_contract)) or '' %}
   {% do run_query(create_distributed_table(distributed_relation, shard_relation)) or '' %}
   {% if sql_query is not none %}
     {% do run_query(clickhouse__insert_into(distributed_relation, sql_query, has_contract)) or '' %}

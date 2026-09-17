@@ -1,3 +1,9 @@
+### Release [1.10.4], 2026-XX-XX
+
+#### Bugs
+* Apply column-level `codec` and `ttl` to the shard-local table of distributed models on create (with or without an enforced contract) and on add/modify column ([#741](https://github.com/ClickHouse/dbt-clickhouse/pull/741)).
+
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
