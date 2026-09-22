@@ -27,7 +27,7 @@ naming_local_db_sql = """
        incremental_strategy='insert_overwrite',
        partition_by='part',
        order_by='id',
-       local_db='__SHARD_DB__',
+       local_db=var('shard_db'),
        local_suffix='',
    )
 }}
@@ -42,7 +42,7 @@ naming_local_db_table_sql = """
 {{ config(
        materialized='distributed_table',
        order_by='id',
-       local_db='__SHARD_DB__',
+       local_db=var('shard_db'),
        local_suffix='',
    )
 }}
@@ -55,7 +55,7 @@ naming_schema_change_sql = """
        incremental_strategy='append',
        on_schema_change='append_new_columns',
        order_by='id',
-       local_db='__SHARD_DB__',
+       local_db=var('shard_db'),
        local_suffix='',
    )
 }}
@@ -79,6 +79,27 @@ select number as id, {{ var('run_no') }} as run from numbers(3)
 
 naming_mv_source_sql = """
 {{ config(materialized='distributed_incremental', incremental_strategy='append', order_by='id') }}
+select number as id from numbers(3)
+"""
+
+naming_incremental_switch_sql = """
+{{ config(
+       materialized='distributed_incremental',
+       incremental_strategy='append',
+       order_by='id',
+       local_db=var('shard_db'),
+       local_suffix='',
+   )
+}}
+{% if is_incremental() %}
+select 100 + number as id from numbers(2)
+{% else %}
+select number as id from numbers(3)
+{% endif %}
+"""
+
+naming_table_switch_sql = """
+{{ config(materialized='distributed_table', order_by='id', local_db=var('shard_db'), local_suffix='') }}
 select number as id from numbers(3)
 """
 
@@ -118,21 +139,19 @@ def partitions_of(project, model) -> dict:
     return {row[0]: row[1] for row in rows}
 
 
-def apply_shard_db(sql: str) -> str:
-    return sql.replace("__SHARD_DB__", SHARD_DB)
-
-
 @no_cluster
 class TestDistributedLocalNaming:
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "naming_default.sql": naming_default_sql,
-            "naming_local_db.sql": apply_shard_db(naming_local_db_sql),
-            "naming_local_db_table.sql": apply_shard_db(naming_local_db_table_sql),
-            "naming_schema_change.sql": apply_shard_db(naming_schema_change_sql),
+            "naming_local_db.sql": naming_local_db_sql,
+            "naming_local_db_table.sql": naming_local_db_table_sql,
+            "naming_schema_change.sql": naming_schema_change_sql,
             "naming_switch.sql": naming_switch_sql,
             "naming_mv_source.sql": naming_mv_source_sql,
+            "naming_incremental_switch.sql": naming_incremental_switch_sql,
+            "naming_table_switch.sql": naming_table_switch_sql,
             "naming_collision.sql": naming_collision_sql,
         }
 
@@ -154,8 +173,8 @@ class TestDistributedLocalNaming:
 
     def test_local_db_moves_the_local_table(self, project):
         schema = project.test_schema
-        run_dbt(["run", "--select", "naming_local_db"])
-        run_dbt(["run", "--select", "naming_local_db"])
+        run_dbt(["run", "--select", "naming_local_db", "--vars", f"{{shard_db: {SHARD_DB}}}"])
+        run_dbt(["run", "--select", "naming_local_db", "--vars", f"{{shard_db: {SHARD_DB}}}"])
 
         assert_distributed_over(project, schema, "naming_local_db", SHARD_DB, "naming_local_db")
         assert not table_exists(project, schema, "naming_local_db_local")
@@ -163,7 +182,7 @@ class TestDistributedLocalNaming:
 
     def test_local_db_for_distributed_table(self, project):
         schema = project.test_schema
-        run_dbt(["run", "--select", "naming_local_db_table"])
+        run_dbt(["run", "--select", "naming_local_db_table", "--vars", f"{{shard_db: {SHARD_DB}}}"])
 
         assert_distributed_over(
             project, schema, "naming_local_db_table", SHARD_DB, "naming_local_db_table"
@@ -173,8 +192,8 @@ class TestDistributedLocalNaming:
 
     def test_schema_change_reaches_the_moved_local_table(self, project):
         schema = project.test_schema
-        run_dbt(["run", "--select", "naming_schema_change"])
-        run_dbt(["run", "--select", "naming_schema_change"])
+        run_dbt(["run", "--select", "naming_schema_change", "--vars", f"{{shard_db: {SHARD_DB}}}"])
+        run_dbt(["run", "--select", "naming_schema_change", "--vars", f"{{shard_db: {SHARD_DB}}}"])
 
         assert "extra" in columns_of(project, SHARD_DB, "naming_schema_change")
         assert "extra" in columns_of(project, schema, "naming_schema_change")
@@ -182,16 +201,20 @@ class TestDistributedLocalNaming:
 
     def test_switching_local_db_back_rebuilds_the_distributed_table(self, project):
         schema = project.test_schema
-        for db, run_no in ((SHARD_DB, 1), (OTHER_SHARD_DB, 2), (SHARD_DB, 3)):
-            run_dbt(
-                [
-                    "run",
-                    "--select",
-                    "naming_switch",
-                    "--vars",
-                    f"{{shard_db: {db}, run_no: {run_no}}}",
-                ]
-            )
+
+        def run(db, run_no, full_refresh=False):
+            args = [
+                "run",
+                "--select",
+                "naming_switch",
+                "--vars",
+                f"{{shard_db: {db}, run_no: {run_no}}}",
+            ]
+            run_dbt(args + ["--full-refresh"] if full_refresh else args)
+
+        run(SHARD_DB, 1)
+        run(OTHER_SHARD_DB, 2, full_refresh=True)
+        run(SHARD_DB, 3)
 
         assert_distributed_over(project, schema, "naming_switch", SHARD_DB, "naming_switch")
         runs = project.run_sql(
@@ -211,6 +234,38 @@ class TestDistributedLocalNaming:
         run_dbt(["run", "--select", "naming_mv_source"])
 
         assert project.run_sql(f"select count() from {schema}.mv_over_proxy", fetch="one")[0] == 3
+
+    def test_incremental_refuses_to_rebuild_a_missing_local_table(self, project):
+        """Moving the local table leaves nothing at the new name, and the compiled sql is the
+        incremental slice by then, so rebuilding from it would drop the rest of the data."""
+        run_dbt(
+            ["run", "--select", "naming_incremental_switch", "--vars", f"{{shard_db: {SHARD_DB}}}"]
+        )
+
+        result = run_dbt(
+            [
+                "run",
+                "--select",
+                "naming_incremental_switch",
+                "--vars",
+                f"{{shard_db: {OTHER_SHARD_DB}}}",
+            ],
+            expect_pass=False,
+        )
+        assert "--full-refresh" in result[0].message
+        assert not table_exists(project, OTHER_SHARD_DB, "naming_incremental_switch")
+
+    def test_distributed_table_follows_a_moved_local_table(self, project):
+        schema = project.test_schema
+        run_dbt(["run", "--select", "naming_table_switch", "--vars", f"{{shard_db: {SHARD_DB}}}"])
+        run_dbt(
+            ["run", "--select", "naming_table_switch", "--vars", f"{{shard_db: {OTHER_SHARD_DB}}}"]
+        )
+
+        assert_distributed_over(
+            project, schema, "naming_table_switch", OTHER_SHARD_DB, "naming_table_switch"
+        )
+        assert project.run_sql("select count() from naming_table_switch", fetch="one")[0] == 3
 
     def test_collision_fails_before_any_ddl(self, project):
         result = run_dbt(["run", "--select", "naming_collision"], expect_pass=False)

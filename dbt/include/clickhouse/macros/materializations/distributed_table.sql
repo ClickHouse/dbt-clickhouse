@@ -16,7 +16,7 @@
      projection config errors here rather than mid-rebuild #}
   {% do validate_projections() %}
 
-  {% set existing_relation_local = clickhouse_local_relation(this, existing_relation) if existing_relation is not none else none %}
+  {% set existing_relation_local = load_cached_relation(clickhouse_local_relation(this)) %}
   {% set target_relation_local = clickhouse_local_relation(this, target_relation) if target_relation is not none else none %}
 
   {%- set backup_relation = none -%}
@@ -27,7 +27,7 @@
     {%- set backup_relation_type = existing_relation_local.type -%}
     {%- set backup_relation = make_backup_relation(target_relation_local, backup_relation_type) -%}
     {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-    {% if not existing_relation.can_exchange %}
+    {% if existing_relation is none or not existing_relation.can_exchange %}
       {%- set intermediate_relation =  make_intermediate_relation(target_relation_local) -%}
       {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation) -%}
     {% endif %}
@@ -52,7 +52,7 @@
 
   {% if backup_relation is none %}
     {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, none, has_contract) }}
-  {% elif existing_relation.can_exchange %}
+  {% elif existing_relation is not none and existing_relation.can_exchange %}
     -- We can do an atomic exchange, so no need for an intermediate
     {% call statement('main') -%}
       {{ create_empty_table_from_relation(backup_relation, view_relation) }}

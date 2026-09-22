@@ -58,6 +58,11 @@
   {% endcall %}
 
   {% if existing_relation_local is none %}
+    {% if existing_relation is not none and not full_refresh_mode %}
+      {% do exceptions.raise_compiler_error(
+        'The local table ' ~ target_relation_local ~ ' of ' ~ this ~ ' does not exist while the table itself does. '
+        'Run with --full-refresh to rebuild it, or restore the local table.') %}
+    {% endif %}
     -- No existing local table, recreate local and distributed tables
     {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql, has_contract) }}
 

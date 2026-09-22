@@ -496,6 +496,11 @@ The Distributed table is the model relation and follows dbt naming (`schema`, `a
 | `local_db_prefix` | Prefix of the model database (ignored if `local_db` set) | `''`     |
 | `local_suffix`    | Suffix of the model name                               | `local`  |
 
+Changing them on a model that already holds data does not move the table. A `distributed_table` model
+simply rebuilds it on the next run. A `distributed_incremental` model fails instead: by then the compiled
+sql is the incremental slice, and filling a fresh local table with it would silently shrink the model or
+reload it in full.
+
 ## materialization: distributed_incremental (experimental) {#materialization-distributed-incremental}
 
 Incremental model based on the same idea as distributed table, the main difficulty is to process all incremental
