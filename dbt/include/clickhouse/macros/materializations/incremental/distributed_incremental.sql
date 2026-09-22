@@ -33,6 +33,15 @@
   {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
 
 
+  {#- Nothing to rebuild from: the compiled sql is the incremental slice by now, so a local table
+      filled with it would hold that slice alone, and the rest of the data would stay in whichever
+      table the naming settings pointed at before. Stop before creating anything. -#}
+  {% if existing_relation_local is none and existing_relation is not none and not full_refresh_mode %}
+    {% do exceptions.raise_compiler_error(
+      'The local table ' ~ target_relation_local ~ ' of ' ~ this ~ ' does not exist while the table itself does. '
+      'Run with --full-refresh to rebuild it, or restore the local table.') %}
+  {% endif %}
+
   {{ create_schema(target_relation_local) }}
   {%- set intermediate_relation = make_intermediate_relation(target_relation_local)-%}
   {%- set distributed_intermediate_relation = make_intermediate_relation(target_relation)-%}
@@ -58,11 +67,6 @@
   {% endcall %}
 
   {% if existing_relation_local is none %}
-    {% if existing_relation is not none and not full_refresh_mode %}
-      {% do exceptions.raise_compiler_error(
-        'The local table ' ~ target_relation_local ~ ' of ' ~ this ~ ' does not exist while the table itself does. '
-        'Run with --full-refresh to rebuild it, or restore the local table.') %}
-    {% endif %}
     -- No existing local table, recreate local and distributed tables
     {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql, has_contract) }}
 

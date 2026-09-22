@@ -5,6 +5,7 @@ from dbt.tests.util import run_dbt
 
 SHARD_DB = 'dbt_clickhouse_local_naming_shards'
 OTHER_SHARD_DB = 'dbt_clickhouse_local_naming_shards_2'
+GUARD_SHARD_DB = 'dbt_clickhouse_local_naming_shards_guard'
 
 naming_default_sql = """
 {{ config(
@@ -122,6 +123,10 @@ def assert_distributed_over(project, model_schema, model, local_schema, local_ta
     assert engine in ddl, f"expected {engine!r} in:\n{ddl}"
 
 
+def database_exists(project, name) -> bool:
+    return project.run_sql(f"exists database {name}", fetch="one")[0] == 1
+
+
 def table_exists(project, schema, name) -> bool:
     return project.run_sql(f"exists table {schema}.{name}", fetch="one")[0] == 1
 
@@ -160,7 +165,7 @@ class TestDistributedLocalNaming:
         yield
         cluster = project.test_config['cluster']
         on_cluster = f" on cluster {cluster}" if cluster else ""
-        for db in (SHARD_DB, OTHER_SHARD_DB):
+        for db in (SHARD_DB, OTHER_SHARD_DB, GUARD_SHARD_DB):
             project.run_sql(f"drop database if exists {db}{on_cluster} sync")
 
     def test_default_naming(self, project):
@@ -248,12 +253,12 @@ class TestDistributedLocalNaming:
                 "--select",
                 "naming_incremental_switch",
                 "--vars",
-                f"{{shard_db: {OTHER_SHARD_DB}}}",
+                f"{{shard_db: {GUARD_SHARD_DB}}}",
             ],
             expect_pass=False,
         )
         assert "--full-refresh" in result[0].message
-        assert not table_exists(project, OTHER_SHARD_DB, "naming_incremental_switch")
+        assert not database_exists(project, GUARD_SHARD_DB)
 
     def test_distributed_table_follows_a_moved_local_table(self, project):
         schema = project.test_schema
