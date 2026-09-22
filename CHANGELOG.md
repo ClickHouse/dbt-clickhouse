@@ -1,3 +1,12 @@
+### Release [1.10.4], 2026-XX-XX
+
+#### New Features
+* Distributed materializations can put the shard-local table in a database of its own with the new `local_db` setting. `local_db`, `local_db_prefix` and `local_suffix` are now read from the model config as well, not only from the profile ([#746](https://github.com/ClickHouse/dbt-clickhouse/pull/746)).
+
+#### Improvements
+* `distributed_incremental` recreates the Distributed table from the current local table and config on every run, so a changed `sharding_key` or local table name no longer needs a full refresh. Grants set on it outside dbt are lost; use the `grants` config ([#746](https://github.com/ClickHouse/dbt-clickhouse/pull/746)).
+
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
