@@ -486,6 +486,16 @@ Configurations that are specific for this materialization type are listed below:
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | sharding_key           | Sharding key determines the destination server when inserting into distributed engine table.  The sharding key can be random or as an output of a hash function                                                                                                                                                      | `rand()`)      |
 
+### Local table naming {#distributed-table-local-naming}
+
+The Distributed table is the model relation and follows dbt naming (`schema`, `alias`, `generate_schema_name`). The local (shard) table is named by the adapter, with settings that can be set in the profile or per model in `config()`:
+
+| Setting           | Effect                                                 | Default  |
+| ----------------- | ------------------------------------------------------ | -------- |
+| `local_db`        | Database of the local table, used as is                |          |
+| `local_db_prefix` | Prefix of the model database (ignored if `local_db` set) | `''`     |
+| `local_suffix`    | Suffix of the model name                               | `local`  |
+
 ## materialization: distributed_incremental (experimental) {#materialization-distributed-incremental}
 
 Incremental model based on the same idea as distributed table, the main difficulty is to process all incremental

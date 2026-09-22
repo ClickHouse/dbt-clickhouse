@@ -36,6 +36,7 @@ class ClickHouseCredentials(Credentials):
     use_lw_deletes: bool = False
     local_suffix: str = 'local'
     local_db_prefix: str = ''
+    local_db: Optional[str] = None
     allow_automatic_deduplication: bool = False
     tcp_keepalive: Union[bool, tuple[int, int, int], list[int]] = False
     # When False, close the connection after each model so the next opens a

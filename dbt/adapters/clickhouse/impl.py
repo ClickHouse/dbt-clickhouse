@@ -122,25 +122,23 @@ class ClickHouseAdapter(SQLAdapter):
         if conn.credentials.cluster:
             return f'"{conn.credentials.cluster}"'
 
-    @available.parse(lambda *a, **k: {})
-    def get_clickhouse_local_suffix(self):
+    @available.parse(lambda *a, **k: '')
+    def get_clickhouse_local_suffix(self, config_value: Optional[str] = None):
         conn = self.connections.get_if_exists()
-        suffix = conn.credentials.local_suffix
-        if suffix:
-            if suffix.startswith('_'):
-                return f'{suffix}'
-            return f'_{suffix}'
-        return ''
+        suffix = str(config_value) if config_value is not None else conn.credentials.local_suffix
+        return _name_suffix(suffix)
 
-    @available.parse(lambda *a, **k: {})
-    def get_clickhouse_local_db_prefix(self):
+    @available.parse(lambda *a, **k: '')
+    def get_clickhouse_local_db_prefix(self, config_value: Optional[str] = None):
         conn = self.connections.get_if_exists()
-        prefix = conn.credentials.local_db_prefix
-        if prefix:
-            if prefix.endswith('_'):
-                return f'{prefix}'
-            return f'{prefix}_'
-        return ''
+        prefix = str(config_value) if config_value is not None else conn.credentials.local_db_prefix
+        return _db_prefix(prefix)
+
+    @available.parse(lambda *a, **k: '')
+    def get_clickhouse_local_db(self, config_value: Optional[str] = None):
+        conn = self.connections.get_if_exists()
+        db = str(config_value) if config_value is not None else conn.credentials.local_db
+        return db or ''
 
     @available
     def clickhouse_db_engine_clause(self):
@@ -689,6 +687,18 @@ def _catalog_filter_schemas(
         return (table_database, table_schema) in schemas
 
     return test
+
+
+def _name_suffix(suffix: Optional[str]) -> str:
+    if not suffix:
+        return ''
+    return suffix if suffix.startswith('_') else f'_{suffix}'
+
+
+def _db_prefix(prefix: Optional[str]) -> str:
+    if not prefix:
+        return ''
+    return prefix if prefix.endswith('_') else f'{prefix}_'
 
 
 COLUMNS_EQUAL_SQL = '''
