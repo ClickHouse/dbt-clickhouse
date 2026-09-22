@@ -67,7 +67,15 @@
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
     {% set need_swap = true %}
 
-  {% elif inserts_only -%}
+  {% else %}
+    -- The distributed table holds no data, so rebuild it from the current local table and config:
+    -- a renamed local table or a changed sharding_key takes effect without a full refresh
+    {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
+    {% if existing_relation is none %}
+      {% set existing_relation = target_relation %}
+    {% endif %}
+
+    {% if inserts_only -%}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
@@ -75,12 +83,7 @@
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}
 
-  {% else %}
-    {% if existing_relation is none %}
-      {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
-      {% set existing_relation = target_relation %}
-    {% endif %}
-
+    {% else %}
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
     {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
     {% set partition_by = config.get('partition_by') %}
@@ -103,6 +106,7 @@
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
       {% endcall %}
+    {% endif %}
     {% endif %}
   {% endif %}
 

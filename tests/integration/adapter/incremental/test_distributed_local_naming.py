@@ -3,8 +3,8 @@ import os
 import pytest
 from dbt.tests.util import run_dbt
 
-
 SHARD_DB = 'dbt_clickhouse_local_naming_shards'
+OTHER_SHARD_DB = 'dbt_clickhouse_local_naming_shards_2'
 
 naming_default_sql = """
 {{ config(
@@ -65,6 +65,23 @@ select number as id, 'added' as extra from numbers(3, 2)
 select number as id from numbers(3)
 {% endif %}"""
 
+naming_switch_sql = """
+{{ config(
+       materialized='distributed_incremental',
+       incremental_strategy='append',
+       order_by='id',
+       local_db=var('shard_db'),
+       local_suffix='',
+   )
+}}
+select number as id, {{ var('run_no') }} as run from numbers(3)
+"""
+
+naming_mv_source_sql = """
+{{ config(materialized='distributed_incremental', incremental_strategy='append', order_by='id') }}
+select number as id from numbers(3)
+"""
+
 naming_collision_sql = """
 {{ config(materialized='distributed_incremental', order_by='id', local_suffix='') }}
 select number as id from numbers(3)
@@ -114,7 +131,9 @@ class TestDistributedLocalNaming:
             "naming_local_db.sql": apply_shard_db(naming_local_db_sql),
             "naming_local_db_table.sql": apply_shard_db(naming_local_db_table_sql),
             "naming_schema_change.sql": apply_shard_db(naming_schema_change_sql),
-            "naming_collision.sql": naming_collision_sql
+            "naming_switch.sql": naming_switch_sql,
+            "naming_mv_source.sql": naming_mv_source_sql,
+            "naming_collision.sql": naming_collision_sql,
         }
 
     @pytest.fixture(scope="class", autouse=True)
@@ -122,7 +141,8 @@ class TestDistributedLocalNaming:
         yield
         cluster = project.test_config['cluster']
         on_cluster = f" on cluster {cluster}" if cluster else ""
-        project.run_sql(f"drop database if exists {SHARD_DB}{on_cluster} sync")
+        for db in (SHARD_DB, OTHER_SHARD_DB):
+            project.run_sql(f"drop database if exists {db}{on_cluster} sync")
 
     def test_default_naming(self, project):
         schema = project.test_schema
@@ -159,6 +179,38 @@ class TestDistributedLocalNaming:
         assert "extra" in columns_of(project, SHARD_DB, "naming_schema_change")
         assert "extra" in columns_of(project, schema, "naming_schema_change")
         assert project.run_sql("select count() from naming_schema_change", fetch="one")[0] == 5
+
+    def test_switching_local_db_back_rebuilds_the_distributed_table(self, project):
+        schema = project.test_schema
+        for db, run_no in ((SHARD_DB, 1), (OTHER_SHARD_DB, 2), (SHARD_DB, 3)):
+            run_dbt(
+                [
+                    "run",
+                    "--select",
+                    "naming_switch",
+                    "--vars",
+                    f"{{shard_db: {db}, run_no: {run_no}}}",
+                ]
+            )
+
+        assert_distributed_over(project, schema, "naming_switch", SHARD_DB, "naming_switch")
+        runs = project.run_sql(
+            "select arraySort(groupUniqArray(run)) from naming_switch", fetch="one"
+        )[0]
+        assert runs == [1, 3]
+        assert table_exists(project, OTHER_SHARD_DB, "naming_switch")
+
+    def test_materialized_view_over_the_distributed_table_survives_a_run(self, project):
+        schema = project.test_schema
+        run_dbt(["run", "--select", "naming_mv_source"])
+        project.run_sql(
+            f"create materialized view {schema}.mv_over_proxy engine = MergeTree order by id "
+            f"as select id from {schema}.naming_mv_source"
+        )
+
+        run_dbt(["run", "--select", "naming_mv_source"])
+
+        assert project.run_sql(f"select count() from {schema}.mv_over_proxy", fetch="one")[0] == 3
 
     def test_collision_fails_before_any_ddl(self, project):
         result = run_dbt(["run", "--select", "naming_collision"], expect_pass=False)

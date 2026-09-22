@@ -506,7 +506,9 @@ strategies correctly.
 3. _The Default (Legacy) Strategy_ creates distributed temp and intermediate tables for the same reason.
 
 Only shard tables are replacing, because distributed table does not keep data.
-The distributed table reloads only when the full_refresh mode is enabled or the table structure may have changed.
+The distributed table is recreated from the current local table and config on every run, so a changed `sharding_key`
+or local table name takes effect without a full refresh. Manage its grants with the dbt `grants` config: anything set on
+it outside dbt is lost on the next run.
 
 ### Distributed incremental model example {#distributed-incremental-model-example}
 
