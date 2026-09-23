@@ -95,6 +95,7 @@ class ChHttpClient(ChClientWrapper):
         # standard path clients share a process-wide pool singleton that
         # keeps sockets alive across close().
         server_host_name = credentials.server_host_name
+        token_provider = credentials.resolve_token_provider()
         kwargs = {}
         if not credentials.reuse_connections:
             if credentials.secure:
@@ -116,8 +117,12 @@ class ChHttpClient(ChClientWrapper):
             return clickhouse_connect.get_client(
                 host=credentials.host,
                 port=credentials.port,
-                username=credentials.user,
+                # clickhouse-connect rejects a username alongside a token; the server
+                # derives the user from the token's claims.
+                username=None if credentials.uses_token_auth else credentials.user,
                 password=credentials.password,
+                access_token=credentials.access_token,
+                token_provider=token_provider,
                 interface='https' if credentials.secure else 'http',
                 compress=False if credentials.compression == '' else bool(credentials.compression),
                 connect_timeout=credentials.connect_timeout,
@@ -134,6 +139,11 @@ class ChHttpClient(ChClientWrapper):
         except OperationalError as ex:
             self._discard_dedicated_pool()
             raise ChRetryableException(str(ex)) from ex
+        except Exception:
+            # e.g. authentication failures or a token provider error: not retryable,
+            # but the pool must still be released.
+            self._discard_dedicated_pool()
+            raise
 
     def _set_client_database(self):
         self._client.database = self.database

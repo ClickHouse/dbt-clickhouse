@@ -115,6 +115,7 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | `ON CLUSTER` and replicated engines | DDL fan-out on self-managed clusters. | <Badge color="red">Not yet</Badge> | Multi-node clusters in ClickHouse Cloud are supported. Other setups that require `ON CLUSTER` for DDL propagation are not supported yet. For self-managed deployments, test only against single-node clusters. |
 | `EXCHANGE TABLES` | Atomic swap on rebuild. | <Badge color="green">Supported</Badge> | |
 | Custom connection settings | Profile-level `custom_settings`. | <Badge color="green">Supported</Badge> | |
+| JWT `access_token_provider` | Profile-level Python callable that supplies and refreshes a ClickHouse Cloud JWT. | <Badge color="red">Not yet</Badge> | Requires Python, so it applies to dbt Core 1.x only. |
 | ClickHouse server version | Minimum server version. | <Badge color="green">Supported</Badge> | 25.3+ on both engines. Reading `UUID` columns on v2 requires 26.7+ (older servers cannot convert `UUID` to Arrow). |
 
 ### Macros and operations {#parity-macros-and-operations}

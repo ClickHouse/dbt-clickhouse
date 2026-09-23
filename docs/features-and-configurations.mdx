@@ -31,6 +31,8 @@ your_profile_name:
       port: [8123]  # If not set, defaults to 8123, 8443, 9000, 9440 depending on the secure and driver settings
       user: [default] # User for all database operations
       password: [<empty string>] # Password for the user
+      access_token: [null] # JWT access token (ClickHouse Cloud, http driver only). Replaces user/password; the user is derived from the token. Do not set user or password together with this option. Dictionaries with a ClickHouse source cannot use the token; give them user/password via `connection_overrides`.
+      access_token_provider: [null] # Dotted path (`my_pkg.auth:get_token`) to a Python callable returning a JWT. dbt calls it on connect and again whenever ClickHouse rejects the current token, so long runs survive token expiry. The callable must return a well-formed JWT: an expired or otherwise unverifiable token triggers a refresh, a value that is not a JWT fails the run. Same rules as access_token; the two are mutually exclusive. dbt Core 1.x only.
       cluster: [<empty string>] # If set, certain DDL/table operations will be executed with the `ON CLUSTER` clause using this cluster. Distributed materializations require this setting to work. See the following ClickHouse Cluster section for more details.
       verify: [True] # Validate TLS certificate if using TLS/SSL
       secure: [False] # Use TLS (native protocol) or HTTPS (http protocol)

@@ -1,8 +1,9 @@
+import importlib
 from dataclasses import dataclass
-from typing import Any, Dict, Optional, Union
+from typing import Any, Callable, Dict, Optional, Union
 
 from dbt.adapters.contracts.connection import Credentials
-from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.exceptions import DbtConfigError, DbtRuntimeError
 
 
 @dataclass
@@ -19,6 +20,12 @@ class ClickHouseCredentials(Credentials):
     database: Optional[str] = ''
     schema: Optional[str] = 'default'
     password: str = ''
+    # JWT access token (ClickHouse Cloud, http driver only). Replaces user/password.
+    access_token: Optional[str] = None
+    # Dotted path ('pkg.module:function' or 'pkg.module.function') to a zero-argument
+    # callable returning a JWT. Passed to clickhouse-connect as token_provider, which
+    # calls it on connect and again whenever the server rejects the current token.
+    access_token_provider: Optional[str] = None
     cluster: Optional[str] = None
     database_engine: Optional[str] = None
     cluster_mode: bool = False
@@ -62,9 +69,39 @@ class ClickHouseCredentials(Credentials):
             )
         self.database = ''
 
+        if self.access_token and self.access_token_provider:
+            raise DbtConfigError('access_token and access_token_provider cannot both be set.')
+        if self.uses_token_auth and (self.password or self.user not in (None, 'default')):
+            raise DbtConfigError(
+                'JWT authentication (access_token or access_token_provider) cannot be combined '
+                'with user/password authentication; remove user and password from the profile.'
+            )
+
         # clickhouse_driver expects tcp_keepalive to be a tuple if it's not a boolean
         if isinstance(self.tcp_keepalive, list):
             self.tcp_keepalive = tuple(self.tcp_keepalive)
+
+    @property
+    def uses_token_auth(self) -> bool:
+        return bool(self.access_token or self.access_token_provider)
+
+    def resolve_token_provider(self) -> Optional[Callable[[], str]]:
+        """Import the callable named by access_token_provider, or None if not configured."""
+        path = self.access_token_provider
+        if not path:
+            return None
+        module_name, _, attr = path.rpartition(':' if ':' in path else '.')
+        if not module_name or not attr:
+            raise DbtConfigError(
+                f'access_token_provider must be "module:function" or "module.function", got {path!r}'
+            )
+        try:
+            provider = getattr(importlib.import_module(module_name), attr)
+        except (ImportError, AttributeError) as ex:
+            raise DbtConfigError(f'Could not import access_token_provider {path!r}: {ex}') from ex
+        if not callable(provider):
+            raise DbtConfigError(f'access_token_provider {path!r} is not callable')
+        return provider
 
     def _connection_keys(self):
         return (
@@ -72,6 +109,7 @@ class ClickHouseCredentials(Credentials):
             'host',
             'port',
             'user',
+            'access_token_provider',
             'schema',
             'retries',
             'cluster',

@@ -9,7 +9,8 @@ from clickhouse_connect.driver.httputil import all_managers
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING, ChRetryableException
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
-from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
+from dbt.adapters.exceptions import FailedToConnectError
+from dbt_common.exceptions import DbtConfigError, DbtDatabaseError, DbtRuntimeError
 from urllib3.poolmanager import ProxyManager
 
 
@@ -420,3 +421,134 @@ def test_dedicated_pool_honors_env_proxy(mock_ch_client):
     assert isinstance(client._dedicated_pool, ProxyManager)
     assert str(client._dedicated_pool.proxy.url) == 'http://proxy.example:3128'
     client.close()
+
+
+def test_access_token_forwarded_without_username(mock_ch_client):
+    """A JWT is passed to clickhouse-connect as access_token and no username is sent."""
+    credentials = ClickHouseCredentials(
+        host='localhost', port=8123, schema='default', access_token='jwt-token'
+    )
+    ChHttpClient(credentials)
+    kwargs = mock_ch_client.call_args.kwargs
+    assert kwargs['access_token'] == 'jwt-token'
+    assert kwargs['username'] is None
+    assert kwargs['password'] == ''
+
+
+def test_no_access_token_sends_user_password(mock_ch_client):
+    credentials = ClickHouseCredentials(
+        host='localhost', port=8123, schema='default', user='alice', password='pw'
+    )
+    ChHttpClient(credentials)
+    kwargs = mock_ch_client.call_args.kwargs
+    assert kwargs['access_token'] is None
+    assert kwargs['token_provider'] is None
+    assert kwargs['username'] == 'alice'
+    assert kwargs['password'] == 'pw'
+
+
+@pytest.mark.parametrize('extra', [{'password': 'pw'}, {'user': 'alice'}])
+def test_access_token_rejects_user_password(extra):
+    with pytest.raises(DbtRuntimeError, match='cannot be combined with user/password'):
+        ClickHouseCredentials(host='localhost', schema='default', access_token='jwt', **extra)
+
+
+def test_access_token_rejected_by_native_driver():
+    credentials = ClickHouseCredentials(
+        host='localhost', port=9000, schema='default', access_token='jwt'
+    )
+    with pytest.raises(FailedToConnectError, match='only supported by the http driver'):
+        dbclient_module.get_db_client(credentials)
+
+
+def _fake_token():
+    return 'provided-jwt'
+
+
+_NOT_CALLABLE = 'just a string'
+
+
+def test_access_token_provider_resolved_and_forwarded(mock_ch_client):
+    """The dotted path is imported and the callable itself is handed to clickhouse-connect."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        schema='default',
+        access_token_provider=f'{__name__}:_fake_token',
+    )
+    ChHttpClient(credentials)
+    kwargs = mock_ch_client.call_args.kwargs
+    assert kwargs['token_provider'] is _fake_token
+    assert kwargs['access_token'] is None
+    assert kwargs['username'] is None
+
+
+@pytest.mark.parametrize('sep', [':', '.'])
+def test_access_token_provider_accepts_colon_and_dot_paths(sep):
+    credentials = ClickHouseCredentials(
+        host='localhost', schema='default', access_token_provider=f'{__name__}{sep}_fake_token'
+    )
+    assert credentials.resolve_token_provider() is _fake_token
+
+
+@pytest.mark.parametrize(
+    'path, message',
+    [
+        ('no_such_module_xyz:get_token', 'Could not import'),
+        (f'{__name__}:no_such_function', 'Could not import'),
+        (f'{__name__}:_NOT_CALLABLE', 'is not callable'),
+        ('nodots', 'must be "module:function"'),
+    ],
+)
+def test_access_token_provider_invalid_paths(path, message):
+    credentials = ClickHouseCredentials(
+        host='localhost', schema='default', access_token_provider=path
+    )
+    with pytest.raises(DbtConfigError, match=message):
+        credentials.resolve_token_provider()
+
+
+def test_access_token_and_provider_are_mutually_exclusive():
+    with pytest.raises(DbtRuntimeError, match='cannot both be set'):
+        ClickHouseCredentials(
+            host='localhost', schema='default', access_token='jwt', access_token_provider='m:f'
+        )
+
+
+def test_access_token_provider_rejects_password():
+    with pytest.raises(DbtRuntimeError, match='cannot be combined with user/password'):
+        ClickHouseCredentials(
+            host='localhost', schema='default', password='pw', access_token_provider='m:f'
+        )
+
+
+def test_access_token_provider_rejected_by_native_driver():
+    credentials = ClickHouseCredentials(
+        host='localhost', port=9000, schema='default', access_token_provider='m:f'
+    )
+    with pytest.raises(FailedToConnectError, match='only supported by the http driver'):
+        dbclient_module.get_db_client(credentials)
+
+
+def test_dedicated_pool_cleaned_up_on_auth_failure():
+    """A non-retryable failure inside get_client (e.g. a rejected token) must still release the pool."""
+    before = len(all_managers)
+    with patch('clickhouse_connect.get_client', side_effect=DbtDatabaseError('rejected')):
+        credentials = ClickHouseCredentials(
+            host='localhost',
+            port=8123,
+            schema='default',
+            reuse_connections=False,
+            access_token='jwt',
+        )
+        with pytest.raises(DbtDatabaseError):
+            ChHttpClient(credentials)
+    assert len(all_managers) == before
+
+
+def test_access_token_provider_visible_in_connection_keys():
+    credentials = ClickHouseCredentials(
+        host='localhost', schema='default', access_token_provider='m:f'
+    )
+    assert 'access_token_provider' in credentials._connection_keys()
+    assert 'access_token' not in credentials._connection_keys()
