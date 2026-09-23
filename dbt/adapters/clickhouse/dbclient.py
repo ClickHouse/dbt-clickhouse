@@ -56,6 +56,12 @@ def get_db_client(credentials: ClickHouseCredentials):
             port = 9440 if credentials.secure else 9000
     else:
         raise FailedToConnectError(f'Unrecognized ClickHouse driver {driver}')
+    if driver == 'native' and credentials.uses_token_auth:
+        raise FailedToConnectError(
+            'JWT authentication (access_token / access_token_provider) is only supported by the '
+            'http driver; '
+            'set driver: http (and an http port) in the profile'
+        )
 
     credentials.driver = driver
     credentials.port = port

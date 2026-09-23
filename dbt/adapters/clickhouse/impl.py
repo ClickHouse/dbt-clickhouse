@@ -37,7 +37,12 @@ from dbt.adapters.events.types import ConstraintNotSupported
 from dbt.adapters.sql import SQLAdapter
 from dbt_common.contracts.constraints import ConstraintType, ModelLevelConstraint
 from dbt_common.events.functions import warn_or_error
-from dbt_common.exceptions import DbtInternalError, DbtRuntimeError, NotImplementedError
+from dbt_common.exceptions import (
+    DbtConfigError,
+    DbtInternalError,
+    DbtRuntimeError,
+    NotImplementedError,
+)
 from dbt_common.utils import filter_null_values
 
 if TYPE_CHECKING:
@@ -619,6 +624,11 @@ class ClickHouseAdapter(SQLAdapter):
         conn = self.connections.get_if_exists()
         if conn is None or conn.credentials is None:
             return dict()
+        if conn.credentials.uses_token_auth and 'user' not in connection_overrides:
+            raise DbtConfigError(
+                'Dictionary sources cannot authenticate with a JWT; set user/password for the '
+                'dictionary via the connection_overrides config.'
+            )
         credentials = {
             'user': conn.credentials.user,
             'password': conn.credentials.password,
