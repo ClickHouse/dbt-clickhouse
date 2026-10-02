@@ -104,6 +104,16 @@ class TestBasicExternalTargetRefreshableMV:
             },
         )
 
+        # the catchup is the only initial populate (2 departments, inserted once) and EMPTY is a
+        # creation-time keyword that must not end up in the stored DDL
+        assert project.run_sql("select count() from hackers_target", fetch="one")[0] == 2
+        ddl = project.run_sql(
+            f"select create_table_query from system.tables"
+            f" where database = '{project.test_schema}' and name = 'hackers'",
+            fetch="one",
+        )[0]
+        assert 'EMPTY' not in ddl
+
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
                 f"""
@@ -126,6 +136,11 @@ class TestBasicExternalTargetRefreshableMV:
             )
             mv_status = result[0][2]
             assert mv_status in ('Scheduled', 'Running')
+
+        # --full-refresh drops the MV, runs the catchup, then recreates the MV with EMPTY
+        results = run_dbt(["run", "--full-refresh"])
+        assert len(results) == 2
+        assert project.run_sql("select count() from hackers_target", fetch="one")[0] == 2
 
     def test_validate_dependency(self, project):
         """
@@ -217,3 +232,244 @@ class TestModifyRefreshParamsExternalTargetMV:
         assert 'RANDOMIZE FOR 30 SECOND' in ddl
         # the MV was altered in place, not dropped and recreated
         assert uuid_before == uuid_after
+
+
+def refreshable_external_target_model(catchup=True, **refreshable):
+    """
+    Model for the catchup / initial_internal_refresh matrix. AFTER 1 HOUR counts from creation when
+    the view is created EMPTY, so no scheduled refresh can fire while a test asserts row counts.
+    """
+    refreshable = {"interval": "AFTER 1 HOUR", **refreshable}
+    return f"""
+{{{{ config(
+       materialized='materialized_view',
+       catchup={catchup},
+       refreshable={json.dumps(refreshable)}
+) }}}}
+
+{{{{ materialization_target_table(ref('hackers_target')) }}}}
+
+select
+    department,
+    avg(age) as average
+from {{{{ source('raw', 'people') }}}}
+group by department
+"""
+
+
+def target_row_count(project):
+    return project.run_sql("select count() from hackers_target", fetch="one")[0]
+
+
+# The initial refresh fails until run_type switches to the corrected query
+FAILING_THEN_FIXED_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       catchup=False,
+       refreshable={"interval": "AFTER 1 HOUR", "initial_internal_refresh": True}
+) }}
+
+{{ materialization_target_table(ref('hackers_target')) }}
+
+select
+    department,
+    avg(age) as average
+from {{ source('raw', 'people') }}
+{% if var('run_type', '') != 'fixed' %}
+where throwIf(department != '', 'boom') = 0
+{% endif %}
+group by department
+"""
+
+
+def mv_refresh_state(project):
+    return project.run_sql(
+        f"select status, last_success_time from system.view_refreshes"
+        f" where database = '{project.test_schema}' and view = 'hackers'",
+        fetch="one",
+    )
+
+
+class TestAppendExternalTargetRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": refreshable_external_target_model(append=True),
+        }
+
+    def test_no_duplicate_rows(self, project):
+        """
+        An APPEND view created without EMPTY would insert the query result on top of the catchup.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+        assert target_row_count(project) == 2
+
+
+class TestNoCatchupExternalTargetRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": refreshable_external_target_model(catchup=False),
+        }
+
+    def test_target_stays_empty_until_first_scheduled_refresh(self, project):
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+        assert target_row_count(project) == 0
+        status, last_success_time = mv_refresh_state(project)
+        assert status == 'Scheduled'
+        assert last_success_time is None
+
+
+class TestInitialInternalRefreshExternalTargetRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": refreshable_external_target_model(
+                catchup=False, initial_internal_refresh=True
+            ),
+        }
+
+    def test_initial_refresh_populates_target_before_run_ends(self, project):
+        """
+        ClickHouse runs the initial refresh and dbt waits for it with SYSTEM WAIT VIEW, so the
+        target is populated by the time the model finishes.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+        assert target_row_count(project) == 2
+        _, last_success_time = mv_refresh_state(project)
+        assert last_success_time is not None
+
+
+class TestInitialInternalRefreshRequiresNoCatchup:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": refreshable_external_target_model(initial_internal_refresh=True),
+        }
+
+    def test_fails_before_any_ddl(self, project):
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        result = run_dbt(["run"], False)
+        errors = [r for r in result if r.status == 'error']
+        assert len(errors) == 1
+        assert 'initial_internal_refresh' in errors[0].message
+        assert 'catchup=False' in errors[0].message
+        mv_count = project.run_sql(
+            f"select count() from system.tables where database = '{project.test_schema}' and name = 'hackers'",
+            fetch="one",
+        )[0]
+        assert mv_count == 0
+
+
+class TestInitialInternalRefreshWithDependsOnExternalTargetMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            # DEPENDS ON is only allowed with REFRESH EVERY; the dependency never refreshes, so
+            # neither does this view and the hourly boundary cannot interfere
+            "hackers.sql": refreshable_external_target_model(
+                catchup=False,
+                initial_internal_refresh=True,
+                interval="EVERY 1 HOUR",
+                depends_on=['default.hackers_dependency_that_does_not_exist'],
+            ),
+        }
+
+    def test_run_does_not_wait_for_dependencies(self, project):
+        """
+        The first refresh of a view with DEPENDS ON only runs after its dependencies refresh, so
+        dbt skips SYSTEM WAIT VIEW instead of blocking; the target is populated asynchronously.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+        # the dependency never refreshes, so neither has this view
+        assert target_row_count(project) == 0
+
+
+class TestInitialInternalRefreshFailureExternalTargetMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": FAILING_THEN_FIXED_MODEL,
+        }
+
+    def test_failed_initial_refresh_fails_the_model_and_full_refresh_recovers(self, project):
+        """
+        1. the first run fails with the ClickHouse error; the view stays and the message says so
+        2. --full-refresh with a corrected query recreates the view and waits for its refresh
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        result = run_dbt(["run"], False)
+        errors = [r for r in result if r.status == 'error']
+        assert len(errors) == 1
+        assert 'Refresh failed' in errors[0].message
+        assert '--full-refresh' in errors[0].message
+        assert target_row_count(project) == 0
+        assert mv_refresh_state(project) is not None
+
+        results = run_dbt(["run", "--full-refresh", "--vars", json.dumps({"run_type": "fixed"})])
+        assert len(results) == 2
+        assert target_row_count(project) == 2
+        _, last_success_time = mv_refresh_state(project)
+        assert last_success_time is not None

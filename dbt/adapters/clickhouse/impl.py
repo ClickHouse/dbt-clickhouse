@@ -417,6 +417,22 @@ class ClickHouseAdapter(SQLAdapter):
         return super().get_relation('', schema, identifier)
 
     @available.parse_none
+    def wait_for_initial_refresh(self, mv_relation: ClickHouseRelation) -> None:
+        """
+        SYSTEM WAIT VIEW until the first refresh of a refreshable MV completes. On failure the
+        view already exists and ClickHouse may still be running or retrying the refresh, which
+        the user needs to know to decide how to recover.
+        """
+        try:
+            self.execute(f'system wait view {mv_relation}')
+        except Exception as ex:
+            raise DbtRuntimeError(
+                f'Waiting for the initial refresh of {mv_relation} failed: {ex}\n'
+                f'The materialized view was created and its refresh may still be running on the '
+                f'server; check system.view_refreshes. To start over, run the model with --full-refresh.'
+            ) from ex
+
+    @available.parse_none
     def get_ch_database(self, schema: str):
         try:
             results = self.execute_macro('clickhouse__get_database', kwargs={'database': schema})

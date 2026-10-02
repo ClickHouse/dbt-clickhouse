@@ -1,3 +1,10 @@
+### Unreleased
+
+**Breaking change:** refreshable materialized views with `catchup: False` are no longer populated at creation. See the Bugs section below for details.
+
+#### Bugs
+* Fix refreshable materialized views populating their target twice. By default they were created without `EMPTY` and with `catchup=True`, so ClickHouse's initial refresh and dbt's catchup both loaded the same data. The catchup `INSERT` could fail with `TABLE_IS_READ_ONLY` (error 242) on ClickHouse Cloud, and `append` views ended up with duplicated rows. Refreshable MVs are now created with `EMPTY`, so only dbt loads the initial data with an `INSERT INTO ... SELECT`. To keep the previous behavior of ClickHouse running the initial refresh, set `catchup=False` and `"initial_internal_refresh": True` in the `refreshable` config; dbt then waits for that refresh to complete and fails the model if the refresh fails ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
