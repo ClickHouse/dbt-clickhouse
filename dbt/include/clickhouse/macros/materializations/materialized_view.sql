@@ -339,8 +339,11 @@
     {%- if is_refreshable and not initial_internal_refresh %} empty{% endif %}
     as {{ view_sql }}
   {% endcall %}
-  {%- if initial_internal_refresh -%}
-    {{ clickhouse__wait_for_initial_refresh(mv_relation) }}
+  {%- if initial_internal_refresh and config.get('refreshable').get('depends_on') -%}
+    {{ log('Not waiting for the initial refresh of ' ~ mv_relation.name ~ ' because it depends on other refreshable materialized views.', info=True) }}
+  {%- elif initial_internal_refresh -%}
+    {{ log('Waiting for the initial refresh of ' ~ mv_relation.name) }}
+    {% do adapter.wait_for_initial_refresh(mv_relation) %}
   {%- endif -%}
 {%- endmacro %}
 
@@ -365,20 +368,6 @@
       ~ 'so the target would be populated twice. Set catchup=False on this model to let ClickHouse do the '
       ~ 'initial refresh, or remove initial_internal_refresh to let dbt backfill the target.'
     ) %}
-  {%- endif -%}
-{% endmacro %}
-
-{#-
-  The wait runs through the adapter so its error can tell the user how to recover (Jinja cannot
-  react to a failing statement). With DEPENDS ON the first refresh only runs after the
-  dependencies' next refresh, so the wait could block for a whole period and is skipped.
--#}
-{% macro clickhouse__wait_for_initial_refresh(mv_relation) %}
-  {%- if config.get('refreshable').get('depends_on') -%}
-    {{ log('Not waiting for the initial refresh of ' ~ mv_relation.name ~ ' because it depends on other views; its target is populated asynchronously', info=True) }}
-  {%- else -%}
-    {{ log('Waiting for the initial refresh of ' ~ mv_relation.name) }}
-    {% do adapter.wait_for_initial_refresh(mv_relation) %}
   {%- endif -%}
 {% endmacro %}
 
