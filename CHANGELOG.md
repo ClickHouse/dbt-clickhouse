@@ -1,3 +1,10 @@
+### Unreleased
+
+**Breaking change:** refreshable materialized views with `catchup: False` are no longer populated at creation. See the Bugs section below for details.
+
+#### Bugs
+* Prevent refreshable materialized views from racing or duplicating their initial population. Views using `catchup=False` now remain empty until their first scheduled refresh unless `refreshable.initial_internal_refresh=True` is set ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements

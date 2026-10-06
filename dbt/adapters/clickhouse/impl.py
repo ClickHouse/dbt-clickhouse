@@ -417,6 +417,19 @@ class ClickHouseAdapter(SQLAdapter):
         return super().get_relation('', schema, identifier)
 
     @available.parse_none
+    def wait_for_initial_refresh(self, mv_relation: ClickHouseRelation) -> None:
+        """Jinja cannot catch a failing statement, so the wait runs here to add recovery guidance to the error."""
+        try:
+            self.execute(f'system wait view {mv_relation}')
+        except Exception as ex:
+            raise DbtRuntimeError(
+                f'Waiting for the initial refresh of {mv_relation} failed: {ex}\n'
+                f'The materialized view was created and its refresh may still be running on the '
+                f'server; check system.view_refreshes and inspect the target table before retrying. '
+                f'Running --full-refresh recreates the view, but does not clear an explicit target table.'
+            ) from ex
+
+    @available.parse_none
     def get_ch_database(self, schema: str):
         try:
             results = self.execute_macro('clickhouse__get_database', kwargs={'database': schema})
