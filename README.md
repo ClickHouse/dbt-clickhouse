@@ -11,6 +11,13 @@ This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https:
 See the [ClickHouse website](https://clickhouse.com/docs/integrations/dbt) for the full documentation entry.
 The documentation source is maintained in [`docs`](docs).
 
+## Prerequisites
+
+A running ClickHouse server, either:
+
+- **ClickHouse Cloud**: [Sign up](https://console.clickhouse.cloud/signUp?utm_medium=referral&utm_source=github&utm_campaign=readme&utm_content=dbt-clickhouse) for a free trial, or sign in to an existing account.
+- **Self-hosted ClickHouse**: [Install](https://clickhouse.com/docs/get-started/setup/install).
+
 ## Installation
 
 Use your favorite Python package manager to install the app from PyPI, e.g.
