@@ -324,10 +324,6 @@
   {% endcall %}
 {%- endmacro %}
 
-{#-
-  EMPTY is rendered here and not in refreshable_mv_clause(), which ALTER TABLE ... MODIFY REFRESH
-  reuses and where EMPTY is invalid.
--#}
 {% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, is_main_statement=False)  -%}
   {% set statement_name = 'main' if is_main_statement else 'create existing mv: ' + mv_relation.name -%}
   {%- set is_refreshable = clickhouse__is_refreshable_mv() -%}
@@ -336,7 +332,7 @@
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
-    {%- if is_refreshable and not initial_internal_refresh %} empty{% endif %}
+    {%- if is_refreshable and not initial_internal_refresh %} empty {% endif %}
     as {{ view_sql }}
   {% endcall %}
   {%- if initial_internal_refresh and config.get('refreshable').get('depends_on') -%}
