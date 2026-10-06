@@ -425,7 +425,8 @@ class ClickHouseAdapter(SQLAdapter):
             raise DbtRuntimeError(
                 f'Waiting for the initial refresh of {mv_relation} failed: {ex}\n'
                 f'The materialized view was created and its refresh may still be running on the '
-                f'server; check system.view_refreshes. To start over, run the model with --full-refresh.'
+                f'server; check system.view_refreshes and inspect the target table before retrying. '
+                f'Running --full-refresh recreates the view, but does not clear an explicit target table.'
             ) from ex
 
     @available.parse_none
