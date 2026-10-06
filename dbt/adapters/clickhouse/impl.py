@@ -418,11 +418,7 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available.parse_none
     def wait_for_initial_refresh(self, mv_relation: ClickHouseRelation) -> None:
-        """
-        SYSTEM WAIT VIEW until the first refresh of a refreshable MV completes. On failure the
-        view already exists and ClickHouse may still be running or retrying the refresh, which
-        the user needs to know to decide how to recover.
-        """
+        """Jinja cannot catch a failing statement, so the wait runs here to add recovery guidance to the error."""
         try:
             self.execute(f'system wait view {mv_relation}')
         except Exception as ex:

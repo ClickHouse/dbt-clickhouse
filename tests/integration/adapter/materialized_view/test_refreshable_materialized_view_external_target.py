@@ -434,7 +434,6 @@ class TestInitialInternalRefreshWithDependsOnExternalTargetMV:
         assert len(results) == 1
         results = run_dbt()
         assert len(results) == 2
-        # the dependency never refreshes, so neither has this view
         assert target_row_count(project) == 0
 
 

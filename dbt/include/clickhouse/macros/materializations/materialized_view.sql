@@ -120,26 +120,22 @@
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
   {{ run_hooks(pre_hooks, inside_transaction=True) }}
 
-  {%- set view_created = True -%}
   {%- set catchup_data = config.get('catchup', True) == True -%}
-  {#- A refreshable MV is backfilled before it exists: created with EMPTY afterwards, it only
-      refreshes at its next scheduled slot, so the insert can never overlap a refresh
-      (https://github.com/ClickHouse/dbt-clickhouse/issues/724). A regular MV is created first so
-      rows inserted into the source during the backfill are still captured. -#}
-  {%- set catchup_before_create = catchup_data and clickhouse__is_refreshable_mv() -%}
+  {%- set is_refreshable = clickhouse__is_refreshable_mv() -%}
 
-  {% if existing_relation is none %}
-    {% if catchup_before_create %}
+  {% if existing_relation is none or should_full_refresh() %}
+    {% if existing_relation is not none %}
+      {{ log('Dropping existing MV ' ~ mv_relation.name ~ ' for full refresh recreation') }}
+      {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
+    {% endif %}
+    {#- A refreshable MV is backfilled before it exists so it doesn't collide with the internal refresh. -#}
+    {% if catchup_data and is_refreshable %}
       {{ clickhouse__catchup_insert(target_table_relation, sql) }}
     {% endif %}
     {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
-  {% elif should_full_refresh() %}
-    {{ log('Dropping existing MV ' ~ mv_relation.name ~ ' for full refresh recreation') }}
-    {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
-    {% if catchup_before_create %}
+    {% if catchup_data and not is_refreshable %}
       {{ clickhouse__catchup_insert(target_table_relation, sql) }}
     {% endif %}
-    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
   {% else %}
     {# Check if target table has changed - cannot be updated via MODIFY QUERY #}
     {% set existing_target = clickhouse__get_mv_current_target(mv_relation) %}
@@ -157,11 +153,6 @@
     {{ log('Updating query of existing MV ' ~ mv_relation.name ~ ' for recreation') }}
     {{ clickhouse__modify_mv_refresh(mv_relation, existing_relation, cluster_clause) }}
     {{ clickhouse__modify_mv(mv_relation, cluster_clause, sql, is_main_statement=True) }};
-    {%- set view_created = False -%}
-  {% endif %}
-
-  {% if catchup_data and view_created and not catchup_before_create %}
-    {{ clickhouse__catchup_insert(target_table_relation, sql) }}
   {% endif %}
 
   {#- Cleanup and grants -#}
@@ -334,14 +325,13 @@
 {%- endmacro %}
 
 {#-
-  EMPTY is rendered here and not in refreshable_mv_clause() because that clause is reused by
-  ALTER TABLE ... MODIFY REFRESH, where EMPTY is invalid. It is a creation-time-only keyword and
-  is not persisted in the stored DDL.
+  EMPTY is rendered here and not in refreshable_mv_clause(), which ALTER TABLE ... MODIFY REFRESH
+  reuses and where EMPTY is invalid.
 -#}
 {% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, is_main_statement=False)  -%}
   {% set statement_name = 'main' if is_main_statement else 'create existing mv: ' + mv_relation.name -%}
   {%- set is_refreshable = clickhouse__is_refreshable_mv() -%}
-  {%- set initial_internal_refresh = is_refreshable and clickhouse__refreshable_initial_internal_refresh() -%}
+  {%- set initial_internal_refresh = clickhouse__refreshable_initial_internal_refresh() -%}
   {% call statement(statement_name) -%}
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
@@ -359,12 +349,6 @@
   {{ return(refreshable_config is not none and refreshable_config != false) }}
 {% endmacro %}
 
-{#-
-  refreshable.initial_internal_refresh (default False) lets ClickHouse run its own initial refresh
-  at creation instead of creating the view with EMPTY. It is the alternative to dbt's catchup, not
-  a complement: with both enabled the target would be populated twice (duplicated rows for APPEND,
-  a race with the EXCHANGE of the target for non-APPEND).
--#}
 {% macro clickhouse__refreshable_initial_internal_refresh() %}
   {%- set refreshable_config = config.get('refreshable') -%}
   {%- if refreshable_config is mapping -%}
@@ -385,11 +369,9 @@
 {% endmacro %}
 
 {#-
-  Blocks until the initial refresh finishes, so downstream models read a populated target, and
-  fails the model if the refresh failed. The wait lives in adapter.wait_for_initial_refresh so
-  the error can carry what the user needs to know (Jinja cannot react to a failing statement).
-  With DEPENDS ON the first refresh only runs after the dependencies' next refresh, so the wait
-  could block for a whole period and is skipped instead.
+  The wait runs through the adapter so its error can tell the user how to recover (Jinja cannot
+  react to a failing statement). With DEPENDS ON the first refresh only runs after the
+  dependencies' next refresh, so the wait could block for a whole period and is skipped.
 -#}
 {% macro clickhouse__wait_for_initial_refresh(mv_relation) %}
   {%- if config.get('refreshable').get('depends_on') -%}
@@ -595,7 +577,7 @@
   (REFRESH ... [RANDOMIZE FOR ...] [DEPENDS ON ...] [APPEND]).
 -#}
 {% macro refreshable_mv_clause() %}
-  {%- if config.get('refreshable') is not none and config.get('refreshable') != false -%}
+  {%- if clickhouse__is_refreshable_mv() -%}
 
     {% set refreshable_config = config.get('refreshable') %}
     {% if refreshable_config is not mapping %}
