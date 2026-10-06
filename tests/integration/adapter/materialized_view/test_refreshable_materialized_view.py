@@ -765,3 +765,37 @@ class TestInitialInternalRefreshRefreshableMV:
         results = run_dbt()
         assert len(results) == 1
         assert target_row_count(project) == 2
+
+
+class TestNoCatchupRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": refreshable_mv_model(catchup=False),
+        }
+
+    def test_target_stays_empty_until_first_scheduled_refresh(self, project):
+        """
+        Nobody populates the target: dbt creates it empty and the view with EMPTY, on first
+        creation and again on --full-refresh.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        for args in (["run"], ["run", "--full-refresh"]):
+            results = run_dbt(args)
+            assert len(results) == 1
+            assert target_row_count(project) == 0
+            status, last_success_time = project.run_sql(
+                f"select status, last_success_time from system.view_refreshes"
+                f" where database = '{project.test_schema}' and view = 'hackers_mv'",
+                fetch="one",
+            )
+            assert status == 'Scheduled'
+            assert last_success_time is None
