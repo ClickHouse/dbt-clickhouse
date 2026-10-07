@@ -1,3 +1,9 @@
+### Unreleased
+
+#### Bugs
+* Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#544](https://github.com/ClickHouse/dbt-clickhouse/issues/544)).
+
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
