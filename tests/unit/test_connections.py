@@ -62,6 +62,27 @@ class TestAdapterResponseQueryId:
         assert r1.query_id != r2.query_id
 
 
+class TestGetTableFromResponse:
+    def test_returns_empty_table_when_no_column_metadata(self):
+        # shape of a GRANT ... ON CLUSTER response from clickhouse-connect
+        response = [['ch0', '9000', '0', '', '1', '0\nch1', '9000', '0', '', '0', '0']]
+
+        table = ClickHouseConnectionManager.get_table_from_response(response, ())
+
+        assert len(table.rows) == 0
+
+    def test_fetch_on_cluster_grant_does_not_raise(self):
+        mock_client = MagicMock()
+        mock_client.query.return_value.result_set = [['ch0', '9000', '0', '', '0', '0']]
+        mock_client.query.return_value.column_names = ()
+
+        _, table = _make_manager_with_client(mock_client).execute(
+            'GRANT ON CLUSTER c some_role TO some_user', fetch=True
+        )
+
+        assert len(table.rows) == 0
+
+
 def test_reuse_connections_defaults_to_true():
     from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 

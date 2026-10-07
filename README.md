@@ -9,6 +9,7 @@ This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https:
 ## Documentation
 
 See the [ClickHouse website](https://clickhouse.com/docs/integrations/dbt) for the full documentation entry.
+The documentation source is maintained in [`docs`](docs).
 
 ## Installation
 
@@ -46,9 +47,9 @@ pip install dbt-clickhouse
 - [x] ClickHouse-specific column configurations (Codec, TTL...)
 - [x] ClickHouse-specific table settings (indexes, projections...)
 
-All features up to dbt-core 1.10 are supported, including `--sample` flag and all deprecation warnings fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 are not yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](/integrations/dbt/features-and-configurations#catalog-support) for details.
+Features up to dbt-core 1.12 are supported, including the `--sample` flag, and all deprecation warnings are fixed for future releases. **Catalog integrations** (e.g., Iceberg) introduced in dbt 1.10 are not yet natively supported in the adapter, but workarounds are available. See the [Catalog Support section](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/features-and-configurations#catalog-support) for details.
 
-This adapter is still not available for use inside [dbt Cloud](https://docs.getdbt.com/docs/dbt-cloud/cloud-overview), but we expect to make it available soon. Please reach out to support to get more information on this.
+ClickHouse also works with dbt OSS and dbt v2 (Beta) and with the dbt platform (Private Beta). See the [dbt OSS, dbt v2 and dbt platform documentation](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/dbt-core-v2-fusion-and-platform) for availability and known limitations.
 
 ## Contributing
 

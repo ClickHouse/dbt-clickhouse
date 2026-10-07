@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set environment variables
         run: |
@@ -48,7 +48,7 @@ jobs:
         run: REPLICA_NUM=1 docker compose -f ${{ github.workspace }}/tests/integration/docker-compose.yml up -d
 
       - name: Setup Python ${{ inputs.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ inputs.python-version }}
 
