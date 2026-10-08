@@ -54,7 +54,11 @@ class ClickHouseColumn(Column):
 
     @property
     def data_type(self) -> str:
-        if self.is_string():
+        if self.is_fixed_string():
+            # Contract enforcement compares data_type strings verbatim against
+            # YAML data_type declarations, so the exact type must be preserved
+            data_t = self.fixedstring_type(self.string_size())
+        elif self.is_string():
             data_t = self.string_type(self.string_size())
         elif self.is_numeric():
             data_t = self.numeric_type(self.dtype, self.numeric_precision, self.numeric_scale)
@@ -82,6 +86,9 @@ class ClickHouseColumn(Column):
             'mediumtext',
         ] or self.dtype.lower().startswith('fixedstring')
 
+    def is_fixed_string(self) -> bool:
+        return self.dtype.lower().startswith('fixedstring') and self.char_size is not None
+
     def is_integer(self) -> bool:
         return self.dtype.lower().startswith('int') or self.dtype.lower().startswith('uint')
 
@@ -103,6 +110,10 @@ class ClickHouseColumn(Column):
     @classmethod
     def string_type(cls, size: int) -> str:
         return 'String'
+
+    @classmethod
+    def fixedstring_type(cls, size: int) -> str:
+        return f'FixedString({size})'
 
     @classmethod
     def numeric_type(cls, dtype: str, precision: Any, scale: Any) -> str:

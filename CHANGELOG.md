@@ -1,3 +1,9 @@
+### Unreleased
+
+#### Bugs
+* Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
+
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
