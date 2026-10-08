@@ -1,3 +1,9 @@
+### Unreleased
+
+#### Bugs
+* Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
+
+
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
@@ -6,7 +12,6 @@
 * The public dbt-clickhouse documentation is now maintained in this repository under [`docs`](./docs). See [CONTRIBUTING.md](./CONTRIBUTING.md#updating-the-documentation) for how to update it ([#728](https://github.com/ClickHouse/dbt-clickhouse/pull/728)).
 
 #### Bugs
-* Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
 * Fix the `delete+insert` incremental strategy occasionally missing deletes on `database_engine: Shared` when the replica serving the subquery had not yet synced the newly inserted data ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
 * Fix a 1.10.2 regression where `run_query()` on statements that return no column metadata over HTTP (e.g. `GRANT ... ON CLUSTER`) failed with `zip() argument 2 is longer than argument 1` ([#743](https://github.com/ClickHouse/dbt-clickhouse/pull/743)).
 
