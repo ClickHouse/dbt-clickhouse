@@ -1,3 +1,5 @@
+from typing import Optional
+
 from dbt.adapters.clickhouse import ClickHouseColumn
 
 
@@ -19,8 +21,11 @@ class TestColumn:
         assert str_col.string_size() == 256
         fixed_str_col = verify_column('name', 'FixedString', True, False, False, False)
         assert fixed_str_col.string_size() == 256
-        fixed_str_col = verify_column('name', 'FixedString(16)', True, False, False, False)
+        fixed_str_col = verify_column(
+            'name', 'FixedString(16)', True, False, False, False, 'FixedString(16)'
+        )
         assert fixed_str_col.string_size() == 16
+        assert fixed_str_col.data_type == 'FixedString(16)'
         verify_column('name', 'Decimal(6, 6)', False, True, False, False)
         verify_column('name', 'Float32', False, False, True, False)
         verify_column('name', 'Float64', False, False, True, False)
@@ -60,7 +65,7 @@ class TestColumn:
         verify_column_types(col, True, False, False, False)
         assert (
             repr(col)
-            == '<ClickhouseColumn name (LowCardinality(Nullable(String)), is nullable: True)>'
+            == '<ClickhouseColumn name (LowCardinality(Nullable(FixedString(16))), is nullable: True)>'
         )
 
     def test_map_type(self):
@@ -75,9 +80,17 @@ class TestColumn:
 
 
 def verify_column(
-    name: str, dtype: str, is_string: bool, is_numeric: bool, is_float: bool, is_int: bool
+    name: str,
+    dtype: str,
+    is_string: bool,
+    is_numeric: bool,
+    is_float: bool,
+    is_int: bool,
+    expected_data_type: Optional[str] = None,
 ) -> ClickHouseColumn:
-    data_type = 'String' if is_string else dtype
+    if expected_data_type is None:
+        expected_data_type = 'String' if is_string else dtype
+    data_type = expected_data_type
     col = ClickHouseColumn(column=name, dtype=dtype)
     verify_column_types(col, is_string, is_numeric, is_float, is_int)
     assert repr(col) == f'<ClickhouseColumn {name} ({data_type}, is nullable: False)>'
