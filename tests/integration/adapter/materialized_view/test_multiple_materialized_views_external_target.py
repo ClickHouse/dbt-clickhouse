@@ -80,7 +80,7 @@ class TestMultipleExternalTargetMV:
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # create the models (target table + 2 MVs)
         results = run_dbt(["run"])
@@ -88,14 +88,14 @@ class TestMultipleExternalTargetMV:
 
         # Check the target table structure
         columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # Check both MVs exist
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv1", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv2", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         check_relation_types(
             project.adapter,
@@ -234,7 +234,9 @@ where department = 'sales'
 
         # Verify extended schema column exists
         table_description = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert any(col[0] == "extra_col" and col[1] == "Int32" for col in table_description)
+        assert any(
+            col[0] == "extra_col" and col[1] in ("Int32", "Int64") for col in table_description
+        )
 
 
 class TestUpdateMultipleExternalTargetMVQueryOnly:

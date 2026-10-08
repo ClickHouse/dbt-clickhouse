@@ -2,6 +2,8 @@ import pytest
 from dbt.tests.adapter.utils.fixture_datediff import models__test_datediff_yml
 from dbt.tests.adapter.utils.test_datediff import BaseDateDiff
 
+from tests.integration.adapter.helpers import migrate_yml
+
 # Not testing null values (see discussion in test_dateadd.py
 seeds__data_datediff_csv = """first_date,second_date,datepart,result
 2018-01-01 01:00:00,2018-01-02 01:00:00,day,1
@@ -46,7 +48,7 @@ class TestDateDiff(BaseDateDiff):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "test_datediff.yml": models__test_datediff_yml,
+            "test_datediff.yml": migrate_yml(models__test_datediff_yml),
             "test_datediff.sql": self.interpolate_macro_namespace(
                 models__test_datediff_sql, "datediff"
             ),

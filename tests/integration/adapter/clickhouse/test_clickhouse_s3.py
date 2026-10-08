@@ -5,6 +5,11 @@ from dbt.tests.util import run_dbt
 
 testing_s3 = os.environ.get('DBT_CH_TEST_INCLUDE_S3', '').lower() in ('1', 'true', 'yes')
 
+# NOTE: dbt core v2 hard-errors (dbt1060) on custom config keys, so the former
+# `taxi_s3: {structure: ...}` model-config blob now travels as an explicit
+# `structure=` macro argument (identical behavior in Python, which merges
+# explicit args over var/config anyway). The former `unique_id: trip_id` was a
+# fixture typo (`unique_key` was meant) with zero consumers — dropped.
 schema_yaml = """
 version: 2
 
@@ -14,20 +19,17 @@ models:
     config:
       materialized: table
       order_by: pickup_datetime
-      unique_id: trip_id
-      taxi_s3:
-        structure:
-          - 'trip_id UInt32'
-          - 'pickup_datetime DateTime'
   - name: s3_taxis_inc
 """
 
 s3_taxis_source = """
-select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz') }} LIMIT 5000
+select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz',
+    structure=['trip_id UInt32', 'pickup_datetime DateTime']) }} LIMIT 5000
 """
 
 s3_taxis_full_source = """
-select * from {{ clickhouse_s3source('taxi_s3', path='/trips_5.gz') }} LIMIT 1000
+select * from {{ clickhouse_s3source('taxi_s3', path='/trips_5.gz',
+    structure=['trip_id UInt32', 'pickup_datetime DateTime']) }} LIMIT 1000
 """
 
 s3_taxis_external_id_source = """
@@ -39,13 +41,13 @@ s3_taxis_inc = """
     materialized='incremental',
     order_by='pickup_datetime',
     incremental_strategy='delete+insert',
-    unique_key='trip_id',
-    taxi_s3={"structure":['trip_id UInt32', 'pickup_datetime DateTime', 'passenger_count UInt8']}
+    unique_key='trip_id'
     )
 }}
 
 {% if is_incremental() %}
-  select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz') }}
+  select * from {{ clickhouse_s3source('taxi_s3', path='/trips_4.gz',
+      structure=['trip_id UInt32', 'pickup_datetime DateTime', 'passenger_count UInt8']) }}
     where pickup_datetime > (SELECT addDays(max(pickup_datetime), -2) FROM s3_taxis_inc)
 {% else %}
   select trip_id, pickup_datetime, toUInt8(0) as passenger_count from s3_taxis_source

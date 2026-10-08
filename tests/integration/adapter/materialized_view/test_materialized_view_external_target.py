@@ -206,7 +206,9 @@ where department = 'engineering'
 
         # Verify extended schema column exists
         table_description = project.run_sql(f"DESCRIBE TABLE {schema}.hackers_target", fetch="all")
-        assert any(col[0] == "extra_col" and col[1] == "Int32" for col in table_description)
+        assert any(
+            col[0] == "extra_col" and col[1] in ("Int32", "Int64") for col in table_description
+        )
 
 
 class TestExternalTargetMVTargetChange:
