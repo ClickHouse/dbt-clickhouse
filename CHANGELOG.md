@@ -3,6 +3,7 @@
 #### Bugs
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
+* Fix snapshots ignoring `dbt_valid_to_current`: current rows were only matched on `dbt_valid_to IS NULL`, so every run re-inserted rows carrying the configured sentinel instead of closing the previous version ([#630](https://github.com/ClickHouse/dbt-clickhouse/pull/630)).
 
 
 ### Release [1.10.3], 2026-09-15
