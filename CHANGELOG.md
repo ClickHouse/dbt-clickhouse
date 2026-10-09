@@ -7,6 +7,9 @@
 
 ### Release [1.10.3], 2026-09-15
 
+#### New Features
+* Add an opt-in `create_if_not_exists` model config for first-creation races when concurrent runs build the same non-replicated table. It defaults to disabled and cannot be combined with contracts, projections, or indexes ([#722](https://github.com/ClickHouse/dbt-clickhouse/pull/722)).
+
 #### Improvements
 * Unlocks support for `dbt-core` 1.12 and tests against it. Widens the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
 * Add `lightweight_deletes_sync=3` to the default connection settings so lightweight deletes wait for all active replicas before returning. Like the other defaults, it can be overridden via `custom_settings` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
