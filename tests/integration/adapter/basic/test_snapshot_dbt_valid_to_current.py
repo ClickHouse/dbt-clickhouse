@@ -1,9 +1,7 @@
 from datetime import datetime
 
 import pytest
-
 from dbt.tests.util import relation_from_name, run_dbt
-
 
 seeds_base_csv = """
 id,name,some_date
@@ -149,10 +147,15 @@ def get_deleted_row_valid_to(project, snapshot_name):
 
 
 def get_rows_for_id(project, snapshot_name, row_id):
-    """Return all rows for a specific id, ordered by dbt_valid_from (oldest first)."""
+    """Return all rows for a specific id, oldest version first.
+
+    Snapshot runs within the same second share a dbt_valid_from, so dbt_valid_to
+    (a real timestamp sorts before the far-future sentinel) breaks the tie.
+    """
     relation = relation_from_name(project.adapter, snapshot_name)
     result = project.run_sql(
-        f"select id, name, dbt_valid_from, dbt_valid_to from {relation} where id = {row_id} order by dbt_valid_from",
+        f"select id, name, dbt_valid_from, dbt_valid_to from {relation} "
+        f"where id = {row_id} order by dbt_valid_from, dbt_valid_to",
         fetch="all",
     )
     return result
@@ -224,9 +227,7 @@ class TestSnapshotTimestampDbtValidToCurrent:
 
         # --- Fourth snapshot run with updated data ---
         # Point at the "updated" seed so id=1 has a new name and later some_date
-        results = run_dbt(
-            ["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"]
-        )
+        results = run_dbt(["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"])
         assert len(results) == 1
 
         # Should now have 13 rows (12 + 1 new version for updated id=1)
@@ -316,9 +317,7 @@ class TestSnapshotCheckDbtValidToCurrent:
 
         # --- Fourth snapshot run with updated data ---
         # Point at the "updated" seed so id=1 has a changed name
-        results = run_dbt(
-            ["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"]
-        )
+        results = run_dbt(["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"])
         assert len(results) == 1
 
         # Should now have 13 rows (12 + 1 new version for updated id=1)
