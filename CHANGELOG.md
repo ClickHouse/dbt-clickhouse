@@ -1,7 +1,7 @@
 ### Unreleased
 
 #### Bugs
-* Apply a materialized view model's `query_settings` to the view's own query. They were only used for the initial fill of the target table, so every later insert or refresh ran under the server defaults ([#752](https://github.com/ClickHouse/dbt-clickhouse/issues/752)).
+* Apply a materialized view model's `query_settings` to the view's own query. They were only used for the initial fill of the target table, so every later insert or refresh ran under the server defaults ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
 
