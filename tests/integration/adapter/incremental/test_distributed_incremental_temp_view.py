@@ -25,8 +25,8 @@ class TestDistributedIncrementalTempView:
         return {"temp_view_cleanup.sql": model_sql}
 
     def test_temp_view_is_dropped(self, project):
-        for _ in range(2):
-            run_dbt(["run", "--select", "temp_view_cleanup"])
+        for args in ([], [], ["--full-refresh"]):
+            run_dbt(["run", "--select", "temp_view_cleanup"] + args)
             left_over = project.run_sql(
                 f"exists table {project.test_schema}.temp_view_cleanup__dbt_view_tmp",
                 fetch="one",
