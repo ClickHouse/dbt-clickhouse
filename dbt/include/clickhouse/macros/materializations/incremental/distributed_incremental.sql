@@ -152,6 +152,7 @@
   {% for rel in to_drop %}
       {% do adapter.drop_relation(rel) %}
   {% endfor %}
+  {{ drop_relation_if_exists(view_relation) }}
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
