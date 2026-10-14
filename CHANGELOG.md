@@ -1,5 +1,8 @@
 ### Unreleased
 
+#### Repository maintenance
+* The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+
 #### Bugs
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
