@@ -14,8 +14,6 @@
 -#}
 {%- materialization materialized_view, adapter='clickhouse' -%}
 
-  {%- do clickhouse__validate_refreshable_catchup_config() -%}
-
   {#- First check config, then try to extract from SQL comment -#}
   {#- Extract target table from comment. Handles formats like:
       `schema`.`table`, "schema"."table", schema.table -#}
@@ -326,45 +324,22 @@
 
 {% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, is_main_statement=False)  -%}
   {% set statement_name = 'main' if is_main_statement else 'create existing mv: ' + mv_relation.name -%}
-  {%- set is_refreshable = clickhouse__is_refreshable_mv() -%}
-  {%- set initial_internal_refresh = clickhouse__refreshable_initial_internal_refresh() -%}
+  {#- With catchup the backfill is the only initial populate, so ClickHouse's own initial refresh is
+      skipped (https://github.com/ClickHouse/dbt-clickhouse/issues/724); without catchup it keeps
+      populating the target in the background as before. -#}
+  {%- set create_empty = clickhouse__is_refreshable_mv() and config.get('catchup', True) == True -%}
   {% call statement(statement_name) -%}
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
-    {%- if is_refreshable and not initial_internal_refresh %} empty {% endif %}
+    {%- if create_empty %} empty {% endif %}
     as {{ view_sql }}
   {% endcall %}
-  {%- if initial_internal_refresh and config.get('refreshable').get('depends_on') -%}
-    {{ log('Not waiting for the initial refresh of ' ~ mv_relation.name ~ ' because it depends on other refreshable materialized views.', info=True) }}
-  {%- elif initial_internal_refresh -%}
-    {{ log('Waiting for the initial refresh of ' ~ mv_relation.name) }}
-    {% do adapter.wait_for_initial_refresh(mv_relation) %}
-  {%- endif -%}
 {%- endmacro %}
 
 {% macro clickhouse__is_refreshable_mv() %}
   {%- set refreshable_config = config.get('refreshable') -%}
   {{ return(refreshable_config is not none and refreshable_config != false) }}
-{% endmacro %}
-
-{% macro clickhouse__refreshable_initial_internal_refresh() %}
-  {%- set refreshable_config = config.get('refreshable') -%}
-  {%- if refreshable_config is mapping -%}
-    {{ return(refreshable_config.get('initial_internal_refresh', false) == true) }}
-  {%- endif -%}
-  {{ return(false) }}
-{% endmacro %}
-
-{% macro clickhouse__validate_refreshable_catchup_config() %}
-  {%- if clickhouse__refreshable_initial_internal_refresh() and config.get('catchup', True) == True -%}
-    {% do exceptions.raise_compiler_error(
-      'Materialized view "' ~ model.name ~ '" has refreshable.initial_internal_refresh=True, which lets ClickHouse '
-      ~ 'populate the target with its own initial refresh, but catchup is also enabled (it defaults to True), '
-      ~ 'so the target would be populated twice. Set catchup=False on this model to let ClickHouse do the '
-      ~ 'initial refresh, or remove initial_internal_refresh to let dbt backfill the target.'
-    ) %}
-  {%- endif -%}
 {% endmacro %}
 
 {% macro clickhouse__catchup_insert(target_table_relation, sql) %}
