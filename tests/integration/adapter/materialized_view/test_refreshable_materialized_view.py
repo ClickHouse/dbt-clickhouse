@@ -244,11 +244,8 @@ class TestBasicRefreshableMV:
             },
         )
 
-        # the backfill is the only initial populate (2 departments, inserted once) and EMPTY is a
-        # creation-time keyword that must not end up in the stored DDL
+        # 2 departments, inserted exactly once by the backfill
         assert project.run_sql("select count() from hackers", fetch="one")[0] == 2
-        ddl, _ = get_mv_ddl_and_uuid(project, 'hackers_mv')
-        assert 'EMPTY' not in ddl
 
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(

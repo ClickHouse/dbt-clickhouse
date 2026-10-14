@@ -126,7 +126,7 @@
       {{ log('Dropping existing MV ' ~ mv_relation.name ~ ' for full refresh recreation') }}
       {{ clickhouse__drop_mv(mv_relation, cluster_clause) }}
     {% endif %}
-    {#- A refreshable MV is backfilled before it exists so it doesn't collide with the internal refresh. -#}
+    {#- A refreshable MV is backfilled before it exists, see clickhouse__create_mv. -#}
     {% if catchup_data and is_refreshable %}
       {{ clickhouse__catchup_insert(target_table_relation, sql) }}
     {% endif %}

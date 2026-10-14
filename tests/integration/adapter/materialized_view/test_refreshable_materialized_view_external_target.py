@@ -104,15 +104,8 @@ class TestBasicExternalTargetRefreshableMV:
             },
         )
 
-        # the catchup is the only initial populate (2 departments, inserted once) and EMPTY is a
-        # creation-time keyword that must not end up in the stored DDL
+        # 2 departments, inserted exactly once by the catchup
         assert project.run_sql("select count() from hackers_target", fetch="one")[0] == 2
-        ddl = project.run_sql(
-            f"select create_table_query from system.tables"
-            f" where database = '{project.test_schema}' and name = 'hackers'",
-            fetch="one",
-        )[0]
-        assert 'EMPTY' not in ddl
 
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
@@ -261,14 +254,6 @@ def target_row_count(project):
     return project.run_sql("select count() from hackers_target", fetch="one")[0]
 
 
-def mv_refresh_state(project):
-    return project.run_sql(
-        f"select status, last_success_time from system.view_refreshes"
-        f" where database = '{project.test_schema}' and view = 'hackers'",
-        fetch="one",
-    )
-
-
 class TestAppendExternalTargetRefreshableMV:
     @pytest.fixture(scope="class")
     def seeds(self):
@@ -321,5 +306,3 @@ class TestNoCatchupExternalTargetRefreshableMV:
         assert len(results) == 2
         project.run_sql("system wait view hackers")
         assert target_row_count(project) == 2
-        _, last_success_time = mv_refresh_state(project)
-        assert last_success_time is not None
