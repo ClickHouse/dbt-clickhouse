@@ -1,9 +1,13 @@
 ### Unreleased
 
-**Breaking change:** refreshable materialized views with `catchup: False` are no longer populated at creation. See the Bugs section below for details.
+#### Repository maintenance
+* The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
 
 #### Bugs
-* Prevent refreshable materialized views from racing or duplicating their initial population. Views using `catchup=False` now remain empty until their first scheduled refresh unless `refreshable.initial_internal_refresh=True` is set ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
+* Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
+* Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
+* Prevent refreshable materialized views from racing or duplicating their initial population. With `catchup=True` (the default) the catchup now runs before the view is created and the view is created with `EMPTY`, so only dbt loads the initial data; with `catchup=False` ClickHouse keeps running the initial refresh as before ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
+
 
 ### Release [1.10.3], 2026-09-15
 
