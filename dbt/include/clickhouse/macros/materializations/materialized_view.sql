@@ -130,7 +130,7 @@
     {% if catchup_data and is_refreshable %}
       {{ clickhouse__catchup_insert(target_table_relation, sql) }}
     {% endif %}
-    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True) }};
+    {{ clickhouse__create_mv(mv_relation, materialization_target_table, cluster_clause, refreshable_clause, sql, is_main_statement=True, create_with_empty=catchup_data) }};
     {% if catchup_data and not is_refreshable %}
       {{ clickhouse__catchup_insert(target_table_relation, sql) }}
     {% endif %}
@@ -236,7 +236,7 @@
 
       {% do exchange_tables_atomic(backup_relation, existing_relation) %}
 
-      {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views) }}
+      {{ clickhouse__create_mvs(existing_relation, cluster_clause, refreshable_clause, views, create_with_empty=catchup_data) }}
     {% else %}
       -- we need to have a 'main' statement
       {% call statement('main') -%}
@@ -313,7 +313,7 @@
   {%- set cluster_clause = on_cluster_clause(relation) -%}
   {%- set refreshable_clause = refreshable_mv_clause() -%}
   {%- set mv_relation = relation.derivative('_mv', 'materialized_view') -%}
-  {{ clickhouse__create_mvs(relation, cluster_clause, refreshable_clause, views) }}
+  {{ clickhouse__create_mvs(relation, cluster_clause, refreshable_clause, views, create_with_empty=catchup) }}
 {%- endmacro %}
 
 {% macro clickhouse__drop_mv(mv_relation, cluster_clause)  -%}
@@ -322,17 +322,17 @@
   {% endcall %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, is_main_statement=False)  -%}
+{#-
+  A refreshable view skips its initial refresh (EMPTY) when dbt already backfilled the target with catchup,
+  otherwise both would populate it (https://github.com/ClickHouse/dbt-clickhouse/issues/724).
+-#}
+{% macro clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, is_main_statement=False, create_with_empty=False)  -%}
   {% set statement_name = 'main' if is_main_statement else 'create existing mv: ' + mv_relation.name -%}
-  {#- With catchup the backfill is the only initial populate, so ClickHouse's own initial refresh is
-      skipped (https://github.com/ClickHouse/dbt-clickhouse/issues/724); without catchup it keeps
-      populating the target in the background as before. -#}
-  {%- set create_empty = clickhouse__is_refreshable_mv() and config.get('catchup', True) == True -%}
   {% call statement(statement_name) -%}
     create materialized view if not exists {{ mv_relation }} {{ cluster_clause }}
     {{ refreshable_clause }}
     to {{ target_relation }}
-    {%- if create_empty %} empty {% endif %}
+    {%- if create_with_empty and clickhouse__is_refreshable_mv() %} empty {% endif %}
     as {{ view_sql }}
   {% endcall %}
 {%- endmacro %}
@@ -452,10 +452,10 @@
   {% endfor %}
 {%- endmacro %}
 
-{% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views)  -%}
+{% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views, create_with_empty=False)  -%}
   {% for view, view_sql in views.items() %}
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
-    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql) }};
+    {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, create_with_empty=create_with_empty) }};
   {% endfor %}
 {%- endmacro %}
 
@@ -529,7 +529,7 @@
   {{ adapter.rename_relation(intermediate_relation, target_relation) }}
 
   {# now that the target table is recreated, we can finally create our new view #}
-  {{ clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views) }}
+  {{ clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views, create_with_empty=catchup) }}
 {% endmacro %}
 
 {#-

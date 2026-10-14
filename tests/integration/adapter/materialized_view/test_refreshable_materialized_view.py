@@ -12,6 +12,8 @@ from dbt.tests.util import check_relation_types, run_dbt
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
+    refreshable_mv_model,
+    target_row_count,
 )
 
 # This model is parameterized, in a way, by the "run_type" dbt project variable
@@ -245,7 +247,7 @@ class TestBasicRefreshableMV:
         )
 
         # 2 departments, inserted exactly once by the backfill
-        assert project.run_sql("select count() from hackers", fetch="one")[0] == 2
+        assert target_row_count(project, 'hackers') == 2
 
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
@@ -563,32 +565,6 @@ class TestRefreshableFalseMV:
         assert ' REFRESH ' not in ddl
 
 
-def refreshable_mv_model(catchup=True, **refreshable):
-    """
-    AFTER 1 HOUR counts from creation, so no scheduled refresh can fire while a test asserts row
-    counts; only the catchup or the initial refresh can have populated the target.
-    """
-    refreshable = {"interval": "AFTER 1 HOUR", **refreshable}
-    return f"""
-{{{{ config(
-       materialized='materialized_view',
-       engine='MergeTree()',
-       order_by='(department)',
-       catchup={catchup},
-       refreshable={json.dumps(refreshable)}
-) }}}}
-select
-    department,
-    avg(age) as average
-    from {{{{ source('raw', 'people') }}}}
-group by department
-"""
-
-
-def target_row_count(project):
-    return project.run_sql("select count() from hackers", fetch="one")[0]
-
-
 # Turns a plain table model into a refreshable MV with the same name, which takes the
 # "target exists, view missing" path of clickhouse__update_mv
 TABLE_TO_REFRESHABLE_MODEL = """
@@ -627,30 +603,26 @@ class TestRefreshableMVOverExistingTable:
             "hackers.sql": TABLE_TO_REFRESHABLE_MODEL,
         }
 
-    def test_existing_target_is_not_backfilled(self, project):
+    def test_existing_target_is_filled_by_the_initial_refresh(self, project):
         """
         1. create an empty table model
-        2. change it into a refreshable MV: the table is kept as the target and, as for regular
-           MVs, only the view is created; the catchup runs only when dbt creates the target
-        3. --full-refresh rebuilds the target with the catchup
+        2. change it into a refreshable MV: the table is kept as the target and only the view is
+           created. No catchup ran, so the view is created without EMPTY and ClickHouse's initial
+           refresh fills the table, as before this fix
         """
         results = run_dbt(["seed"])
         assert len(results) == 1
         results = run_dbt()
         assert len(results) == 1
-        assert target_row_count(project) == 0
+        assert target_row_count(project, 'hackers') == 0
 
-        run_vars = json.dumps({"run_type": "make_refreshable"})
-        results = run_dbt(["run", "--vars", run_vars])
+        results = run_dbt(["run", "--vars", json.dumps({"run_type": "make_refreshable"})])
         assert len(results) == 1
         check_relation_types(
             project.adapter, {"hackers_mv": "materialized_view", "hackers": "table"}
         )
-        assert target_row_count(project) == 0
-
-        results = run_dbt(["run", "--full-refresh", "--vars", run_vars])
-        assert len(results) == 1
-        assert target_row_count(project) == 2
+        project.run_sql("system wait view hackers_mv")
+        assert target_row_count(project, 'hackers') == 2
 
 
 class TestAppendRefreshableMVCatchup:
@@ -676,11 +648,11 @@ class TestAppendRefreshableMVCatchup:
         assert len(results) == 1
         results = run_dbt()
         assert len(results) == 1
-        assert target_row_count(project) == 2
+        assert target_row_count(project, 'hackers') == 2
 
         results = run_dbt(["run", "--full-refresh"])
         assert len(results) == 1
-        assert target_row_count(project) == 2
+        assert target_row_count(project, 'hackers') == 2
 
 
 class TestNoCatchupRefreshableMV:
@@ -710,4 +682,4 @@ class TestNoCatchupRefreshableMV:
             results = run_dbt(args)
             assert len(results) == 1
             project.run_sql("system wait view hackers_mv")
-            assert target_row_count(project) == 2
+            assert target_row_count(project, 'hackers') == 2

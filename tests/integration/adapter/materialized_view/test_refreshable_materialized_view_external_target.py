@@ -13,6 +13,8 @@ from dbt.tests.util import check_relation_types, run_dbt
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
+    refreshable_mv_model,
+    target_row_count,
 )
 
 # Target table model - this creates the destination table that the MV will write to
@@ -105,7 +107,7 @@ class TestBasicExternalTargetRefreshableMV:
         )
 
         # 2 departments, inserted exactly once by the catchup
-        assert project.run_sql("select count() from hackers_target", fetch="one")[0] == 2
+        assert target_row_count(project, 'hackers_target') == 2
 
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
@@ -133,7 +135,7 @@ class TestBasicExternalTargetRefreshableMV:
         # --full-refresh drops the MV, runs the catchup, then recreates the MV with EMPTY
         results = run_dbt(["run", "--full-refresh"])
         assert len(results) == 2
-        assert project.run_sql("select count() from hackers_target", fetch="one")[0] == 2
+        assert target_row_count(project, 'hackers_target') == 2
 
     def test_validate_dependency(self, project):
         """
@@ -227,33 +229,6 @@ class TestModifyRefreshParamsExternalTargetMV:
         assert uuid_before == uuid_after
 
 
-def refreshable_external_target_model(catchup=True, **refreshable):
-    """
-    AFTER 1 HOUR counts from creation, so no scheduled refresh can fire while a test asserts row
-    counts; only the catchup or the initial refresh can have populated the target.
-    """
-    refreshable = {"interval": "AFTER 1 HOUR", **refreshable}
-    return f"""
-{{{{ config(
-       materialized='materialized_view',
-       catchup={catchup},
-       refreshable={json.dumps(refreshable)}
-) }}}}
-
-{{{{ materialization_target_table(ref('hackers_target')) }}}}
-
-select
-    department,
-    avg(age) as average
-from {{{{ source('raw', 'people') }}}}
-group by department
-"""
-
-
-def target_row_count(project):
-    return project.run_sql("select count() from hackers_target", fetch="one")[0]
-
-
 class TestAppendExternalTargetRefreshableMV:
     @pytest.fixture(scope="class")
     def seeds(self):
@@ -266,7 +241,7 @@ class TestAppendExternalTargetRefreshableMV:
     def models(self):
         return {
             "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers.sql": refreshable_external_target_model(append=True),
+            "hackers.sql": refreshable_mv_model(external_target=True, append=True),
         }
 
     def test_no_duplicate_rows(self, project):
@@ -277,7 +252,7 @@ class TestAppendExternalTargetRefreshableMV:
         assert len(results) == 1
         results = run_dbt()
         assert len(results) == 2
-        assert target_row_count(project) == 2
+        assert target_row_count(project, 'hackers_target') == 2
 
 
 class TestNoCatchupExternalTargetRefreshableMV:
@@ -292,7 +267,7 @@ class TestNoCatchupExternalTargetRefreshableMV:
     def models(self):
         return {
             "hackers_target.sql": TARGET_TABLE_MODEL,
-            "hackers.sql": refreshable_external_target_model(catchup=False),
+            "hackers.sql": refreshable_mv_model(external_target=True, catchup=False),
         }
 
     def test_clickhouse_runs_the_initial_refresh(self, project):
@@ -305,4 +280,4 @@ class TestNoCatchupExternalTargetRefreshableMV:
         results = run_dbt()
         assert len(results) == 2
         project.run_sql("system wait view hackers")
-        assert target_row_count(project) == 2
+        assert target_row_count(project, 'hackers_target') == 2

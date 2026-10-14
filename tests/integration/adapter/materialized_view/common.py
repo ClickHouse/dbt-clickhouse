@@ -2,6 +2,8 @@
 Common fixtures and constants for materialized view tests.
 """
 
+import json
+
 PEOPLE_SEED_CSV = """
 id,name,age,department
 1231,Dade,33,engineering
@@ -142,3 +144,35 @@ def query_table_type(project, schema, table):
         fetch="all",
     )
     return table_type[0][0] if len(table_type) > 0 else None
+
+
+def refreshable_mv_model(catchup=True, external_target=False, **refreshable):
+    """
+    Refreshable MV over the people seed. AFTER 1 HOUR counts from creation, so no scheduled
+    refresh can fire while a test asserts row counts; only the catchup or the initial refresh
+    can have populated the target.
+    """
+    refreshable = {"interval": "AFTER 1 HOUR", **refreshable}
+    if external_target:
+        storage = ""
+        target = "\n{{ materialization_target_table(ref('hackers_target')) }}\n"
+    else:
+        storage = "\n       engine='MergeTree()',\n       order_by='(department)',"
+        target = ""
+    return f"""
+{{{{ config(
+       materialized='materialized_view',{storage}
+       catchup={catchup},
+       refreshable={json.dumps(refreshable)}
+) }}}}
+{target}
+select
+    department,
+    avg(age) as average
+from {{{{ source('raw', 'people') }}}}
+group by department
+"""
+
+
+def target_row_count(project, table):
+    return project.run_sql(f"select count() from {table}", fetch="one")[0]

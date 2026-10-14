@@ -433,7 +433,7 @@ Refreshable materialized views follow the same steps but have no insert trigger,
 | First `dbt run` | 1. Create MV (with `TO` clause)<br/>2. Run catch-up (if `catchup=True`) | ✅ MV is created first, so new inserts are captured immediately.<br/>⚠️ **Catch-up may duplicate data** — the backfill query can overlap with rows already being processed by the MV. Safe if using a deduplicating engine (e.g. `ReplacingMergeTree`). |
 | Subsequent `dbt run` | `ALTER TABLE ... MODIFY QUERY` | ✅ Safe. The MV is updated atomically. |
 | `dbt run --full-refresh` on MVs | 1. Drop and recreate MV<br/>2. Run catch-up (if `catchup=True`) | ⚠️ **MV is blind during recreation** (between drop and create).<br/>⚠️ **Catch-up may duplicate data** if inserts are happening concurrently. |
-| First `dbt run` or `--full-refresh` on refreshable MVs | 1. Drop MV (full refresh only)<br/>2. Run catch-up (if `catchup=True`)<br/>3. Create MV, with `EMPTY` if `catchup=True` (see [Initial data](#refreshable-initial-data)) | ✅ Safe. No insert trigger, so nothing is missed, and the catch-up cannot overlap a refresh.<br/>⚠️ On `--full-refresh`, if the target table still holds data the catch-up adds rows on top of it; for non-`append` views the next scheduled refresh replaces them. |
+| First `dbt run` or `--full-refresh` on refreshable MVs | 1. Drop MV (full refresh only)<br/>2. Run catch-up (if `catchup=True`)<br/>3. Create MV, with `EMPTY` if `catchup=True` (see [Initial data](#refreshable-initial-data)) | ✅ Safe. No insert trigger, so nothing is missed, and the catch-up cannot overlap a refresh.<br/>⚠️ On `--full-refresh`, if the target table still holds data the catch-up adds rows on top of it. For non-`append` views the next scheduled refresh replaces them; for `append` views they stay, so full-refresh the target table model as well. |
 
 **Target table model:**
 
@@ -529,6 +529,7 @@ The catch-up runs:
 |-----------|----------|
 | `True` (default) | dbt runs the MV's SQL as an insert into the target, then creates the view with `EMPTY` so ClickHouse does not run a first refresh on top of it. The next refresh happens at the scheduled time, and the model finishes with the target populated. |
 | `False` | The view is created without `EMPTY` and ClickHouse populates the target with its initial refresh in the background. dbt does not wait for it, so the target may still be empty when the model finishes. |
+
 ### Updating the refresh parameters {#refreshable-updating-parameters}
 
 Starting with dbt-clickhouse 1.10.2, changes to the refresh parameters (`interval`, `randomize` and `depends_on`) of an existing refreshable materialized view are applied in place on a regular `dbt run`, using `ALTER TABLE ... MODIFY REFRESH`. The materialized view is not dropped or recreated, so no data is lost and there is no "blind window" while the change is applied.
