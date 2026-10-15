@@ -85,6 +85,14 @@ class ClickHouseAdapter(SQLAdapter):
         self.cache = ClickHouseRelationsCache()
 
     @classmethod
+    def quote(cls, identifier: str) -> str:
+        # Pass through names the user already quoted (e.g. a grantee written as
+        # '"etl-user"' or '`etl-user`') instead of wrapping them in a second pair.
+        if len(identifier) > 1 and identifier[0] in ('"', '`') and identifier[-1] == identifier[0]:
+            return identifier
+        return super().quote(identifier)
+
+    @classmethod
     def date_function(cls):
         return 'now()'
 
