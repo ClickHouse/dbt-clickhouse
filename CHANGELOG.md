@@ -14,7 +14,6 @@
 * Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
 
 
-
 ### Release [1.10.3], 2026-09-15
 
 #### Improvements
