@@ -9,10 +9,34 @@
     {{ drop_relation_if_exists(staging_relation) }}
 {% endmacro %}
 
+{#
+  Markers after 2100 get clamped by ClickHouse depending on the dbt_valid_to type and the
+  server version, after which the current-row filter never matches again. Shadow this
+  macro in a project to lift the limit.
+#}
+{% macro clickhouse__validate_dbt_valid_to_current() %}
+  {%- set sentinel = config.get('dbt_valid_to_current') -%}
+  {%- if sentinel and not run_query(
+        "select toDateTime64(" ~ sentinel ~ ", 3) <= toDateTime64('2100-01-01 00:00:00', 3)"
+      ).columns[0].values()[0] -%}
+    {% do exceptions.raise_compiler_error(
+      "dbt_valid_to_current " ~ sentinel ~ " is later than 2100-01-01 00:00:00, which ClickHouse may clamp. "
+      ~ "Use toDateTime('2100-01-01 00:00:00') or earlier, or shadow clickhouse__validate_dbt_valid_to_current to lift the limit."
+    ) %}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro clickhouse__build_snapshot_table(strategy, sql) %}
+  {% do clickhouse__validate_dbt_valid_to_current() %}
+  {{ return(default__build_snapshot_table(strategy, sql)) }}
+{% endmacro %}
+
 {% macro build_snapshot_staging_table(strategy, sql, target_relation) %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
 
     {{ drop_relation_if_exists(tmp_relation) }}
+
+    {% do clickhouse__validate_dbt_valid_to_current() %}
 
     {% set select = snapshot_staging_table(strategy, sql, target_relation) %}
 
@@ -101,6 +125,8 @@
 
 {% macro clickhouse__snapshot_staging_table_check_strategy(strategy, source_sql, target_relation) -%}
 
+    {% set dbt_valid_to_current = config.get('dbt_valid_to_current') %}
+
     with snapshot_time as (
         select {{ strategy.updated_at }} as ts  -- Single timestamp
     ),
@@ -116,7 +142,12 @@
             {{ unique_key_fields(strategy.unique_key) }}
 
         from {{ target_relation }}
-        where dbt_valid_to is null
+        where
+            {% if dbt_valid_to_current %}
+                ( dbt_valid_to = {{ dbt_valid_to_current }} or dbt_valid_to is null )
+            {% else %}
+                dbt_valid_to is null
+            {% endif %}
 
     ),
 
@@ -127,7 +158,7 @@
             {{ unique_key_fields(strategy.unique_key) }},
             snapshot_time.ts as dbt_updated_at,
             snapshot_time.ts as dbt_valid_from,
-            nullif(snapshot_time.ts, snapshot_time.ts) as dbt_valid_to,
+            coalesce(nullif(snapshot_time.ts, snapshot_time.ts), {{ dbt_valid_to_current or 'null' }}) as dbt_valid_to,
             {{ strategy.scd_id }} as dbt_scd_id
 
         from snapshot_query, snapshot_time
@@ -219,6 +250,8 @@
 
 {% macro clickhouse__snapshot_staging_table_timestamp_strategy(strategy, source_sql, target_relation) -%}
 
+    {% set dbt_valid_to_current = config.get('dbt_valid_to_current') %}
+
     with snapshot_query as (
 
         {{ source_sql }}
@@ -231,7 +264,12 @@
             {{ unique_key_fields(strategy.unique_key) }}
 
         from {{ target_relation }}
-        where dbt_valid_to is null
+        where
+            {% if dbt_valid_to_current %}
+                ( dbt_valid_to = {{ dbt_valid_to_current }} or dbt_valid_to is null )
+            {% else %}
+                dbt_valid_to is null
+            {% endif %}
 
     ),
 
@@ -242,7 +280,7 @@
             {{ unique_key_fields(strategy.unique_key) }},
             {{ strategy.updated_at }} as dbt_updated_at,
             {{ strategy.updated_at }} as dbt_valid_from,
-            nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}) as dbt_valid_to,
+            coalesce(nullif({{ strategy.updated_at }}, {{ strategy.updated_at }}), {{ dbt_valid_to_current or 'null' }}) as dbt_valid_to,
             {{ strategy.scd_id }} as dbt_scd_id
 
         from snapshot_query

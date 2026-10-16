@@ -563,6 +563,24 @@ select * from {{ ref('<model-name>') }}
 
 For a worked example on the Jaffle Shop, see the [snapshot section of the guides](/integrations/connectors/data-ingestion/etl-tools/dbt/guides#snapshot). For all options, check out the [snapshot configs](https://docs.getdbt.com/docs/build/snapshots#snapshot-configs) reference page.
 
+### `dbt_valid_to_current` and date ranges {#snapshot-dbt-valid-to-current}
+
+By default a current row has `dbt_valid_to = NULL`. The [`dbt_valid_to_current`](https://docs.getdbt.com/reference/resource-configs/dbt_valid_to_current) config stores a far-future marker instead, and the adapter recognises current rows by comparing `dbt_valid_to` with exactly that value.
+
+Markers later than `2100-01-01 00:00:00` are rejected with a compilation error. ClickHouse clamps date and datetime values silently and differently per the data type of `dbt_valid_to` (based on `updated_at` column type) and server version. For example,`date('9999-12-31')`, the example from the dbt docs, becomes `2106-02-06 00:00:00` in a `DateTime` column. Anything up to 2100 is stored and compared identically everywhere:
+
+```yaml
+config:
+  dbt_valid_to_current: "toDateTime('2100-01-01 00:00:00')"
+```
+
+If you are aware of this and want to use a later marker anyway, you can shadow the check with an empty macro in your project:
+
+```python
+{% macro clickhouse__validate_dbt_valid_to_current() %}
+{% endmacro %}
+```
+
 ## Contracts and Constraints {#contracts-and-constraints}
 
 Only exact column type contracts are supported. For example, a contract with a UInt32 column type will fail if the model
