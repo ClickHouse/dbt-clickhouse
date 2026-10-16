@@ -214,8 +214,9 @@ def _dbt_core_v2_mocked_event_time_end():
 def _dbt_core_v2_invoke(args):
     # Python's dbtRunner tolerates non-string args (e.g. --limit 5); subprocess doesn't.
     args = [str(a) for a in args]
-    # dbt core v2 dropped `docs generate` (dbt1705); `compile --write-catalog` produces the
-    # catalog.json that Python's docs generate returned as a CatalogArtifact.
+    # dbt core v2's `docs generate` builds the static docs site from the parquet index and
+    # writes no catalog.json; `compile --write-catalog` is the command that produces the
+    # catalog.json Python's docs generate returned as a CatalogArtifact.
     is_docs_generate = args[:2] == ['docs', 'generate']
     if is_docs_generate:
         args = ['compile', '--write-catalog'] + args[2:]

@@ -43,12 +43,12 @@ class QuoteColumnsPlusPrefix:
 
 
 class TestBaseDocsGenerate(QuoteColumnsPlusPrefix, MigratedTestArgs, BaseDocsGenerate):
-    # dbt core v2 has no `docs generate`; the harness maps it to `compile
-    # --write-catalog`, which knows no `--no-compile` and copies no docs-site
+    # dbt core v2's `docs generate` writes no catalog.json; the harness maps it to
+    # `compile --write-catalog`, which knows no `--no-compile` and copies no docs-site
     # assets. Only the catalog itself is comparable across engines.
     def test_run_and_generate_no_compile(self, project, expected_catalog):
         if IS_CORE_V2:
-            pytest.skip("dbt core v2 has no `docs generate --no-compile`")
+            pytest.skip("dbt core v2 writes catalog.json only via `compile --write-catalog`, which has no `--no-compile`")
         super().test_run_and_generate_no_compile(project, expected_catalog)
 
     def test_run_and_generate(self, project, expected_catalog):
