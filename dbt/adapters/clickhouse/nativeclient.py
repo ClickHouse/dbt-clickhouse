@@ -76,7 +76,7 @@ class ChNativeClient(ChClientWrapper):
             sync_request_timeout=credentials.sync_request_timeout,
             compress_block_size=credentials.compress_block_size,
             compression=False if credentials.compression == '' else credentials.compression,
-            tcp_keepalive=credentials.tcp_keepalive,
+            tcp_keepalive=self._get_tcp_keepalive(credentials),
             settings=self._conn_settings,
         )
         try:
@@ -84,6 +84,14 @@ class ChNativeClient(ChClientWrapper):
         except (SocketTimeoutError, NetworkError) as ex:
             raise ChRetryableException(str(ex)) from ex
         return client
+
+    def _get_tcp_keepalive(self, credentials: ClickHouseCredentials):
+        # clickhouse_driver only applies the idle/interval/probe values when given a tuple
+        return (
+            tuple(credentials.tcp_keepalive)
+            if isinstance(credentials.tcp_keepalive, list)
+            else credentials.tcp_keepalive
+        )
 
     def _set_client_database(self):
         # After we know the database exists, reconnect to that database if appropriate

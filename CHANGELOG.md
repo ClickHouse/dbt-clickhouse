@@ -3,10 +3,16 @@
 #### Changes that specially require your attention
 * Snapshots with a `dbt_valid_to_current` later than `2100-01-01 00:00:00` now fail with a compilation error. This is an extra validation step added in the adapter as ClickHouse clamps far-future values depending on the column type and server version. See the [snapshot docs](./docs/materializations.mdx#snapshot-dbt-valid-to-current) for more details and how to override the limit.
 
+#### Repository maintenance
+* The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+
 #### Bugs
+* Apply a materialized view model's `query_settings` to the view's own query, not only to the initial fill of the target table, so later inserts and refreshes no longer run under the server defaults. Existing views pick up the clause on the next `dbt run`, which already reissues the view query ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
 * Fix snapshots ignoring `dbt_valid_to_current`: current rows were only matched on `dbt_valid_to IS NULL`, so every run re-inserted rows carrying the configured sentinel instead of closing the previous version ([#630](https://github.com/ClickHouse/dbt-clickhouse/pull/630)).
+* Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
+
 
 
 ### Release [1.10.3], 2026-09-15
