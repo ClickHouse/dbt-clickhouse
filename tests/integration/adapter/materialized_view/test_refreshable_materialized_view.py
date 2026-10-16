@@ -224,7 +224,7 @@ class TestBasicRefreshableMV:
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql(f"DESCRIBE TABLE {project.test_schema}.people", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # create the model
         results = run_dbt()
@@ -276,7 +276,7 @@ class TestBasicRefreshableMV:
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql(f"DESCRIBE TABLE {project.test_schema}.people", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # re-run dbt but this time with the new MV SQL
         run_vars = {"run_type": "validate_depends_on"}

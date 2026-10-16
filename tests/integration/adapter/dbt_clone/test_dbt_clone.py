@@ -9,16 +9,18 @@ from dbt.tests.adapter.dbt_clone.test_dbt_clone import (
 )
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
+from tests.integration.adapter.helpers import MigratedTestArgs
 
-class TestBaseClonePossible(BaseClonePossible):
+
+class TestBaseClonePossible(MigratedTestArgs, BaseClonePossible):
     pass
 
 
-class TestCloneNotPossible(BaseCloneNotPossible):
+class TestCloneNotPossible(MigratedTestArgs, BaseCloneNotPossible):
     pass
 
 
-class TestCloneSameTargetAndState(BaseCloneSameTargetAndState):
+class TestCloneSameTargetAndState(MigratedTestArgs, BaseCloneSameTargetAndState):
     pass
 
 
@@ -68,7 +70,7 @@ class TestCloneSameSourceAndTarget(BaseCloneSameSourceAndTarget):
         assert "skipping clone for relation" in output
 
 
-class TestCloneNonMergeTreeBecomesView(BaseClone):
+class TestCloneNonMergeTreeBecomesView(MigratedTestArgs, BaseClone):
     """A non-MergeTree table cannot be cloned with `CLONE AS`, so dbt-core should
     fall back to materializing it as a view in the target schema."""
 
