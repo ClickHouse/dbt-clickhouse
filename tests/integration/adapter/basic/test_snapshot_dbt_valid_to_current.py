@@ -1,9 +1,7 @@
 from datetime import datetime
 
 import pytest
-
-from dbt.tests.util import relation_from_name, run_dbt
-
+from dbt.tests.util import relation_from_name, run_dbt, run_dbt_and_capture
 
 seeds_base_csv = """
 id,name,some_date
@@ -149,10 +147,15 @@ def get_deleted_row_valid_to(project, snapshot_name):
 
 
 def get_rows_for_id(project, snapshot_name, row_id):
-    """Return all rows for a specific id, ordered by dbt_valid_from (oldest first)."""
+    """Return all rows for a specific id, oldest version first.
+
+    Snapshot runs within the same second share a dbt_valid_from, so dbt_valid_to
+    (a real timestamp sorts before the far-future sentinel) breaks the tie.
+    """
     relation = relation_from_name(project.adapter, snapshot_name)
     result = project.run_sql(
-        f"select id, name, dbt_valid_from, dbt_valid_to from {relation} where id = {row_id} order by dbt_valid_from",
+        f"select id, name, dbt_valid_from, dbt_valid_to from {relation} "
+        f"where id = {row_id} order by dbt_valid_from, dbt_valid_to",
         fetch="all",
     )
     return result
@@ -224,9 +227,7 @@ class TestSnapshotTimestampDbtValidToCurrent:
 
         # --- Fourth snapshot run with updated data ---
         # Point at the "updated" seed so id=1 has a new name and later some_date
-        results = run_dbt(
-            ["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"]
-        )
+        results = run_dbt(["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"])
         assert len(results) == 1
 
         # Should now have 13 rows (12 + 1 new version for updated id=1)
@@ -316,9 +317,7 @@ class TestSnapshotCheckDbtValidToCurrent:
 
         # --- Fourth snapshot run with updated data ---
         # Point at the "updated" seed so id=1 has a changed name
-        results = run_dbt(
-            ["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"]
-        )
+        results = run_dbt(["--no-partial-parse", "snapshot", "--vars", "seed_name: updated"])
         assert len(results) == 1
 
         # Should now have 13 rows (12 + 1 new version for updated id=1)
@@ -434,3 +433,65 @@ class TestSnapshotCheckDbtValidToCurrentWithHardDeletes:
         deleted_valid_to = get_deleted_row_valid_to(project, "cc_snapshot_hd")
         # The deleted row should have a real timestamp, not the sentinel
         assert deleted_valid_to != datetime(2100, 1, 1, 0, 0)
+
+
+# Markers later than 2100-01-01 are rejected: ClickHouse would store `date('9999-12-31')`
+# clamped to 2106-02-06 in a DateTime column and the current-row filter would never match again.
+ts_snapshot_out_of_range_sql = """
+{% snapshot ts_snapshot_oor %}
+    {{ config(
+        strategy='timestamp',
+        unique_key='id',
+        updated_at='some_date',
+        dbt_valid_to_current="date('9999-12-31')",
+    )}}
+    select * from {{ ref('base') }}
+{% endsnapshot %}
+""".strip()
+
+
+class TestSnapshotDbtValidToCurrentOutOfRange:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"base.csv": seeds_base_csv}
+
+    @pytest.fixture(scope="class")
+    def snapshots(self):
+        return {"ts_snapshot_oor.sql": ts_snapshot_out_of_range_sql}
+
+    def test_out_of_range_sentinel_is_rejected(self, project):
+        run_dbt(["seed"])
+
+        results, log_output = run_dbt_and_capture(["snapshot"], expect_pass=False)
+        assert len(results) == 1
+        assert "dbt_valid_to_current date('9999-12-31') is later than 2100-01-01" in log_output
+
+
+# Projects can opt out by shadowing the check macro; the marker is then stored clamped.
+disable_check_macro_sql = """
+{% macro clickhouse__validate_dbt_valid_to_current() %}
+{% endmacro %}
+"""
+
+
+class TestSnapshotDbtValidToCurrentCheckOverride:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {"base.csv": seeds_base_csv}
+
+    @pytest.fixture(scope="class")
+    def snapshots(self):
+        return {"ts_snapshot_oor.sql": ts_snapshot_out_of_range_sql}
+
+    @pytest.fixture(scope="class")
+    def macros(self):
+        return {"disable_check.sql": disable_check_macro_sql}
+
+    def test_override_disables_check(self, project):
+        run_dbt(["seed"])
+        assert len(run_dbt(["snapshot"])) == 1
+
+        valid_to = project.run_sql(
+            f"select distinct dbt_valid_to from {project.test_schema}.ts_snapshot_oor", fetch="all"
+        )
+        assert valid_to == [(datetime(2106, 2, 6, 0, 0),)]

@@ -9,10 +9,34 @@
     {{ drop_relation_if_exists(staging_relation) }}
 {% endmacro %}
 
+{#
+  Markers after 2100 get clamped by ClickHouse depending on the dbt_valid_to type and the
+  server version, after which the current-row filter never matches again. Shadow this
+  macro in a project to lift the limit.
+#}
+{% macro clickhouse__validate_dbt_valid_to_current() %}
+  {%- set sentinel = config.get('dbt_valid_to_current') -%}
+  {%- if sentinel and not run_query(
+        "select toDateTime64(" ~ sentinel ~ ", 3) <= toDateTime64('2100-01-01 00:00:00', 3)"
+      ).columns[0].values()[0] -%}
+    {% do exceptions.raise_compiler_error(
+      "dbt_valid_to_current " ~ sentinel ~ " is later than 2100-01-01 00:00:00, which ClickHouse may clamp. "
+      ~ "Use toDateTime('2100-01-01 00:00:00') or earlier, or shadow clickhouse__validate_dbt_valid_to_current to lift the limit."
+    ) %}
+  {%- endif -%}
+{% endmacro %}
+
+{% macro clickhouse__build_snapshot_table(strategy, sql) %}
+  {% do clickhouse__validate_dbt_valid_to_current() %}
+  {{ return(default__build_snapshot_table(strategy, sql)) }}
+{% endmacro %}
+
 {% macro build_snapshot_staging_table(strategy, sql, target_relation) %}
     {% set tmp_relation = make_temp_relation(target_relation) %}
 
     {{ drop_relation_if_exists(tmp_relation) }}
+
+    {% do clickhouse__validate_dbt_valid_to_current() %}
 
     {% set select = snapshot_staging_table(strategy, sql, target_relation) %}
 
