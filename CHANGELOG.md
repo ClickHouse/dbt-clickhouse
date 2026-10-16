@@ -5,8 +5,10 @@
 
 #### Bugs
 * Fix `grants` for users and roles whose names need quoting (e.g. `etl-user`), stop reading column-level grants and partial revokes as table-wide grants, and run `GRANT`/`REVOKE` `ON CLUSTER` on `Replicated` databases so they reach every node ([#757](https://github.com/ClickHouse/dbt-clickhouse/pull/757)).
+* Apply a materialized view model's `query_settings` to the view's own query, not only to the initial fill of the target table, so later inserts and refreshes no longer run under the server defaults. Existing views pick up the clause on the next `dbt run`, which already reissues the view query ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
+* Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
 
 
 ### Release [1.10.3], 2026-09-15
