@@ -4,9 +4,6 @@
      {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
   {% endif %}
 
-  {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
-  {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
-
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
@@ -19,8 +16,8 @@
      projection config errors here rather than mid-rebuild #}
   {% do validate_projections() %}
 
-  {% set existing_relation_local = load_cached_relation(this.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema})) %}
-  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if target_relation is not none else none %}
+  {% set existing_relation_local = load_cached_relation(clickhouse_local_relation(this)) %}
+  {% set target_relation_local = clickhouse_local_relation(this, target_relation) if target_relation is not none else none %}
 
   {%- set unique_key = config.get('unique_key') -%}
   {% if unique_key is not none and unique_key|length == 0 %}
