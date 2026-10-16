@@ -60,14 +60,17 @@
   {% if existing_relation_local is none %}
     -- No existing local table, recreate local and distributed tables
     {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql, has_contract) }}
+    {{ drop_relation_if_exists(view_relation) }}
 
   {% elif full_refresh_mode %}
     -- Completely replacing the old table, so create a temporary table and then swap it
     {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql, has_contract) }}
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
+    {{ drop_relation_if_exists(view_relation) }}
     {% set need_swap = true %}
 
   {% elif inserts_only -%}
+    {{ drop_relation_if_exists(view_relation) }}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
@@ -76,6 +79,7 @@
     {% endcall %}
 
   {% else %}
+    {{ drop_relation_if_exists(view_relation) }}
     {% if existing_relation is none %}
       {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
       {% set existing_relation = target_relation %}
