@@ -70,11 +70,13 @@ def insert_person(project, person_id, department):
 
 
 def matched_department(project, table, person_id):
-    return project.run_sql(
+    row = project.run_sql(
         f"select matched_department from {quote_identifier(project.test_schema)}.{table}"
         f" where id = {person_id}",
         fetch="one",
-    )[0]
+    )
+    assert row is not None, f"id {person_id} was not written to {table}"
+    return row[0]
 
 
 class TestMVQuerySettings:
@@ -131,14 +133,19 @@ class TestRefreshableMVQuerySettings:
         run_dbt(["run", "--vars", run_vars])
         assert 'join_use_nulls = 1' in get_mv_ddl(project, 'hackers_mv')
 
+        # a refreshable view only picks up new source rows on refresh, so a row inserted
+        # after creation proves the refresh ran, and that it ran with the settings
+        insert_person(project, 4000, 'sales')
         self.refresh(project)
-        assert matched_department(project, 'hackers', 1000) is None
+        assert matched_department(project, 'hackers', 4000) is None
 
+        # a second run updates the view with MODIFY QUERY, which must keep them
         run_dbt(["run", "--vars", run_vars])
         assert 'join_use_nulls = 1' in get_mv_ddl(project, 'hackers_mv')
 
+        insert_person(project, 5000, 'sales')
         self.refresh(project)
-        assert matched_department(project, 'hackers', 1000) is None
+        assert matched_department(project, 'hackers', 5000) is None
 
 
 class TestExternalTargetMVQuerySettings:
