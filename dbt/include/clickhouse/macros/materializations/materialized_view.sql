@@ -334,6 +334,7 @@
     to {{ target_relation }}
     {%- if create_with_empty and clickhouse__is_refreshable_mv() %} empty {% endif %}
     as {{ view_sql }}
+    {{ adapter.get_model_query_settings(model) }}
   {% endcall %}
 {%- endmacro %}
 
@@ -352,6 +353,7 @@
   {% set statement_name = 'main' if is_main_statement else 'modify existing mv: ' + mv_relation.name -%}
   {% call statement(statement_name) -%}
     alter table {{ mv_relation }} {{ cluster_clause }} modify query {{ view_sql }}
+    {{ adapter.get_model_query_settings(model) }}
   {% endcall %}
 {%- endmacro %}
 
