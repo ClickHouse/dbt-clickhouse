@@ -14,6 +14,16 @@
 3. Run the relevant tests for your change. See the "Test patterns by feature area" table in CONTRIBUTING.md for which tests to run.
 4. If tests require ClickHouse and none is available, say so rather than skipping tests silently.
 
+## Cloud Agent environment
+
+Cloud Agents boot with this development stack already installed:
+
+- Python 3.12 virtualenv at `.venv`. Login shells put `.venv/bin` on `PATH`, so `dbt`, `pytest`, `ruff`, `mypy`, and `yamllint` resolve there. `make lint` uses those tools.
+- ClickHouse 26.9.22.3 listens on `localhost:8123` (HTTP) and `localhost:9000` (native). The `default` user has an empty password. `tests/integration/test_settings_latest.xml` is installed under `/etc/clickhouse-server/users.d/` so tests can create users and use lightweight deletes.
+- ClickHouse is started on boot. Before pytest, confirm it answers: `clickhouse-client --query "SELECT 1"`.
+
+Leave `DBT_CH_TEST_USE_DOCKER` unset so pytest uses this server. Cluster-only tests skip unless `DBT_CH_TEST_CLUSTER` is set. This process is a single node. The three-node cluster CI uses is `tests/integration/docker-compose.yml`.
+
 ## File Location Quick Reference
 
 This maps common tasks to files. For detailed guidance on each scenario, see "Making Changes: Common Scenarios" in CONTRIBUTING.md.
