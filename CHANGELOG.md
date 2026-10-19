@@ -2,6 +2,7 @@
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+* Note in the README that the adapter works with both ClickHouse Cloud and self-hosted ClickHouse, linking the Cloud signup page and the self-hosted install guide ([#758](https://github.com/ClickHouse/dbt-clickhouse/pull/758)).
 
 #### Bugs
 * Apply a materialized view model's `query_settings` to the view's own query, not only to the initial fill of the target table, so later inserts and refreshes no longer run under the server defaults. Existing views pick up the clause on the next `dbt run`, which already reissues the view query ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
