@@ -41,11 +41,9 @@
   {%- set distributed_backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp') -%}
 
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
-  {{ drop_relation_if_exists(view_relation) }}
   {{ drop_relation_if_exists(distributed_intermediate_relation) }}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
@@ -53,24 +51,28 @@
   {% set to_drop = [] %}
   {% set schema_changes = none %}
 
+  {#- dbt-core requires a 'main' statement result for every model. Most paths below run through
+      run_query() or the shared strategy macros, which only label 'main' on their non-distributed
+      branch, so this placeholder keeps the run from failing with "main is not being called". -#}
   {% call statement('main') %}
-    {{ create_view_as(view_relation, sql) }}
+    select 1
   {% endcall %}
+
+  {% if has_contract %}
+    {% do get_assert_columns_equivalent(sql) %}
+  {% endif %}
 
   {% if existing_relation_local is none %}
     -- No existing local table, recreate local and distributed tables
-    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql, has_contract) }}
-    {{ drop_relation_if_exists(view_relation) }}
+    {{ create_distributed_local_table(target_relation, target_relation_local, none, sql, has_contract) }}
 
   {% elif full_refresh_mode %}
     -- Completely replacing the old table, so create a temporary table and then swap it
-    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql, has_contract) }}
+    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, none, sql, has_contract) }}
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
-    {{ drop_relation_if_exists(view_relation) }}
     {% set need_swap = true %}
 
   {% elif inserts_only -%}
-    {{ drop_relation_if_exists(view_relation) }}
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
@@ -79,7 +81,6 @@
     {% endcall %}
 
   {% else %}
-    {{ drop_relation_if_exists(view_relation) }}
     {% if existing_relation is none %}
       {% do run_query(create_distributed_table(target_relation, target_relation_local)) %}
       {% set existing_relation = target_relation %}
