@@ -6,6 +6,8 @@
 
 This plugin ports [dbt](https://getdbt.com) functionality to [Clickhouse](https://clickhouse.tech/).
 
+The adapter works with both ClickHouse Cloud and self-hosted ClickHouse. You can [start a free Cloud trial](https://console.clickhouse.cloud/signUp?utm_medium=referral&utm_source=github&utm_campaign=readme&utm_content=dbt-clickhouse) or [install ClickHouse](https://clickhouse.com/docs/get-started/setup/install) locally.
+
 ## Documentation
 
 See the [ClickHouse website](https://clickhouse.com/docs/integrations/dbt) for the full documentation entry.
