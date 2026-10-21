@@ -33,12 +33,19 @@ class TestTypeBoolean(BaseTypeBoolean):
     pass
 
 
+# Pin the expected seed's column types so the seed matches the type_float()/
+# type_int() macro output on both engines: Python/agate infers Float32/Int32,
+# while dbt core v2 (arrow inference) would widen to Float64/Int64.
 class TestTypeFloat(BaseTypeFloat):
-    pass
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {"seeds": {"test": {"expected": {"+column_types": {"float_col": "Float32"}}}}}
 
 
 class TestTypeInt(BaseTypeInt):
-    pass
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {"seeds": {"test": {"expected": {"+column_types": {"int_col": "Int32"}}}}}
 
 
 class TestTypeNumeric(BaseTypeNumeric):
