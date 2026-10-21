@@ -48,7 +48,9 @@ class TestBaseDocsGenerate(QuoteColumnsPlusPrefix, MigratedTestArgs, BaseDocsGen
     # assets. Only the catalog itself is comparable across engines.
     def test_run_and_generate_no_compile(self, project, expected_catalog):
         if IS_CORE_V2:
-            pytest.skip("dbt core v2 writes catalog.json only via `compile --write-catalog`, which has no `--no-compile`")
+            pytest.skip(
+                "dbt core v2 writes catalog.json only via `compile --write-catalog`, which has no `--no-compile`"
+            )
         super().test_run_and_generate_no_compile(project, expected_catalog)
 
     def test_run_and_generate(self, project, expected_catalog):
