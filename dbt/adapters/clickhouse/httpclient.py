@@ -1,3 +1,4 @@
+import uuid
 from typing import List
 
 import clickhouse_connect
@@ -88,6 +89,7 @@ class ChHttpClient(ChClientWrapper):
         return get_pool_manager()
 
     def _create_client(self, credentials):
+        self._conn_settings['session_id'] = f'dbt::{uuid.uuid4()}'
         # When reuse_connections is False, each model needs a fresh TCP/TLS
         # connection so the ClickHouse Cloud load balancer can distribute
         # models across replicas. In clickhouse-connect, close() only tears
