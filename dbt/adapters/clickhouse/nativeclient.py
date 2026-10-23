@@ -77,7 +77,9 @@ class ChNativeClient(ChClientWrapper):
             compress_block_size=credentials.compress_block_size,
             compression=False if credentials.compression == '' else credentials.compression,
             tcp_keepalive=self._get_tcp_keepalive(credentials),
-            settings=self._conn_settings,
+            # session_id only means something to the HTTP interface; the native protocol has no
+            # such setting and the server logs "Unknown settings" for it on every query
+            settings={k: v for k, v in self._conn_settings.items() if k != 'session_id'},
         )
         try:
             client.connection.connect()

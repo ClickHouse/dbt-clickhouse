@@ -9,6 +9,7 @@ from clickhouse_connect.driver.httputil import all_managers
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING, ChRetryableException
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
+from dbt.adapters.clickhouse.nativeclient import ChNativeClient
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 from urllib3.poolmanager import ProxyManager
 
@@ -107,6 +108,39 @@ def test_default_engine_settings(mock_ch_client):
     assert settings['lightweight_deletes_sync'] == '3'
     assert settings['alter_sync'] == '3'
     assert 'select_sequential_consistency' not in settings
+
+
+def test_http_client_sends_session_id(mock_ch_client):
+    """The HTTP interface needs session_id to keep SET and temporary tables across queries."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+    )
+    ChHttpClient(credentials)
+
+    assert _get_settings(mock_ch_client)['session_id'].startswith('dbt::')
+
+
+def test_native_client_does_not_send_session_id():
+    """The native protocol has no session_id setting: sent as one, the server logs an
+    "Unknown settings" warning on every query. The other connection settings still go."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=9000,
+        user='default',
+        password='',
+        schema='default',
+    )
+    client = ChNativeClient.__new__(ChNativeClient)
+    client._conn_settings = {'session_id': 'dbt::test', 'mutations_sync': '3'}
+
+    with patch('clickhouse_driver.Client', MagicMock()) as mock_client:
+        client._create_client(credentials)
+
+    assert mock_client.call_args.kwargs['settings'] == {'mutations_sync': '3'}
 
 
 def _lw_credentials(use_lw_deletes, schema='default'):
