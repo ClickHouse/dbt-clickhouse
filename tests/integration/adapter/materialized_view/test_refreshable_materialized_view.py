@@ -12,6 +12,8 @@ from dbt.tests.util import check_relation_types, run_dbt
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
+    refreshable_mv_model,
+    target_row_count,
 )
 
 # This model is parameterized, in a way, by the "run_type" dbt project variable
@@ -243,6 +245,9 @@ class TestBasicRefreshableMV:
                 "hackers": "table",
             },
         )
+
+        # 2 departments, inserted exactly once by the backfill
+        assert target_row_count(project, 'hackers') == 2
 
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
@@ -558,3 +563,123 @@ class TestRefreshableFalseMV:
         assert len(results) == 1
         ddl, _ = get_mv_ddl_and_uuid(project, 'hackers_mv')
         assert ' REFRESH ' not in ddl
+
+
+# Turns a plain table model into a refreshable MV with the same name, which takes the
+# "target exists, view missing" path of clickhouse__update_mv
+TABLE_TO_REFRESHABLE_MODEL = """
+{{ config(
+       materialized=('materialized_view' if var('run_type', '') == 'make_refreshable' else 'table'),
+       engine='MergeTree()',
+       order_by='(department)',
+       refreshable=(
+           {"interval": "AFTER 1 HOUR"} if var('run_type', '') == 'make_refreshable' else none
+       )
+       )
+ }}
+{% if var('run_type', '') == 'make_refreshable' %}
+select
+    department,
+    avg(age) as average
+    from {{ source('raw', 'people') }}
+group by department
+{% else %}
+select '' as department, toFloat64(0) as average where 0
+{% endif %}
+"""
+
+
+class TestRefreshableMVOverExistingTable:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": TABLE_TO_REFRESHABLE_MODEL,
+        }
+
+    def test_existing_target_is_filled_by_the_initial_refresh(self, project):
+        """
+        1. create an empty table model
+        2. change it into a refreshable MV: the table is kept as the target and only the view is
+           created. No catchup ran, so the view is created without EMPTY and ClickHouse's initial
+           refresh fills the table, as before this fix
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 1
+        assert target_row_count(project, 'hackers') == 0
+
+        results = run_dbt(["run", "--vars", json.dumps({"run_type": "make_refreshable"})])
+        assert len(results) == 1
+        check_relation_types(
+            project.adapter, {"hackers_mv": "materialized_view", "hackers": "table"}
+        )
+        project.run_sql("system wait view hackers_mv")
+        assert target_row_count(project, 'hackers') == 2
+
+
+class TestAppendRefreshableMVCatchup:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": refreshable_mv_model(append=True),
+        }
+
+    def test_no_duplicate_rows(self, project):
+        """
+        An APPEND view created without EMPTY would insert the query result on top of the backfill,
+        both on first creation and when the MVs are recreated by --full-refresh.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 1
+        assert target_row_count(project, 'hackers') == 2
+
+        results = run_dbt(["run", "--full-refresh"])
+        assert len(results) == 1
+        assert target_row_count(project, 'hackers') == 2
+
+
+class TestNoCatchupRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": refreshable_mv_model(catchup=False),
+        }
+
+    def test_clickhouse_runs_the_initial_refresh(self, project):
+        """
+        Without catchup dbt creates the target table empty and the view without EMPTY, as before
+        this fix, so ClickHouse populates the target with its initial refresh in the background.
+        Same on --full-refresh, where the empty backup table is exchanged in before the views
+        are recreated.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        for args in (["run"], ["run", "--full-refresh"]):
+            results = run_dbt(args)
+            assert len(results) == 1
+            project.run_sql("system wait view hackers_mv")
+            assert target_row_count(project, 'hackers') == 2
