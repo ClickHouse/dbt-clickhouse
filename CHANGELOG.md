@@ -3,6 +3,7 @@
 #### Improvements
 * Test against `dbt-core` 1.12 and widen the `dbt-adapters` upper bound to `<1.25.0` ([#718](https://github.com/ClickHouse/dbt-clickhouse/pull/718)).
 * Add `lightweight_deletes_sync=3` to the default connection settings for `Shared` database engine so it only waits for active replicas (overridable via `custom_settings`). ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).
+* `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation, as dbt-core's default `persist_docs` does; such columns are still skipped. Requires `dbt-adapters>=1.22.10` ([#XXX](https://github.com/ClickHouse/dbt-clickhouse/pull/XXX)).
 
 #### Bugs
 * Fixed the `delete+insert` incremental strategy occasionally missing deletes when the table being read had just received new data that the replica had not yet synced. The subquery now embeds `select_sequential_consistency=1` ([#715](https://github.com/ClickHouse/dbt-clickhouse/pull/715)).

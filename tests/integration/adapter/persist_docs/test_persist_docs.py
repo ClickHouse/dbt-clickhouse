@@ -2,7 +2,7 @@ import json
 import os
 
 import pytest
-from dbt.tests.util import run_dbt
+from dbt.tests.util import run_dbt, run_dbt_and_capture
 from fixtures import (
     _DOCS__MY_FUN_DOCS,
     _MODELS__MISSING_COLUMN,
@@ -210,7 +210,9 @@ class TestPersistDocs(BasePersistDocs):
 
 
 class TestPersistDocsColumnMissing(BasePersistDocsColumnMissing):
-    pass
+    def test_missing_column_warns(self, project):
+        _, output = run_dbt_and_capture(["run"])
+        assert "not present in the database: column_that_does_not_exist" in output
 
 
 class TestPersistDocsCommentOnQuotedColumn(BasePersistDocsCommentOnQuotedColumn):
