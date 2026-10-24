@@ -116,7 +116,7 @@ class TestColumnAndPartialGrantsAreNotTableGrants(BaseGrants):
         project.run_sql(f'REVOKE {cluster} SELECT ON `{relation.schema}`.* FROM {user_2}')
 
     def test_table_grant_with_column_revoke_is_removed(self, project, get_test_users):
-        user = get_test_users[0]
+        user = get_test_users[1]
         run_dbt(["run"])
         relation = relation_from_name(project.adapter, "grants_model")
         cluster = _cluster_clause()
@@ -131,6 +131,7 @@ class TestColumnAndPartialGrantsAreNotTableGrants(BaseGrants):
         )
         assert project.run_sql(positive_grants, fetch="one")[0] > 0
 
+        write_file(column_grant_schema_yml, project.project_root, "models", "schema.yml")
         (_, log_output) = run_dbt_and_capture(["--debug", "run"])
         assert "revoke " in log_output
         assert project.run_sql(positive_grants, fetch="one")[0] == 0
