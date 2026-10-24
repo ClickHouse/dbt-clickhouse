@@ -78,14 +78,12 @@ def test_grant_without_cluster_has_no_on_cluster(macros):
     assert 'ON CLUSTER' not in grant
 
 
-def test_show_grant_sql_ignores_column_grants_and_partial_revokes(macros):
+def test_show_grant_sql_requires_positive_table_grant_even_with_partial_revokes(macros):
     sql = _normalize(macros.call('clickhouse__get_show_grant_sql', _relation()))
     assert "WHERE database = 'db' AND table = 't'" in sql
     assert 'GROUP BY privilege_type, grantee' in sql
-    assert (
-        'HAVING countIf(column IS NULL AND NOT is_partial_revoke) > 0 '
-        'AND countIf(is_partial_revoke) = 0'
-    ) in sql
+    assert 'HAVING countIf(column IS NULL AND NOT is_partial_revoke) > 0' in sql
+    assert 'countIf(is_partial_revoke) = 0' not in sql
     # dbt's grants tests detect REVOKE statements by looking for "revoke " in the logs
     assert 'revoke ' not in sql.lower()
 

@@ -1,8 +1,9 @@
 {#
     A (privilege, grantee) pair counts as granted only when system.grants has a
-    table-wide grant for it (column IS NULL) and no partial revoke on this table.
-    Column-level grants and database-wide grants with this table revoked are left
-    out, so dbt grants the table-wide privilege again.
+    table-wide grant for it (column IS NULL). A column-level partial revoke does
+    not erase the table grant: dbt must still see and remove an unconfigured one.
+    Column-level grants and database-wide grants with this table revoked are
+    left out, so dbt grants the table-wide privilege again.
     Keep the text "revoke " (with a trailing space) out of this query: dbt's grants
     tests look for it in the logs to detect REVOKE statements.
 #}
@@ -13,7 +14,6 @@
       AND table = '{{ relation.name | replace("\\", "\\\\") | replace("'", "\\'") }}'
     GROUP BY privilege_type, grantee
     HAVING countIf(column IS NULL AND NOT is_partial_revoke) > 0
-       AND countIf(is_partial_revoke) = 0
 {%- endmacro %}
 
 {% macro clickhouse__call_dcl_statements(dcl_statement_list) %}
