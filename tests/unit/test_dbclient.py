@@ -120,7 +120,7 @@ def test_http_client_sends_session_id(mock_ch_client):
     )
     ChHttpClient(credentials)
 
-    assert _get_settings(mock_ch_client)['session_id'].startswith('dbt::')
+    assert mock_ch_client.call_args.kwargs['session_id'].startswith('dbt::')
 
 
 def _lw_credentials(use_lw_deletes, schema='default'):

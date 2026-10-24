@@ -89,7 +89,6 @@ class ChHttpClient(ChClientWrapper):
         return get_pool_manager()
 
     def _create_client(self, credentials):
-        self._conn_settings['session_id'] = f'dbt::{uuid.uuid4()}'
         # When reuse_connections is False, each model needs a fresh TCP/TLS
         # connection so the ClickHouse Cloud load balancer can distribute
         # models across replicas. In clickhouse-connect, close() only tears
@@ -130,6 +129,7 @@ class ChHttpClient(ChClientWrapper):
                 client_cert=credentials.client_cert,
                 client_cert_key=credentials.client_cert_key,
                 query_limit=0,
+                session_id=f'dbt::{uuid.uuid4()}',
                 settings=self._conn_settings,
                 **kwargs,
             )
