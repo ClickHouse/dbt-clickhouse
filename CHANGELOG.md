@@ -1,7 +1,7 @@
 ### Unreleased
 
 #### Improvements
-* Contract enforcement and the `on_schema_change` check read the model query's columns from a short-lived view (`<model>__dbt_schema_probe`) instead of `select * from (query) limit 0`. ClickHouse resolves a view's structure without reading data, while the `limit 0` form reads a block from every shard of a Distributed table, more with `GLOBAL JOIN` (#480). The view is created by `clickhouse__get_column_schema_from_query`, which a project can override; `adapter.check_incremental_schema_changes` takes the columns through its new `target_columns` argument ([#773](https://github.com/ClickHouse/dbt-clickhouse/pull/773)).
+* Contract enforcement and the `on_schema_change` check read the model query's columns from a short-lived view (`<model>__dbt_schema_probe`) instead of `select * from (query) limit 0`, which executed the query on the shards of a Distributed table ([#480](https://github.com/ClickHouse/dbt-clickhouse/issues/480)). `adapter.check_incremental_schema_changes` takes the columns through its new `target_columns` argument ([#773](https://github.com/ClickHouse/dbt-clickhouse/pull/773)).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
