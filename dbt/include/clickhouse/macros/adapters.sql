@@ -89,9 +89,7 @@
 
 {% macro clickhouse__get_column_schema_from_query(sql) -%}
   {%- set probe = make_temp_relation(this, '__dbt_schema_probe') -%}
-  {%- set sql_header = config.get('sql_header', none) -%}
   {% call statement('create_schema_probe') -%}
-    {{ sql_header if sql_header is not none }}
     create or replace view {{ probe.include(database=False) }} as (
       {{ sql }}
       {{ adapter.get_model_query_settings(model) }}
