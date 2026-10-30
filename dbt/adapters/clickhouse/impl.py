@@ -235,6 +235,7 @@ class ClickHouseAdapter(SQLAdapter):
         target_sql,
         materialization: str = 'incremental',
         query_settings: Optional[Dict[str, Any]] = None,
+        target_columns: Optional[List[ClickHouseColumn]] = None,
     ) -> ClickHouseColumnChanges:
         if on_schema_change not in ('fail', 'ignore', 'append_new_columns', 'sync_all_columns'):
             raise DbtRuntimeError(
@@ -243,7 +244,11 @@ class ClickHouseAdapter(SQLAdapter):
 
         source = self.get_columns_in_relation(existing)
         source_map = {column.name: column for column in source}
-        target = self.get_column_schema_from_query(target_sql, query_settings=query_settings)
+        target = (
+            target_columns
+            if target_columns is not None
+            else self.get_column_schema_from_query(target_sql, query_settings=query_settings)
+        )
         target_map = {column.name: column for column in target}
 
         source_not_in_target = [column for column in source if column.name not in target_map.keys()]
