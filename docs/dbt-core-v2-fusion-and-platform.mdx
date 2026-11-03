@@ -18,7 +18,9 @@ dbt is being rebuilt on a new engine, and ClickHouse is part of that from the st
 ClickHouse is the first community adapter on dbt OSS, dbt v2 and the dbt platform. dbt's own first-party adapters are launching alongside us; we are the first from outside dbt Labs. The dbt Core 1.x Python adapter, `dbt-clickhouse`, is not going away: we keep it current with dbt 1.x releases and maintain both adapters in parallel.
 
 <Warning>
-**Not production-ready.** The ClickHouse adapter for dbt OSS and dbt v2, and the dbt platform connection, are not yet generally available (GA). Use them only in development or staging projects.
+**Beta, not yet GA.** The ClickHouse adapter for dbt OSS and dbt v2 is in Beta, and the dbt platform connection is in Private Beta. The dbt Core 1.x adapter, `dbt-clickhouse`, is GA and supported for production use; nothing on this page changes that.
+
+Beta means that every materialization (including `incremental` with all its strategies), model contracts, data and unit tests and the ClickHouse Cloud feature set work today and pass the dbt Core 1.x integration test suite. The features that are still pending are listed in [v1 vs v2 parity](#parity) and that list shrinks with every release. We recommend evaluating dbt v2 in development or staging first, and keeping production on dbt Core 1.x if your project depends on any of the pending features or you need the guarantees of a GA release.
 </Warning>
 
 <Note>
@@ -54,7 +56,7 @@ We measure the dbt v2 adapter against the dbt Core 1.x integration test suite of
 
 **Next steps**: `ON CLUSTER` DDL and the distributed materializations for self-managed clusters, grants, `dbt clone`, `dbt source freshness` from table metadata, fixes for the remaining bugs and passing the full v1 test suite to ensure full parity. The progress of all of these is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660), with one sub-issue per area.
 
-GA is on the roadmap and will come soon. We'll update the docs once it's ready.
+GA is on the roadmap. We are working with dbt Labs on the timeline and will update this page when it's ready.
 
 ### Out of scope for Beta {#out-of-scope}
 
