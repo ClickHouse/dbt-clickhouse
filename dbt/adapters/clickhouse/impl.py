@@ -46,7 +46,9 @@ if TYPE_CHECKING:
 GET_CATALOG_MACRO_NAME = 'get_catalog'
 LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
-MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window'}
+MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window', 'enable_block_number_column'}
+# Strategies that delete with a lightweight delete and need a non-empty unique_key.
+LW_DELETE_STRATEGIES = ('delete_insert', 'insert_delete', 'microbatch')
 
 
 @dataclass
@@ -204,19 +206,19 @@ class ClickHouseAdapter(SQLAdapter):
         partition_by: str,
     ) -> None:
         conn = self.connections.get_if_exists()
-        if strategy not in ('legacy', 'append', 'delete_insert', 'insert_overwrite', 'microbatch'):
+        if strategy not in ('legacy', 'append', 'insert_overwrite') + LW_DELETE_STRATEGIES:
             raise DbtRuntimeError(
                 f"The incremental strategy '{strategy}' is not valid for ClickHouse."
             )
-        if strategy in ('delete_insert', 'microbatch') and not conn.handle.has_lw_deletes:
+        if strategy in LW_DELETE_STRATEGIES and not conn.handle.has_lw_deletes:
             raise DbtRuntimeError(
                 f"'{strategy}' strategy requires lightweight deletes, but the required setting "
                 f"'{ND_MUTATION_SETTING}' could not be enabled on this ClickHouse server "
                 "(see the warnings logged at connection time)."
             )
-        if strategy in ('delete_insert', 'microbatch') and not unique_key:
+        if strategy in LW_DELETE_STRATEGIES and not unique_key:
             raise DbtRuntimeError(f"'{strategy}' strategy requires a non-empty 'unique_key'.")
-        if strategy not in ('delete_insert', 'microbatch') and predicates:
+        if strategy not in LW_DELETE_STRATEGIES and predicates:
             raise DbtRuntimeError(
                 f"Cannot apply incremental predicates with '{strategy}' strategy."
             )
@@ -560,6 +562,15 @@ class ClickHouseAdapter(SQLAdapter):
         materialization_type = model['config'].get('materialized')
         conn = self.connections.get_if_exists()
         conn.handle.update_model_settings(settings, materialization_type)
+        if (
+            materialization_type == 'incremental'
+            and 'enable_block_number_column' not in settings
+            and self.calculate_incremental_strategy(model['config'].get('incremental_strategy'))
+            == 'insert_delete'
+        ):
+            # insert_delete tells older rows from new ones by `_block_number`, which survives
+            # merges only when the table persists it. A copy keeps the model config unchanged.
+            settings = {**settings, 'enable_block_number_column': 1}
         settings = self.filter_settings_by_engine(settings, engine)
         settings_str = self._build_settings_str(settings)
         return f"""

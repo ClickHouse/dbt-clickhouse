@@ -57,3 +57,17 @@ class TestValidateIncrementalStrategy:
         adapter = _make_adapter(has_lw_deletes=True)
         with pytest.raises(DbtRuntimeError, match="not valid"):
             adapter.validate_incremental_strategy('invalid_strategy', [], 'id', None)
+
+    def test_insert_delete_raises_when_lw_deletes_unavailable(self):
+        adapter = _make_adapter(has_lw_deletes=False)
+        with pytest.raises(DbtRuntimeError, match="allow_nondeterministic_mutations"):
+            adapter.validate_incremental_strategy('insert_delete', [], 'id', None)
+
+    def test_insert_delete_raises_without_unique_key(self):
+        adapter = _make_adapter(has_lw_deletes=True)
+        with pytest.raises(DbtRuntimeError, match="unique_key"):
+            adapter.validate_incremental_strategy('insert_delete', [], None, None)
+
+    def test_insert_delete_accepts_predicates(self):
+        adapter = _make_adapter(has_lw_deletes=True)
+        adapter.validate_incremental_strategy('insert_delete', ['id != 2'], 'id', None)

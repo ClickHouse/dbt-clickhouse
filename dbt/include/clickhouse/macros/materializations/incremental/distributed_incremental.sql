@@ -90,6 +90,10 @@
     {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
     {% set partition_by = config.get('partition_by') %}
     {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
+    {% if incremental_strategy == 'insert_delete' %}
+      {#- Block numbers are allocated per shard, so one threshold cannot tell older rows on every shard. -#}
+      {% do exceptions.raise_compiler_error("The 'insert+delete' strategy is not supported by distributed_incremental.") %}
+    {% endif %}
     {%- if on_schema_change != 'ignore' %}
       {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql, query_settings=config.get('query_settings', {})) -%}
       {% if local_column_changes and incremental_strategy != 'legacy' %}

@@ -1,5 +1,8 @@
 ### Unreleased
 
+#### New Features
+* Add the `insert+delete` incremental strategy: it inserts the new rows first and then deletes the older rows of the same `unique_key`, so a run that fails between the two steps leaves the changed keys duplicated instead of missing them ([#772](https://github.com/ClickHouse/dbt-clickhouse/pull/772)).
+
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
 

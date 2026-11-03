@@ -60,6 +60,9 @@
     {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
     {% set partition_by = config.get('partition_by') %}
     {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
+    {% if incremental_strategy == 'insert_delete' %}
+      {% do clickhouse__validate_block_number_column(existing_relation) %}
+    {% endif %}
     {%- if on_schema_change != 'ignore' %}
       {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, query_settings=config.get('query_settings', {})) -%}
       {% if column_changes and incremental_strategy != 'legacy' %}
@@ -72,6 +75,8 @@
       {% set need_swap = true %}
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
+    {% elif incremental_strategy == 'insert_delete' %}
+      {% do clickhouse__incremental_insert_delete(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'microbatch' %}
       {%- if config.get("__dbt_internal_microbatch_event_time_start") -%}
         {% do incremental_predicates.append(config.get("event_time") ~ " >= toDateTime('" ~ config.get("__dbt_internal_microbatch_event_time_start").strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
@@ -245,6 +250,89 @@
     {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
+{% endmacro %}
+
+{% macro clickhouse__validate_block_number_column(existing_relation) %}
+    {#- Runs before any schema change, so a table without the setting is left untouched.
+        The adapter renders string settings quoted, hence the optional quotes. -#}
+    {% if execute %}
+      {% set block_number_check %}
+        select count() from system.tables
+        where database = '{{ existing_relation.schema }}' and name = '{{ existing_relation.identifier }}'
+          and match(engine_full, '(?i)enable_block_number_column = \'?(1|true)\'?')
+      {% endset %}
+      {% if run_query(block_number_check).rows[0][0] == 0 %}
+        {% do exceptions.raise_compiler_error(
+            "The 'insert+delete' strategy requires the table setting enable_block_number_column = 1 on "
+            ~ existing_relation ~ ". Tables created with this strategy get it automatically; for an "
+            ~ "existing table run: ALTER TABLE " ~ existing_relation
+            ~ " MODIFY SETTING enable_block_number_column = 1 (or rebuild it with --full-refresh).") %}
+      {% endif %}
+    {% endif %}
+{% endmacro %}
+
+{% macro clickhouse__incremental_insert_delete(existing_relation, unique_key, incremental_predicates) %}
+    {#- Inserts the new rows first and only then deletes the older rows of the same keys, so a
+        failure between the two steps leaves duplicates for the changed keys instead of losing
+        them. A row is newer when its `_block_number` is above the highest block number its
+        partition had before the insert; block numbers only grow within a partition. -#}
+    {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
+       + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
+    {{ drop_relation_if_exists(new_data_relation) }}
+    {% call statement('main') %}
+      {{ get_create_table_as_sql(False, new_data_relation, sql) }}
+    {% endcall %}
+
+    {#- Thresholds only for the partitions this batch writes to, so the statement stays small
+        however many partitions the table has; -1 marks a partition that does not exist yet. -#}
+    {% if execute %}
+      {% set select_max_block_numbers %}
+        select new.partition_id, ifNull(old.max_block_number, -1)
+        from (select distinct _partition_id as partition_id from {{ new_data_relation }}) as new
+        left join (
+          select partition_id, max(max_block_number) as max_block_number from system.parts
+          where active and database = '{{ existing_relation.schema }}' and table = '{{ existing_relation.identifier }}'
+          group by partition_id
+        ) as old on new.partition_id = old.partition_id
+        settings join_use_nulls = 1
+      {% endset %}
+      {% set max_block_numbers = run_query(select_max_block_numbers).rows %}
+    {% else %}
+      {% set max_block_numbers = [] %}
+    {% endif %}
+
+    {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
+    {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}
+    {% call statement('insert_new_data') %}
+        insert into {{ existing_relation }} select {{ dest_cols_csv }} from {{ new_data_relation }} {{ adapter.get_model_query_settings(model) }}
+    {% endcall %}
+
+    {% if max_block_numbers %}
+      {%- set partition_ids = max_block_numbers | map(attribute=0) | list -%}
+      {%- set block_numbers = max_block_numbers | map(attribute=1) | list -%}
+      {#- A partition the batch does not write to holds no newer rows. -#}
+      {%- set newer_than_threshold = "_block_number > transform(_partition_id, ['" ~ partition_ids | join("', '")
+          ~ "'], CAST([" ~ block_numbers | join(', ') ~ "] AS Array(Int64)), toInt64(9223372036854775807))" -%}
+    {% else %}
+      {#- An empty batch still runs the delete, which matches nothing but checks the unique_key columns. -#}
+      {%- set newer_than_threshold = "0" -%}
+    {% endif %}
+    {%- set subquery_settings = ' settings select_sequential_consistency = 1' if target.database_engine == 'Shared' else '' -%}
+    {% call statement('delete_older_data') %}
+      {#- Only keys whose new version is visible in the table are deleted, so an insert the
+          delete cannot see yet never removes the last version of a key. -#}
+      delete from {{ existing_relation }}
+      where not ({{ newer_than_threshold }})
+        and ({{ unique_key }}) in (select {{ unique_key }} from {{ existing_relation }}
+                                   where {{ newer_than_threshold }}{{ subquery_settings }})
+      {%- if incremental_predicates %}
+        {% for predicate in incremental_predicates %}
+          and {{ predicate }}
+        {% endfor %}
+      {%- endif -%}
+      {{ adapter.get_model_query_settings(model) }}
+    {% endcall %}
+    {% do adapter.drop_relation(new_data_relation) %}
 {% endmacro %}
 
 {% macro clickhouse__incremental_insert_overwrite(existing_relation, partition_by, is_distributed=False) %}

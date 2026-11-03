@@ -266,8 +266,8 @@ Configurations that are specific for this materialization type are listed below:
 |--------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------|
 | `unique_key`             | A tuple of column names that uniquely identify rows. For more details on uniqueness constraints, see [here](https://docs.getdbt.com/docs/build/incremental-models#defining-a-unique-key-optional).                                                                                       | Required. If not provided altered rows will be added twice to the incremental table. |
 | `inserts_only`           | It has been deprecated in favor of the `append` incremental `strategy`, which operates in the same way. If set to True for an incremental model, incremental updates will be inserted directly to the target table without creating intermediate table. . If `inserts_only` is set, `incremental_strategy` is ignored. | Optional (default: `False`)                                                          |
-| `incremental_strategy`   | The strategy to use for incremental materialization.  `delete+insert`, `append`, `insert_overwrite`, or `microbatch` are supported.  For additional details on strategies, see [here](#incremental-model-strategies) | Optional (default: 'default')                                                        |
-| `incremental_predicates` | Additional conditions to be applied to the incremental materialization (only applied to `delete+insert` strategy                                                                                                                                                                                    | Optional
+| `incremental_strategy`   | The strategy to use for incremental materialization.  `delete+insert`, `insert+delete`, `append`, `insert_overwrite`, or `microbatch` are supported.  For additional details on strategies, see [here](#incremental-model-strategies) | Optional (default: 'default')                                                        |
+| `incremental_predicates` | Additional conditions to be applied to the incremental materialization (only applied to the `delete+insert`, `insert+delete` and `microbatch` strategies)                                                                                                                                                                                    | Optional
 
 ### Incremental Model Strategies {#incremental-model-strategies}
 
@@ -300,6 +300,51 @@ There are important caveats to using this strategy:
 - In some very rare cases, using non-deterministic `incremental_predicates` could result in a race condition for the
   updated/deleted items. To ensure consistent results, the incremental predicates should only include sub-queries on
   data that will not be modified during the incremental materialization.
+
+#### The Insert+Delete Strategy {#insert-delete-strategy}
+
+The `insert+delete` strategy does the same work as `delete+insert` in the opposite order: it inserts the new rows into
+the target table first and then uses a [lightweight delete](/concepts/features/operations/delete/lightweight-delete) to
+remove the older rows of the same `unique_key`. If the run fails between the two steps, the changed keys are
+temporarily duplicated instead of missing, and the next successful run that writes those keys removes the older
+rows. With `delete+insert`, the same failure leaves the deleted keys missing until a run rebuilds them.
+
+```sql
+{{ config(
+    materialized='incremental',
+    incremental_strategy='insert+delete',
+    unique_key='id'
+) }}
+```
+
+How it works and what to keep in mind:
+
+- A row is "newer" when its `_block_number` is above the highest block number its partition had just before the
+  insert, and "older" otherwise. This needs the MergeTree setting `enable_block_number_column = 1`, which keeps `_block_number` through
+  merges. The adapter adds it to tables it creates with this strategy. For an existing table, run
+  `ALTER TABLE <table> MODIFY SETTING enable_block_number_column = 1` once, or rebuild it with `--full-refresh`;
+  otherwise the run fails before it changes the table, including `on_schema_change` changes.
+- Older rows are deleted only for keys whose new version is visible in the table when the delete runs, so a key is
+  never left without a row.
+- On `ReplicatedMergeTree`, the delete runs on every replica. A replica that has not received the new rows yet
+  deletes nothing for those keys, so even a successful run can leave duplicates there until a later run writes the
+  same keys again. `delete+insert` has the same race; there it also leaves duplicates.
+- To find the keys that have a new version, the delete reads the `unique_key` columns and `_block_number` of the
+  whole table, on top of the key scan that `delete+insert` also does.
+- While a run is in progress, and after a failed run until the next successful one, readers can see both versions
+  of a changed key. Queries that must not see duplicates should pick one row per `unique_key` (for example with
+  `argMax` or `LIMIT 1 BY`), or the model should use `delete+insert` or the legacy strategy.
+- The same applies to a model that reads `{{ this }}` in its incremental SQL, for example to take the stored row of
+  a key: after a failed run it sees both versions and should pick one row per key.
+- Rows that move to another partition, and rows that land in a partition that did not exist before the run, are
+  handled.
+- Only the partitions the run writes to get a threshold in the delete statement, so its size depends on the
+  batch, not on how many partitions the table has. Rows in the other partitions count as older.
+- Rows that another writer adds during the run to partitions the run does not write to count as older too, so they
+  are deleted if the run writes a newer version of the same key.
+- `incremental_predicates` restrict which older rows may be deleted, as with `delete+insert`.
+- It has the same requirements as `delete+insert` (lightweight deletes and `allow_nondeterministic_mutations`) and
+  is not supported by the `distributed_incremental` materialization.
 
 #### The Microbatch Strategy (Requires dbt-core >= 1.9) {#microbatch-strategy}
 

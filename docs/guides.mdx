@@ -549,6 +549,63 @@ flowchart TB
     class q1,q2,q3,q4 query;
 ```
 
+### Insert and delete strategy {#insert-delete-strategy}
+
+The `insert+delete` strategy runs the same statements as `delete+insert` in the opposite order, so a failure between them leaves duplicates instead of missing rows:
+
+```sql
+{{
+    config(
+        materialized='incremental',
+        incremental_strategy='insert+delete',
+        unique_key='order_id',
+        engine='MergeTree()',
+        order_by='(ordered_at, order_id)',
+        partition_by='toYYYYMM(ordered_at)'
+    )
+}}
+```
+
+1. A temporary table (`orders__dbt_new_data_<run_id>`) is created and the rows selected by the model are inserted into it.
+2. For every partition the new rows go to, the highest block number it has in `orders` is read from `system.parts` (`-1` for a partition that does not exist yet).
+3. The rows of the temporary table are inserted into `orders`. Each insert gets higher block numbers than the rows already in the table.
+4. A `DELETE` removes the rows of `orders` that are not newer than the numbers read in step 2 (rows in the other partitions all count as older), for every `order_id` that now has a newer row.
+5. The temporary table is dropped.
+
+```mermaid
+flowchart TB
+    stg[("stg_orders")]
+    items[("order_items")]
+    orders[("orders")]
+    parts[("system.parts")]
+    new_data[("orders__dbt_new_data_#lt;run_id#gt;")]
+    q1["1. CREATE TABLE orders__dbt_new_data_#lt;run_id#gt; AS<br/>SELECT ... model SQL ..."]
+    q2["2. SELECT partition_id, max(max_block_number)<br/>FROM system.parts WHERE table = 'orders'<br/>for the partitions of orders__dbt_new_data_#lt;run_id#gt;"]
+    q3["3. INSERT INTO orders<br/>SELECT * FROM orders__dbt_new_data_#lt;run_id#gt;"]
+    q4["4. DELETE FROM orders WHERE NOT newer<br/>AND order_id IN (SELECT order_id FROM orders WHERE newer)<br/>newer: _block_number #gt; the number read for its partition"]
+    q5["5. DROP TABLE orders__dbt_new_data_#lt;run_id#gt;"]
+    stg -->|reads| q1
+    items -->|reads| q1
+    q1 -->|creates and fills with the changed rows| new_data
+    parts -->|block numbers before the insert| q2
+    new_data -->|partitions of the new rows| q2
+    new_data -->|reads| q3
+    q3 -->|inserts the changed rows| orders
+    q2 -->|thresholds| q4
+    q4 -->|deletes the older rows| orders
+    q5 -->|drops| new_data
+    classDef temp fill:#dbeafe,stroke:#1d4ed8;
+    classDef target fill:#fef3c7,stroke:#b45309;
+    classDef source fill:#dcfce7,stroke:#15803d;
+    classDef query fill:#f3f4f6,stroke:#6b7280;
+    class new_data temp;
+    class orders target;
+    class stg,items,parts source;
+    class q1,q2,q3,q4,q5 query;
+```
+
+Readers can see both versions of a changed order while the run is in progress, and after a failed run until the next successful one. The [materializations page](/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#insert-delete-strategy) lists the requirements and caveats, including the `enable_block_number_column` setting the strategy needs.
+
 ### Insert overwrite strategy (experimental) {#insert-overwrite-strategy}
 
 The `insert_overwrite` strategy replaces whole partitions, so it needs a `partition_by` configuration like the monthly one on `orders`. It performs the following steps:
