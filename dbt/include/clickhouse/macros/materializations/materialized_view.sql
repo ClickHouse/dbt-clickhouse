@@ -246,7 +246,7 @@
        {%- set on_schema_change = incremental_validate_on_schema_change(config.get('on_schema_change'), default='ignore') -%}
        {{ log('on_schema_change strategy for destination table of  MV: ' + on_schema_change, info=True) }}
        {%- if on_schema_change != 'ignore' -%}
-        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, materialization='materialized view', query_settings=config.get('query_settings', {})) -%}
+        {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, materialization='materialized view', target_columns=clickhouse__get_column_schema_from_query(sql)) -%}
         {% if column_changes %}
           {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
           {% set existing_relation = load_cached_relation(this) %}

@@ -87,6 +87,24 @@
   {{ return(sql_convert_columns_in_relation(load_result('get_columns').table)) }}
 {% endmacro %}
 
+{% macro clickhouse__get_column_schema_from_query(sql) -%}
+  {%- set probe = make_temp_relation(this, '__dbt_schema_probe') -%}
+  {% call statement('create_schema_probe') -%}
+    create or replace view {{ probe.include(database=False) }} as (
+      {{ sql }}
+      {{ adapter.get_model_query_settings(model) }}
+    )
+  {%- endcall %}
+  {%- set columns = adapter.get_columns_in_relation(probe) -%}
+  {% call statement('drop_schema_probe') -%}
+    drop view if exists {{ probe.include(database=False) }}
+  {%- endcall %}
+  {%- if not columns -%}
+    {{ exceptions.raise_compiler_error("No columns read from " ~ probe) }}
+  {%- endif -%}
+  {{ return(columns) }}
+{%- endmacro %}
+
 {% macro clickhouse__drop_relation(relation, obj_type='table') -%}
   {% call statement('drop_relation', auto_begin=False) -%}
     drop {{ obj_type }} if exists {{ relation }} {{ on_cluster_clause(relation, True)}}
