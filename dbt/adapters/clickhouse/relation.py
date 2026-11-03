@@ -14,8 +14,10 @@ NODE_TYPE_SOURCE = 'source'
 
 def _to_datetime_literal(value: datetime) -> str:
     # A bare string literal is cast to the column type, and '2020-01-01 00:00:00' cannot be cast to Date
-    # or Date32. A DateTime value compares with Date, Date32, DateTime and DateTime64 columns alike.
-    return f"toDateTime('{value.strftime('%Y-%m-%d %H:%M:%S')}')"
+    # or Date32. A DateTime64 value compares with Date, Date32, DateTime and DateTime64 columns alike,
+    # and unlike DateTime it is not clamped to 1970-2106, so Date32/DateTime64 columns can be batched
+    # over their whole range. Same form as the microbatch delete predicates in incremental.sql.
+    return f"toDateTime64('{value.strftime('%Y-%m-%d %H:%M:%S')}', 0)"
 
 
 @dataclass
