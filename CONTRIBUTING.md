@@ -18,8 +18,7 @@ Start by forking the repository on GitHub. This will create a copy of the reposi
 * Install the local project as an editable package with the `dev` dependency group from `pyproject.toml`:
 
     ```bash
-    uv sync
-    # or, with pip 25.1+:
+    # using pip 25.1+:
     pip install -e . --group dev
     ```
 
