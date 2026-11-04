@@ -1,9 +1,13 @@
 ### Unreleased
 
+#### Improvements
+* A `dictionary` model with an enforced contract can omit `fields`; its structure is then taken from its YAML columns and their `data_type`. An enforced contract is now also checked for a dictionary that reads the model's query, so a contracted dictionary whose YAML columns do not match the query fails, as a table does ([#767](https://github.com/ClickHouse/dbt-clickhouse/pull/767)).
+
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
 
 #### Bugs
+* `persist_docs` with `columns: true` no longer fails a `dictionary` model: ClickHouse rejects a column comment on a dictionary. The dictionary's own comment is still set ([#766](https://github.com/ClickHouse/dbt-clickhouse/pull/766)).
 * `distributed_incremental` no longer creates a temporary view to read the model's structure; it is taken from the model query, which the materialization already had. Every run used to leave the view behind, and the run no longer touches that name at all, so a `<model>__dbt_view_tmp` left by an earlier version has to be dropped once by hand ([#754](https://github.com/ClickHouse/dbt-clickhouse/pull/754)).
 * Apply a materialized view model's `query_settings` to the view's own query, not only to the initial fill of the target table, so later inserts and refreshes no longer run under the server defaults. Existing views pick up the clause on the next `dbt run`, which already reissues the view query ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).

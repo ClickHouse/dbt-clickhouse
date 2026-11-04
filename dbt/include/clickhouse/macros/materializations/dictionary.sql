@@ -19,7 +19,8 @@
   {% set should_revoke = should_revoke(target_relation, full_refresh_mode=True) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
-  {% do persist_docs(target_relation, model) %}
+  {#- ClickHouse rejects a column comment on a dictionary (NOT_IMPLEMENTED) -#}
+  {% do persist_docs(target_relation, model, for_columns=false) %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 
@@ -34,8 +35,12 @@
 
 
 {% macro clickhouse__get_create_dictionary_as_sql(relation, cluster_clause, sql) %}
-  {%- set fields = config.get('fields') -%}
+  {%- set fields = config.get('fields') or clickhouse_dictionary_fields_from_columns() -%}
   {%- set source_type = config.get('source_type') -%}
+  {#- the contract compares the model's query with its YAML, so only where the query is the source -#}
+  {%- if config.get('contract').enforced and source_type != 'http' and config.get('table') is none -%}
+    {%- do get_assert_columns_equivalent(sql) -%}
+  {%- endif -%}
 
   CREATE OR REPLACE DICTIONARY {{ relation }} {{ cluster_clause }}
   (
@@ -58,6 +63,23 @@
   {%- if config.get('range') %}
   RANGE({{ config.get('range') }})
   {%- endif %}
+{% endmacro %}
+
+
+{# Without a `fields` config, a model with an enforced contract takes the dictionary structure from its YAML columns, in their order, as a table does. #}
+{% macro clickhouse_dictionary_fields_from_columns() %}
+  {%- if not config.get('contract').enforced -%}
+    {%- do exceptions.raise_compiler_error("Dictionary model '" ~ model.name ~ "' needs a `fields` config, or an enforced contract with `data_type` on each YAML column") -%}
+  {%- endif -%}
+  {%- set untyped = model.columns.values() | rejectattr('data_type') | map(attribute='name') | list -%}
+  {%- if untyped -%}
+    {%- do exceptions.column_type_missing(column_names=untyped) -%}
+  {%- endif -%}
+  {%- set fields = [] -%}
+  {%- for column in model.columns.values() -%}
+    {%- do fields.append((column.name, column.data_type)) -%}
+  {%- endfor -%}
+  {{ return(fields) }}
 {% endmacro %}
 
 

@@ -370,7 +370,7 @@ A dbt model can be created as a ClickHouse [dictionary](/concepts/features/dicti
 
 | Option                 | Description                                                                                                                                                                                                       | Required             |
 |------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------------|
-| `fields`               | The dictionary structure, as a list of `(name, type)` pairs.                                                                                                                                                     | Yes                  |
+| `fields`               | The dictionary structure, as a list of `(name, type)` pairs. Without it, a model with an enforced contract takes the structure from its YAML `columns` and their `data_type`, in their order.                | Yes, unless the contract is enforced |
 | `primary_key`          | The dictionary primary key. Must match the key type expected by the chosen layout (for example, a complex key for `COMPLEX_KEY_*` layouts).                                                                      | Yes                  |
 | `layout`               | The [layout](/reference/statements/create/dictionary/layouts/overview) used to store the dictionary in memory, such as `HASHED()`, `COMPLEX_KEY_HASHED()` or `DIRECT()`.                                        | Yes                  |
 | `source_type`          | Where the dictionary reads its data from: `clickhouse` (default, uses the model's SQL or the `table` option) or `http`.                                                                                          |                      |
@@ -381,6 +381,8 @@ A dbt model can be created as a ClickHouse [dictionary](/concepts/features/dicti
 | `connection_overrides` | `clickhouse` source only. Overrides for the credentials used in the dictionary's `SOURCE` clause, e.g. `{'user': 'dictionary_reader'}`.                                                                          |                      |
 | `url`, `format`        | `http` source only. The URL of the source file and its input format.                                                                                                                                             | Yes for `http`       |
 | `range`                | The `RANGE` clause for `RANGE_HASHED()` layouts, e.g. `'min start max stop'`.                                                                                                                                    |                      |
+
+With `persist_docs`, a dictionary keeps the model description as its comment; column descriptions are not persisted, since ClickHouse does not accept a column comment on a dictionary.
 
 ### Example with a ClickHouse source {#dictionary-clickhouse-source-example}
 
@@ -422,6 +424,34 @@ When using `source_type='http'` (or the `table` option), the model's SQL is not 
 ) }}
 
 select 1
+```
+
+### Example with the structure from the YAML {#dictionary-columns-example}
+
+With an enforced [model contract](https://docs.getdbt.com/docs/mesh/govern/model-contracts) and no `fields`, the dictionary takes its structure from the model's YAML columns, as a table does, so the columns are written once. As for a table, dbt compares the model's query with the YAML columns whenever the contract is enforced, with or without `fields`, and fails on a missing, extra or differently typed column; a dictionary that reads a `table` or an `http` source has no query to compare. A YAML column without `data_type` fails the model.
+
+```sql
+{{ config(
+       materialized='dictionary',
+       primary_key='id',
+       layout='HASHED()',
+       lifetime='MIN 0 MAX 300'
+) }}
+
+select id, name from {{ source('raw', 'people') }}
+```
+
+```yaml
+models:
+  - name: people_dict
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: id
+        data_type: UInt64
+      - name: name
+        data_type: String
 ```
 
 See the [dictionary tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py) for more examples, including range and direct dictionaries.
