@@ -1,14 +1,16 @@
 ---
-# Dependabot version updates for the adapter's own dependencies ([project] dependencies
-# in pyproject.toml). dev_requirements.txt (test and lint tools) is out of scope.
+# Dependabot version updates for the adapter's runtime dependencies
+# ([project] dependencies in pyproject.toml). The dev dependency group
+# (test and lint tools) is out of scope.
 # Options: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
 
 version: 2
 updates:
   - package-ecosystem: "pip"
     directory: "/"
-    exclude-paths:
-      - "dev_requirements.txt"
+    allow:
+      # Runtime dependencies only. Skips [dependency-groups] dev and build-system requires.
+      - dependency-type: "production"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -20,8 +22,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
     ignore:
-      # pyproject.toml keeps dbt below 2.0 on purpose. Move to dbt 2.x by hand.
-      - dependency-name: "dbt-core"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "dbt-adapters"
+      # pyproject.toml keeps dbt-adapters, dbt-common and dbt-core below 2.0 on purpose.
+      # Move to dbt 2.x by hand.
+      - dependency-name: "dbt-*"
         update-types: ["version-update:semver-major"]
