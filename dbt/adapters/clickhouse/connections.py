@@ -4,11 +4,11 @@ import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-import dbt.exceptions
 from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.contracts.connection import AdapterResponse, Connection
 from dbt.adapters.sql import SQLConnectionManager
+from dbt_common.exceptions import DbtRuntimeError
 
 if TYPE_CHECKING:
     import agate
@@ -30,9 +30,9 @@ class ClickHouseConnectionManager(SQLConnectionManager):
             yield
         except Exception as exp:
             logger.debug('Error running SQL: {}', sql)
-            if isinstance(exp, dbt.exceptions.DbtRuntimeError):
+            if isinstance(exp, DbtRuntimeError):
                 raise
-            raise dbt.exceptions.DbtRuntimeError('ClickHouse exception:  ' + str(exp)) from exp
+            raise DbtRuntimeError('ClickHouse exception:  ' + str(exp)) from exp
 
     @classmethod
     def open(cls, connection):
