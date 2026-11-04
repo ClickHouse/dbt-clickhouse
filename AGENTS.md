@@ -18,17 +18,17 @@
 
 This maps common tasks to files. For detailed guidance on each scenario, see "Making Changes: Common Scenarios" in CONTRIBUTING.md.
 
-| Task | Files to Modify |
-|---|---|
-| Change how a materialization generates SQL | `dbt/include/clickhouse/macros/materializations/<type>.sql` |
-| Change adapter behavior (connections, types, relations) | `dbt/adapters/clickhouse/impl.py`, `connections.py`, `relation.py` |
+| Task | Files to Modify                                                                             |
+|---|---------------------------------------------------------------------------------------------|
+| Change how a materialization generates SQL | `dbt/include/clickhouse/macros/materializations/<type>.sql`                                 |
+| Change adapter behavior (connections, types, relations) | `dbt/adapters/clickhouse/impl.py`, `connections.py`, `relation.py`                          |
 | Add/change a profile configuration option | `dbt/adapters/clickhouse/credentials.py` then wire through `connections.py` / `dbclient.py` |
-| Fix column type mapping | `dbt/adapters/clickhouse/column.py` and/or `impl.py` |
-| Fix ON CLUSTER behavior | `dbt/adapters/clickhouse/relation.py` + relevant macro |
-| Fix driver-specific issues | `dbt/adapters/clickhouse/httpclient.py` or `nativeclient.py` |
-| Fix MV dependency tracking | `dbt/adapters/clickhouse/cache.py` |
-| Add utility SQL functions | `dbt/include/clickhouse/macros/utils.sql` or `datatypes.sql` |
-| Update version | `dbt/adapters/clickhouse/__version__.py` |
+| Fix column type mapping | `dbt/adapters/clickhouse/column.py` and/or `impl.py`                                        |
+| Fix ON CLUSTER behavior | `dbt/adapters/clickhouse/relation.py` + relevant macro                                      |
+| Fix driver-specific issues | `dbt/adapters/clickhouse/httpclient.py` or `nativeclient.py`                                |
+| Fix MV dependency tracking | `dbt/adapters/clickhouse/cache.py`                                                          |
+| Add utility SQL functions | `dbt/include/clickhouse/macros/utils.sql`                                                   |
+| Update version | `dbt/adapters/clickhouse/__version__.py`                                                    |
 
 ## Agent-Specific Pitfalls
 
