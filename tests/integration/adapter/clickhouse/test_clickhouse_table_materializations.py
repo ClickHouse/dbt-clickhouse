@@ -110,7 +110,8 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
             {{ config(
                 order_by='(some_date, id, name)',
                 engine='MergeTree()',
-                materialized='distributed_table',
+                materialized='table',
+                is_distributed=True,
                 settings={'allow_nullable_key': 1})
             }}
         """
