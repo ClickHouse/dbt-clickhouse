@@ -2,6 +2,7 @@
 
 #### Improvements
 * Distributed models are now configured with `is_distributed=True` on a `table` or `incremental` model. Configuring them with `materialized='distributed_table'` or `materialized='distributed_incremental'` keeps working but is deprecated and logs a warning. As for any `incremental` model, dbt requires `on_schema_change='append_new_columns'` or `'fail'` when the contract is enforced.
+* Support the `microbatch` incremental strategy on distributed incremental models (`materialized='incremental'` with `is_distributed=True`).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).

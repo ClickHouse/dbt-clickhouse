@@ -76,13 +76,7 @@
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'microbatch' %}
-      {%- if config.get("__dbt_internal_microbatch_event_time_start") -%}
-        {% do incremental_predicates.append(config.get("event_time") ~ " >= toDateTime('" ~ config.get("__dbt_internal_microbatch_event_time_start").strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
-      {%- endif -%}
-      {%- if model.config.__dbt_internal_microbatch_event_time_end -%}
-        {% do incremental_predicates.append(config.get("event_time") ~ " < toDateTime('" ~ config.get("__dbt_internal_microbatch_event_time_end").strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
-      {%- endif -%}
-      {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
+      {% do clickhouse__incremental_microbatch(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
@@ -248,6 +242,18 @@
     {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
+{% endmacro %}
+
+{% macro clickhouse__incremental_microbatch(existing_relation, unique_key, incremental_predicates, is_distributed=False) %}
+    {%- set event_time_start = config.get("__dbt_internal_microbatch_event_time_start") -%}
+    {%- set event_time_end = config.get("__dbt_internal_microbatch_event_time_end") -%}
+    {%- if event_time_start -%}
+      {% do incremental_predicates.append(config.get("event_time") ~ " >= toDateTime('" ~ event_time_start.strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
+    {%- endif -%}
+    {%- if event_time_end -%}
+      {% do incremental_predicates.append(config.get("event_time") ~ " < toDateTime('" ~ event_time_end.strftime("%Y-%m-%d %H:%M:%S") ~ "')") %}
+    {%- endif -%}
+    {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, is_distributed) %}
 {% endmacro %}
 
 {% macro clickhouse__incremental_insert_overwrite(existing_relation, partition_by, is_distributed=False) %}

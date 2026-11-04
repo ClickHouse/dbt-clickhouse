@@ -107,6 +107,8 @@
       {% set need_swap = true %}
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
+    {% elif incremental_strategy == 'microbatch' %}
+      {% do clickhouse__incremental_microbatch(existing_relation, unique_key, incremental_predicates, True) %}
     {% elif incremental_strategy == 'insert_overwrite' %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
@@ -162,6 +164,6 @@
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {{ return({'relations': [target_relation]}) }}
+  {{ return({'relations': [target_relation, target_relation_local]}) }}
 
 {%- endmacro %}
