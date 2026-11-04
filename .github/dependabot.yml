@@ -1,3 +1,4 @@
+---
 # Dependabot version updates for the adapter's own dependencies ([project] dependencies
 # in pyproject.toml). dev_requirements.txt (test and lint tools) is out of scope.
 # Options: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
