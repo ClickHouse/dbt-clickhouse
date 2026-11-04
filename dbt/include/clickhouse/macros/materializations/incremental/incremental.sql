@@ -1,4 +1,7 @@
 {% materialization incremental, adapter='clickhouse' %}
+  {%- if adapter.is_distributed(model['config']) -%}
+    {{ return(clickhouse__distributed_incremental()) }}
+  {%- endif -%}
 
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}

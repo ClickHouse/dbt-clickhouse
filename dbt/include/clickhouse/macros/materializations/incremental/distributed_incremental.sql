@@ -1,4 +1,5 @@
 {% materialization distributed_incremental, adapter='clickhouse' %}
+  {% do clickhouse__warn_deprecated_distributed_config('incremental') %}
   {{ return(clickhouse__distributed_incremental()) }}
 {%- endmaterialization %}
 

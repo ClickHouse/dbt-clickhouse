@@ -1,6 +1,13 @@
 {% materialization distributed_table, adapter='clickhouse' %}
+  {% do clickhouse__warn_deprecated_distributed_config('table') %}
   {{ return(clickhouse__distributed_table()) }}
 {%- endmaterialization %}
+
+{% macro clickhouse__warn_deprecated_distributed_config(materialized) %}
+  {% do exceptions.warn(
+      model.unique_id ~ ": configuring a distributed model with materialized='distributed_" ~ materialized
+      ~ "' is deprecated. Configure it with materialized='" ~ materialized ~ "' and is_distributed=True instead.") %}
+{% endmacro %}
 
 {% macro clickhouse__distributed_table() %}
   {% set insert_distributed_sync = run_query("SELECT value FROM system.settings WHERE name = 'insert_distributed_sync'")[0][0] %}
