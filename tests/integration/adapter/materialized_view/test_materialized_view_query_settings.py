@@ -18,6 +18,8 @@ from tests.integration.adapter.materialized_view.common import (
 
 # With join_use_nulls = 1 the unmatched (non-engineering) rows get NULL in
 # matched_department. Under the server default they would get ''.
+# select_sequential_consistency = 1 makes a refresh that runs on another replica of a
+# multi-replica service see the rows inserted right before it.
 MV_QUERY = """
 select
     p.id as id,
@@ -32,7 +34,7 @@ MV_MODEL = (
        materialized='materialized_view',
        engine='MergeTree()',
        order_by='(id)',
-       query_settings={'join_use_nulls': 1},
+       query_settings={'join_use_nulls': 1, 'select_sequential_consistency': 1},
        refreshable=({'interval': 'EVERY 1 HOUR'} if var('refreshable', False) else none)
 ) }}
 
@@ -130,14 +132,14 @@ class TestRefreshableMVQuerySettings:
 
     def matched_department_after_refresh(self, project, person_id):
         # project.run_sql opens a new connection per call, so on a multi-replica service
-        # the refresh may run on a replica that has not seen the insert yet, and before
-        # ClickHouse 26.10 SYSTEM WAIT VIEW ignores refreshes requested on another replica
-        # (ClickHouse/ClickHouse#120623). Refresh again until the row shows up.
-        def attempt():
-            self.refresh(project)
-            return matched_department(project, 'hackers', person_id)
-
-        return retry_until_assertion_passes(attempt)
+        # each statement may reach a different replica. Before ClickHouse 26.10 SYSTEM WAIT
+        # VIEW ignores a refresh requested on another replica (ClickHouse/ClickHouse#120623),
+        # and the replica serving the read may not have applied the refresh yet, so wait
+        # for the row instead of trusting the wait.
+        self.refresh(project)
+        return retry_until_assertion_passes(
+            lambda: matched_department(project, 'hackers', person_id)
+        )
 
     def test_query_settings_apply_to_refreshes(self, project):
         run_vars = json.dumps({"refreshable": True})
