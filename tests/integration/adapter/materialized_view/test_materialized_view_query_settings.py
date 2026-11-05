@@ -10,6 +10,7 @@ import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import run_dbt
 
+from tests.integration.adapter.helpers import retry_until_assertion_passes
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
@@ -127,6 +128,17 @@ class TestRefreshableMVQuerySettings:
         project.run_sql(f"system refresh view {schema}.hackers_mv")
         project.run_sql(f"system wait view {schema}.hackers_mv")
 
+    def matched_department_after_refresh(self, project, person_id):
+        # project.run_sql opens a new connection per call, so on a multi-replica service
+        # the refresh may run on a replica that has not seen the insert yet, and before
+        # ClickHouse 26.10 SYSTEM WAIT VIEW ignores refreshes requested on another replica
+        # (ClickHouse/ClickHouse#120623). Refresh again until the row shows up.
+        def attempt():
+            self.refresh(project)
+            return matched_department(project, 'hackers', person_id)
+
+        return retry_until_assertion_passes(attempt)
+
     def test_query_settings_apply_to_refreshes(self, project):
         run_vars = json.dumps({"refreshable": True})
         run_dbt(["seed"])
@@ -136,16 +148,14 @@ class TestRefreshableMVQuerySettings:
         # a refreshable view only picks up new source rows on refresh, so a row inserted
         # after creation proves the refresh ran, and that it ran with the settings
         insert_person(project, 4000, 'sales')
-        self.refresh(project)
-        assert matched_department(project, 'hackers', 4000) is None
+        assert self.matched_department_after_refresh(project, 4000) is None
 
         # a second run updates the view with MODIFY QUERY, which must keep them
         run_dbt(["run", "--vars", run_vars])
         assert 'join_use_nulls = 1' in get_mv_ddl(project, 'hackers_mv')
 
         insert_person(project, 5000, 'sales')
-        self.refresh(project)
-        assert matched_department(project, 'hackers', 5000) is None
+        assert self.matched_department_after_refresh(project, 5000) is None
 
 
 class TestExternalTargetMVQuerySettings:
