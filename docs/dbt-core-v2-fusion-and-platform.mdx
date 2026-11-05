@@ -128,6 +128,14 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | mTLS client certificates | `client_cert`, `client_cert_key`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored. |
 | HTTP client options | `connect_timeout`, `send_receive_timeout`, `sync_request_timeout`, `compress_block_size`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Accepted but ignored; `server_host_name` is unavailable. |
 
+#### Not planned for v2 {#not-planned}
+
+A few v1 options are deliberately not carried over to v2. They are listed here so the parity tables above only contain work that is planned.
+
+| Feature | What it does in v1 | Why it is not planned |
+|---------|--------------------|-----------------------|
+| `verify: false` | Skips TLS certificate validation. | It keeps the encryption but drops the authentication, so anyone on the path can impersonate the server and read the credentials. v2 always validates certificates and ignores the key. Use a certificate signed by a CA the client trusts. Open an issue if you need it in v2. |
+
 ### dbt v2 specific functionality {#v2-functionality}
 
 dbt v2 adds capabilities that have no equivalent in dbt Core 1.x. They are outside the Beta scope and will come later: most of them build on the engine's understanding of the SQL dialect, which does not exist for ClickHouse yet, but we are working on it. Same legend as above, plus <Badge color="blue">In progress</Badge> for work under way. Tracked in [ClickHouse/dbt-clickhouse#736](https://github.com/ClickHouse/dbt-clickhouse/issues/736).
@@ -143,11 +151,3 @@ dbt v2 adds capabilities that have no equivalent in dbt Core 1.x. They are outsi
 | Semantic Layer / MetricFlow | Metrics defined in dbt and queried through the Semantic Layer. | <Badge color="red">Not yet</Badge> | ClickHouse support is merged in MetricFlow; we are working with dbt Labs to enable it in the Semantic Layer. |
 | Record and replay of adapter calls | `--fs-record` / `--fs-replay` re-run a job without a warehouse. | <Badge color="yellow">Partial</Badge> | ClickHouse catalog details (`ON CLUSTER`, `EXCHANGE`, MV links) are not recorded, so a replay can render different DDL. |
 | More authentication methods in the dbt platform | How the platform connects to ClickHouse. | <Badge color="yellow">Partial</Badge> | Username and password only today; more methods are planned. |
-
-### Not planned for v2 {#not-planned}
-
-A few v1 options are deliberately not carried over to v2. They are listed here so the tables above only contain work that is planned.
-
-| Feature | What it does in v1 | Why it is not planned |
-|---------|--------------------|-----------------------|
-| `verify: false` | Skips TLS certificate validation. | It keeps the encryption but drops the authentication, so anyone on the path can impersonate the server and read the credentials. v2 always validates certificates and ignores the key. Use a certificate signed by a CA the client trusts. Open an issue if you need it in v2. |
