@@ -22,7 +22,7 @@ ClickHouse is the first community adapter on dbt OSS, dbt v2 and the dbt platfor
 </Warning>
 
 <Note>
-**The dbt Core 1.x documentation also applies to dbt OSS and dbt v2.** The new adapter behaves the same way on both engines: the profiles, model configs, materializations and macros described in the other dbt pages work unchanged on dbt OSS, dbt v2 and the dbt platform. The exceptions are documented in the [v1 vs v2 parity](#parity) table below.
+**The dbt Core 1.x documentation also applies to dbt OSS and dbt v2.** The new adapter behaves the same way on both engines: the profiles, model configs, materializations and macros described in the other dbt pages work unchanged on dbt OSS, dbt v2 and the dbt platform. The exceptions are documented in the [v1 vs v2 parity](#parity) tables below.
 </Note>
 
 <Note>
@@ -33,7 +33,7 @@ Live status is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/Cli
 
 #### Try ClickHouse in the dbt platform {#request-access}
 
-If you're interested in testing the private beta, sign up through [dbt Labs' private beta form](https://docs.google.com/forms/d/e/1FAIpQLScjHwRchnKarq_RpNM7hATjphNFxqBEePmAwRtSpMWG1snGHA/viewform). The form belongs to dbt Labs, so the information you submit goes to dbt Labs, not to ClickHouse. Once enabled, follow [Connect ClickHouse](https://docs.getdbt.com/docs/platform/connect-data-platform/connect-clickhouse) in the dbt documentation to set up the connection.
+If you're interested in testing the Private Beta, sign up through [dbt Labs' private beta form](https://docs.google.com/forms/d/e/1FAIpQLScjHwRchnKarq_RpNM7hATjphNFxqBEePmAwRtSpMWG1snGHA/viewform). The form belongs to dbt Labs, so the information you submit goes to dbt Labs, not to ClickHouse. Once enabled, follow [Connect ClickHouse](https://docs.getdbt.com/docs/platform/connect-data-platform/connect-clickhouse) in the dbt documentation to set up the connection.
 
 ## Terminology and availability {#terminology}
 
@@ -48,9 +48,9 @@ dbt is available in several forms, and the same adapter can run in more than one
 
 ## Details on current status {#v2-adapter-status}
 
-Beta means that almost all features in v1 work with documented limits. The features that are still pending are listed in [v1 vs v2 parity](#parity) and that list shrinks with every release. We recommend evaluating dbt v2 in development or staging first, and keeping production on dbt Core 1.x if your project depends on any of the pending features or you need the guarantees of a GA release. We measure the dbt v2 adapter against the dbt Core 1.x integration test suite of `dbt-clickhouse`.
+Beta means that almost all v1 features work with documented limits. The features that are still pending are listed in [v1 vs v2 parity](#parity) and that list shrinks with every release. We recommend evaluating dbt v2 in development or staging first, and keeping production on dbt Core 1.x if your project depends on any of the pending features or you need the guarantees of a GA release.
 
-**Today,** the adapter passes ~98% of the v1 suite (270 of the 276 tests that apply to dbt v2). The remaining failures are engine-side differences, not ClickHouse ones: query comments, `query_id` in run results and the check for a hook configured under both `pre-hook` and `pre_hook`. See [v1 vs v2 parity](#parity) for the feature-by-feature picture.
+We measure the dbt v2 adapter against the dbt Core 1.x integration test suite of `dbt-clickhouse`. **Today,** the adapter passes ~98% of the v1 suite (270 of the 276 tests that apply to dbt v2). The remaining failures are engine-side differences, not ClickHouse ones: query comments, `query_id` in run results and the check for a hook configured under both `pre-hook` and `pre_hook`. See [v1 vs v2 parity](#parity) for the feature-by-feature picture.
 
 **Next steps**: query comments, `query_id` in run results, `dbt source freshness` from table metadata, fixes for the remaining bugs and passing the full v1 test suite to ensure full parity. The progress of all of these is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660), with one sub-issue per area.
 
@@ -139,10 +139,10 @@ dbt v2 adds capabilities that have no equivalent in dbt Core 1.x. They are outsi
 | Column-level lineage in the dbt platform | Column lineage view built from the run artifacts. | <Badge color="yellow">Partial</Badge> | Renders only with identifier quoting disabled in `dbt_project.yml`; the platform's fallback parser rejects backtick-quoted names ([dbt-labs/dbt#16646](https://github.com/dbt-labs/dbt/issues/16646)). |
 | Column-level lineage from the engine | Lineage written by `dbt docs generate` for the local docs site. | <Badge color="red">Not yet</Badge> | Needs static analysis. |
 | LSP and VS Code extension | Dialect-aware autocomplete and column awareness while editing. | <Badge color="red">Not yet</Badge> | Needs the dialect. |
-| Source freshness from table metadata | `dbt source freshness` without `loaded_at_field`, from the table's last modification time. | <Badge color="blue">In progress</Badge> | Pending to be implemented. Today the command fails for sources without `loaded_at_field`. |
-| Semantic Layer / MetricFlow | Metrics defined in dbt and queried through the Semantic Layer. | <Badge color="red">Not yet</Badge> | ClickHouse support has been merged in MetricFlow. We are working with dbt Labs on getting it supported in the Semantic Layer.|
+| Source freshness from table metadata | `dbt source freshness` without `loaded_at_field`, from the table's last modification time. | <Badge color="blue">In progress</Badge> | Being implemented. Today the command fails for sources without `loaded_at_field`. |
+| Semantic Layer / MetricFlow | Metrics defined in dbt and queried through the Semantic Layer. | <Badge color="red">Not yet</Badge> | ClickHouse support is merged in MetricFlow; we are working with dbt Labs to enable it in the Semantic Layer. |
 | Record and replay of adapter calls | `--fs-record` / `--fs-replay` re-run a job without a warehouse. | <Badge color="yellow">Partial</Badge> | ClickHouse catalog details (`ON CLUSTER`, `EXCHANGE`, MV links) are not recorded, so a replay can render different DDL. |
-| Increase the amount of authentication methods in the dbt platform | How the platform connects to ClickHouse. | <Badge color="yellow">Partial</Badge> | Username and password only now, but planned to be expanded. |
+| More authentication methods in the dbt platform | How the platform connects to ClickHouse. | <Badge color="yellow">Partial</Badge> | Username and password only today; more methods are planned. |
 
 ### Not planned for v2 {#not-planned}
 
@@ -150,4 +150,4 @@ A few v1 options are deliberately not carried over to v2. They are listed here s
 
 | Feature | What it does in v1 | Why it is not planned |
 |---------|--------------------|-----------------------|
-| `verify: false` | Skips TLS certificate validation. | It keeps the encryption but drops the authentication, so anyone on the path can impersonate the server and read the credentials. v2 always validates certificates and ignores the key. Use a certificate signed by a CA the client trusts. Create an issue if you need it in V2 |
+| `verify: false` | Skips TLS certificate validation. | It keeps the encryption but drops the authentication, so anyone on the path can impersonate the server and read the credentials. v2 always validates certificates and ignores the key. Use a certificate signed by a CA the client trusts. Open an issue if you need it in v2. |
