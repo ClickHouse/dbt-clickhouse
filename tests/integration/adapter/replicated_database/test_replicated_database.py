@@ -16,11 +16,11 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
 
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-
-        test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
-        )
-        return test_config
+        # copy, since the session-scoped config is shared with every other test module
+        return {
+            **test_config,
+            "db_engine": "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')",
+        }
 
 
 @pytest.mark.skipif(
@@ -30,10 +30,11 @@ class TestReplicatedDatabaseSimpleMaterialization(BaseSimpleMaterializations):
 class TestReplicatedDatabaseIncremental(BaseIncremental):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-        test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
-        )
-        return test_config
+        # copy, since the session-scoped config is shared with every other test module
+        return {
+            **test_config,
+            "db_engine": "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')",
+        }
 
     @pytest.fixture(scope="class")
     def models(self):
@@ -79,10 +80,11 @@ class TestReplicatedDatabaseDistributed:
 
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
-        test_config["db_engine"] = (
-            "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')"
-        )
-        return test_config
+        # copy, since the session-scoped config is shared with every other test module
+        return {
+            **test_config,
+            "db_engine": "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')",
+        }
 
     @pytest.fixture(scope="class")
     def models(self):
