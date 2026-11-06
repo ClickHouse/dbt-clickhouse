@@ -76,6 +76,12 @@
     -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
+    {%- if on_schema_change != 'ignore' %}
+      {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql, query_settings=config.get('query_settings', {})) -%}
+      {% if local_column_changes %}
+        {% do clickhouse__apply_column_changes(local_column_changes, existing_relation, True) %}
+      {% endif %}
+    {% endif %}
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}

@@ -50,6 +50,12 @@
     -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
     -- specific configurable that is used to avoid creating an expensive intermediate table.
     -- insert_overwrite strategy does not require unique_key => is an exception.
+    {%- if on_schema_change != 'ignore' %}
+      {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, query_settings=config.get('query_settings', {})) -%}
+      {% if column_changes %}
+        {% do clickhouse__apply_column_changes(column_changes, existing_relation) %}
+      {% endif %}
+    {% endif %}
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}

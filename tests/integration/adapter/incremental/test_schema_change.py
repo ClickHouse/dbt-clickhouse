@@ -95,6 +95,71 @@ class TestOnSchemaChange:
         assert result[3][2] == 5
 
 
+schema_change_no_key_sql = """
+{{
+    config(
+        materialized='%s',
+        on_schema_change='%s'
+        %s
+    )
+}}
+
+{%% if not is_incremental() %%}
+select
+    number as col_1,
+    number + 1 as col_2
+from numbers(3)
+{%% else %%}
+select
+    number as col_1,
+    number + 1 as col_2,
+    number + 2 as col_3
+from numbers(2, 3)
+{%% endif %%}
+"""
+
+
+class TestOnSchemaChangeWithoutUniqueKey:
+    """Without a unique_key (or with inserts_only) rows are inserted directly, so the
+    schema change must be applied before that insert."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "no_key_append.sql": schema_change_no_key_sql
+            % ("incremental", "append_new_columns", ""),
+            "no_key_inserts_only_append.sql": schema_change_no_key_sql
+            % ("incremental", "append_new_columns", ", inserts_only=True"),
+            "no_key_fail.sql": schema_change_no_key_sql % ("incremental", "fail", ""),
+            "no_key_distributed_append.sql": schema_change_no_key_sql
+            % ("distributed_incremental", "append_new_columns", ", inserts_only=True"),
+        }
+
+    @pytest.mark.parametrize(
+        "model", ("no_key_append", "no_key_inserts_only_append", "no_key_distributed_append")
+    )
+    def test_append(self, project, model):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+        run_dbt(["run", "--select", model])
+        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+        assert len(result) == 3
+        run_dbt(["run", "--select", model])
+        result = project.run_sql(
+            f"select col_1, col_3 from {model} order by col_1, col_3", fetch="all"
+        )
+        assert len(result) == 6
+        assert result[0] == (0, 0)
+        assert result[-1] == (4, 6)
+
+    def test_fail(self, project):
+        run_dbt(["run", "--select", "no_key_fail"])
+        _, log_output = run_dbt_and_capture(["run", "--select", "no_key_fail"], expect_pass=False)
+        assert 'out of sync' in log_output.lower()
+        result = project.run_sql("select count() from no_key_fail", fetch="one")
+        assert result[0] == 3
+
+
 # contains dropped, added, and changed (type) columns
 complex_schema_change_sql = """
 {{
