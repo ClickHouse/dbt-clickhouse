@@ -93,11 +93,11 @@ class TestReplicatedDatabaseDistributed:
             "dist_incremental.sql": distributed_incremental_model,
         }
 
-    def _count_on_all_nodes(self, project, relation_name):
+    def _count_on_all_shards(self, project, relation_name):
         cluster = project.test_config['cluster']
         relation = relation_from_name(project.adapter, relation_name)
         return project.run_sql(
-            f"select count() from clusterAllReplicas('{cluster}', {relation})", fetch="one"
+            f"select count() from cluster('{cluster}', {relation})", fetch="one"
         )[0]
 
     def _nodes_with_table(self, project, table_name):
@@ -121,12 +121,12 @@ class TestReplicatedDatabaseDistributed:
         assert nodes > 1
         assert self._nodes_with_table(project, "dist_table_local") == nodes
         assert self._nodes_with_table(project, "dist_incremental_local") == nodes
-        assert self._count_on_all_nodes(project, "dist_table_local") == 10
-        assert self._count_on_all_nodes(project, "dist_incremental_local") == 10
+        assert self._count_on_all_shards(project, "dist_table_local") == 10
+        assert self._count_on_all_shards(project, "dist_incremental_local") == 10
 
         # a second run rebuilds the distributed table and runs the incremental path
         results = run_dbt(["run"])
         assert len(results) == 2
         assert project.run_sql("select count() from dist_table", fetch="one")[0] == 10
         assert project.run_sql("select count() from dist_incremental", fetch="one")[0] == 20
-        assert self._count_on_all_nodes(project, "dist_incremental_local") == 20
+        assert self._count_on_all_shards(project, "dist_incremental_local") == 20
