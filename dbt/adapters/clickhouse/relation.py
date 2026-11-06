@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
 from dbt.adapters.base.relation import BaseRelation, EventTimeFilter, Path, Policy, Self
@@ -9,6 +10,14 @@ from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
 
 NODE_TYPE_SOURCE = 'source'
+
+
+def _to_datetime_literal(value: datetime) -> str:
+    # A bare string literal is cast to the column type, and '2020-01-01 00:00:00' cannot be cast to Date
+    # or Date32. A DateTime64 value compares with Date, Date32, DateTime and DateTime64 columns alike,
+    # and unlike DateTime it is not clamped to 1970-2106, so Date32/DateTime64 columns can be batched
+    # over their whole range. Same form as the microbatch delete predicates in incremental.sql.
+    return f"toDateTime64('{value.strftime('%Y-%m-%d %H:%M:%S')}', 0)"
 
 
 @dataclass
@@ -67,11 +76,15 @@ class ClickHouseRelation(BaseRelation):
         """
         filter = ""
         if event_time_filter.start and event_time_filter.end:
-            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}' and {event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
+            filter = f"{event_time_filter.field_name} >= {_to_datetime_literal(event_time_filter.start)} and {event_time_filter.field_name} < {_to_datetime_literal(event_time_filter.end)}"
         elif event_time_filter.start:
-            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}'"
+            filter = (
+                f"{event_time_filter.field_name} >= {_to_datetime_literal(event_time_filter.start)}"
+            )
         elif event_time_filter.end:
-            filter = f"{event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
+            filter = (
+                f"{event_time_filter.field_name} < {_to_datetime_literal(event_time_filter.end)}"
+            )
 
         return filter
 
