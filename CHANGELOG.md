@@ -5,6 +5,7 @@
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 
 #### Bugs
 * `distributed_incremental` no longer creates a temporary view to read the model's structure; it is taken from the model query, which the materialization already had. Every run used to leave the view behind, and the run no longer touches that name at all, so a `<model>__dbt_view_tmp` left by an earlier version has to be dropped once by hand ([#754](https://github.com/ClickHouse/dbt-clickhouse/pull/754)).
