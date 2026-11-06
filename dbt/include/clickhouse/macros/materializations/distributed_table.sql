@@ -7,9 +7,6 @@
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
-  {# Check the profile's cluster rather than the rendered ON CLUSTER clause: on a Replicated
-     database the clause is intentionally empty (the database engine broadcasts the DDL),
-     but the cluster is still needed for the Distributed engine #}
   {% if adapter.get_clickhouse_cluster_name() is none %}
      {% do exceptions.raise_compiler_error('To use distributed materialization cluster setting in dbt profile must be set') %}
   {% endif %}
