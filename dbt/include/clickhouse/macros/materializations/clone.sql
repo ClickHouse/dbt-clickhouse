@@ -6,7 +6,7 @@
         - Distributed tables -> not supported, fall back to a view.
         - Materialized views -> only the target table is cloned; now MV is crated/attached to the clon.
     #}
-    {%- if config.get('materialized', '').startswith('distributed_') -%}
+    {%- if adapter.is_distributed(model['config']) -%}
         {{ return(False) }}
     {%- endif -%}
     {%- set engine = config.get('engine', default='MergeTree()') -%}

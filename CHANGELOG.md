@@ -2,6 +2,8 @@
 
 #### Improvements
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
+* Configure distributed models with `is_distributed=True` on a `table` or `incremental` model, while `materialized='distributed_table'` and `'distributed_incremental'` keep working but are deprecated and log a warning. Contracted incremental models then need `on_schema_change='append_new_columns'` or `'fail'`, as dbt requires for any `incremental` model ([#777](https://github.com/ClickHouse/dbt-clickhouse/pull/777)).
+* Support the `microbatch` incremental strategy on distributed incremental models (`materialized='incremental'` with `is_distributed=True`) ([#777](https://github.com/ClickHouse/dbt-clickhouse/pull/777)).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).

@@ -173,7 +173,7 @@ You can add [data skipping indexes](/concepts/features/performance/skip-indexes/
 
 ### Projections {#projections}
 
-You can add [projections](/concepts/features/projections/projections) to `table` and `distributed_table` materializations using the `projections` configuration. Each projection entry requires either a `query` or an `index` key (not both).
+You can add [projections](/concepts/features/projections/projections) to `table` materializations, including [distributed](#distributed-models) ones, using the `projections` configuration. Each projection entry requires either a `query` or an `index` key (not both).
 
 **Note**: For distributed tables, the projection is applied to the `_local` tables, not to the distributed proxy table.
 **Note**: Specifying both `query` and `index` on the same projection entry raises a compile-time error.
@@ -426,27 +426,40 @@ select 1
 
 See the [dictionary tests](https://github.com/ClickHouse/dbt-clickhouse/blob/main/tests/integration/adapter/dictionary/test_dictionary.py) for more examples, including range and direct dictionaries.
 
-## Materialization: distributed_table (experimental) {#materialization-distributed-table}
+## Distributed models (experimental) {#distributed-models}
 
-Distributed table created with following steps:
+Set `is_distributed=True` on a `table` or `incremental` model to build it as a [Distributed](/reference/engines/table-engines/special/distributed) table over local tables on every shard.
+Distributed models require the `cluster` profile setting.
+The local table names follow the `local_suffix` and `local_db_prefix` profile settings.
+Other materializations ignore `is_distributed`, so it can be set for a whole folder in `dbt_project.yml`.
+
+Configuring a distributed model with `materialized='distributed_table'` or `materialized='distributed_incremental'` is deprecated.
+That configuration keeps working and builds the same model, but logs a deprecation warning.
+When moving an incremental model with an enforced contract to `is_distributed=True`, set `on_schema_change` as dbt requires for [incremental models with contracts](https://docs.getdbt.com/reference/resource-configs/contract#incremental-models-and-on_schema_change).
+
+dbt-clickhouse queries automatically include the setting `insert_distributed_sync = 1` so that downstream incremental operations execute correctly.
+This could cause some distributed table inserts to run more slowly than expected.
+
+| Option       | Description                                                                                                                                                    | Default if any |
+|--------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|----------------|
+| sharding_key | Sharding key determines the destination server when inserting into distributed engine table. The sharding key can be random or as an output of a hash function | `rand()`       |
+
+### Distributed table {#materialization-distributed-table}
+
+A distributed table is built with the following steps:
 
 1. Creates temp view with sql query to get right structure
 2. Create empty local tables based on view
 3. Create distributed table based on local tables.
 4. Data inserts into distributed table, so it is distributed across shards without duplicating.
 
-Notes:
-- dbt-clickhouse queries now automatically include the setting `insert_distributed_sync = 1` in order to ensure that
-  downstream incremental
-  materialization operations execute correctly. This could cause some distributed table inserts to run more slowly than
-  expected.
-
-### Distributed table model example {#distributed-table-model-example}
+#### Distributed table model example {#distributed-table-model-example}
 
 ```sql
 {{
     config(
-        materialized='distributed_table',
+        materialized='table',
+        is_distributed=True,
         order_by='id, created_at',
         sharding_key='cityHash64(id)',
         engine='ReplacingMergeTree'
@@ -457,7 +470,7 @@ select id, created_at, item
 from {{ source('db', 'table') }}
 ```
 
-### Generated migrations {#distributed-table-generated-migrations}
+#### Generated migrations {#distributed-table-generated-migrations}
 
 ```sql
 CREATE TABLE db.table_local on cluster cluster (
@@ -476,14 +489,7 @@ CREATE TABLE db.table on cluster cluster (
     ENGINE = Distributed ('cluster', 'db', 'table_local', cityHash64(id));
 ```
 
-### Configurations {#distributed-table-configurations}
-Configurations that are specific for this materialization type are listed below:
-
-| Option                 | Description                                                                                                                                                                                                                                                                                                          | Default if any |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| sharding_key           | Sharding key determines the destination server when inserting into distributed engine table.  The sharding key can be random or as an output of a hash function                                                                                                                                                      | `rand()`)      |
-
-## materialization: distributed_incremental (experimental) {#materialization-distributed-incremental}
+### Distributed incremental {#materialization-distributed-incremental}
 
 Incremental model based on the same idea as distributed table, the main difficulty is to process all incremental
 strategies correctly.
@@ -491,16 +497,18 @@ strategies correctly.
 1. _The Append Strategy_ just insert data into distributed table.
 2. _The Delete+Insert_ Strategy creates distributed temp table to work with all data on every shard.
 3. _The Default (Legacy) Strategy_ creates distributed temp and intermediate tables for the same reason.
+4. _The Microbatch Strategy_ runs the Delete+Insert strategy per batch.
 
 Only shard tables are replacing, because distributed table does not keep data.
 The distributed table reloads only when the full_refresh mode is enabled or the table structure may have changed.
 
-### Distributed incremental model example {#distributed-incremental-model-example}
+#### Distributed incremental model example {#distributed-incremental-model-example}
 
 ```sql
 {{
     config(
-        materialized='distributed_incremental',
+        materialized='incremental',
+        is_distributed=True,
         engine='MergeTree',
         incremental_strategy='append',
         unique_key='id,created_at'
@@ -511,7 +519,7 @@ select id, created_at, item
 from {{ source('db', 'table') }}
 ```
 
-### Generated migrations {#distributed-incremental-generated-migrations}
+#### Generated migrations {#distributed-incremental-generated-migrations}
 
 ```sql
 CREATE TABLE db.table_local on cluster cluster (

@@ -14,7 +14,8 @@ from tests.integration.adapter.incremental.test_base_incremental import uniq_sch
 
 uniq_source_model = """
 {{config(
-        materialized='distributed_table',
+        materialized='table',
+        is_distributed=True,
         engine='MergeTree()',
         order_by=['ts'],
         unique_key=['impid']
@@ -27,7 +28,8 @@ SELECT now() - toIntervalHour(number) as ts, toInt32(number) as impid, concat('v
 uniq_incremental_model = """
 {{
     config(
-        materialized='distributed_incremental',
+        materialized='incremental',
+        is_distributed=True,
         engine='MergeTree()',
         order_by=['ts'],
         unique_key=['impid']
@@ -67,7 +69,8 @@ models:
 
 lw_delete_inc = """
 {{ config(
-        materialized='distributed_incremental',
+        materialized='incremental',
+        is_distributed=True,
         order_by=['key1'],
         unique_key='key1',
         incremental_strategy='delete+insert'
@@ -109,7 +112,8 @@ models:
 
 compound_key_inc = """
 {{ config(
-        materialized='distributed_incremental',
+        materialized='incremental',
+        is_distributed=True,
         order_by=['key1', 'key2'],
         unique_key='key1, key2',
         incremental_strategy='delete+insert'
@@ -158,7 +162,7 @@ class TestInsertsOnlyDistributedIncrementalMaterialization(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):
         config_materialized_incremental = """
-          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='distributed_incremental', unique_key='id') }}
+          {{ config(order_by='(some_date, id, name)', inserts_only=True, materialized='incremental', is_distributed=True, unique_key='id') }}
         """
         incremental_sql = config_materialized_incremental + model_incremental
         return {
@@ -182,7 +186,7 @@ class TestInsertsOnlyDistributedIncrementalMaterialization(BaseIncremental):
 
 
 incremental_not_schema_change_sql = """
-{{ config(materialized="distributed_incremental", unique_key="user_id_current_time",on_schema_change="sync_all_columns") }}
+{{ config(materialized="incremental", is_distributed=True, unique_key="user_id_current_time",on_schema_change="sync_all_columns") }}
 select
     toString(1) || '-' || toString(now64()) as user_id_current_time,
     {% if is_incremental() %}
@@ -207,7 +211,8 @@ class TestDistributedIncrementalNotSchemaChange(BaseIncrementalNotSchemaChange):
 
 insert_overwrite_dist_inc = """
 {{ config(
-        materialized='distributed_incremental',
+        materialized='incremental',
+        is_distributed=True,
         incremental_strategy='insert_overwrite',
         partition_by=['partitionKey'],
         order_by=['orderKey'],

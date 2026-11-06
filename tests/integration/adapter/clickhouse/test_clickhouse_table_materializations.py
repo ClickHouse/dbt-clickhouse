@@ -9,6 +9,7 @@ from dbt.tests.util import (
     check_result_nodes_by_name,
     relation_from_name,
     run_dbt,
+    run_dbt_and_capture,
 )
 
 from tests.integration.adapter.basic.test_basic import base_seeds_schema_yml
@@ -109,7 +110,8 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
             {{ config(
                 order_by='(some_date, id, name)',
                 engine='MergeTree()',
-                materialized='distributed_table',
+                materialized='table',
+                is_distributed=True,
                 settings={'allow_nullable_key': 1})
             }}
         """
@@ -206,6 +208,55 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         result = run_dbt(['run', '--select', 'distributed'], False)
         assert result[0].status == 'error'
         assert 'Compilation Error' in result[0].message
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestDeprecatedDistributedMaterializations:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            f"deprecated_{materialized}.sql": f"{{{{ config(materialized='distributed_{materialized}') }}}}\n"
+            "select 1 as id"
+            for materialized in ('table', 'incremental')
+        }
+
+    def test_deprecated_materializations(self, project):
+        _, log_output = run_dbt_and_capture(["run"])
+        for materialized in ('table', 'incremental'):
+            assert (
+                f"model.test.deprecated_{materialized}: configuring a distributed model with "
+                f"materialized='distributed_{materialized}' is deprecated" in log_output
+            )
+            engine = project.run_sql(
+                "select engine from system.tables "
+                f"where database = '{project.test_schema}' and name = 'deprecated_{materialized}'",
+                fetch="one",
+            )
+            assert engine[0] == 'Distributed'
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestDistributedFlagFromProjectConfig:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {"models": {"+is_distributed": "true"}}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"flagged.sql": "{{ config(materialized='table') }}\nselect 1 as id"}
+
+    def test_string_flag(self, project):
+        run_dbt(["run"])
+        engine = project.run_sql(
+            "select engine from system.tables "
+            f"where database = '{project.test_schema}' and name = 'flagged'",
+            fetch="one",
+        )
+        assert engine[0] == 'Distributed'
 
 
 class TestReplicatedTableMaterialization(BaseSimpleMaterializations):
