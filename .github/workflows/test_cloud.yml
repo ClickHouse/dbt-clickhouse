@@ -33,7 +33,9 @@ jobs:
           python-version: '3.11'
 
       - name: Install requirements
-        run: pip3 install . -r dev_requirements.txt
+        run: |
+          pip3 install --upgrade pip
+          pip3 install . --group dev
 
       - name: Run HTTP tests
         env:

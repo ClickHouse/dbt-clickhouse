@@ -1,7 +1,11 @@
 ### Unreleased
 
+#### Improvements
+* `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
+
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 
 #### Bugs
 * Distributed models no longer fail with `cluster setting in dbt profile must be set` on a `Replicated` database (`database_engine: Replicated` with `cluster` set in the profile) ([#769](https://github.com/ClickHouse/dbt-clickhouse/pull/769)).
