@@ -382,6 +382,8 @@ A dbt model can be created as a ClickHouse [dictionary](/concepts/features/dicti
 | `url`, `format`        | `http` source only. The URL of the source file and its input format.                                                                                                                                             | Yes for `http`       |
 | `range`                | The `RANGE` clause for `RANGE_HASHED()` layouts, e.g. `'min start max stop'`.                                                                                                                                    |                      |
 
+With `persist_docs`, a dictionary keeps the model description as its comment; column descriptions are not persisted, since ClickHouse does not accept a column comment on a dictionary.
+
 ### Example with a ClickHouse source {#dictionary-clickhouse-source-example}
 
 The model's SQL becomes the dictionary source query:

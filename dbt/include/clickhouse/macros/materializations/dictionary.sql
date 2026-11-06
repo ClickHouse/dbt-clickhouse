@@ -19,7 +19,8 @@
   {% set should_revoke = should_revoke(target_relation, full_refresh_mode=True) %}
   {% do apply_grants(target_relation, grant_config, should_revoke=should_revoke) %}
 
-  {% do persist_docs(target_relation, model) %}
+  {#- ClickHouse rejects a column comment on a dictionary (NOT_IMPLEMENTED) -#}
+  {% do persist_docs(target_relation, model, for_columns=false) %}
 
   {{ run_hooks(post_hooks, inside_transaction=True) }}
 

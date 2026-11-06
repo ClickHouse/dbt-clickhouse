@@ -205,6 +205,36 @@ select id, name, updated_at from {{ source('raw', 'people_updated') }}
 """
 
 
+DOCUMENTED_DICTIONARY = """
+{{ config(
+       materialized='dictionary',
+       fields=[
+           ('id', 'Int32'),
+           ('name', 'String'),
+       ],
+       primary_key='id',
+       layout='HASHED()',
+       lifetime='1',
+       persist_docs={'relation': true, 'columns': true},
+) }}
+
+select id, name from {{ source('raw', 'people') }}
+"""
+
+DOCUMENTED_DICTIONARY_SCHEMA = """
+version: 2
+
+models:
+  - name: documented_dictionary
+    description: People by id
+    columns:
+      - name: id
+        description: Person id
+      - name: name
+        description: Person name
+"""
+
+
 class TestQueryDictionary:
     @pytest.fixture(scope="class")
     def seeds(self):
@@ -370,3 +400,30 @@ class TestUpdateLagDictionary:
         results = project.run_sql("select distinct name from update_lag_dictionary", fetch="all")
         names = set(i[0] for i in results)
         assert names == set(["Dade", "Kate", "Ksenia"])
+
+
+class TestDocumentedDictionary:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "documented_dictionary.sql": DOCUMENTED_DICTIONARY,
+            "schema.yml": DOCUMENTED_DICTIONARY_SCHEMA,
+        }
+
+    def test_column_docs_do_not_fail_the_dictionary(self, project):
+        run_dbt(["seed"])
+        run_dbt()
+
+        result = project.run_sql(
+            f"select comment from system.tables where database = '{project.test_schema}' "
+            "and name = 'documented_dictionary'",
+            fetch="one",
+        )
+        assert result[0] == "People by id"
