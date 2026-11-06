@@ -90,6 +90,13 @@
 {% endmacro %}
 
 
+{#-
+    New keys (insertions) and keys removed from the source (deletes) are found with LEFT ANTI JOIN
+    rather than the ANSI `left join ... where <right key> is null` idiom. With ClickHouse's default
+    join_use_nulls = 0, an unmatched LEFT JOIN row is filled with type defaults, not NULL, so that
+    idiom never matches a non-nullable key (#784). In the deletes branch, the anti join's right-side
+    columns are type defaults and only keep the column layout of the positional `union all`.
+-#}
 {% macro clickhouse__snapshot_staging_table(strategy, source_sql, target_relation) -%}
     {# Detect strategy type and delegate to specific macro #}
     {% if strategy.updated_at == 'now()' or 'now()' in strategy.updated_at %}
@@ -163,13 +170,18 @@
             source_data.*
 
         from insertions_source_data as source_data
-        left outer join snapshotted_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
-        where {{ unique_key_is_null(strategy.unique_key, 'snapshotted_data') }}
-           or (
-                {{ unique_key_is_not_null(strategy.unique_key, 'snapshotted_data') }}
-            and (
-                {{ strategy.row_changed }}
-            )
+        left anti join snapshotted_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
+
+        union all
+
+        select
+            'insert' as dbt_change_type,
+            source_data.*
+
+        from insertions_source_data as source_data
+        join snapshotted_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
+        where (
+            {{ strategy.row_changed }}
         )
 
     ),
@@ -202,8 +214,7 @@
             snapshotted_data.dbt_scd_id
 
         from snapshotted_data
-        left join deletes_source_data as source_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
-        where {{ unique_key_is_null(strategy.unique_key, 'source_data') }}
+        left anti join deletes_source_data as source_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
     )
     {%- endif %}
 
@@ -278,13 +289,18 @@
             source_data.*
 
         from insertions_source_data as source_data
-        left outer join snapshotted_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
-        where {{ unique_key_is_null(strategy.unique_key, 'snapshotted_data') }}
-           or (
-                {{ unique_key_is_not_null(strategy.unique_key, 'snapshotted_data') }}
-            and (
-                {{ strategy.row_changed }}
-            )
+        left anti join snapshotted_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
+
+        union all
+
+        select
+            'insert' as dbt_change_type,
+            source_data.*
+
+        from insertions_source_data as source_data
+        join snapshotted_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
+        where (
+            {{ strategy.row_changed }}
         )
 
     ),
@@ -317,8 +333,7 @@
             snapshotted_data.dbt_scd_id
 
         from snapshotted_data
-        left join deletes_source_data as source_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
-        where {{ unique_key_is_null(strategy.unique_key, 'source_data') }}
+        left anti join deletes_source_data as source_data on {{ unique_key_join_on(strategy.unique_key, 'snapshotted_data', 'source_data') }}
     )
     {%- endif %}
 
