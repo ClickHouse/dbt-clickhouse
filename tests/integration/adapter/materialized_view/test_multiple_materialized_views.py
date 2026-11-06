@@ -288,3 +288,111 @@ class TestUpdateMultipleMV:
         assert len(result) == 2
         assert result[0][0] == "crash override"
         assert result[1][0] == "zero cool"
+
+
+EPHEMERAL_PEOPLE_MODEL = """
+{{ config(materialized='ephemeral') }}
+
+select id, name, department from {{ source('raw', 'people') }}
+"""
+
+# Each view selects from the ephemeral model, so each one needs the CTE that dbt injects for it.
+# dbt injects the CTE only once, either before the first marker or into the `with` of the first
+# view, thus the views that follow do not have it.
+MULTIPLE_MV_FROM_EPHEMERAL_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(id)',
+) }}
+
+{% if var('run_type', '') == '' %}
+
+--mv1:begin
+select id, name, 'engineer' as role
+from {{ ref('people_ephemeral') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+select id, name, 'seller' as role
+from {{ ref('people_ephemeral') }}
+where department = 'sales'
+--mv2:end
+
+{% elif var('run_type', '') == 'first_view_with_cte' %}
+
+--mv1:begin
+with engineers as (
+    select id, name from {{ ref('people_ephemeral') }} where department = 'engineering'
+)
+select id, name, 'engineer' as role
+from engineers
+--mv1:end
+
+union all
+
+--mv2:begin
+select id, name, 'seller' as role
+from {{ ref('people_ephemeral') }}
+where department = 'sales'
+--mv2:end
+
+{% endif %}
+"""
+
+
+class TestMultipleMVFromEphemeral:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "people_ephemeral.sql": EPHEMERAL_PEOPLE_MODEL,
+            "roles.sql": MULTIPLE_MV_FROM_EPHEMERAL_MODEL,
+        }
+
+    @pytest.mark.parametrize("run_type", ["", "first_view_with_cte"])
+    def test_create(self, project, run_type):
+        schema = quote_identifier(project.test_schema)
+        run_dbt(["seed"])
+        run_vars = json.dumps({"run_type": run_type})
+        run_dbt(["run", "--full-refresh", "--vars", run_vars])
+        # a second run updates the queries of the existing views
+        run_dbt(["run", "--vars", run_vars])
+
+        check_relation_types(
+            project.adapter,
+            {
+                "roles_mv1": "materialized_view",
+                "roles_mv2": "materialized_view",
+                "roles": "table",
+            },
+        )
+
+        # both views read from the ephemeral model, so new rows reach the target table
+        project.run_sql(
+            f"""
+        insert into {schema}.people ("id", "name", "age", "department")
+            values (4000,'Dave',40,'sales'), (9999,'Eugene',40,'engineering');
+        """
+        )
+
+        result = project.run_sql(f"select * from {schema}.roles order by id", fetch="all")
+        assert result == [
+            (1000, 'Alfie', 'seller'),
+            (1231, 'Dade', 'engineer'),
+            (2000, 'Bill', 'seller'),
+            (3000, 'Charlie', 'seller'),
+            (4000, 'Dave', 'seller'),
+            (6666, 'Ksenia', 'engineer'),
+            (8888, 'Kate', 'engineer'),
+            (9999, 'Eugene', 'engineer'),
+        ]

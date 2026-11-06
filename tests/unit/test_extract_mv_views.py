@@ -1,3 +1,5 @@
+import pytest
+
 MULTIPLE_MV_SQL = """
 --mv1:begin
 select id, name from people where department = 'engineering'
@@ -105,3 +107,123 @@ select 1
 """
 
         assert macros.call('clickhouse__extract_mv_views', sql) == {'mv': sql}
+
+
+EPHEMERAL_CTE = " __dbt__cte__staged as (\nselect id, name, department from people\n)"
+
+
+class TestExtractMvViewsWithEphemeralCtes:
+    """dbt injects the CTE of an ephemeral model one time only, before the first marker or
+    into the `with` clause of the first view. Each view must have the CTE."""
+
+    def _call(self, macros, sql, ctes=(EPHEMERAL_CTE,)):
+        model = {
+            'extra_ctes': [{'id': f'model.test.cte_{i}', 'sql': c} for i, c in enumerate(ctes)]
+        }
+        return macros.call('clickhouse__extract_mv_views', sql, context={'model': model})
+
+    def test_cte_injected_before_first_marker_is_added_to_each_view(self, macros):
+        sql = f"""
+with{EPHEMERAL_CTE} --mv1:begin
+select id from __dbt__cte__staged where department = 'engineering'
+--mv1:end
+union all
+--mv2:begin
+select id from __dbt__cte__staged where department = 'sales'
+--mv2:end
+"""
+
+        assert self._call(macros, sql) == {
+            'mv1': f"with{EPHEMERAL_CTE} \nselect id from __dbt__cte__staged where department = 'engineering'\n",
+            'mv2': f"with{EPHEMERAL_CTE} \nselect id from __dbt__cte__staged where department = 'sales'\n",
+        }
+
+    def test_cte_injected_into_first_view_is_added_to_the_others(self, macros):
+        sql = f"""
+--mv1:begin
+with{EPHEMERAL_CTE}, engineers as (select id from __dbt__cte__staged where department = 'engineering')
+select id from engineers
+--mv1:end
+union all
+--mv2:begin
+select id from __dbt__cte__staged where department = 'sales'
+--mv2:end
+"""
+
+        views = self._call(macros, sql)
+
+        assert views['mv1'] == (
+            f'\nwith{EPHEMERAL_CTE}, engineers as '
+            "(select id from __dbt__cte__staged where department = 'engineering')\n"
+            'select id from engineers\n'
+        )
+        assert views['mv2'] == (
+            f"with{EPHEMERAL_CTE} \nselect id from __dbt__cte__staged where department = 'sales'\n"
+        )
+
+    def test_cte_is_added_to_with_clause_of_a_later_view(self, macros):
+        sql = f"""
+with{EPHEMERAL_CTE} --mv1:begin
+select id from __dbt__cte__staged
+--mv1:end
+union all
+--mv2:begin
+-- sales only
+WITH sellers as (select id from __dbt__cte__staged where department = 'sales')
+select id from sellers
+--mv2:end
+"""
+
+        assert self._call(macros, sql)['mv2'] == (
+            f'\n-- sales only\nWITH{EPHEMERAL_CTE},'
+            " sellers as (select id from __dbt__cte__staged where department = 'sales')\n"
+            'select id from sellers\n'
+        )
+
+    @pytest.mark.parametrize('comment', ['/* sales only */', '/* sales\n only */', '# sales only'])
+    def test_cte_is_added_to_with_clause_after_other_comments(self, macros, comment):
+        sql = f"""
+with{EPHEMERAL_CTE} --mv1:begin
+select id from __dbt__cte__staged
+--mv1:end
+union all
+--mv2:begin
+{comment}
+WITH sellers as (select id from __dbt__cte__staged where department = 'sales')
+select id from sellers
+--mv2:end
+"""
+
+        assert self._call(macros, sql)['mv2'] == (
+            f'\n{comment}\nWITH{EPHEMERAL_CTE},'
+            " sellers as (select id from __dbt__cte__staged where department = 'sales')\n"
+            'select id from sellers\n'
+        )
+
+    def test_several_ctes_are_added_in_dbt_order(self, macros):
+        other_cte = ' __dbt__cte__other as (\nselect 1 as id\n)'
+        sql = f"""
+with{EPHEMERAL_CTE}, {other_cte} --mv1:begin
+select id from __dbt__cte__staged
+--mv1:end
+--mv2:begin
+select id from __dbt__cte__other
+--mv2:end
+"""
+
+        views = self._call(macros, sql, ctes=(EPHEMERAL_CTE, other_cte))
+
+        assert (
+            views['mv2'] == f'with{EPHEMERAL_CTE}, {other_cte} \nselect id from __dbt__cte__other\n'
+        )
+
+    def test_model_without_markers_is_unchanged(self, macros):
+        sql = f'with{EPHEMERAL_CTE} select id from __dbt__cte__staged'
+
+        assert self._call(macros, sql) == {'mv': sql}
+
+    def test_views_are_unchanged_without_ephemeral_models(self, macros):
+        assert self._call(macros, MULTIPLE_MV_SQL, ctes=()) == {
+            'mv1': "\nselect id, name from people where department = 'engineering'\n",
+            'mv2': "\nselect id, name from people where department = 'sales'\n",
+        }

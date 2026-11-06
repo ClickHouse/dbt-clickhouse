@@ -36,6 +36,10 @@
   Each key becomes a suffix on the model's relation, so marker `mv1` creates the
   view `<model>_mv1`. A model without any markers yields the single key `mv`
   covering the whole sql, yielding one `<model>_mv` view.
+
+  dbt injects the CTEs of ephemeral models only once in the sql, either before the
+  first marker or into the `with` clause of the first view. Each view that does not
+  contain them gets them added, so that every view can select from an ephemeral model.
 -#}
 {% macro clickhouse__extract_mv_views(sql) %}
   {#- the name must be a single token. If the pattern permits a space in the name, an
@@ -44,8 +48,14 @@
 
   {% set views = {} %}
   {% if view_names %}
+    {#- dbt joins the injected CTEs with ', ' (see `inject_ctes_into_sql` in dbt-core) -#}
+    {%- set extra_ctes = model.get('extra_ctes', []) if model is defined and model is mapping else [] -%}
+    {%- set ctes_sql = extra_ctes | map(attribute='sql') | join(', ') -%}
     {% for view_name in view_names %}
       {% set view_sql = modules.re.findall('--(?:\\s)?' + view_name + ':begin(.*)--(?:\\s)?' + view_name + ':end', sql, modules.re.DOTALL)[0] %}
+      {%- if ctes_sql and ctes_sql not in view_sql -%}
+        {%- set view_sql = clickhouse__add_ctes_to_view_sql(view_sql, ctes_sql) -%}
+      {%- endif -%}
       {%- set _ = views.update({view_name: view_sql}) -%}
     {% endfor %}
   {% else %}
@@ -53,6 +63,21 @@
   {% endif %}
 
   {{ return(views) }}
+{% endmacro %}
+
+{#-
+  Add `ctes_sql` (one or more `name as (...)` items) to the `with` clause of `view_sql`.
+  If the view has no `with` clause, add one before the query.
+-#}
+{% macro clickhouse__add_ctes_to_view_sql(view_sql, ctes_sql) %}
+  {#- the `with` keyword can follow white space and `--`, `#` and `/* */` comments -#}
+  {%- set with_match = modules.re.match('(?s)((?:\\s|--[^\\n]*(?:\\n|$)|#[^\\n]*(?:\\n|$)|/\\*.*?\\*/)*with(?:\\s+recursive)?)\\s', view_sql, modules.re.IGNORECASE) -%}
+  {%- if with_match -%}
+    {%- set with_clause = with_match.group(1) -%}
+    {{ return(with_clause ~ ' ' ~ ctes_sql | trim ~ ',' ~ view_sql[with_clause | length:]) }}
+  {%- else -%}
+    {{ return('with ' ~ ctes_sql | trim ~ ' ' ~ view_sql) }}
+  {%- endif -%}
 {% endmacro %}
 
 {% macro strip_identifier_quotes(ident) %}
