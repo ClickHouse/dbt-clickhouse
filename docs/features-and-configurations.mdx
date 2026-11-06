@@ -90,14 +90,17 @@ When using a ClickHouse cluster, you need to consider two things:
 
 #### Cluster Setting {#cluster-setting}
 
-The `cluster` setting in profile enables dbt-clickhouse to run against a ClickHouse cluster. If `cluster` is set in the profile, **all models will be created with the `ON CLUSTER` clause** by default—except for those using a **Replicated** engine. This includes:
+The `cluster` setting in profile enables dbt-clickhouse to run against a ClickHouse cluster.
+If `cluster` is set in the profile, DDL is executed with the `ON CLUSTER` clause by default.
+This includes:
 
 - Database creation
 - View materializations
 - Table and incremental materializations
 - Distributed materializations
 
-Replicated engines will **not** include the `ON CLUSTER` clause, as they're designed to manage replication internally.
+On a Replicated database (`database_engine: Replicated`), table and view DDL is executed **without** the `ON CLUSTER` clause, as the database engine replicates it to all replicas itself.
+Database creation still uses `ON CLUSTER`, so the database exists on every node.
 
 To **opt out** of cluster-based creation for a specific model, add the `disable_on_cluster` config:
 
@@ -110,9 +113,6 @@ To **opt out** of cluster-based creation for a specific model, add the `disable_
 }}
 
 ```
-
-table and incremental materializations with non-replicated engine won't be affected by `cluster` setting (model would
-be created on the connected node only).
 
 **Compatibility**
 
