@@ -1,5 +1,8 @@
 ### Unreleased
 
+#### New Features
+* Add an opt-in `create_if_not_exists` model config for first-creation races when concurrent runs build the same non-replicated table. It defaults to disabled and cannot be combined with contracts, projections, or indexes ([#722](https://github.com/ClickHouse/dbt-clickhouse/pull/722)).
+
 #### Improvements
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 
