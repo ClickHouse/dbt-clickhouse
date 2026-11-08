@@ -264,18 +264,21 @@
         {% endcall %}
     {% endif %}
 
-    {# Get the parts from the cluster table, since the partitions between shards may not overlap due to distribution #}
+    {#- Read the partitions from the staging table itself, not from system.parts. system.parts is
+        each replica's own view of part metadata; on a multi-replica service the probe can reach a
+        replica that has not yet synced the staging insert and report no partitions, which silently
+        skips the swap. On Shared engines embed select_sequential_consistency so the read syncs
+        part metadata first. The cluster() read covers shards whose partitions do not overlap. -#}
     {% if execute %}
+      {%- set staging_settings = ' settings select_sequential_consistency = 1' if target.database_engine == 'Shared' else '' -%}
       {% set select_changed_partitions %}
-          SELECT DISTINCT partition_id
+          SELECT DISTINCT _partition_id AS partition_id
           {% if is_distributed %}
-            FROM cluster({{ adapter.get_clickhouse_cluster_name() }}, system.parts)
+            FROM cluster({{ adapter.get_clickhouse_cluster_name() }}, {{ new_data_relation }})
           {% else %}
-            FROM system.parts
+            FROM {{ new_data_relation }}
           {% endif %}
-          WHERE active
-            AND database = '{{ new_data_relation.schema }}'
-            AND table = '{{ new_data_relation.identifier }}'
+          {{- staging_settings }}
       {% endset %}
       {% set changed_partitions = run_query(select_changed_partitions).rows %}
     {% else %}
