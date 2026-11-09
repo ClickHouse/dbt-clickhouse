@@ -130,30 +130,8 @@ class ChClientWrapper(ABC):
     def query(self, sql: str, **kwargs):
         pass
 
-    def command(self, sql: str, retries: int = 1, **kwargs):
-        """Run a ClickHouse statement. Pass `retries` > 1 to retry transient
-        failures — only safe for idempotent statements."""
-        return retry_on_database_error(
-            lambda: self._command(sql, **kwargs), 'ClickHouse command', retries
-        )
-
-    def get_ch_setting(self, setting_name, retries: int = 3):
-        """Return (value, readonly) for a server setting, retrying transient
-        failures; (None, 0) when the setting could not be read."""
-        try:
-            return retry_on_database_error(
-                lambda: self._get_ch_setting(setting_name),
-                f'Reading ClickHouse setting {setting_name}',
-                retries,
-            )
-        except DbtDatabaseError as ex:
-            logger.warning(
-                f'Failed to read ClickHouse setting {setting_name} after {retries} attempts: {ex}'
-            )
-            return (None, 0)
-
     @abstractmethod
-    def _command(self, sql: str, **kwargs):
+    def command(self, sql: str, **kwargs):
         pass
 
     @abstractmethod
@@ -161,7 +139,7 @@ class ChClientWrapper(ABC):
         pass
 
     @abstractmethod
-    def _get_ch_setting(self, setting_name):
+    def get_ch_setting(self, setting_name):
         pass
 
     def database_dropped(self, database: str):
@@ -203,16 +181,22 @@ class ChClientWrapper(ABC):
         with _nd_mutation_lock:
             probe = _nd_mutation_probe
             if probe is None:
-                probe = self.get_ch_setting(ND_MUTATION_SETTING)
+                try:
+                    probe = retry_on_database_error(
+                        lambda: self.get_ch_setting(ND_MUTATION_SETTING),
+                        f'Reading ClickHouse setting {ND_MUTATION_SETTING}',
+                        attempts=3,
+                    )
+                except DbtDatabaseError as ex:
+                    logger.warning(
+                        f'Could not read the {ND_MUTATION_SETTING} setting from the server, '
+                        f'lightweight deletes are disabled for this connection only: {ex}'
+                    )
+                    probe = (None, 0)
+                # A failed probe is not cached, so the next connection probes again
+                # instead of poisoning the whole process.
                 if probe[0] is not None:
                     _nd_mutation_probe = probe
-                else:
-                    # Failed probe: leave the cache empty so the next connection
-                    # probes again instead of poisoning the whole process.
-                    logger.warning(
-                        f'Could not read the {ND_MUTATION_SETTING} setting from the server; '
-                        f'lightweight deletes are disabled for this connection only'
-                    )
             nd_mutations, nd_mutations_read_only = probe
         if nd_mutations is None:
             if requested:
@@ -230,10 +214,14 @@ class ChClientWrapper(ABC):
                 logger.warning(nd_mutations_not_enabled_warning)
             else:
                 # A failure here silently downgrades the connection to the legacy
-                # incremental strategy, so command() retries transient errors and
-                # the final error is logged for diagnosis.
+                # incremental strategy, so transient errors are retried and the
+                # final error is logged for diagnosis.
                 try:
-                    self.command(f'SET {ND_MUTATION_SETTING} = 1', retries=3)
+                    retry_on_database_error(
+                        lambda: self.command(f'SET {ND_MUTATION_SETTING} = 1'),
+                        f'Enabling {ND_MUTATION_SETTING}',
+                        attempts=3,
+                    )
                     self._conn_settings[ND_MUTATION_SETTING] = '1'
                     nd_mutations = True
                 except DbtDatabaseError as ex:

@@ -24,7 +24,7 @@ class ChNativeClient(ChClientWrapper):
             err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
-    def _command(self, sql, **kwargs):
+    def command(self, sql, **kwargs):
         try:
             result = self._client.execute(sql, **kwargs)
             if len(result) and len(result[0]):
@@ -45,7 +45,7 @@ class ChNativeClient(ChClientWrapper):
             err_msg = hide_stack_trace(ex)
             raise DbtDatabaseError(err_msg) from ex
 
-    def _get_ch_setting(self, setting_name):
+    def get_ch_setting(self, setting_name):
         try:
             result = self._client.execute(
                 f"SELECT value, readonly FROM system.settings WHERE name = '{setting_name}'"

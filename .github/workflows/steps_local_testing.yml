@@ -57,7 +57,7 @@ jobs:
           pip3 install --upgrade pip
           pip3 install . --group dev
 
-      # -n 4 --dist loadscope: run test classes concurrently on 4 xdist workers.
+      # --dist loadscope: run test classes concurrently on xdist workers.
       # loadscope is required — the project/schema fixtures are class-scoped.
       # The per-test timeout is higher than in sequential runs because tests slow
       # down under the extra load on the shared runner.

@@ -37,7 +37,7 @@ jobs:
           pip3 install --upgrade pip
           pip3 install . --group dev
 
-      # -n 1 --dist loadscope: run test classes concurrently on 3 xdist workers
+      # --dist loadscope: run test classes concurrently on xdist workers
       # (loadscope is required — the project/schema fixtures are class-scoped).
       - name: Run HTTP tests
         env:
