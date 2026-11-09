@@ -16,6 +16,7 @@
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
 * Prevent refreshable materialized views from racing or duplicating their initial population. With `catchup=True` (the default) the catchup now runs before the view is created and the view is created with `EMPTY`, so only dbt loads the initial data; with `catchup=False` ClickHouse keeps running the initial refresh as before ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
 * Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
+* Distributed models now disable `replicated_deduplication_window` on their local tables unless `allow_automatic_deduplication` is set, like all other table models ([#777](https://github.com/ClickHouse/dbt-clickhouse/pull/777)).
 
 
 ### Release [1.10.3], 2026-09-15

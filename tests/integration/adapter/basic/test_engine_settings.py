@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from dbt.tests.util import relation_from_name, run_dbt
 
@@ -52,3 +54,29 @@ class TestEngineSettings:
         # Check Memory engine - setting should be ignored
         memory_engine = get_table_engine(project, 'memory')
         assert 'replicated_deduplication_window' not in memory_engine
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestDistributedEngineSettings:
+    @pytest.fixture(scope="class")
+    def models(self):
+        configs = {
+            'flag_table': "materialized='table', is_distributed=True",
+            'flag_incremental': "materialized='incremental', is_distributed=True",
+            'deprecated_table': "materialized='distributed_table'",
+            'deprecated_incremental': "materialized='distributed_incremental'",
+        }
+        return {
+            f"{name}.sql": f"{{{{ config({config}, engine='MergeTree()', order_by='id') }}}}\n"
+            "select 1 as id"
+            for name, config in configs.items()
+        }
+
+    @pytest.mark.parametrize(
+        'model', ('flag_table', 'flag_incremental', 'deprecated_table', 'deprecated_incremental')
+    )
+    def test_local_table_disables_replicated_deduplication_window(self, project, model):
+        run_dbt(["run", "--select", model])
+        assert 'replicated_deduplication_window' in get_table_engine(project, f'{model}_local')

@@ -572,10 +572,8 @@ class ClickHouseAdapter(SQLAdapter):
     def get_model_settings(self, model, engine='MergeTree'):
         settings = model['config'].get('settings', {})
         materialization_type = model['config'].get('materialized')
-        if materialization_type in ('table', 'incremental') and self.is_distributed(
-            model['config']
-        ):
-            materialization_type = f'distributed_{materialization_type}'
+        if materialization_type in ('distributed_table', 'distributed_incremental'):
+            materialization_type = materialization_type.removeprefix('distributed_')
         conn = self.connections.get_if_exists()
         conn.handle.update_model_settings(settings, materialization_type)
         settings = self.filter_settings_by_engine(settings, engine)
