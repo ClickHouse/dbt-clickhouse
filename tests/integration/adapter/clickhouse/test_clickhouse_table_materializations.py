@@ -217,14 +217,16 @@ class TestDeprecatedDistributedMaterializations:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            f"deprecated_{materialized}.sql": f"{{{{ config(materialized='distributed_{materialized}') }}}}\n"
-            "select 1 as id"
-            for materialized in ('table', 'incremental')
+            "deprecated_table.sql": "{{ config(materialized='distributed_table') }}\nselect 1 as id",
+            "deprecated_incremental.sql": "{{ config(materialized='distributed_incremental', "
+            "incremental_strategy='append') }}\n"
+            "select 1 as id {% if is_incremental() %} union all select 2 as id {% endif %}",
         }
 
     def test_deprecated_materializations(self, project):
         _, log_output = run_dbt_and_capture(["run"])
-        for materialized in ('table', 'incremental'):
+        run_dbt(["run"])
+        for materialized, expected_rows in (('table', 1), ('incremental', 3)):
             assert (
                 f"model.test.deprecated_{materialized}: configuring a distributed model with "
                 f"materialized='distributed_{materialized}' is deprecated" in log_output
@@ -235,6 +237,28 @@ class TestDeprecatedDistributedMaterializations:
                 fetch="one",
             )
             assert engine[0] == 'Distributed'
+            rows = project.run_sql(
+                f"select count() from {project.test_schema}.deprecated_{materialized}",
+                fetch="one",
+            )
+            assert rows[0] == expected_rows
+
+
+class TestDeprecatedDistributedIncrementalRejectsMicrobatch:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "deprecated_microbatch.sql": "{{ config(materialized='distributed_incremental', "
+            "incremental_strategy='microbatch', unique_key='id') }}\nselect 1 as id",
+        }
+
+    def test_microbatch_rejected(self, project):
+        result = run_dbt(["run"], expect_pass=False)
+        assert result[0].status == 'error'
+        assert (
+            "incremental_strategy='microbatch' requires materialized='incremental' "
+            "with is_distributed=True" in result[0].message
+        )
 
 
 @pytest.mark.skipif(

@@ -433,8 +433,9 @@ Distributed models require the `cluster` profile setting.
 The local table names follow the `local_suffix` and `local_db_prefix` profile settings.
 Other materializations ignore `is_distributed`, so it can be set for a whole folder in `dbt_project.yml`.
 
-Configuring a distributed model with `materialized='distributed_table'` or `materialized='distributed_incremental'` is deprecated.
-That configuration keeps working and builds the same model, but logs a deprecation warning.
+`materialized='distributed_table'` and `materialized='distributed_incremental'` are deprecated aliases for `materialized='table'` and `materialized='incremental'` with `is_distributed=True`.
+They keep working and build the same model, but log a deprecation warning.
+The `microbatch` strategy requires `materialized='incremental'`, because dbt only runs models in batches for that materialization.
 When moving an incremental model with an enforced contract to `is_distributed=True`, set `on_schema_change` as dbt requires for [incremental models with contracts](https://docs.getdbt.com/reference/resource-configs/contract#incremental-models-and-on_schema_change).
 
 dbt-clickhouse queries automatically include the setting `insert_distributed_sync = 1` so that downstream incremental operations execute correctly.

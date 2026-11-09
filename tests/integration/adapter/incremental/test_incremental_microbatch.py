@@ -6,7 +6,8 @@ from dbt.tests.adapter.incremental.test_incremental_microbatch import BaseMicrob
 _input_model_sql = """
 {{
     config(
-        materialized='%s',
+        materialized='table',
+        is_distributed=%s,
         event_time='event_time'
     )
 }}
@@ -37,7 +38,7 @@ class TestMicrobatchIncremental(BaseMicrobatch):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "input_model.sql": _input_model_sql % "table",
+            "input_model.sql": _input_model_sql % "False",  # `is_distributed` param
             "microbatch_model.sql": _microbatch_model_sql % "False",  # `is_distributed` param
         }
 
@@ -56,7 +57,7 @@ class TestMicrobatchDistributedIncremental(TestMicrobatchIncremental):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "input_model.sql": _input_model_sql % "distributed_table",
+            "input_model.sql": _input_model_sql % "True",  # `is_distributed` param
             "microbatch_model.sql": _microbatch_model_sql % "True",  # `is_distributed` param
         }
 
