@@ -1,10 +1,15 @@
 ### Unreleased
 
+#### Improvements
+* `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
+
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 
 #### Bugs
-* The `delete+insert`, `microbatch` and `insert_overwrite` incremental strategies now drop their `<model>__dbt_new_data_<invocation_id>` staging table when the run fails after creating it, instead of leaving one orphaned table per failed run. The original error is still reported ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
+* The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
+* Distributed models no longer fail with `cluster setting in dbt profile must be set` on a `Replicated` database (`database_engine: Replicated` with `cluster` set in the profile) ([#769](https://github.com/ClickHouse/dbt-clickhouse/pull/769)).
 * `distributed_incremental` no longer creates a temporary view to read the model's structure; it is taken from the model query, which the materialization already had. Every run used to leave the view behind, and the run no longer touches that name at all, so a `<model>__dbt_view_tmp` left by an earlier version has to be dropped once by hand ([#754](https://github.com/ClickHouse/dbt-clickhouse/pull/754)).
 * Apply a materialized view model's `query_settings` to the view's own query, not only to the initial fill of the target table, so later inserts and refreshes no longer run under the server defaults. Existing views pick up the clause on the next `dbt run`, which already reissues the view query ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
 * Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
