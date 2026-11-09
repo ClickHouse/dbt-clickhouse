@@ -78,7 +78,7 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | `snapshot` | Type 2 slowly changing dimensions. | <Badge color="green">Supported</Badge> | |
 | `seed` | Load CSVs as tables. | <Badge color="green">Supported</Badge> | Numeric column types are inferred as `Int64`/`Float64` instead of `Int32`/`Float32`; use `column_types` to set them explicitly. |
 | `ephemeral` | Inline CTE, no object created. | <Badge color="green">Supported</Badge> | |
-| `is_distributed` on `table` and `incremental` | Sharded tables behind a Distributed engine. | <Badge color="green">Supported</Badge> | Self-managed clusters with `cluster` set in the profile, as in v1. |
+| `distributed_table`, `distributed_incremental` | Sharded tables behind a Distributed engine. | <Badge color="green">Supported</Badge> | Self-managed clusters with `cluster` set in the profile, as in v1. |
 
 #### Model configuration {#parity-model-configuration}
 
