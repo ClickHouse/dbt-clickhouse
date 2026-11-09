@@ -63,8 +63,8 @@ class TestDistributedEngineSettings:
     @pytest.fixture(scope="class")
     def models(self):
         configs = {
-            'flag_table': "materialized='table', is_distributed=True",
-            'flag_incremental': "materialized='incremental', is_distributed=True",
+            'flag_table': "materialized='table', distributed=True",
+            'flag_incremental': "materialized='incremental', distributed=True",
             'deprecated_table': "materialized='distributed_table'",
             'deprecated_incremental': "materialized='distributed_incremental'",
         }

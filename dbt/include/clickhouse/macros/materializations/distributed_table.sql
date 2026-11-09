@@ -6,7 +6,7 @@
 {% macro clickhouse__warn_deprecated_distributed_config(materialized) %}
   {% do exceptions.warn(
       model.unique_id ~ ": configuring a distributed model with materialized='distributed_" ~ materialized
-      ~ "' is deprecated. Configure it with materialized='" ~ materialized ~ "' and is_distributed=True instead.") %}
+      ~ "' is deprecated. Configure it with materialized='" ~ materialized ~ "' and distributed=True instead.") %}
 {% endmacro %}
 
 {% macro clickhouse__distributed_table() %}

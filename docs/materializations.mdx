@@ -428,15 +428,15 @@ See the [dictionary tests](https://github.com/ClickHouse/dbt-clickhouse/blob/mai
 
 ## Distributed models (experimental) {#distributed-models}
 
-Set `is_distributed=True` on a `table` or `incremental` model to build it as a [Distributed](/reference/engines/table-engines/special/distributed) table over local tables on every shard.
+Set `distributed=True` on a `table` or `incremental` model to build it as a [Distributed](/reference/engines/table-engines/special/distributed) table over local tables on every shard.
 Distributed models require the `cluster` profile setting.
 The local table names follow the `local_suffix` and `local_db_prefix` profile settings.
-Other materializations ignore `is_distributed`, so it can be set for a whole folder in `dbt_project.yml`.
+Other materializations ignore `distributed`, so it can be set for a whole folder in `dbt_project.yml`.
 
-`materialized='distributed_table'` and `materialized='distributed_incremental'` are deprecated aliases for `materialized='table'` and `materialized='incremental'` with `is_distributed=True`.
+`materialized='distributed_table'` and `materialized='distributed_incremental'` are deprecated aliases for `materialized='table'` and `materialized='incremental'` with `distributed=True`.
 They keep working and build the same model, but log a deprecation warning.
 The `microbatch` strategy requires `materialized='incremental'`, because dbt only runs models in batches for that materialization.
-When moving an incremental model with an enforced contract to `is_distributed=True`, set `on_schema_change` as dbt requires for [incremental models with contracts](https://docs.getdbt.com/reference/resource-configs/contract#incremental-models-and-on_schema_change).
+When moving an incremental model with an enforced contract to `distributed=True`, set `on_schema_change` as dbt requires for [incremental models with contracts](https://docs.getdbt.com/reference/resource-configs/contract#incremental-models-and-on_schema_change).
 
 dbt-clickhouse queries automatically include the setting `insert_distributed_sync = 1` so that downstream incremental operations execute correctly.
 This could cause some distributed table inserts to run more slowly than expected.
@@ -460,7 +460,7 @@ A distributed table is built with the following steps:
 {{
     config(
         materialized='table',
-        is_distributed=True,
+        distributed=True,
         order_by='id, created_at',
         sharding_key='cityHash64(id)',
         engine='ReplacingMergeTree'
@@ -509,7 +509,7 @@ The distributed table reloads only when the full_refresh mode is enabled or the 
 {{
     config(
         materialized='incremental',
-        is_distributed=True,
+        distributed=True,
         engine='MergeTree',
         incremental_strategy='append',
         unique_key='id,created_at'

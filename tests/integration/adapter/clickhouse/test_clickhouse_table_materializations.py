@@ -111,7 +111,7 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
                 order_by='(some_date, id, name)',
                 engine='MergeTree()',
                 materialized='table',
-                is_distributed=True,
+                distributed=True,
                 settings={'allow_nullable_key': 1})
             }}
         """
@@ -257,7 +257,7 @@ class TestDeprecatedDistributedIncrementalRejectsMicrobatch:
         assert result[0].status == 'error'
         assert (
             "incremental_strategy='microbatch' requires materialized='incremental' "
-            "with is_distributed=True" in result[0].message
+            "with distributed=True" in result[0].message
         )
 
 
@@ -267,7 +267,7 @@ class TestDeprecatedDistributedIncrementalRejectsMicrobatch:
 class TestDistributedFlagFromProjectConfig:
     @pytest.fixture(scope="class")
     def project_config_update(self):
-        return {"models": {"+is_distributed": "true"}}
+        return {"models": {"+distributed": "true"}}
 
     @pytest.fixture(scope="class")
     def models(self):

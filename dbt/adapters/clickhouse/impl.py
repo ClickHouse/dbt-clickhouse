@@ -556,17 +556,17 @@ class ClickHouseAdapter(SQLAdapter):
 
     @available
     def is_distributed(self, model_config) -> bool:
-        """`is_distributed=True` on a table or incremental model, or the deprecated `materialized='distributed_*'`."""
+        """`distributed=True` on a table or incremental model, or the deprecated `materialized='distributed_*'`."""
         materialized = model_config.get('materialized') or ''
         if materialized not in ('table', 'incremental'):
             return materialized.startswith('distributed_')
         # Quoted YAML values and rendered env vars arrive as strings
-        value = model_config.get('is_distributed')
+        value = model_config.get('distributed')
         if value is None or isinstance(value, bool):
             return bool(value)
         if isinstance(value, str) and value.strip().lower() in ('true', 'false'):
             return value.strip().lower() == 'true'
-        raise DbtRuntimeError(f"Invalid value for is_distributed: {value!r}. Use true or false.")
+        raise DbtRuntimeError(f"Invalid value for distributed: {value!r}. Use true or false.")
 
     @available
     def get_model_settings(self, model, engine='MergeTree'):

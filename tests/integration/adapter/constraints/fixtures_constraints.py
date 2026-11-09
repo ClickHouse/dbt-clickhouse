@@ -294,7 +294,7 @@ distributed_wrong_order_sql = """
 {{
   config(
     materialized = "table",
-    is_distributed = True
+    distributed = True
   )
 }}
 
@@ -309,7 +309,7 @@ distributed_wrong_name_sql = """
 {{
   config(
     materialized = "table",
-    is_distributed = True
+    distributed = True
   )
 }}
 
@@ -323,7 +323,7 @@ distributed_incremental_wrong_order_sql = """
 {{
   config(
     materialized = "incremental",
-    is_distributed = True,
+    distributed = True,
     unique_key = "id",
     on_schema_change='append_new_columns'
   )
@@ -339,7 +339,7 @@ distributed_incremental_wrong_name_sql = """
 {{
   config(
     materialized = "incremental",
-    is_distributed = True,
+    distributed = True,
     unique_key = "id",
     on_schema_change='append_new_columns'
   )

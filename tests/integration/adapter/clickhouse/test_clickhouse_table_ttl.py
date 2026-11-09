@@ -79,7 +79,7 @@ DISTRIBUTED_TABLE_TTL_MODEL = """
         order_by='(id)',
         engine='MergeTree()',
         materialized='table',
-        is_distributed=True,
+        distributed=True,
         incremental_strategy='append',
         ttl='expiration_date + interval 5 seconds',
     )

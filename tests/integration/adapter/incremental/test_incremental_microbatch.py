@@ -7,7 +7,7 @@ _input_model_sql = """
 {{
     config(
         materialized='table',
-        is_distributed=%s,
+        distributed=%s,
         event_time='event_time'
     )
 }}
@@ -22,7 +22,7 @@ _microbatch_model_sql = """
 {{
     config(
         materialized='incremental',
-        is_distributed=%s,
+        distributed=%s,
         incremental_strategy='microbatch',
         unique_key='id',
         event_time='event_time',
@@ -38,8 +38,8 @@ class TestMicrobatchIncremental(BaseMicrobatch):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "input_model.sql": _input_model_sql % "False",  # `is_distributed` param
-            "microbatch_model.sql": _microbatch_model_sql % "False",  # `is_distributed` param
+            "input_model.sql": _input_model_sql % "False",  # `distributed` param
+            "microbatch_model.sql": _microbatch_model_sql % "False",  # `distributed` param
         }
 
     @pytest.fixture(scope="class")
@@ -57,8 +57,8 @@ class TestMicrobatchDistributedIncremental(TestMicrobatchIncremental):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "input_model.sql": _input_model_sql % "True",  # `is_distributed` param
-            "microbatch_model.sql": _microbatch_model_sql % "True",  # `is_distributed` param
+            "input_model.sql": _input_model_sql % "True",  # `distributed` param
+            "microbatch_model.sql": _microbatch_model_sql % "True",  # `distributed` param
         }
 
     def test_run_with_event_time(self, project, insert_two_rows_sql):

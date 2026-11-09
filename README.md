@@ -43,7 +43,7 @@ pip install dbt-clickhouse
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)
 - [x] Ephemeral materialization
-- [x] Distributed table and incremental models via `is_distributed=True` (experimental)
+- [x] Distributed table and incremental models via `distributed=True` (experimental)
 - [x] Contracts
 - [x] ClickHouse-specific column configurations (Codec, TTL...)
 - [x] ClickHouse-specific table settings (indexes, projections...)

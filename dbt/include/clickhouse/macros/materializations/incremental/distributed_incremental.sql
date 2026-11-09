@@ -2,7 +2,7 @@
   {#- dbt-core only runs microbatch in batches for materialized='incremental' -#}
   {% if config.get('incremental_strategy') == 'microbatch' %}
     {% do exceptions.raise_compiler_error(
-        model.unique_id ~ ": incremental_strategy='microbatch' requires materialized='incremental' with is_distributed=True.") %}
+        model.unique_id ~ ": incremental_strategy='microbatch' requires materialized='incremental' with distributed=True.") %}
   {% endif %}
   {% do clickhouse__warn_deprecated_distributed_config('incremental') %}
   {{ return(clickhouse__distributed_incremental()) }}

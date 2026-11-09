@@ -10,7 +10,7 @@ models:
   - name: my_model
     config:
       materialized: table
-      is_distributed: true
+      distributed: true
       grants:
         select: ["{{ env_var('DBT_TEST_USER_1') }}"]
         insert: ["{{ env_var('DBT_TEST_USER_2') }}"]
@@ -36,7 +36,7 @@ class TestDistributedTableModelGrants(BaseModelGrants):
         model_id = "model.test.my_model"
         model = manifest.nodes[model_id]
         assert model.config.materialized == "table"
-        assert model.config.get("is_distributed") is True
+        assert model.config.get("distributed") is True
         expected = {select_privilege_name: [test_users[0]], insert_privilege_name: [test_users[1]]}
         self.assert_expected_grants_match_actual(project, "my_model", expected)
 
