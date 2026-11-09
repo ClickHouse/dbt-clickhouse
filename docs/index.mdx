@@ -51,8 +51,7 @@ List of supported features:
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)
 - [x] Ephemeral materialization
-- [x] Distributed table materialization (experimental)
-- [x] Distributed incremental materialization (experimental)
+- [x] Distributed table and incremental models via `distributed=True` (experimental)
 - [x] Dictionary materialization (experimental)
 - [x] Contracts
 - [x] ClickHouse-specific column configurations (Codec, TTL...)
@@ -166,7 +165,7 @@ Starting with dbt-clickhouse 1.10.1, the [`dbt clone`](https://docs.getdbt.com/r
 Models that can't be cloned this way fall back to dbt's default behavior of creating a view pointing to the source relation:
 
 - Tables using non-MergeTree engines
-- Distributed materializations
+- [Distributed models](/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#distributed-models)
 
 For materialized view models, only the target table is cloned; the materialized view itself is created on top of the cloned table.
 
