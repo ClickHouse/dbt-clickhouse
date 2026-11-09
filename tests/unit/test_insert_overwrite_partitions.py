@@ -24,9 +24,7 @@ def _relation(schema: str, identifier: str) -> SandboxSafeMock:
 class _Run:
     """The dbt context for one insert_overwrite run. Records every query and statement."""
 
-    def __init__(
-        self, partition_ids: List[str], database_engine: str = '', cluster: str | None = None
-    ) -> None:
+    def __init__(self, partition_ids: List[str], cluster: str | None = None) -> None:
         self.queries: List[str] = []
         self.statements: Dict[str, str] = {}
         self.partition_ids = partition_ids
@@ -39,7 +37,6 @@ class _Run:
         self.is_distributed = cluster is not None
         self.context: Dict[str, Any] = {
             'adapter': adapter,
-            'target': SandboxSafeMock(database_engine=database_engine),
             'this': target,
             'existing_relation': target,
             'sql': 'select 1',
@@ -83,18 +80,6 @@ class TestInsertOverwritePartitions:
         assert f'FROM {STAGING}' in run.queries[0]
         assert 'system.parts' not in run.queries[0]
 
-    def test_shared_engine_embeds_sequential_consistency(self, macros):
-        run = _Run(['202611'], database_engine='Shared')
-        run.call(macros)
-
-        assert 'settings select_sequential_consistency = 1' in run.queries[0]
-
-    def test_other_engines_do_not_embed_sequential_consistency(self, macros):
-        run = _Run(['202611'], database_engine='')
-        run.call(macros)
-
-        assert 'select_sequential_consistency' not in run.queries[0]
-
     def test_every_returned_partition_is_replaced(self, macros):
         run = _Run(['202610', '202611'])
         run.call(macros)
@@ -112,13 +97,12 @@ class TestInsertOverwritePartitions:
 
     def test_distributed_reads_every_shard_of_the_staging_table(self, macros):
         """Shards may hold different partitions, so the read spans the cluster."""
-        run = _Run(['p1', 'p3'], database_engine='Shared', cluster='test_shard')
+        run = _Run(['p1', 'p3'], cluster='test_shard')
         run.call(macros)
 
         probe = run.queries[0]
         assert f'FROM cluster(test_shard, {STAGING})' in probe
         assert 'system.parts' not in probe
-        assert 'settings select_sequential_consistency = 1' in probe
 
         swap = run.statements['replace_partitions']
         assert 'alter table `test_db`.`target_table_local`' in swap
