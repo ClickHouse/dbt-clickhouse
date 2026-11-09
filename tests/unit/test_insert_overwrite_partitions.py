@@ -24,14 +24,19 @@ def _relation(schema: str, identifier: str) -> SandboxSafeMock:
 class _Run:
     """The dbt context for one insert_overwrite run. Records every query and statement."""
 
-    def __init__(self, partition_ids: List[str], database_engine: str = '') -> None:
+    def __init__(
+        self, partition_ids: List[str], database_engine: str = '', cluster: str | None = None
+    ) -> None:
         self.queries: List[str] = []
         self.statements: Dict[str, str] = {}
         self.partition_ids = partition_ids
         target = _relation('test_db', 'target_table')
         adapter = SandboxSafeMock()
-        adapter.get_clickhouse_cluster_name.return_value = None
+        adapter.get_clickhouse_cluster_name.return_value = cluster
+        adapter.get_clickhouse_local_suffix.return_value = '_local'
+        adapter.get_clickhouse_local_db_prefix.return_value = ''
         adapter.is_at_or_after_version.return_value = False
+        self.is_distributed = cluster is not None
         self.context: Dict[str, Any] = {
             'adapter': adapter,
             'target': SandboxSafeMock(database_engine=database_engine),
@@ -43,6 +48,7 @@ class _Run:
             'run_query': self.run_query,
             'statement': self.statement,
             'drop_relation_if_exists': lambda relation: '',
+            'create_distributed_local_table': lambda *args, **kwargs: '',
             'get_create_table_as_sql': lambda temporary, relation, sql: (
                 f'create table {relation} as {sql}'
             ),
@@ -61,7 +67,7 @@ class _Run:
             'clickhouse__incremental_insert_overwrite',
             self.context['existing_relation'],
             ['toYYYYMM(ts)'],
-            False,
+            self.is_distributed,
             context=self.context,
         )
 
@@ -103,3 +109,18 @@ class TestInsertOverwritePartitions:
         run.call(macros)
 
         assert 'replace_partitions' not in run.statements
+
+    def test_distributed_reads_every_shard_of_the_staging_table(self, macros):
+        """Shards may hold different partitions, so the read spans the cluster."""
+        run = _Run(['p1', 'p3'], database_engine='Shared', cluster='test_shard')
+        run.call(macros)
+
+        probe = run.queries[0]
+        assert f'FROM cluster(test_shard, {STAGING})' in probe
+        assert 'system.parts' not in probe
+        assert 'settings select_sequential_consistency = 1' in probe
+
+        swap = run.statements['replace_partitions']
+        assert 'alter table `test_db`.`target_table_local`' in swap
+        assert "replace partition id 'p1'" in swap
+        assert "replace partition id 'p3'" in swap
