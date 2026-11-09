@@ -1,3 +1,4 @@
+import uuid
 from typing import List
 
 import clickhouse_connect
@@ -128,6 +129,7 @@ class ChHttpClient(ChClientWrapper):
                 client_cert=credentials.client_cert,
                 client_cert_key=credentials.client_cert_key,
                 query_limit=0,
+                session_id=f'dbt::{uuid.uuid4()}',
                 settings=self._conn_settings,
                 **kwargs,
             )
