@@ -57,7 +57,7 @@
   {% else %}
     {% set column_changes = none %}
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
+    {% set incremental_predicates = config.get('predicates') or config.get('incremental_predicates') or [] %}
     {% set partition_by = config.get('partition_by') %}
     {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
@@ -218,25 +218,38 @@
       {% endcall %}
     {% endif %}
 
-    {% call statement('delete_existing_data') %}
-      {#- The delete mutation may run on a replica that has not yet synced the new data;
-          embedding the setting in the subquery makes it read a fresh snapshot. -#}
-      {%- set subquery_settings = ' settings select_sequential_consistency = 1' if target.database_engine == 'Shared' else '' -%}
-      {% if is_distributed %}
-          {% set existing_local = clickhouse_local_relation(this, existing_relation) if existing_relation is not none else none %}
-            delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }}{{ subquery_settings }})
-      {% else %}
-            delete from {{ existing_relation }} where ({{ unique_key }}) in (select {{ unique_key }}
-                                          from {{ inserting_relation }}{{ subquery_settings }})
-      {% endif %}
-      {%- if incremental_predicates %}
-        {% for predicate in incremental_predicates %}
-            and {{ predicate }}
-        {% endfor %}
-      {%- endif -%}
+    {%- set predicates_sql -%}
+      {%- for predicate in incremental_predicates %} and {{ predicate }}{% endfor -%}
+    {%- endset -%}
+
+    {#- A lightweight delete is a mutation over every part, which waits for running merges even when no row
+        matches, so skip it when no existing row would be deleted. -#}
+    {%- set rows_to_delete_query -%}
+      select 1 from {{ existing_relation }}
+      where ({{ unique_key }}) {{ 'global in' if is_distributed else 'in' }} (select {{ unique_key }} from {{ inserting_relation }})
+        {{- predicates_sql }}
+      limit 1
       {{ adapter.get_model_query_settings(model) }}
-    {% endcall %}
+    {%- endset -%}
+
+    {% if run_query(rows_to_delete_query).rows | length > 0 %}
+      {% call statement('delete_existing_data') %}
+        {#- The delete mutation may run on a replica that has not yet synced the new data;
+            embedding the setting in the subquery makes it read a fresh snapshot. -#}
+        {%- set subquery_settings = ' settings select_sequential_consistency = 1' if target.database_engine == 'Shared' else '' -%}
+        {% if is_distributed %}
+          {% set existing_local = clickhouse_local_relation(this, existing_relation) if existing_relation is not none else none %}
+          delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }}
+        {%- else %}
+          delete from {{ existing_relation }}
+        {%- endif %}
+        where ({{ unique_key }}) in (select {{ unique_key }} from {{ inserting_relation }}{{ subquery_settings }})
+          {{- predicates_sql }}
+        {{ adapter.get_model_query_settings(model) }}
+      {% endcall %}
+    {% else %}
+      {{ log('No existing rows match the new data, skipping the lightweight delete') }}
+    {% endif %}
 
     {%- set dest_columns = adapter.get_columns_in_relation(existing_relation) -%}
     {%- set dest_cols_csv = dest_columns | map(attribute='quoted') | join(', ') -%}

@@ -86,7 +86,7 @@
     {% endif %}
 
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
+    {% set incremental_predicates = config.get('predicates') or config.get('incremental_predicates') or [] %}
     {% set partition_by = config.get('partition_by') %}
     {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
