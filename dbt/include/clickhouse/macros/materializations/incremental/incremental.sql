@@ -218,8 +218,11 @@
       {% endcall %}
     {% endif %}
 
+    {#- One predicate per line, so a trailing `--` comment in a predicate cannot swallow the next one. -#}
     {%- set predicates_sql -%}
-      {%- for predicate in incremental_predicates %} and {{ predicate }}{% endfor -%}
+      {%- for predicate in incremental_predicates %}
+        and {{ predicate }}
+      {%- endfor -%}
     {%- endset -%}
 
     {#- A lightweight delete is a mutation over every part, which waits for running merges even when no row
