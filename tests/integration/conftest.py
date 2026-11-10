@@ -1,4 +1,5 @@
 import os
+import secrets
 import sys
 import time
 import timeit
@@ -9,6 +10,7 @@ from subprocess import PIPE, Popen
 import pytest
 import requests
 from clickhouse_connect import get_client
+from clickhouse_connect.driver.exceptions import OperationalError
 
 
 def _connection_settings():
@@ -53,6 +55,20 @@ def _get_test_client(conn):
     )
 
 
+def _command_with_retry(client, sql, parameters, attempts=3):
+    """Run an idempotent statement, retrying transport errors on the same client
+    (its connection pool reconnects). clickhouse-connect only replays read-only
+    requests after a remotely closed connection, and the cloud endpoint closes idle
+    ones, so a DROP USER at class teardown could fail with RemoteDisconnected."""
+    for attempt in range(1, attempts + 1):
+        try:
+            return client.command(sql, parameters)
+        except OperationalError:
+            if attempt == attempts:
+                raise
+            time.sleep(0.5 * attempt)
+
+
 # Creates the DBT_TEST_USER_1..3 ClickHouse users for the requesting test class
 # and exports their names to the environment, where the grants/dbt_clone tests
 # read them back via env_var()/os.getenv. Class-scoped rather than session-scoped
@@ -71,9 +87,11 @@ def ch_test_users(test_config):
     test_client = _get_test_client(test_config)
     try:
         for key, dbt_user in zip(env_keys, test_users, strict=True):
-            test_client.command(
-                f'CREATE USER IF NOT EXISTS %s {cluster_clause} IDENTIFIED WITH sha256_hash BY %s',
-                (dbt_user, '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'),
+            # Only ever grantees, never logged into: random hash plus HOST NONE
+            _command_with_retry(
+                test_client,
+                f'CREATE USER IF NOT EXISTS %s {cluster_clause} IDENTIFIED WITH sha256_hash BY %s HOST NONE',
+                (dbt_user, secrets.token_hex(32)),
             )
             os.environ[key] = dbt_user
         yield test_users
@@ -86,7 +104,9 @@ def ch_test_users(test_config):
                 os.environ[key] = value
         try:
             for dbt_user in test_users:
-                test_client.command(f'DROP USER IF EXISTS %s {cluster_clause}', (dbt_user,))
+                _command_with_retry(
+                    test_client, f'DROP USER IF EXISTS %s {cluster_clause}', (dbt_user,)
+                )
         finally:
             test_client.close()
 
