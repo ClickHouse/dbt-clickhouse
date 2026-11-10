@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -52,8 +51,7 @@ class MacroHarness:
     macros it calls in turn.
 
     The harness runs a macro in dbt's Jinja environment, so ``return()``, ``modules``,
-    and calls between macros behave as they do at runtime. A ``{% materialization %}``
-    block is callable under the name dbt gives it, ``materialization_<name>_<adapter>``. It reads every macro file and
+    and calls between macros behave as they do at runtime. It reads every macro file and
     puts each macro into one context, which is what dbt does when it parses a project.
     The harness needs no dbt project and no ClickHouse server.
 
@@ -90,14 +88,9 @@ class MacroHarness:
         for path in sorted(macros_root.rglob('*.sql')):
             source = path.read_text()
             for block in extract_toplevel_blocks(
-                source, allowed_blocks={'macro', 'materialization'}, collect_raw_data=False
+                source, allowed_blocks={'macro'}, collect_raw_data=False
             ):
                 name = block.block_name
-                if block.block_type_name == 'materialization':
-                    # dbt registers ``{% materialization unit, adapter='clickhouse' %}`` as the
-                    # macro ``materialization_unit_clickhouse``; use the same name here.
-                    adapter_name = re.search(r"adapter\s*=\s*['\"](\w+)['\"]", block.full_block)
-                    name = f'materialization_{name}_{adapter_name.group(1) if adapter_name else "default"}'
                 if name in self._macro_names:
                     raise ValueError(
                         f'macro {name} is defined twice, in {self._macro_names[name]} and '
