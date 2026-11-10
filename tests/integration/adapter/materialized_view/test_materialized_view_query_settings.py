@@ -10,6 +10,7 @@ import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
 from dbt.tests.util import run_dbt
 
+from tests.integration.adapter.helpers import retry_until_assertion_passes
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
@@ -17,6 +18,8 @@ from tests.integration.adapter.materialized_view.common import (
 
 # With join_use_nulls = 1 the unmatched (non-engineering) rows get NULL in
 # matched_department. Under the server default they would get ''.
+# select_sequential_consistency = 1 makes a refresh that runs on another replica of a
+# multi-replica service see the rows inserted right before it.
 MV_QUERY = """
 select
     p.id as id,
@@ -31,7 +34,7 @@ MV_MODEL = (
        materialized='materialized_view',
        engine='MergeTree()',
        order_by='(id)',
-       query_settings={'join_use_nulls': 1},
+       query_settings={'join_use_nulls': 1, 'select_sequential_consistency': 1},
        refreshable=({'interval': 'EVERY 1 HOUR'} if var('refreshable', False) else none)
 ) }}
 
@@ -127,6 +130,17 @@ class TestRefreshableMVQuerySettings:
         project.run_sql(f"system refresh view {schema}.hackers_mv")
         project.run_sql(f"system wait view {schema}.hackers_mv")
 
+    def matched_department_after_refresh(self, project, person_id):
+        # project.run_sql opens a new connection per call, so on a multi-replica service
+        # each statement may reach a different replica. Before ClickHouse 26.10 SYSTEM WAIT
+        # VIEW ignores a refresh requested on another replica (ClickHouse/ClickHouse#120623),
+        # and the replica serving the read may not have applied the refresh yet, so wait
+        # for the row instead of trusting the wait.
+        self.refresh(project)
+        return retry_until_assertion_passes(
+            lambda: matched_department(project, 'hackers', person_id)
+        )
+
     def test_query_settings_apply_to_refreshes(self, project):
         run_vars = json.dumps({"refreshable": True})
         run_dbt(["seed"])
@@ -136,16 +150,14 @@ class TestRefreshableMVQuerySettings:
         # a refreshable view only picks up new source rows on refresh, so a row inserted
         # after creation proves the refresh ran, and that it ran with the settings
         insert_person(project, 4000, 'sales')
-        self.refresh(project)
-        assert matched_department(project, 'hackers', 4000) is None
+        assert self.matched_department_after_refresh(project, 4000) is None
 
         # a second run updates the view with MODIFY QUERY, which must keep them
         run_dbt(["run", "--vars", run_vars])
         assert 'join_use_nulls = 1' in get_mv_ddl(project, 'hackers_mv')
 
         insert_person(project, 5000, 'sales')
-        self.refresh(project)
-        assert matched_department(project, 'hackers', 5000) is None
+        assert self.matched_department_after_refresh(project, 5000) is None
 
 
 class TestExternalTargetMVQuerySettings:
