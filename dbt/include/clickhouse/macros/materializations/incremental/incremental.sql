@@ -272,12 +272,13 @@
         covers shards whose partitions do not overlap. -#}
     {% if execute %}
       {% set select_changed_partitions %}
-          SELECT DISTINCT _partition_id AS partition_id
+          SELECT _partition_id AS partition_id
           {% if is_distributed %}
             FROM cluster({{ adapter.get_clickhouse_cluster_name() }}, {{ new_data_relation }})
           {% else %}
             FROM {{ new_data_relation }}
           {% endif %}
+          GROUP BY _partition_id
       {% endset %}
       {% set changed_partitions = run_query(select_changed_partitions).rows %}
     {% else %}
