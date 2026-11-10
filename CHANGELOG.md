@@ -5,6 +5,7 @@
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+* Integration tests now run in parallel with `pytest-xdist`, in CI and locally (see [CONTRIBUTING.md](./CONTRIBUTING.md#running-tests)). Each test class gets a worker-unique schema, and the grants and `dbt_clone` tests create their own short-lived users instead of sharing session-wide ones ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
 * Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 
 #### Bugs
@@ -16,6 +17,7 @@
 * Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
 * Prevent refreshable materialized views from racing or duplicating their initial population. With `catchup=True` (the default) the catchup now runs before the view is created and the view is created with `EMPTY`, so only dbt loads the initial data; with `catchup=False` ClickHouse keeps running the initial refresh as before ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
 * Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
+* Reading and enabling `allow_nondeterministic_mutations` at connect time now retries transient errors ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
 
 
 ### Release [1.10.3], 2026-09-15
