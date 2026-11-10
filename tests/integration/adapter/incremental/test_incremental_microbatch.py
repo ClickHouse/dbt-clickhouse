@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from dbt.tests.adapter.incremental.test_incremental_microbatch import BaseMicrobatch
 
@@ -5,10 +7,10 @@ _input_model_sql = """
 {{
     config(
         materialized='table',
+        distributed=%s,
         event_time='event_time'
     )
 }}
-
 select 1 as id, toDateTime('2020-01-01 00:00:00') as event_time
 union all
 select 2 as id, toDateTime('2020-01-02 00:00:00') as event_time
@@ -20,6 +22,7 @@ _microbatch_model_sql = """
 {{
     config(
         materialized='incremental',
+        distributed=%s,
         incremental_strategy='microbatch',
         unique_key='id',
         event_time='event_time',
@@ -27,7 +30,6 @@ _microbatch_model_sql = """
         begin=modules.datetime.datetime(2020, 1, 1, 0, 0, 0)
     )
 }}
-
 select * from {{ ref('input_model') }}
 """
 
@@ -36,8 +38,8 @@ class TestMicrobatchIncremental(BaseMicrobatch):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "input_model.sql": _input_model_sql,
-            "microbatch_model.sql": _microbatch_model_sql,
+            "input_model.sql": _input_model_sql % "False",  # `distributed` param
+            "microbatch_model.sql": _microbatch_model_sql % "False",  # `distributed` param
         }
 
     @pytest.fixture(scope="class")
@@ -46,3 +48,24 @@ class TestMicrobatchIncremental(BaseMicrobatch):
             database=project.database, schema=project.test_schema
         )
         return f"insert into {test_schema_relation}.input_model (id, event_time) values (4, '2020-01-04 00:00:00'), (5, '2020-01-05 00:00:00')"
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestMicrobatchDistributedIncremental(TestMicrobatchIncremental):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": _input_model_sql % "True",  # `distributed` param
+            "microbatch_model.sql": _microbatch_model_sql % "True",  # `distributed` param
+        }
+
+    def test_run_with_event_time(self, project, insert_two_rows_sql):
+        super().test_run_with_event_time(project, insert_two_rows_sql)
+        engine = project.run_sql(
+            "select engine from system.tables "
+            f"where database = '{project.test_schema}' and name = 'microbatch_model'",
+            fetch="one",
+        )
+        assert engine[0] == 'Distributed'

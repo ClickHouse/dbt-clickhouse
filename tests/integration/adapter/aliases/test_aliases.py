@@ -19,7 +19,8 @@ MODELS__DISTRIBUTED_FOO_ALIAS_SQL = """
 {{
     config(
         alias='foo',
-        materialized='distributed_table'
+        materialized='table',
+        distributed=True
     )
 }}
 
@@ -31,7 +32,8 @@ MODELS__DISTRIBUTED_REF_FOO_ALIAS_SQL = """
 
 {{
     config(
-        materialized='distributed_table'
+        materialized='table',
+        distributed=True
     )
 }}
 

@@ -1,4 +1,14 @@
 {% materialization distributed_incremental, adapter='clickhouse' %}
+  {#- dbt-core only runs microbatch in batches for materialized='incremental' -#}
+  {% if config.get('incremental_strategy') == 'microbatch' %}
+    {% do exceptions.raise_compiler_error(
+        model.unique_id ~ ": incremental_strategy='microbatch' requires materialized='incremental' with distributed=True.") %}
+  {% endif %}
+  {% do clickhouse__warn_deprecated_distributed_config('incremental') %}
+  {{ return(clickhouse__distributed_incremental()) }}
+{%- endmaterialization %}
+
+{% macro clickhouse__distributed_incremental() %}
   {% set insert_distributed_sync = run_query("SELECT value FROM system.settings WHERE name = 'insert_distributed_sync'")[0][0] %}
   {% if insert_distributed_sync != '1' %}
      {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
@@ -101,6 +111,8 @@
       {% set need_swap = true %}
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates, True) %}
+    {% elif incremental_strategy == 'microbatch' %}
+      {% do clickhouse__incremental_microbatch(existing_relation, unique_key, incremental_predicates, True) %}
     {% elif incremental_strategy == 'insert_overwrite' %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
@@ -156,6 +168,6 @@
 
   {{ run_hooks(post_hooks, inside_transaction=False) }}
 
-  {{ return({'relations': [target_relation]}) }}
+  {{ return({'relations': [target_relation, target_relation_local]}) }}
 
-{%- endmaterialization %}
+{%- endmacro %}

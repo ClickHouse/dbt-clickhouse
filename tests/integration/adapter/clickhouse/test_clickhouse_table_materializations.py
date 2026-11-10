@@ -9,6 +9,7 @@ from dbt.tests.util import (
     check_result_nodes_by_name,
     relation_from_name,
     run_dbt,
+    run_dbt_and_capture,
 )
 
 from tests.integration.adapter.basic.test_basic import base_seeds_schema_yml
@@ -109,7 +110,8 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
             {{ config(
                 order_by='(some_date, id, name)',
                 engine='MergeTree()',
-                materialized='distributed_table',
+                materialized='table',
+                distributed=True,
                 settings={'allow_nullable_key': 1})
             }}
         """
@@ -206,6 +208,79 @@ class TestDistributedMaterializations(BaseSimpleMaterializations):
         result = run_dbt(['run', '--select', 'distributed'], False)
         assert result[0].status == 'error'
         assert 'Compilation Error' in result[0].message
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestDeprecatedDistributedMaterializations:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "deprecated_table.sql": "{{ config(materialized='distributed_table') }}\nselect 1 as id",
+            "deprecated_incremental.sql": "{{ config(materialized='distributed_incremental', "
+            "incremental_strategy='append') }}\n"
+            "select 1 as id {% if is_incremental() %} union all select 2 as id {% endif %}",
+        }
+
+    def test_deprecated_materializations(self, project):
+        _, log_output = run_dbt_and_capture(["run"])
+        run_dbt(["run"])
+        for materialized, expected_rows in (('table', 1), ('incremental', 3)):
+            assert (
+                f"model.test.deprecated_{materialized}: configuring a distributed model with "
+                f"materialized='distributed_{materialized}' is deprecated" in log_output
+            )
+            engine = project.run_sql(
+                "select engine from system.tables "
+                f"where database = '{project.test_schema}' and name = 'deprecated_{materialized}'",
+                fetch="one",
+            )
+            assert engine[0] == 'Distributed'
+            rows = project.run_sql(
+                f"select count() from {project.test_schema}.deprecated_{materialized}",
+                fetch="one",
+            )
+            assert rows[0] == expected_rows
+
+
+class TestDeprecatedDistributedIncrementalRejectsMicrobatch:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "deprecated_microbatch.sql": "{{ config(materialized='distributed_incremental', "
+            "incremental_strategy='microbatch', unique_key='id') }}\nselect 1 as id",
+        }
+
+    def test_microbatch_rejected(self, project):
+        result = run_dbt(["run"], expect_pass=False)
+        assert result[0].status == 'error'
+        assert (
+            "incremental_strategy='microbatch' requires materialized='incremental' "
+            "with distributed=True" in result[0].message
+        )
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestDistributedFlagFromProjectConfig:
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {"models": {"+distributed": "true"}}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"flagged.sql": "{{ config(materialized='table') }}\nselect 1 as id"}
+
+    def test_string_flag(self, project):
+        run_dbt(["run"])
+        engine = project.run_sql(
+            "select engine from system.tables "
+            f"where database = '{project.test_schema}' and name = 'flagged'",
+            fetch="one",
+        )
+        assert engine[0] == 'Distributed'
 
 
 class TestReplicatedTableMaterialization(BaseSimpleMaterializations):

@@ -51,8 +51,7 @@ List of supported features:
 - [x] Snapshots
 - [x] Most dbt-utils macros (now included in dbt-core)
 - [x] Ephemeral materialization
-- [x] Distributed table materialization (experimental)
-- [x] Distributed incremental materialization (experimental)
+- [x] Distributed table and incremental models via `distributed=True` (experimental)
 - [x] Dictionary materialization (experimental)
 - [x] Contracts
 - [x] ClickHouse-specific column configurations (Codec, TTL...)
@@ -79,8 +78,7 @@ The following are [experimental features](/reference/settings/beta-and-experimen
 | Type                                    | Supported?                                    | Details                                                                                                                                                                                 |
 |-----------------------------------------|-----------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Materialized View materialization       | Yes. Creation with explicit target is in Beta | Creates a [materialized view](/reference/statements/create/view#materialized-view).                                                                                                 |
-| Distributed table materialization       | Yes, Experimental                             | Creates a [distributed table](/reference/engines/table-engines/special/distributed).                                                                                                              |
-| Distributed incremental materialization | Yes, Experimental                             | Incremental model based on the same idea as distributed table. Note that not all strategies are supported, visit [their docs section](/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#materialization-distributed-incremental) for more info. |
+| Distributed models                      | Yes, Experimental                             | `table` and `incremental` models with `distributed=True` create a [distributed table](/reference/engines/table-engines/special/distributed). Not all incremental strategies are supported, see [their docs section](/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#distributed-models). |
 | Dictionary materialization              | Yes, Experimental                             | Creates a [dictionary](/reference/engines/table-engines/special/dictionary).                                                                                                                      |
 
 ## Setup of dbt and the ClickHouse adapter {#setup-of-dbt-and-the-clickhouse-adapter}
@@ -167,7 +165,7 @@ Starting with dbt-clickhouse 1.10.1, the [`dbt clone`](https://docs.getdbt.com/r
 Models that can't be cloned this way fall back to dbt's default behavior of creating a view pointing to the source relation:
 
 - Tables using non-MergeTree engines
-- Distributed materializations
+- [Distributed models](/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#distributed-models)
 
 For materialized view models, only the target table is cloned; the materialized view itself is created on top of the cloned table.
 

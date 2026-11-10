@@ -1,0 +1,38 @@
+import pytest
+from dbt.adapters.clickhouse.impl import ClickHouseAdapter
+from dbt_common.exceptions import DbtRuntimeError
+
+
+def _adapter() -> ClickHouseAdapter:
+    return ClickHouseAdapter.__new__(ClickHouseAdapter)
+
+
+@pytest.mark.parametrize(
+    'model_config, expected',
+    [
+        ({'materialized': 'table', 'distributed': True}, True),
+        ({'materialized': 'incremental', 'distributed': True}, True),
+        ({'materialized': 'table'}, False),
+        ({'materialized': 'incremental', 'distributed': False}, False),
+        # quoted YAML values and rendered env vars
+        ({'materialized': 'table', 'distributed': 'true'}, True),
+        ({'materialized': 'table', 'distributed': ' True '}, True),
+        ({'materialized': 'table', 'distributed': 'false'}, False),
+        ({'materialized': 'table', 'distributed': 'FALSE'}, False),
+        # deprecated materialization names
+        ({'materialized': 'distributed_table'}, True),
+        ({'materialized': 'distributed_incremental'}, True),
+        # other materializations ignore the flag
+        ({'materialized': 'view', 'distributed': True}, False),
+        ({'materialized': 'materialized_view', 'distributed': True}, False),
+        ({}, False),
+    ],
+)
+def test_is_distributed(model_config, expected):
+    assert _adapter().is_distributed(model_config) is expected
+
+
+@pytest.mark.parametrize('value', ['yes', '', 1, 0])
+def test_is_distributed_rejects_ambiguous_values(value):
+    with pytest.raises(DbtRuntimeError, match='Invalid value for distributed'):
+        _adapter().is_distributed({'materialized': 'table', 'distributed': value})

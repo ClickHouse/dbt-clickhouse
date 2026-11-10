@@ -1,4 +1,15 @@
 {% materialization distributed_table, adapter='clickhouse' %}
+  {% do clickhouse__warn_deprecated_distributed_config('table') %}
+  {{ return(clickhouse__distributed_table()) }}
+{%- endmaterialization %}
+
+{% macro clickhouse__warn_deprecated_distributed_config(materialized) %}
+  {% do exceptions.warn(
+      model.unique_id ~ ": configuring a distributed model with materialized='distributed_" ~ materialized
+      ~ "' is deprecated. Configure it with materialized='" ~ materialized ~ "' and distributed=True instead.") %}
+{% endmacro %}
+
+{% macro clickhouse__distributed_table() %}
   {% set insert_distributed_sync = run_query("SELECT value FROM system.settings WHERE name = 'insert_distributed_sync'")[0][0] %}
   {% if insert_distributed_sync != '1' %}
      {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
@@ -76,8 +87,7 @@
   {{ drop_relation_if_exists(backup_relation) }}
   {{ run_hooks(post_hooks, inside_transaction=False) }}
   {{ return({'relations': [target_relation]}) }}
-
-{% endmaterialization %}
+{%- endmacro %}
 
 {% macro create_distributed_table(relation, local_relation) %}
     {%- set cluster = adapter.get_clickhouse_cluster_name() -%}
