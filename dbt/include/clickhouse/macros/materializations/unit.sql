@@ -6,11 +6,10 @@
   {% set expected_sql = config.get('expected_sql') %}
   {% set tested_expected_column_names = expected_rows[0].keys() if (expected_rows | length ) > 0 else get_columns_in_query(sql) %}
 
-  {%- set target_relation = this.incorporate(type='table') -%}
-  {%- set temp_relation = make_temp_relation(target_relation, '__dbt_tmp')-%}
-  {%- set temp_relation = temp_relation.incorporate(is_temporary=True)-%} {# file overwrite to ensure this is marked as temporary #}
-  {% do get_create_table_as_sql(True, temp_relation, get_empty_subquery_sql(sql)) %}
-  {%- set columns_in_relation = adapter.get_columns_in_relation(temp_relation) -%}
+  {#- Read the model's columns from its empty subquery in one query. A session-scoped
+      temporary table only exists on the replica that created it, so on a multi-replica
+      service a follow-up lookup can land elsewhere and return no columns. -#}
+  {%- set columns_in_relation = adapter.get_column_schema_from_query(get_empty_subquery_sql(sql)) -%}
   {%- set column_name_to_data_types = {} -%}
   {%- set column_name_to_quoted = {} -%}
   {%- for column in columns_in_relation -%}
@@ -33,8 +32,6 @@
     {{ unit_test_sql }}
 
   {%- endcall %}
-
-  {% do adapter.drop_relation(temp_relation) %}
 
   {{ return({'relations': relations}) }}
 
