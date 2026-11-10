@@ -11,7 +11,7 @@ from dbt.adapters.clickhouse.errors import (
 )
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.adapters.clickhouse.util import engine_can_atomic_exchange
+from dbt.adapters.clickhouse.util import engine_can_atomic_exchange, retry_on_database_error
 from dbt.adapters.exceptions import FailedToConnectError
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError
 
@@ -89,7 +89,6 @@ class ChClientWrapper(ABC):
         self.database = credentials.schema
         custom_settings = credentials.custom_settings or {}
         self._conn_settings = custom_settings.copy()
-        self._conn_settings['session_id'] = f'dbt::{uuid.uuid4()}'
         if credentials.cluster_mode or credentials.database_engine == 'Replicated':
             self._conn_settings.setdefault('database_replicated_enforce_synchronous_settings', '1')
             self._conn_settings.setdefault('insert_quorum', 'auto')
@@ -177,12 +176,31 @@ class ChClientWrapper(ABC):
         # checked (and enabled when the user has permission to change it).
         global _nd_mutation_probe
         with _nd_mutation_lock:
-            if _nd_mutation_probe is None:
-                _nd_mutation_probe = self.get_ch_setting(ND_MUTATION_SETTING)
-            nd_mutations, nd_mutations_read_only = _nd_mutation_probe
+            probe = _nd_mutation_probe
+            if probe is None:
+                try:
+                    probe = retry_on_database_error(
+                        lambda: self.get_ch_setting(ND_MUTATION_SETTING),
+                        f'Reading ClickHouse setting {ND_MUTATION_SETTING}',
+                        attempts=3,
+                    )
+                except DbtDatabaseError as ex:
+                    logger.warning(
+                        f'Could not read the {ND_MUTATION_SETTING} setting from the server, '
+                        f'lightweight deletes are disabled for this connection only: {ex}'
+                    )
+                    probe = (None, 0)
+                # A failed probe is not cached, so the next connection probes again
+                # instead of poisoning the whole process.
+                if probe[0] is not None:
+                    _nd_mutation_probe = probe
+            nd_mutations, nd_mutations_read_only = probe
         if nd_mutations is None:
             if requested:
-                logger.warning(nd_mutations_not_enabled_warning)
+                logger.warning(
+                    f'The {ND_MUTATION_SETTING} setting could not be determined, so lightweight '
+                    f'deletes and the delete+insert incremental strategy are disabled'
+                )
             return False, False
         nd_mutations = int(nd_mutations) > 0
         if not nd_mutations:
@@ -192,12 +210,23 @@ class ChClientWrapper(ABC):
                     raise DbtConfigError(nd_mutations_not_enabled_error)
                 logger.warning(nd_mutations_not_enabled_warning)
             else:
+                # A failure here silently downgrades the connection to the legacy
+                # incremental strategy, so transient errors are retried and the
+                # final error is logged for diagnosis.
                 try:
-                    self.command(f'SET {ND_MUTATION_SETTING} = 1')
+                    retry_on_database_error(
+                        lambda: self.command(f'SET {ND_MUTATION_SETTING} = 1'),
+                        f'Enabling {ND_MUTATION_SETTING}',
+                        attempts=3,
+                    )
                     self._conn_settings[ND_MUTATION_SETTING] = '1'
                     nd_mutations = True
-                except DbtDatabaseError:
-                    logger.warning(nd_mutations_not_enabled_warning)
+                except DbtDatabaseError as ex:
+                    logger.warning(
+                        f'Could not enable {ND_MUTATION_SETTING} for this connection, so '
+                        f'lightweight deletes and the delete+insert incremental strategy '
+                        f'are disabled: {ex}'
+                    )
         if nd_mutations:
             return True, requested
         return False, False

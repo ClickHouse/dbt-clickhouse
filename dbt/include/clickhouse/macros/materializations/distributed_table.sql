@@ -18,8 +18,7 @@
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
-  {% set on_cluster = on_cluster_clause(target_relation) %}
-  {% if on_cluster.strip() == '' %}
+  {% if adapter.get_clickhouse_cluster_name() is none %}
      {% do exceptions.raise_compiler_error('To use distributed materialization cluster setting in dbt profile must be set') %}
   {% endif %}
 

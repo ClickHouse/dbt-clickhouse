@@ -226,10 +226,12 @@ insert_overwrite_dist_inc = """
         (1, 'p1', 1, 'a'), (1, 'p1', 2, 'b'), (2, 'p1', 3, 'c'), (2, 'p2', 4, 'd')
     )
 {% else %}
+    {# shards 1 and 3 land on the same shard, 2 on the other: the new partitions
+       differ per shard and discovery has to see both p1 and p3. #}
     SELECT shardingKey, partitionKey, orderKey, value
     FROM VALUES(
         'shardingKey UInt8, partitionKey String, orderKey UInt8, value String',
-        (1, 'p1', 2, 'e'), (3, 'p1', 2, 'f')
+        (1, 'p1', 2, 'e'), (3, 'p1', 2, 'f'), (2, 'p3', 5, 'g')
     )
 {% endif %}
 """
@@ -263,5 +265,6 @@ class TestInsertOverwriteDistributedIncremental:
         assert result == [
             (1, 'p1', 2, 'e'),
             (2, 'p2', 4, 'd'),
+            (2, 'p3', 5, 'g'),
             (3, 'p1', 2, 'f'),
         ]
