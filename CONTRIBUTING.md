@@ -15,10 +15,11 @@ Start by forking the repository on GitHub. This will create a copy of the reposi
 
 * Make sure Python is installed locally, please refer to [dbt's python compatibility](https://docs.getdbt.com/faqs/Core/install-python-compatibility) (We recommend using version 3.12+).
 * Create a dedicated virtual environment (optional but recommended)
-* Install all the development requirements and the local project as an editable package:
+* Install the local project as an editable package with the `dev` dependency group from `pyproject.toml`:
 
     ```bash
-    pip install -e . -r dev_requirements.txt
+    # using pip 25.1+:
+    pip install -e . --group dev
     ```
 
 * Verify the package was installed successfully:
