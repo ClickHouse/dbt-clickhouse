@@ -137,25 +137,27 @@
   {% endcall %}
 {% endmacro %}
 
-{# A Replicated database creates MergeTree family tables as their Replicated* counterparts. #}
+{# A Replicated database does not make MergeTree tables replicated, so only the engine counts. #}
 {% macro is_replicated_engine() %}
-  {%- set engine = engine_clause() -%}
-  {{ return('Replicated' in engine or ('Replicated' in (target.database_engine or '') and 'MergeTree' in engine)) }}
+  {{ return('Replicated' in engine_clause()) }}
 {%- endmacro %}
 
-{# The sync only helps when it reaches the other replicas, so it needs a cluster. #}
-{% macro should_sync_replica() %}
-  {{ return(target.ensure_replica_consistency and adapter.get_clickhouse_cluster_name() is not none and is_replicated_engine()) }}
+{# The sync only helps when it reaches the other replicas, so it needs a cluster, and it must fan out
+   exactly where the table's DDL did: ON CLUSTER relations, or any relation in a Replicated database. #}
+{% macro should_sync_replica(relation) %}
+  {%- set exists_on_cluster = relation.should_on_cluster or 'Replicated' in (target.database_engine or '') -%}
+  {{ return(target.ensure_replica_consistency and adapter.get_clickhouse_cluster_name() is not none
+            and exists_on_cluster and is_replicated_engine()) }}
 {%- endmacro %}
 
-{# ON CLUSTER is used regardless of relation.should_on_cluster: SYSTEM SYNC REPLICA is not DDL,
-   so the Replicated database engine does not propagate it. #}
+{# ON CLUSTER is emitted even for a Replicated database, whose relations have should_on_cluster off:
+   SYSTEM SYNC REPLICA is not DDL, so the database engine does not propagate it. #}
 {% macro sync_replica_sql(relation) -%}
   SYSTEM SYNC REPLICA ON CLUSTER {{ adapter.get_clickhouse_cluster_name() }} {{ relation }} LIGHTWEIGHT
 {%- endmacro %}
 
 {% macro sync_replica(relation) %}
-  {%- if should_sync_replica() %}
+  {%- if should_sync_replica(relation) %}
     {%- call statement('sync_replica') -%}
       {{ sync_replica_sql(relation) }}
     {%- endcall %}

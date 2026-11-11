@@ -138,8 +138,8 @@ the data yet.
   GRANT SYSTEM SYNC REPLICA ON <schema>.* TO <dbt_user>
   ```
 
-  A model counts as replicated when its `engine` contains `Replicated`, or when it uses a `MergeTree` family engine in a
-  `Replicated` database.
+  A model counts as replicated when its `engine` contains `Replicated`. Models with `disable_on_cluster` are not
+  synced, since they exist on the connected node only.
 
 - **In all cases**: the sync covers only the statements above. For any other read of data dbt has just written, such as
   a downstream model selecting from a table another thread has just appended to, make sure all dbt requests reach the

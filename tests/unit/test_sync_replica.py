@@ -3,7 +3,6 @@ import pytest
 from tests.unit.macro_harness import SandboxSafeMock
 
 REPLICATED = "ReplicatedMergeTree('/x', '{replica}')"
-REPLICATED_DB_WITH_ARGS = "Replicated('/clickhouse/db/{uuid}', '{shard}', '{replica}')"
 
 
 def _context(engine, cluster='"test_shard"', database_engine=None, enabled=True):
@@ -15,8 +14,8 @@ def _context(engine, cluster='"test_shard"', database_engine=None, enabled=True)
     return {'adapter': adapter, 'config': config, 'target': target}
 
 
-def _relation(name):
-    relation = SandboxSafeMock(should_on_cluster=True)
+def _relation(name='"db"."t"', should_on_cluster=True):
+    relation = SandboxSafeMock(should_on_cluster=should_on_cluster)
     relation.__str__.return_value = name
     return relation
 
@@ -25,10 +24,10 @@ def _relation(name):
     'engine,database_engine,expected',
     [
         (REPLICATED, None, True),
-        ('MergeTree()', 'Replicated', True),
-        ('MergeTree()', REPLICATED_DB_WITH_ARGS, True),
+        (REPLICATED, 'Replicated', True),
         (REPLICATED, 'Shared', True),
-        ('Log', 'Replicated', False),
+        # a Replicated database does not turn MergeTree tables into replicated ones
+        ('MergeTree()', 'Replicated', False),
         ('MergeTree()', None, False),
         ('MergeTree()', 'Shared', False),
     ],
@@ -39,22 +38,26 @@ def test_is_replicated_engine(macros, engine, database_engine, expected):
 
 
 @pytest.mark.parametrize(
-    'kwargs,expected',
+    'kwargs,should_on_cluster,expected',
     [
-        ({'engine': REPLICATED}, True),
-        ({'engine': 'MergeTree()', 'database_engine': 'Replicated'}, True),
-        ({'engine': 'MergeTree()'}, False),
-        ({'engine': REPLICATED, 'enabled': False}, False),
+        ({'engine': REPLICATED}, True, True),
+        ({'engine': 'MergeTree()'}, True, False),
+        ({'engine': REPLICATED, 'enabled': False}, True, False),
         # Without ON CLUSTER the sync reaches only the connected node, which wrote the data.
-        ({'engine': REPLICATED, 'cluster': None}, False),
+        ({'engine': REPLICATED, 'cluster': None}, True, False),
+        # A disable_on_cluster model exists on the connected node only.
+        ({'engine': REPLICATED}, False, False),
+        # A Replicated database creates the table on every node without ON CLUSTER.
+        ({'engine': REPLICATED, 'database_engine': 'Replicated'}, False, True),
     ],
 )
-def test_should_sync_replica(macros, kwargs, expected):
-    assert macros.call('should_sync_replica', context=_context(**kwargs)) is expected
+def test_should_sync_replica(macros, kwargs, should_on_cluster, expected):
+    relation = _relation(should_on_cluster=should_on_cluster)
+    assert macros.call('should_sync_replica', relation, context=_context(**kwargs)) is expected
 
 
 def test_sync_replica_sql(macros):
-    rendered = macros.call('sync_replica_sql', '"db"."t"', context=_context(REPLICATED))
+    rendered = macros.call('sync_replica_sql', _relation(), context=_context(REPLICATED))
     assert ' '.join(rendered.split()) == (
         'SYSTEM SYNC REPLICA ON CLUSTER "test_shard" "db"."t" LIGHTWEIGHT'
     )
