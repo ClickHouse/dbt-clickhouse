@@ -99,3 +99,6 @@ dev/
 .python-version
 *_project/
 .user.yml
+
+# uv
+uv.lock
