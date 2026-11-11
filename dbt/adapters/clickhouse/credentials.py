@@ -37,6 +37,7 @@ class ClickHouseCredentials(Credentials):
     local_suffix: str = 'local'
     local_db_prefix: str = ''
     allow_automatic_deduplication: bool = False
+    ensure_replica_consistency: bool = True
     tcp_keepalive: Union[bool, tuple[int, int, int], list[int]] = False
     # When False, close the connection after each model so the next opens a
     # fresh TCP socket — lets a Cloud LB rebalance dbt across replicas.
@@ -86,6 +87,7 @@ class ClickHouseCredentials(Credentials):
             'custom_settings',
             'use_lw_deletes',
             'allow_automatic_deduplication',
+            'ensure_replica_consistency',
             'tcp_keepalive',
             'reuse_connections',
             'server_host_name',
