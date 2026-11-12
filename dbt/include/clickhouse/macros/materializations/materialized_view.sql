@@ -36,16 +36,41 @@
   Each key becomes a suffix on the model's relation, so marker `mv1` creates the
   view `<model>_mv1`. A model without any markers yields the single key `mv`
   covering the whole sql, yielding one `<model>_mv` view.
+
+  dbt injects the CTEs of ephemeral models only once in the sql (`inject_ctes_into_sql`
+  in dbt-core). If the sql has no `with` clause, dbt adds `with <ctes> ` before the
+  first marker, and each view gets the same text. If a view has its own `with` clause,
+  dbt adds the CTEs to the first one, and the other views cannot select from the
+  ephemeral model. Instead of changing the `with` clause of a view, raise an error
+  that points to explicit target mode.
 -#}
 {% macro clickhouse__extract_mv_views(sql) %}
   {#- the name must be a single token. If the pattern permits a space in the name, an
       unrelated `--` comment becomes a part of the marker, and the name is then wrong -#}
-  {% set view_names = modules.re.findall('--(?:\\s)?([^:\\s]+):begin', sql) %}
+  {% set marker_pattern = '--(?:\\s)?([^:\\s]+):begin' %}
+  {% set view_names = modules.re.findall(marker_pattern, sql) %}
 
   {% set views = {} %}
   {% if view_names %}
+    {#- the exact text dbt adds when the sql has no `with` clause: the CTEs joined with
+        ', ' after `with`, and a space -#}
+    {%- set extra_ctes = model.get('extra_ctes', []) -%}
+    {%- set ctes_sql = extra_ctes | map(attribute='sql') | join(', ') -%}
+    {%- set prepended_ctes = 'with' ~ ctes_sql ~ ' ' -%}
+    {%- set ctes_before_first_view = ctes_sql and prepended_ctes in sql[:modules.re.search(marker_pattern, sql).start()] -%}
     {% for view_name in view_names %}
-      {% set view_sql = modules.re.findall('--(?:\\s)?' + view_name + ':begin(.*)--(?:\\s)?' + view_name + ':end', sql, modules.re.DOTALL)[0] %}
+      {% set view_sql = modules.re.findall('--(?:\\s)?' + modules.re.escape(view_name) + ':begin(.*)--(?:\\s)?' + modules.re.escape(view_name) + ':end', sql, modules.re.DOTALL)[0] %}
+      {%- if ctes_sql and ctes_sql not in view_sql -%}
+        {%- if ctes_before_first_view -%}
+          {%- set view_sql = prepended_ctes ~ view_sql -%}
+        {%- elif '__dbt__cte__' in view_sql -%}
+          {%- do exceptions.raise_compiler_error(
+            'The materialized view `' ~ view_name ~ '` of model `' ~ model.get('name', '') ~ '` selects from an ephemeral model. '
+            ~ 'Ephemeral models are not supported in a materialized view model with several views when a view has its own WITH clause. '
+            ~ 'Write each view as its own model with an explicit target table instead.'
+          ) -%}
+        {%- endif -%}
+      {%- endif -%}
       {%- set _ = views.update({view_name: view_sql}) -%}
     {% endfor %}
   {% else %}
