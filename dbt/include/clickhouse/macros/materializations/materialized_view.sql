@@ -58,16 +58,12 @@
     {%- set ctes_sql = extra_ctes | map(attribute='sql') | join(', ') -%}
     {%- set prepended_ctes = 'with' ~ ctes_sql ~ ' ' -%}
     {%- set ctes_before_first_view = ctes_sql and prepended_ctes in sql[:modules.re.search(marker_pattern, sql).start()] -%}
-    {#- comments (`--`, `#`, `/* */`) and string literals, which are removed before looking for
-        a reference to an ephemeral model. Each alternative matches in one pass, without
-        backtracking: the block comment pattern is the unrolled `/* ... */` form -#}
-    {%- set comment_or_literal_pattern = "--[^\\n]*|#[! ][^\\n]*|/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/|'(?:[^'\\\\]|\\\\.)*'" -%}
     {% for view_name in view_names %}
       {% set view_sql = modules.re.findall('--(?:\\s)?' + modules.re.escape(view_name) + ':begin(.*)--(?:\\s)?' + modules.re.escape(view_name) + ':end', sql, modules.re.DOTALL)[0] %}
       {%- if ctes_sql and ctes_sql not in view_sql -%}
         {%- if ctes_before_first_view -%}
           {%- set view_sql = prepended_ctes ~ view_sql -%}
-        {%- elif '__dbt__cte__' in modules.re.sub(comment_or_literal_pattern, ' ', view_sql) -%}
+        {%- elif '__dbt__cte__' in view_sql -%}
           {%- do exceptions.raise_compiler_error(
             'The materialized view `' ~ view_name ~ '` of model `' ~ model.get('name', '') ~ '` selects from an ephemeral model. '
             ~ 'Ephemeral models are not supported in a materialized view model with several views when a view has its own WITH clause. '
