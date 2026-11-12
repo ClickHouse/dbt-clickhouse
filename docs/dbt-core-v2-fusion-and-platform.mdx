@@ -50,9 +50,9 @@ dbt is available in several forms, and the same adapter can run in more than one
 
 Beta means that almost all v1 features work with documented limits. The features that are still pending are listed in [v1 vs v2 parity](#parity) and that list shrinks with every release. We recommend evaluating dbt v2 in development or staging first, and keeping production on dbt Core 1.x if your project depends on any of the pending features or you need the guarantees of a GA release.
 
-We measure the dbt v2 adapter against the dbt Core 1.x integration test suite of `dbt-clickhouse`. **Today,** the adapter passes ~98% of the v1 suite (270 of the 276 tests that apply to dbt v2). The remaining failures are engine-side differences, not ClickHouse ones: query comments, `query_id` in run results and the check for a hook configured under both `pre-hook` and `pre_hook`. See [v1 vs v2 parity](#parity) for the feature-by-feature picture.
+We measure the dbt v2 adapter against the dbt Core 1.x integration test suite of `dbt-clickhouse`. **Today,** the adapter passes ~98% of the v1 suite (270 of the 274 tests that apply to dbt v2). The remaining failures are engine-side differences, not ClickHouse ones: `query_id` in run results and the check for a hook configured under both `pre-hook` and `pre_hook`. See [v1 vs v2 parity](#parity) for the feature-by-feature picture.
 
-**Next steps**: query comments, `query_id` in run results, `dbt source freshness` from table metadata, fixes for the remaining bugs and passing the full v1 test suite to ensure full parity. The progress of all of these is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660), with one sub-issue per area.
+**Next steps**: `query_id` in run results, `dbt source freshness` from table metadata, fixes for the remaining bugs and passing the full v1 test suite to ensure full parity. The progress of all of these is tracked in [ClickHouse/dbt-clickhouse#660](https://github.com/ClickHouse/dbt-clickhouse/issues/660), with one sub-issue per area.
 
 GA is on the roadmap. We are working with dbt Labs on the timeline and will update this page when it's ready.
 
@@ -121,7 +121,6 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | Grants | `GRANT` statements from model config. | <Badge color="green">Supported</Badge> | |
 | `dbt clone` | Zero-copy `CLONE AS` between environments. | <Badge color="green">Supported</Badge> | MergeTree tables, seeds, snapshots and incrementals are cloned with `CLONE AS`; views and other engines fall back to views, as in v1. |
 | Query ID in run results | `query_id` in `adapter_response` for `system.query_log` correlation. | <Badge color="red">Not yet</Badge> | |
-| `query-comment` | Query comment configuration. | <Badge color="red">Not yet</Badge> | `query-comment: null` is not honored yet. |
 
 #### Connectivity and auth {#parity-connectivity-and-auth}
 
