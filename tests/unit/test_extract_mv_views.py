@@ -1,3 +1,5 @@
+import time
+
 import pytest
 from dbt.compilation import inject_ctes_into_sql
 from dbt.contracts.graph.nodes import InjectedCTE
@@ -252,6 +254,72 @@ select id from people where department = 'sales'
             ),
             'mv2': "\nselect id from people where department = 'sales'\n",
         }
+
+    @pytest.mark.parametrize(
+        'mention',
+        [
+            pytest.param('-- __dbt__cte__staged is not used here\n', id='line-comment'),
+            pytest.param('# __dbt__cte__staged is not used here\n', id='hash-comment'),
+            pytest.param('/* __dbt__cte__staged\n   is not used here */\n', id='block-comment'),
+            pytest.param("select '__dbt__cte__staged' as source, ", id='string-literal'),
+        ],
+    )
+    def test_mention_in_comment_or_literal_of_other_view_is_not_a_reference(self, macros, mention):
+        """mv2 selects from a table, and only names the ephemeral model in a comment or a
+        string literal, so it does not need the CTEs and the macro does not raise."""
+        mv2 = (
+            f"{mention}id from people where department = 'sales'"
+            if mention.startswith('select')
+            else f"{mention}select id from people where department = 'sales'"
+        )
+        sql = f"""
+--mv1:begin
+with engineers as (select id from __dbt__cte__staged where department = 'engineering')
+select id from engineers
+--mv1:end
+union all
+--mv2:begin
+{mv2}
+--mv2:end
+"""
+
+        assert self._call(macros, sql)['mv2'] == f'\n{mv2}\n'
+
+    def test_reference_after_comment_mention_raises(self, macros):
+        """A comment that names the ephemeral model does not hide a real reference after it."""
+        sql = """
+--mv1:begin
+with engineers as (select id from __dbt__cte__staged where department = 'engineering')
+select id from engineers
+--mv1:end
+union all
+--mv2:begin
+/* reads __dbt__cte__staged */ select id from __dbt__cte__staged where department = 'it''s'
+--mv2:end
+"""
+
+        with pytest.raises(CompilationError, match='The materialized view `mv2` of model `roles`'):
+            self._call(macros, sql)
+
+    def test_many_leading_block_comments_are_handled_quickly(self, macros):
+        """The comment pattern does not backtrack, so many comments before a query that
+        selects from a table take no noticeable time."""
+        comments = '/* note */ ' * 2000
+        sql = f"""
+--mv1:begin
+with engineers as (select id from __dbt__cte__staged where department = 'engineering')
+select id from engineers
+--mv1:end
+union all
+--mv2:begin
+{comments}/* unterminated
+--mv2:end
+"""
+
+        start = time.perf_counter()
+        views = self._call(macros, sql)
+        assert time.perf_counter() - start < 2
+        assert views['mv2'].startswith(f'\n{comments}')
 
     def test_model_without_markers_is_unchanged(self, macros):
         sql = 'select id from __dbt__cte__staged'
