@@ -27,7 +27,7 @@ This maps common tasks to files. For detailed guidance on each scenario, see "Ma
 | Fix ON CLUSTER behavior | `dbt/adapters/clickhouse/relation.py` + relevant macro |
 | Fix driver-specific issues | `dbt/adapters/clickhouse/httpclient.py` or `nativeclient.py` |
 | Fix MV dependency tracking | `dbt/adapters/clickhouse/cache.py` |
-| Add utility SQL functions | `dbt/include/clickhouse/macros/utils.sql` or `datatypes.sql` |
+| Add utility SQL functions | `dbt/include/clickhouse/macros/utils.sql` |
 | Update version | `dbt/adapters/clickhouse/__version__.py` |
 | Update public documentation | `docs/` |
 
