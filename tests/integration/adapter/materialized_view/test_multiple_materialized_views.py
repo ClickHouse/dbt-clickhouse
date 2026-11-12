@@ -297,8 +297,9 @@ select id, name, department from {{ source('raw', 'people') }}
 """
 
 # Each view selects from the ephemeral model, so each one needs the CTE that dbt injects for it.
-# dbt injects the CTE only once, either before the first marker or into the `with` of the first
-# view, thus the views that follow do not have it.
+# dbt injects the CTE only once. Without a `with` clause in the model, dbt adds it before the first
+# marker, and the adapter adds it to each view. With a `with` clause in a view, dbt adds it there,
+# and the views that select from the ephemeral model without it cause an error.
 MULTIPLE_MV_FROM_EPHEMERAL_MODEL = """
 {{ config(
        materialized='materialized_view',
@@ -340,8 +341,49 @@ from {{ ref('people_ephemeral') }}
 where department = 'sales'
 --mv2:end
 
+{% elif var('run_type', '') == 'later_view_with_cte' %}
+
+--mv1:begin
+select id, name, 'engineer' as role
+from {{ ref('people_ephemeral') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+with sellers as (
+    select id, name from {{ ref('people_ephemeral') }} where department = 'sales'
+)
+select id, name, 'seller' as role
+from sellers
+--mv2:end
+
+{% elif var('run_type', '') == 'only_view_with_cte_uses_ephemeral' %}
+
+--mv1:begin
+select id, name, 'engineer' as role
+from {{ source('raw', 'people') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+with sellers as (
+    select id, name from {{ ref('people_ephemeral') }} where department = 'sales'
+)
+select id, name, 'seller' as role
+from sellers
+--mv2:end
+
 {% endif %}
 """
+
+EXPLICIT_TARGET_DOCS = (
+    'https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/'
+    'materialization-materialized-view#migration-implicit-to-explicit'
+)
 
 
 class TestMultipleMVFromEphemeral:
@@ -359,7 +401,7 @@ class TestMultipleMVFromEphemeral:
             "roles.sql": MULTIPLE_MV_FROM_EPHEMERAL_MODEL,
         }
 
-    @pytest.mark.parametrize("run_type", ["", "first_view_with_cte"])
+    @pytest.mark.parametrize("run_type", ["", "only_view_with_cte_uses_ephemeral"])
     def test_create(self, project, run_type):
         schema = quote_identifier(project.test_schema)
         run_dbt(["seed"])
@@ -377,7 +419,7 @@ class TestMultipleMVFromEphemeral:
             },
         )
 
-        # both views read from the ephemeral model, so new rows reach the target table
+        # both views reach the target table
         project.run_sql(
             f"""
         insert into {schema}.people ("id", "name", "age", "department")
@@ -396,3 +438,20 @@ class TestMultipleMVFromEphemeral:
             (8888, 'Kate', 'engineer'),
             (9999, 'Eugene', 'engineer'),
         ]
+
+    @pytest.mark.parametrize(
+        "run_type, view_without_ctes",
+        [("first_view_with_cte", "mv2"), ("later_view_with_cte", "mv1")],
+    )
+    def test_view_with_own_with_clause_raises(self, project, run_type, view_without_ctes):
+        run_dbt(["seed"])
+        run_vars = json.dumps({"run_type": run_type})
+        results = run_dbt(["run", "--full-refresh", "--vars", run_vars], expect_pass=False)
+
+        result = next(r for r in results if r.status == "error")
+        assert (
+            f"The materialized view `{view_without_ctes}` of model `roles` selects from an "
+            "ephemeral model" in result.message
+        )
+        assert "when a view has its own WITH clause" in result.message
+        assert EXPLICIT_TARGET_DOCS in result.message
