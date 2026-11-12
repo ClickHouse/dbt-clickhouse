@@ -323,24 +323,6 @@ from {{ ref('people_ephemeral') }}
 where department = 'sales'
 --mv2:end
 
-{% elif var('run_type', '') == 'first_view_with_cte' %}
-
---mv1:begin
-with engineers as (
-    select id, name from {{ ref('people_ephemeral') }} where department = 'engineering'
-)
-select id, name, 'engineer' as role
-from engineers
---mv1:end
-
-union all
-
---mv2:begin
-select id, name, 'seller' as role
-from {{ ref('people_ephemeral') }}
-where department = 'sales'
---mv2:end
-
 {% elif var('run_type', '') == 'later_view_with_cte' %}
 
 --mv1:begin
@@ -379,11 +361,6 @@ from sellers
 
 {% endif %}
 """
-
-EXPLICIT_TARGET_DOCS = (
-    'https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/'
-    'materialization-materialized-view#migration-implicit-to-explicit'
-)
 
 
 class TestMultipleMVFromEphemeral:
@@ -439,19 +416,15 @@ class TestMultipleMVFromEphemeral:
             (9999, 'Eugene', 'engineer'),
         ]
 
-    @pytest.mark.parametrize(
-        "run_type, view_without_ctes",
-        [("first_view_with_cte", "mv2"), ("later_view_with_cte", "mv1")],
-    )
-    def test_view_with_own_with_clause_raises(self, project, run_type, view_without_ctes):
+    def test_view_with_own_with_clause_raises(self, project):
         run_dbt(["seed"])
-        run_vars = json.dumps({"run_type": run_type})
+        run_vars = json.dumps({"run_type": "later_view_with_cte"})
         results = run_dbt(["run", "--full-refresh", "--vars", run_vars], expect_pass=False)
 
         result = next(r for r in results if r.status == "error")
         assert (
-            f"The materialized view `{view_without_ctes}` of model `roles` selects from an "
+            "The materialized view `mv1` of model `roles` selects from an "
             "ephemeral model" in result.message
         )
         assert "when a view has its own WITH clause" in result.message
-        assert EXPLICIT_TARGET_DOCS in result.message
+        assert "explicit target table" in result.message

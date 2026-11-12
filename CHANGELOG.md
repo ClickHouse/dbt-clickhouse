@@ -19,7 +19,7 @@
 * Prevent refreshable materialized views from racing or duplicating their initial population. With `catchup=True` (the default) the catchup now runs before the view is created and the view is created with `EMPTY`, so only dbt loads the initial data; with `catchup=False` ClickHouse keeps running the initial refresh as before ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
 * Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
 * Reading and enabling `allow_nondeterministic_mutations` at connect time now retries transient errors ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
-* Fix materialized view models with several `--<name>:begin`/`--<name>:end` views failing with `Unknown table expression identifier '__dbt__cte__...'` when the views select from an ephemeral model: if no view has its own `WITH` clause, each view now gets the ephemeral CTEs; otherwise, a view that selects from an ephemeral model without them raises an error that points to explicit target mode ([#768](https://github.com/ClickHouse/dbt-clickhouse/pull/768)).
+* Multi-view materialized view models can now select from ephemeral models when no view has its own `WITH` clause; otherwise, a view that selects from an ephemeral model raises an error that points to explicit target mode ([#768](https://github.com/ClickHouse/dbt-clickhouse/pull/768)).
 
 
 ### Release [1.10.3], 2026-09-15

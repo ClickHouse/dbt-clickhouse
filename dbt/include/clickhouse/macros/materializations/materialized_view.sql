@@ -54,7 +54,7 @@
   {% if view_names %}
     {#- the exact text dbt adds when the sql has no `with` clause: the CTEs joined with
         ', ' after `with`, and a space -#}
-    {%- set extra_ctes = model.get('extra_ctes', []) if model is defined and model is mapping else [] -%}
+    {%- set extra_ctes = model.get('extra_ctes', []) -%}
     {%- set ctes_sql = extra_ctes | map(attribute='sql') | join(', ') -%}
     {%- set prepended_ctes = 'with' ~ ctes_sql ~ ' ' -%}
     {%- set ctes_before_first_view = ctes_sql and prepended_ctes in sql[:modules.re.search(marker_pattern, sql).start()] -%}
@@ -63,7 +63,7 @@
         backtracking: the block comment pattern is the unrolled `/* ... */` form -#}
     {%- set comment_or_literal_pattern = "--[^\\n]*|#[! ][^\\n]*|/\\*[^*]*\\*+(?:[^/*][^*]*\\*+)*/|'(?:[^'\\\\]|\\\\.)*'" -%}
     {% for view_name in view_names %}
-      {% set view_sql = modules.re.findall('--(?:\\s)?' + view_name + ':begin(.*)--(?:\\s)?' + view_name + ':end', sql, modules.re.DOTALL)[0] %}
+      {% set view_sql = modules.re.findall('--(?:\\s)?' + modules.re.escape(view_name) + ':begin(.*)--(?:\\s)?' + modules.re.escape(view_name) + ':end', sql, modules.re.DOTALL)[0] %}
       {%- if ctes_sql and ctes_sql not in view_sql -%}
         {%- if ctes_before_first_view -%}
           {%- set view_sql = prepended_ctes ~ view_sql -%}
@@ -71,8 +71,7 @@
           {%- do exceptions.raise_compiler_error(
             'The materialized view `' ~ view_name ~ '` of model `' ~ model.get('name', '') ~ '` selects from an ephemeral model. '
             ~ 'Ephemeral models are not supported in a materialized view model with several views when a view has its own WITH clause. '
-            ~ 'Write each view as its own model with an explicit target table instead: '
-            ~ 'https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/materialization-materialized-view#migration-implicit-to-explicit'
+            ~ 'Write each view as its own model with an explicit target table instead.'
           ) -%}
         {%- endif -%}
       {%- endif -%}

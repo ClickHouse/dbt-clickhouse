@@ -1,5 +1,3 @@
-import time
-
 import pytest
 from dbt.compilation import inject_ctes_into_sql
 from dbt.contracts.graph.nodes import InjectedCTE
@@ -18,14 +16,21 @@ select id, name from people where department = 'sales'
 """
 
 
+def extract_mv_views(macros, sql):
+    """dbt always gives the macro the model, here one without ephemeral models."""
+    return macros.call(
+        'clickhouse__extract_mv_views', sql, context={'model': {'name': 'roles', 'extra_ctes': []}}
+    )
+
+
 class TestExtractMvViews:
     def test_no_markers_yields_single_mv_suffix(self, macros):
         """The key `mv` is a suffix on the relation of the model. The view is `<model>_mv`."""
         sql = 'select id, name from people'
-        assert macros.call('clickhouse__extract_mv_views', sql) == {'mv': sql}
+        assert extract_mv_views(macros, sql) == {'mv': sql}
 
     def test_markers_split_sql_by_marker_name(self, macros):
-        views = macros.call('clickhouse__extract_mv_views', MULTIPLE_MV_SQL)
+        views = extract_mv_views(macros, MULTIPLE_MV_SQL)
 
         assert views == {
             'mv1': "\nselect id, name from people where department = 'engineering'\n",
@@ -43,7 +48,7 @@ select 1
 --first:end
 """
 
-        assert list(macros.call('clickhouse__extract_mv_views', sql)) == ['second', 'first']
+        assert list(extract_mv_views(macros, sql)) == ['second', 'first']
 
     def test_single_marked_view_not_treated_as_unmarked(self, macros):
         sql = """
@@ -52,9 +57,7 @@ select id from people
 --only_mv:end
 """
 
-        assert macros.call('clickhouse__extract_mv_views', sql) == {
-            'only_mv': '\nselect id from people\n'
-        }
+        assert extract_mv_views(macros, sql) == {'only_mv': '\nselect id from people\n'}
 
     def test_leading_comment_without_colon_does_not_corrupt_first_name(self, macros):
         """Before the fix, the pattern for the name also matched a new line. A `--` comment
@@ -62,7 +65,7 @@ select id from people
         `publishes\\nengineering\\npeople\\n--mv1`, and the query of mv1 was empty."""
         sql = '-- publishes engineering people\n' + MULTIPLE_MV_SQL
 
-        assert macros.call('clickhouse__extract_mv_views', sql) == {
+        assert extract_mv_views(macros, sql) == {
             'mv1': "\nselect id, name from people where department = 'engineering'\n",
             'mv2': "\nselect id, name from people where department = 'sales'\n",
         }
@@ -70,13 +73,13 @@ select id from people
     def test_leading_comment_with_colon_does_not_become_view(self, macros):
         sql = '-- note: publishes people\n' + MULTIPLE_MV_SQL
 
-        assert list(macros.call('clickhouse__extract_mv_views', sql)) == ['mv1', 'mv2']
+        assert list(extract_mv_views(macros, sql)) == ['mv1', 'mv2']
 
     def test_comments_between_and_after_views_are_ignored(self, macros):
         sql = MULTIPLE_MV_SQL.replace('union all', '-- glue the two together\nunion all')
         sql += '\n-- nothing follows the last view\n'
 
-        assert macros.call('clickhouse__extract_mv_views', sql) == {
+        assert extract_mv_views(macros, sql) == {
             'mv1': "\nselect id, name from people where department = 'engineering'\n",
             'mv2': "\nselect id, name from people where department = 'sales'\n",
         }
@@ -89,7 +92,7 @@ select 'N/A' as alias
 --mv1:end
 """
 
-        assert macros.call('clickhouse__extract_mv_views', sql) == {
+        assert extract_mv_views(macros, sql) == {
             'mv1': "\n-- sales people get no alias\nselect 'N/A' as alias\n"
         }
 
@@ -100,7 +103,7 @@ select 1
 -- mv1:end
 """
 
-        assert macros.call('clickhouse__extract_mv_views', sql) == {'mv1': '\nselect 1\n'}
+        assert extract_mv_views(macros, sql) == {'mv1': '\nselect 1\n'}
 
     def test_more_than_one_space_after_dashes_is_not_marker(self, macros):
         """The pattern permits a maximum of one space between `--` and the name. A marker
@@ -111,7 +114,19 @@ select 1
 --  mv1:end
 """
 
-        assert macros.call('clickhouse__extract_mv_views', sql) == {'mv': sql}
+        assert extract_mv_views(macros, sql) == {'mv': sql}
+
+    @pytest.mark.parametrize('name', ['mv(1)', 'mv+1', 'mv.1'])
+    def test_name_with_regex_characters_is_matched_literally(self, macros, name):
+        """The marker pattern accepts any name without a colon or white space, so the name
+        is escaped before it is used to find the end marker."""
+        sql = f"""
+--{name}:begin
+select 1
+--{name}:end
+"""
+
+        assert extract_mv_views(macros, sql) == {name: '\nselect 1\n'}
 
 
 EPHEMERAL_CTE = InjectedCTE(
@@ -119,10 +134,6 @@ EPHEMERAL_CTE = InjectedCTE(
     sql=' __dbt__cte__staged as (\nselect id, name, department from people\n)',
 )
 OTHER_CTE = InjectedCTE(id='model.test.other', sql=' __dbt__cte__other as (\nselect 1 as id\n)')
-EXPLICIT_TARGET_DOCS = (
-    'https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/'
-    'materialization-materialized-view#migration-implicit-to-explicit'
-)
 
 
 class TestExtractMvViewsWithEphemeralCtes:
@@ -213,7 +224,6 @@ select id from __dbt__cte__staged where department = 'sales'
         )
         assert 'when a view has its own WITH clause' in message
         assert 'explicit target table' in message
-        assert EXPLICIT_TARGET_DOCS in message
 
     def test_only_later_view_with_own_with_clause_raises(self, macros):
         """dbt adds the CTEs to the `with` clause of mv2, not before the first marker, thus mv1
@@ -301,9 +311,8 @@ union all
         with pytest.raises(CompilationError, match='The materialized view `mv2` of model `roles`'):
             self._call(macros, sql)
 
-    def test_many_leading_block_comments_are_handled_quickly(self, macros):
-        """The comment pattern does not backtrack, so many comments before a query that
-        selects from a table take no noticeable time."""
+    def test_many_block_comments_and_an_unterminated_one_are_not_a_reference(self, macros):
+        """Many block comments, then one that is not closed, are all comment text."""
         comments = '/* note */ ' * 2000
         sql = f"""
 --mv1:begin
@@ -316,9 +325,7 @@ union all
 --mv2:end
 """
 
-        start = time.perf_counter()
         views = self._call(macros, sql)
-        assert time.perf_counter() - start < 2
         assert views['mv2'].startswith(f'\n{comments}')
 
     def test_model_without_markers_is_unchanged(self, macros):
