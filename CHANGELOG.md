@@ -2,7 +2,7 @@
 
 #### Improvements
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
-* A materialized view with `catchup=True` (the default) now warns when its explicit target table sets `repopulate_from_mvs_on_full_refresh=True`, since a full refresh of both can backfill the target twice and duplicate its data ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
+* A materialized view with `catchup=True` (the default) now warns when its explicit target table sets `repopulate_from_mvs_on_full_refresh=True`, since a full refresh of both can backfill the target twice and duplicate its data ([#796](https://github.com/ClickHouse/dbt-clickhouse/pull/796)).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
