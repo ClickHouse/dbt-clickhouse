@@ -2,15 +2,19 @@ import json
 import os
 
 import pytest
+from dbt.tests.adapter.persist_docs.test_persist_docs import (
+    BasePersistDocsAllColumnsMissing,
+    BasePersistDocsColumnMissing,
+    BasePersistDocsQuotedColumnCaseSensitive,
+    BasePersistDocsQuotedDescriptionNotAppliedOnMismatch,
+)
 from dbt.tests.util import run_dbt
 from fixtures import (
     _DOCS__MY_FUN_DOCS,
-    _MODELS__MISSING_COLUMN,
     _MODELS__MODEL_USING_QUOTE_UTIL,
     _MODELS__NO_DOCS_MODEL,
     _MODELS__TABLE,
     _MODELS__VIEW,
-    _PROPERITES__SCHEMA_MISSING_COL,
     _PROPERTIES__QUOTE_MODEL,
     _PROPERTIES__SCHEMA_YML,
     _SEEDS__SEED,
@@ -119,38 +123,6 @@ class BasePersistDocs(BasePersistDocsBase):
         self._assert_has_view_comments(no_docs_node, False, False)
 
 
-class BasePersistDocsColumnMissing(BasePersistDocsBase):
-    @pytest.fixture(scope="class")
-    def project_config_update(self):
-        return {
-            "models": {
-                "test": {
-                    "+persist_docs": {
-                        "columns": True,
-                    },
-                }
-            }
-        }
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {"missing_column.sql": _MODELS__MISSING_COLUMN}
-
-    @pytest.fixture(scope="class")
-    def properties(self):
-        return {"schema.yml": _PROPERITES__SCHEMA_MISSING_COL}
-
-    def test_missing_column(self, project):
-        run_dbt(["docs", "generate"])
-        with open("target/catalog.json") as fp:
-            catalog_data = json.load(fp)
-        assert "nodes" in catalog_data
-
-        table_node = catalog_data["nodes"]["model.test.missing_column"]
-        table_id_comment = table_node["columns"]["id"]["comment"]
-        assert table_id_comment.startswith("test id column description")
-
-
 class BasePersistDocsCommentOnQuotedColumn:
     """Covers edge case where column with comment must be quoted.
     We set this using the `quote:` tag in the property file."""
@@ -210,6 +182,20 @@ class TestPersistDocs(BasePersistDocs):
 
 
 class TestPersistDocsColumnMissing(BasePersistDocsColumnMissing):
+    pass
+
+
+class TestPersistDocsAllColumnsMissing(BasePersistDocsAllColumnsMissing):
+    pass
+
+
+class TestPersistDocsQuotedColumnCaseSensitive(BasePersistDocsQuotedColumnCaseSensitive):
+    pass
+
+
+class TestPersistDocsQuotedDescriptionNotAppliedOnMismatch(
+    BasePersistDocsQuotedDescriptionNotAppliedOnMismatch
+):
     pass
 
 

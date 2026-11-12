@@ -23,7 +23,7 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "dbt-adapters>=1.22.0,<1.25.0",  # This version should be dbt-adapters<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
+    "dbt-adapters>=1.22.10,<1.25.0",  # This version should be dbt-adapters<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
     # installed via dbt-adapters but used directly
     "dbt-common>=1.36,<2.0",
     "agate>=1.0,<2.0",

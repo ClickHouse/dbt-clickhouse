@@ -26,11 +26,6 @@ select 1 as id, 'Joe' as name
 """
 
 
-_MODELS__MISSING_COLUMN = """
-{{ config(materialized='table') }}
-select 1 as id, 'Ed' as name
-"""
-
 _MODELS__MODEL_USING_QUOTE_UTIL = """
 select 1 as {{ adapter.quote("2id") }}
 """
@@ -44,17 +39,6 @@ models:
       - name: 2id
         description: "XXX My description"
         quote: true
-"""
-
-_PROPERITES__SCHEMA_MISSING_COL = """
-version: 2
-models:
-  - name: missing_column
-    columns:
-      - name: id
-        description: "test id column description"
-      - name: column_that_does_not_exist
-        description: "comment that cannot be created"
 """
 
 _PROPERTIES__SCHEMA_YML = """
