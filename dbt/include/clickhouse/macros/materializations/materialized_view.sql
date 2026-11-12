@@ -120,6 +120,9 @@
 
   {%- set catchup_data = config.get('catchup', True) == True -%}
   {%- set is_refreshable = clickhouse__is_refreshable_mv() -%}
+  {%- if catchup_data -%}
+    {%- do clickhouse__warn_if_target_repopulates_from_mvs(mv_relation, target_table_relation) -%}
+  {%- endif -%}
 
   {% if existing_relation is none or should_full_refresh() %}
     {% if existing_relation is not none %}
@@ -166,6 +169,32 @@
 
   {#- Return only the MV as the relation this model produces -#}
   {{ return({'relations': [mv_relation]}) }}
+{% endmacro %}
+
+
+{#-
+  Warn when an MV with catchup enabled writes into a dbt table model that sets
+  repopulate_from_mvs_on_full_refresh=True. On a full refresh both backfill the
+  target table with the same SELECT, so its data ends up duplicated.
+-#}
+{% macro clickhouse__warn_if_target_repopulates_from_mvs(mv_relation, target_table_relation) %}
+  {%- if not execute -%}
+    {{ return(none) }}
+  {%- endif -%}
+  {%- for node in graph.nodes.values() -%}
+    {%- if node.resource_type == 'model'
+        and node.config.materialized == 'table'
+        and node.schema == target_table_relation.schema
+        and node.alias == target_table_relation.identifier
+        and node.config.get('repopulate_from_mvs_on_full_refresh', False) -%}
+      {% do exceptions.warn(
+        'Materialized view ' ~ mv_relation.name ~ ' has catchup=True and writes to ' ~ node.name
+        ~ ', which has repopulate_from_mvs_on_full_refresh=True. On a full refresh both backfill '
+        ~ node.name ~ ', which can duplicate its data. Set catchup=False on the materialized view '
+        ~ 'or repopulate_from_mvs_on_full_refresh=False on the target table.'
+      ) %}
+    {%- endif -%}
+  {%- endfor -%}
 {% endmacro %}
 
 
