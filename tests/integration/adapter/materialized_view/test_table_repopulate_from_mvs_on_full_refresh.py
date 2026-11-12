@@ -9,7 +9,7 @@ import json
 
 import pytest
 from dbt.adapters.clickhouse.query import quote_identifier
-from dbt.tests.util import run_dbt
+from dbt.tests.util import run_dbt, run_dbt_and_capture
 
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
@@ -175,3 +175,91 @@ class TestFullRefreshRepopulateDisabled:
         assert result[0][0] == 0, (
             "Target should remain empty with repopulate_from_mvs_on_full_refresh=False"
         )
+
+
+# catchup and repopulate_from_mvs_on_full_refresh are both controlled by vars
+WARNING_TARGET_MODEL = """
+{{ config(
+       materialized='table',
+       repopulate_from_mvs_on_full_refresh=var('repopulate', false)
+) }}
+
+SELECT
+    toInt32(0) AS id,
+    '' AS name,
+    '' AS department
+WHERE 0  -- Creates empty table with correct schema
+"""
+
+WARNING_MV_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       catchup=var('catchup', true)
+) }}
+
+{{ materialization_target_table(ref('employees_target')) }}
+
+select
+    p.id,
+    p.name,
+    'engineering' as department
+from {{ source('raw', 'people') }} p
+where p.department = 'engineering'
+"""
+
+CATCHUP_REPOPULATE_WARNING = (
+    "Materialized view employees_mv_engineering has catchup=True and writes to employees_target, "
+    "which has repopulate_from_mvs_on_full_refresh=True"
+)
+
+
+class TestCatchupAndRepopulateWarning:
+    """
+    Enabling catchup on an MV and repopulate_from_mvs_on_full_refresh on its target table
+    backfills the target twice on a full refresh, so the MV materialization warns about it.
+    """
+
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "employees_target.sql": WARNING_TARGET_MODEL,
+            "employees_mv_engineering.sql": WARNING_MV_MODEL,
+        }
+
+    @staticmethod
+    def _run(run_vars, full_refresh=False):
+        args = ["run", "--vars", json.dumps(run_vars)]
+        if full_refresh:
+            args.append("--full-refresh")
+        results, log_output = run_dbt_and_capture(args)
+        assert len(results) == 2
+        return log_output
+
+    def test_warns_when_both_enabled(self, project):
+        run_dbt(["seed"])
+
+        # catchup is left at its default (True)
+        log_output = self._run({"repopulate": True})
+        assert CATCHUP_REPOPULATE_WARNING in log_output
+
+        log_output = self._run({"repopulate": True}, full_refresh=True)
+        assert CATCHUP_REPOPULATE_WARNING in log_output
+
+    def test_no_warning_with_only_catchup(self, project):
+        run_dbt(["seed"])
+
+        log_output = self._run({"repopulate": False}, full_refresh=True)
+        assert CATCHUP_REPOPULATE_WARNING not in log_output
+
+    def test_no_warning_with_only_repopulate(self, project):
+        run_dbt(["seed"])
+
+        log_output = self._run({"repopulate": True, "catchup": False}, full_refresh=True)
+        assert CATCHUP_REPOPULATE_WARNING not in log_output

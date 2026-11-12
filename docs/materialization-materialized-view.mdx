@@ -231,7 +231,7 @@ When using explicit target tables, apart from the [general materialization confi
 | `catchup` | Whether to backfill historical data when the MV is created. For refreshable MVs see [Initial data](#refreshable-initial-data). | `True` |
 
 <Note>
-You'll usually only want to set `catchup` to `True` in MVs or `repopulate_from_mvs_on_full_refresh` to `True` in their target tables. If you set both to `True`, it may duplicate data.
+You'll usually only want to set `catchup` to `True` in MVs or `repopulate_from_mvs_on_full_refresh` to `True` in their target tables. If you set both to `True`, it may duplicate data. dbt-clickhouse logs a warning when it finds both enabled.
 </Note>
 
 ### Common operations {#explicit-target-common-operations}
