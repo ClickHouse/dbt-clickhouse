@@ -1,8 +1,12 @@
 import pytest
 from dbt.tests.util import run_dbt
 
+# The limit is only checked when allocations are flushed to the memory tracker, so the query has
+# to allocate far more than the 4 MiB untracked threshold. A small query could finish and trip
+# the limit while the HTTP response was being finalised, which the server reports by breaking
+# the chunked body (seen as IncompleteRead in CI).
 oom_table_sql = """
-SELECT a FROM system.numbers_mt GROUP BY repeat(toString(number), 100000) as a
+select uniqExact(number) as a from numbers(10000000) SETTINGS max_memory_usage = 1
 """
 
 schema_yaml = """

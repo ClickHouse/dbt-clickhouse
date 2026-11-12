@@ -23,8 +23,12 @@ classifiers = [
 ]
 requires-python = ">=3.10"
 dependencies = [
-    "dbt-core>=1.9",
     "dbt-adapters>=1.22.0,<1.25.0",  # This version should be dbt-adapters<2.0, but keeping it fixed for now to avoid unexpected issues. We need to frequently update it.
+    # installed via dbt-adapters but used directly
+    "dbt-common>=1.36,<2.0",
+    "agate>=1.0,<2.0",
+    # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
+    "dbt-core>=1.9,<2.0",
     "clickhouse-connect>=0.10.0",
     "clickhouse-driver>=0.2.10"
 ]
@@ -37,6 +41,20 @@ Documentation = "https://github.com/ClickHouse/dbt-clickhouse#documentation"
 "ClickHouse Docs" = "https://clickhouse.com/docs/integrations/dbt"
 Changelog = "https://github.com/ClickHouse/dbt-clickhouse/blob/main/CHANGELOG.md"
 Slack = "https://clickhouse.com/slack"
+
+[dependency-groups]
+dev = [
+    "dbt-core==1.12.*",
+    "dbt-tests-adapter>=1.10,<2.0",
+    "pytest>=7.2.0",
+    "pytest-dotenv==0.5.2",
+    "pytest-timeout==2.4.0",
+    "pytest-xdist==3.8.0",
+    "ruff==0.16.0",
+    "mypy==1.19.1",
+    "yamllint==1.37.1",
+    "requests~=2.34.2",
+]
 
 [tool.setuptools]
 packages = {find = {include = ["dbt", "dbt.*"], namespaces = true}}

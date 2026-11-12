@@ -109,6 +109,20 @@ def test_default_engine_settings(mock_ch_client):
     assert 'select_sequential_consistency' not in settings
 
 
+def test_http_client_sends_session_id(mock_ch_client):
+    """The HTTP interface needs session_id to keep SET and temporary tables across queries."""
+    credentials = ClickHouseCredentials(
+        host='localhost',
+        port=8123,
+        user='default',
+        password='',
+        schema='default',
+    )
+    ChHttpClient(credentials)
+
+    assert mock_ch_client.call_args.kwargs['session_id'].startswith('dbt::')
+
+
 def _lw_credentials(use_lw_deletes, schema='default'):
     return ClickHouseCredentials(
         host='localhost',

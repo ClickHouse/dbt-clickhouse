@@ -30,7 +30,6 @@ on:
       - 'examples/**'
       - '**/*.md'
       - 'pyproject.toml'
-      - 'dev_requirements.txt'
       - '.github/workflows/docs_drift_check.yml'
   workflow_dispatch:
     inputs:
