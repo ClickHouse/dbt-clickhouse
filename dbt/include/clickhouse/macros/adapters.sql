@@ -1,4 +1,3 @@
-{# dbt Core 2.0 dispatches check_schema_exists to this macro; dbt Core 1.x answers it in Python. #}
 {% macro clickhouse__check_schema_exists(information_schema, schema) -%}
   {% set sql %}
     select count(*) from system.databases where name = '{{ schema }}'
