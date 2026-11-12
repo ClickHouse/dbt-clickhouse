@@ -31,7 +31,8 @@ SELECT
 WHERE 0  -- Creates empty table with correct schema
 """
 
-# Refreshable MV model that writes to the external target table
+# Refreshable MV model that writes to the external target table. It uses AFTER 1 HOUR so that no
+# scheduled refresh runs during the test and adds rows on top of the ones dbt inserts.
 MV_MODEL = """
 {{ config(
        materialized='materialized_view',
@@ -41,7 +42,7 @@ MV_MODEL = """
                "depends_on": ['depend_on_model'],
                "depends_on_validation": True
            } if var('run_type', '') == 'validate_depends_on' else {
-               "interval": "EVERY 2 MINUTE"
+               "interval": "AFTER 1 HOUR"
            }
        )
 ) }}

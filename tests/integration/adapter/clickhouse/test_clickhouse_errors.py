@@ -1,12 +1,10 @@
 import pytest
 from dbt.tests.util import run_dbt
 
-# The limit is only checked when allocations are flushed to the memory tracker, so the query has
-# to allocate far more than the 4 MiB untracked threshold. A small query could finish and trip
-# the limit while the HTTP response was being finalised, which the server reports by breaking
-# the chunked body (seen as IncompleteRead in CI).
+# The limit must be high enough for creating the table and low enough for the insert to fail.
+# A limit of 1 byte sometimes broke the HTTP response while creating the table on a cluster.
 oom_table_sql = """
-select uniqExact(number) as a from numbers(10000000) SETTINGS max_memory_usage = 1
+select uniqExact(number) as a from numbers(10000000) SETTINGS max_memory_usage = 50000000
 """
 
 schema_yaml = """
