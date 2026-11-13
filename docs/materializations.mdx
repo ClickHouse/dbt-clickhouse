@@ -286,7 +286,10 @@ expensive and slow to execute.
 
 #### The Delete+Insert Strategy {#delete-insert-strategy}
 
-The `delete+insert` strategy uses [lightweight deletes](/concepts/features/operations/delete/lightweight-delete) to remove the affected rows and then inserts the new ones. Because it doesn't copy the whole table, it performs significantly better than the "legacy" strategy. Setting `use_lw_deletes: true` in your profile makes `delete+insert` the default incremental strategy.
+The `delete+insert` strategy uses [lightweight deletes](/concepts/features/operations/delete/lightweight-delete) to
+remove the affected rows and then inserts the new ones. Because it doesn't copy the whole table, it performs
+significantly better than the "legacy" strategy. Setting `use_lw_deletes: true` in your profile makes `delete+insert`
+the default incremental strategy. When no existing row matches the new data, the delete is skipped.
 
 There are important caveats to using this strategy:
 

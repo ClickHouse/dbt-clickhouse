@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Improvements
+* The `delete+insert` incremental strategy skips the lightweight delete when no existing row matches the new data ([#788](https://github.com/ClickHouse/dbt-clickhouse/pull/788)).
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 

@@ -95,6 +95,48 @@ class TestLWDeleteIncremental:
         assert result[0] == 101
 
 
+lw_delete_no_match_inc = """
+{{ config(
+        materialized='incremental',
+        order_by=['key1'],
+        unique_key='key1',
+        incremental_strategy='delete+insert'
+    )
+}}
+{% if is_incremental() %}
+   SELECT toUInt64(number) as key1 FROM numbers(50, 10)
+{% else %}
+   SELECT toUInt64(number) as key1 FROM numbers(10)
+{% endif %}
+"""
+
+
+def count_lw_deletes(project, table):
+    return project.run_sql(
+        f"select count() from system.mutations where database = '{project.test_schema}' "
+        f"and table like '{table}%' and command like '%_row_exists%'",
+        fetch="one",
+    )[0]
+
+
+class TestLWDeleteSkippedWithoutMatches:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"lw_delete_no_match_inc.sql": lw_delete_no_match_inc}
+
+    def test_lw_delete_skipped(self, project):
+        run_dbt()
+        run_dbt()
+        result = project.run_sql("select count(*) from lw_delete_no_match_inc", fetch="one")
+        assert result[0] == 20
+        assert count_lw_deletes(project, "lw_delete_no_match_inc") == 0
+        # The new keys now exist, so the next run must delete them.
+        run_dbt()
+        result = project.run_sql("select count(*) from lw_delete_no_match_inc", fetch="one")
+        assert result[0] == 20
+        assert count_lw_deletes(project, "lw_delete_no_match_inc") == 1
+
+
 legacy_inc = """
 {{ config(
         materialized='incremental',

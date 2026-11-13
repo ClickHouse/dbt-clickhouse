@@ -10,7 +10,10 @@ from dbt.tests.adapter.basic.files import (
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental, BaseIncrementalNotSchemaChange
 from dbt.tests.util import run_dbt
 
-from tests.integration.adapter.incremental.test_base_incremental import uniq_schema
+from tests.integration.adapter.incremental.test_base_incremental import (
+    count_lw_deletes,
+    uniq_schema,
+)
 
 uniq_source_model = """
 {{config(
@@ -97,6 +100,43 @@ class TestLWDeleteDistributedIncremental:
         run_dbt()
         result = project.run_sql("select count(*) as num_rows from lw_delete_inc", fetch="one")
         assert result[0] == 180
+
+
+lw_delete_no_match_inc = """
+{{ config(
+        materialized='distributed_incremental',
+        order_by=['key1'],
+        unique_key='key1',
+        incremental_strategy='delete+insert'
+    )
+}}
+{% if is_incremental() %}
+   SELECT toUInt64(number) as key1 FROM numbers(50, 10)
+{% else %}
+   SELECT toUInt64(number) as key1 FROM numbers(10)
+{% endif %}
+"""
+
+
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestLWDeleteSkippedWithoutMatchesDistributed:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"lw_delete_no_match_inc.sql": lw_delete_no_match_inc}
+
+    def test_lw_delete_skipped(self, project):
+        run_dbt()
+        run_dbt()
+        result = project.run_sql("select count(*) from lw_delete_no_match_inc", fetch="one")
+        assert result[0] == 20
+        assert count_lw_deletes(project, "lw_delete_no_match_inc") == 0
+        # The new keys now exist, so the next run must delete them.
+        run_dbt()
+        result = project.run_sql("select count(*) from lw_delete_no_match_inc", fetch="one")
+        assert result[0] == 20
+        assert count_lw_deletes(project, "lw_delete_no_match_inc") == 1
 
 
 compound_key_schema = """
