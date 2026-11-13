@@ -99,6 +99,44 @@ class TestLWDeleteDistributedIncremental:
         assert result[0] == 180
 
 
+failing_dist_delete_insert_inc = """
+{{ config(
+        materialized='distributed_incremental',
+        order_by=['key1'],
+        unique_key='key1',
+        incremental_strategy='delete+insert'
+    )
+}}
+{% if is_incremental() %}
+   select toUInt64(2) as key1, 'not a number' as key2
+{% else %}
+   SELECT toUInt64(number) as key1, toInt64(-number) as key2 FROM numbers(10)
+{% endif %}
+"""
+
+
+class TestDistributedDeleteInsertStagingCleanupOnFailure:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"failing_dist_delete_insert_inc.sql": failing_dist_delete_insert_inc}
+
+    @pytest.mark.skipif(
+        os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+    )
+    def test_staging_table_dropped_on_failure(self, project):
+        run_dbt()
+        # The staging table takes the target's Int64 key2, so filling it with a String fails
+        results = run_dbt(expect_pass=False)
+        assert 'not a number' in results[0].message
+        cluster = os.environ['DBT_CH_TEST_CLUSTER']
+        result = project.run_sql(
+            f"select count() from clusterAllReplicas('{cluster}', system.tables) "
+            "where name like 'failing_dist_delete_insert_inc%__dbt_new_data_%'",
+            fetch="one",
+        )
+        assert result[0] == 0
+
+
 compound_key_schema = """
 version: 2
 

@@ -172,6 +172,40 @@ class TestIncrementalCompoundKey:
         assert result[0] == 260
 
 
+failing_delete_insert_inc = """
+{{ config(
+        materialized='incremental',
+        order_by=['key1'],
+        unique_key='key1',
+        incremental_strategy='delete+insert'
+    )
+}}
+{% if is_incremental() %}
+   select toUInt64(2) as key1, 'not a number' as key2
+{% else %}
+   SELECT toUInt64(number) as key1, toInt64(-number) as key2 FROM numbers(10)
+{% endif %}
+"""
+
+
+class TestDeleteInsertStagingCleanupOnFailure:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"failing_delete_insert_inc.sql": failing_delete_insert_inc}
+
+    def test_staging_table_dropped_on_failure(self, project):
+        run_dbt()
+        # The staging table is created, then inserting its String key2 into the Int64 target fails
+        results = run_dbt(expect_pass=False)
+        assert 'not a number' in results[0].message
+        result = project.run_sql(
+            f"select count() from system.tables where database = '{project.test_schema}' "
+            "and name like 'failing_delete_insert_inc__dbt_new_data_%'",
+            fetch="one",
+        )
+        assert result[0] == 0
+
+
 class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
     @pytest.fixture(scope="class")
     def models(self):
@@ -237,6 +271,39 @@ class TestInsertOverwriteIncremental:
             (2, 'p2', 4, 'd'),
             (3, 'p1', 2, 'f'),
         ]
+
+
+failing_insert_overwrite_inc = """
+{{ config(
+        materialized='incremental',
+        incremental_strategy='insert_overwrite',
+        partition_by=['partitionKey1'],
+        order_by=['orderKey'],
+    )
+}}
+{% if not is_incremental() %}
+    SELECT toUInt8(1) as partitionKey1, toUInt8(1) as orderKey, 'a' as value
+{% else %}
+    SELECT toUInt8(1) as partitionKey1, toUInt8(2) as orderKey, toUInt8(1) as value
+{% endif %}
+"""
+
+
+class TestInsertOverwriteStagingCleanupOnFailure:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {"failing_insert_overwrite_inc.sql": failing_insert_overwrite_inc}
+
+    def test_staging_table_dropped_on_failure(self, project):
+        run_dbt()
+        # The staging table's UInt8 value column makes REPLACE PARTITION reject it
+        run_dbt(expect_pass=False)
+        result = project.run_sql(
+            f"select count() from system.tables where database = '{project.test_schema}' "
+            "and name like 'failing_insert_overwrite_inc__dbt_new_data_%'",
+            fetch="one",
+        )
+        assert result[0] == 0
 
 
 # "ReplicatedMergeTree('/clickhouse/tables/{shard}/{database}/{table}/{uuid}/', '{replica}')"

@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import threading
 from dataclasses import dataclass
 from multiprocessing.context import SpawnContext
 from typing import (
@@ -83,6 +84,8 @@ class ClickHouseAdapter(SQLAdapter):
     def __init__(self, config, mp_context: SpawnContext):
         BaseAdapter.__init__(self, config, mp_context)
         self.cache = ClickHouseRelationsCache()
+        # Each dbt thread runs one model at a time, so staging relations are tracked per thread
+        self._staging = threading.local()
 
     @classmethod
     def date_function(cls):
@@ -415,6 +418,34 @@ class ClickHouseAdapter(SQLAdapter):
 
     def get_relation(self, database: Optional[str], schema: str, identifier: str):
         return super().get_relation('', schema, identifier)
+
+    def pre_model_hook(self, config):
+        self._staging.relations = []
+        return self._staging.relations
+
+    def post_model_hook(self, config, context):
+        # A relation still registered here was not dropped by the materialization, because a
+        # statement after its creation failed. A failed drop must not hide the original error.
+        for relation in list(context or []):
+            try:
+                self.drop_relation(relation)
+            except Exception as exp:
+                logger.warning(f'Failed to drop staging relation {relation}: {exp}')
+        self._staging.relations = []
+
+    @available.parse_none
+    def register_staging_relation(self, relation: BaseRelation) -> None:
+        """Drop this relation after the model runs, unless the materialization drops it first."""
+        relations = getattr(self._staging, 'relations', None)
+        if relations is not None:
+            relations.append(relation)
+
+    @available.parse_none
+    def unregister_staging_relation(self, relation: BaseRelation) -> None:
+        """Call after the materialization dropped the relation itself."""
+        relations = getattr(self._staging, 'relations', None)
+        if relations and relation in relations:
+            relations.remove(relation)
 
     @available.parse_none
     def get_ch_database(self, schema: str):
