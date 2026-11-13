@@ -441,3 +441,9 @@
       CODEC({{ codec_name }})
   {%- endif %}
 {% endmacro %}
+
+{% macro ttl_clause(ttl_expr) %}
+  {%- if ttl_expr %}
+      TTL {{ ttl_expr }}
+  {%- endif %}
+{% endmacro %}
