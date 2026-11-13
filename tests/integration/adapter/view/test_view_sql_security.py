@@ -7,6 +7,8 @@ import os
 import pytest
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
+IS_CORE_V2 = bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY'))
+
 PEOPLE_SEED_CSV = """
 id,name,age,department
 1231,Dade,33,engineering
@@ -132,10 +134,12 @@ class TestClickHouseViewSqlSecurity:
         )
 
         # Confirm that stdout/console output has error description
-        assert (
-            "Model 'model.test.view_definer_empty' does not define a required config parameter 'definer'."
-            in stdout
+        expected = (
+            "Required config key 'definer' not found in config"
+            if IS_CORE_V2
+            else "Model 'model.test.view_definer_empty' does not define a required config parameter 'definer'."
         )
+        assert expected in stdout
 
     def test_fail_view_definer_wrong(self, project):
         # Load seed data
