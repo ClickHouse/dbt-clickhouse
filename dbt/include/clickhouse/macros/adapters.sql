@@ -128,8 +128,6 @@
 {%- endmacro %}
 
 {% macro clickhouse__get_columns_in_query(select_sql) %}
-  {#- The adapter's schema introspection keeps a Tuple as one column on both engines;
-      dbt Core 2.0's result tables flatten it into one column per element. -#}
   {{ return(adapter.get_column_schema_from_query(select_sql) | map(attribute='name') | list) }}
 {% endmacro %}
 
