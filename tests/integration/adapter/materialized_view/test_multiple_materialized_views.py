@@ -117,20 +117,20 @@ class TestMultipleMV:
         results = run_dbt(["seed"])
         assert len(results) == 1
         columns = project.run_sql("DESCRIBE TABLE people", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         # create the model
         run_dbt(["run"])
         assert len(results) == 1
 
         columns = project.run_sql(f"DESCRIBE TABLE {schema}.hackers", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv1", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         columns = project.run_sql(f"DESCRIBE {schema}.hackers_mv2", fetch="all")
-        assert columns[0][1] == "Int32"
+        assert columns[0][1] in ("Int32", "Int64")  # Int32 Python/agate, Int64 dbt core v2/arrow
 
         with pytest.raises(DbtDatabaseError, match="hackers_mv"):
             project.run_sql(f"DESCRIBE {schema}.hackers_mv", fetch="all")
@@ -233,7 +233,10 @@ class TestUpdateMultipleMV:
 
         # assert that the destination table is updated with the new column
         table_description_after_update = project.run_sql(f"DESCRIBE {schema}.hackers", fetch="all")
-        assert any(col[0] == "id2" and col[1] == "Int32" for col in table_description_after_update)
+        assert any(
+            col[0] == "id2" and col[1] in ("Int32", "Int64")
+            for col in table_description_after_update
+        )
 
         # run again without extended schema, to make sure table is updated back without the id2 column
         run_dbt(["run", "--vars", json.dumps({"on_schema_change": "sync_all_columns"})])
@@ -256,7 +259,9 @@ class TestUpdateMultipleMV:
         expected_messages = [
             'The source and target schemas on this materialized view model are out of sync',
             'Source columns not in target: []',
-            "Target columns not in source: ['id2 Int32']",
+            # Type left open: Python seeds infer Int32, dbt core v2 seeds keep the
+            # arrow-native Int64 (accepted wide-type divergence).
+            "Target columns not in source: ['id2 Int",
             'New column types: []',
         ]
         for msg in expected_messages:

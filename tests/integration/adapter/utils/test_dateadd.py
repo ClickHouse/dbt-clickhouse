@@ -1,6 +1,8 @@
 import pytest
 from dbt.tests.adapter.utils.test_dateadd import BaseDateAdd
 
+from tests.integration.adapter.helpers import MigratedTestArgs
+
 # We remove the null row from this test because (1) nullables work fine with Nullable ClickHouse types, but
 # (2) dealing with all the type conversions is ugly
 seeds__data_dateadd_csv = """from_time,interval_length,datepart,result
@@ -11,7 +13,7 @@ seeds__data_dateadd_csv = """from_time,interval_length,datepart,result
 """
 
 
-class TestDateAdd(BaseDateAdd):
+class TestDateAdd(MigratedTestArgs, BaseDateAdd):
     @pytest.fixture(scope="class")
     def seeds(self):
         return {"data_dateadd.csv": seeds__data_dateadd_csv}

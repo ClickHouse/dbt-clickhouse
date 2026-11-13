@@ -6,6 +6,8 @@ from dbt.tests.adapter.utils.fixture_listagg import (
 from dbt.tests.adapter.utils.test_listagg import BaseListagg
 from dbt.tests.util import run_dbt
 
+from tests.integration.adapter.helpers import MigratedTestArgs, migrate_yml
+
 models__test_listagg_custom_sql = """
 select
   group_col,
@@ -15,7 +17,7 @@ from {{ ref('data_listagg') }} group by group_col
 """
 
 
-class TestListagg(BaseListagg):
+class TestListagg(MigratedTestArgs, BaseListagg):
     pass
 
 
@@ -29,7 +31,7 @@ class TestCustomListagg:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "test_listagg.yaml": models__test_listagg_yml,
+            "test_listagg.yaml": migrate_yml(models__test_listagg_yml),
             "test_listagg.sql": models__test_listagg_custom_sql,
         }
 

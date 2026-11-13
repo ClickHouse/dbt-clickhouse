@@ -1,5 +1,16 @@
+import os
+
 import pytest
 from dbt.tests.util import run_dbt
+
+# These tests assert on the Python adapter's IN-PROCESS relation cache
+# (`project.adapter.cache.relations`). When dbt core v2 runs as a subprocess,
+# that Python cache is never populated, so the assertions are unfulfillable by
+# design — this is harness incompatibility, not a v2 defect.
+pytestmark = pytest.mark.skipif(
+    bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY')),
+    reason='inspects the Python adapter in-process cache; N/A for the v2 subprocess shim',
+)
 
 model_sql = """
 {{
