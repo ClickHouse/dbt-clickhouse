@@ -218,6 +218,10 @@
       {% endcall %}
     {% endif %}
 
+    {#- Sync replicas: the delete is a mutation replayed on every replica, and its staging subquery reads from replicas
+        that may still lag. -#}
+    {% do sync_replica(new_data_relation) %}
+
     {% call statement('delete_existing_data') %}
       {#- The delete mutation may run on a replica that has not yet synced the new data;
           embedding the setting in the subquery makes it read a fresh snapshot. -#}

@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Improvements
+* New profile setting `ensure_replica_consistency` (default on) runs `SYSTEM SYNC REPLICA ... LIGHTWEIGHT` on replicated tables before the `delete+insert` delete and on both tables before a table swap, which fixes duplicate rows after `delete+insert` on multi-replica clusters. Existing deployments on replicated clusters must grant `SYSTEM SYNC REPLICA` to the dbt user or set `ensure_replica_consistency: false` ([#790](https://github.com/ClickHouse/dbt-clickhouse/pull/790)).
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 

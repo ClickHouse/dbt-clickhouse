@@ -290,8 +290,9 @@ The `delete+insert` strategy uses [lightweight deletes](/concepts/features/opera
 
 There are important caveats to using this strategy:
 
-- It operates directly on the affected table without creating any intermediate or temporary tables, so if there is an
-  issue during the operation, the data in the incremental model is likely to be in an invalid state.
+- It modifies the target table in place: new rows are staged in a temporary table, matching rows are deleted from the
+  target, and the staged rows are inserted. If there is an issue during the operation, the data in the incremental
+  model is likely to be in an invalid state.
 - It requires the ClickHouse setting `allow_nondeterministic_mutations`. The adapter enables it automatically for its
   own sessions when possible. When it can't be enabled (for example, it's read-only for your dbt user), the behavior
   depends on how the strategy was chosen: models relying on the default strategy silently fall back to the legacy
@@ -300,6 +301,9 @@ There are important caveats to using this strategy:
 - In some very rare cases, using non-deterministic `incremental_predicates` could result in a race condition for the
   updated/deleted items. To ensure consistent results, the incremental predicates should only include sub-queries on
   data that will not be modified during the incremental materialization.
+- On a cluster with more than one replica, the delete must see the rows the staging insert has just written. See
+  [read-after-write consistency](/integrations/connectors/data-ingestion/etl-tools/dbt/features-and-configurations#read-after-write-consistency)
+  for the setting that provides this.
 
 #### The Microbatch Strategy (Requires dbt-core >= 1.9) {#microbatch-strategy}
 

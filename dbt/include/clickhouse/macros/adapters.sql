@@ -137,12 +137,38 @@
   {% endcall %}
 {% endmacro %}
 
-{% macro exchange_tables_atomic(old_relation, target_relation, obj_types='TABLES') %}
+{# A Replicated database does not make MergeTree tables replicated, so only the engine counts. #}
+{% macro is_replicated_engine() %}
+  {{ return('Replicated' in engine_clause()) }}
+{%- endmacro %}
 
-  {%- if adapter.get_clickhouse_cluster_name() is not none and obj_types == 'TABLES' and 'Replicated' in engine_clause() %}
-    {%- call statement('exchange_table_sync_replica') -%}
-      SYSTEM SYNC REPLICA  {{ on_cluster_clause(target_relation) }} {{ target_relation.schema }}.{{ target_relation.identifier }}
-    {% endcall %}
+{# The sync only helps when it reaches the other replicas, so it needs a cluster, and it must fan out
+   exactly where the table's DDL did: ON CLUSTER relations, or any relation in a Replicated database. #}
+{% macro should_sync_replica(relation) %}
+  {%- set exists_on_cluster = relation.should_on_cluster or 'Replicated' in (target.database_engine or '') -%}
+  {{ return(target.ensure_replica_consistency and adapter.get_clickhouse_cluster_name() is not none
+            and exists_on_cluster and is_replicated_engine()) }}
+{%- endmacro %}
+
+{# ON CLUSTER is emitted even for a Replicated database, whose relations have should_on_cluster off:
+   SYSTEM SYNC REPLICA is not DDL, so the database engine does not propagate it. #}
+{% macro sync_replica_sql(relation) -%}
+  SYSTEM SYNC REPLICA ON CLUSTER {{ adapter.get_clickhouse_cluster_name() }} {{ relation }} LIGHTWEIGHT
+{%- endmacro %}
+
+{% macro sync_replica(relation) %}
+  {%- if should_sync_replica(relation) %}
+    {%- call statement('sync_replica') -%}
+      {{ sync_replica_sql(relation) }}
+    {%- endcall %}
+  {%- endif %}
+{%- endmacro %}
+
+{% macro exchange_tables_atomic(old_relation, target_relation, obj_types='TABLES') %}
+  {%- if obj_types == 'TABLES' %}
+    {#- old_relation holds the new data: every replica must have it before it becomes visible. #}
+    {%- do sync_replica(old_relation) %}
+    {%- do sync_replica(target_relation) %}
   {%- endif %}
   {%- call statement('exchange_tables_atomic') -%}
     EXCHANGE {{ obj_types }} {{ old_relation }} AND {{ target_relation }} {{ on_cluster_clause(target_relation)}}

@@ -37,3 +37,22 @@ def test_tcp_keepalive_passed_to_driver(tcp_keepalive, expected):
         client._create_client(_credentials(tcp_keepalive=tcp_keepalive))
 
     assert mock_client.call_args.kwargs['tcp_keepalive'] == expected
+
+
+def test_ensure_replica_consistency_defaults_to_true():
+    assert _credentials().ensure_replica_consistency is True
+
+
+@pytest.mark.parametrize('value', [True, False])
+def test_ensure_replica_consistency_validates(value):
+    credentials = _credentials(ensure_replica_consistency=value)
+
+    ClickHouseCredentials.validate(credentials.to_dict(omit_none=True))
+
+    assert credentials.ensure_replica_consistency is value
+
+
+def test_ensure_replica_consistency_is_exposed_to_macros():
+    # dbt builds the `target` context from connection_info(), so macros can only
+    # read keys listed in _connection_keys().
+    assert dict(_credentials().connection_info())['ensure_replica_consistency'] is True
