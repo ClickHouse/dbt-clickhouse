@@ -8,6 +8,12 @@ select 1 as id, 'clickhouse' as name
 """
 
 
+# Unskip under v2 to close https://github.com/ClickHouse/dbt-clickhouse/issues/792
+@pytest.mark.skipif(
+    bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY')),
+    reason='dbt core v2 does not report adapter_response.query_id for ClickHouse yet: '
+    'https://github.com/ClickHouse/dbt-clickhouse/issues/792',
+)
 class TestAdapterResponseQueryId:
     @pytest.fixture(scope="class")
     def models(self):
