@@ -129,7 +129,7 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | Protocol | How dbt talks to ClickHouse. | <Badge color="green">Supported</Badge> | ADBC (Arrow over HTTP) on v2; HTTP and native on v1. |
 | Username and password, TLS | Standard auth. | <Badge color="green">Supported</Badge> | |
 | mTLS client certificates | `client_cert`, `client_cert_key`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored. |
-| HTTP client options | `connect_timeout`, `send_receive_timeout`, `sync_request_timeout`, `compress_block_size`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Accepted but ignored; `server_host_name` is unavailable. |
+| HTTP client options | `connect_timeout`, `send_receive_timeout`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Accepted but ignored; `server_host_name` is unavailable. |
 
 #### Not planned for v2 {#not-planned}
 
@@ -138,6 +138,7 @@ A few v1 options are deliberately not carried over to v2. They are listed here s
 | Feature | What it does in v1 | Why it is not planned |
 |---------|--------------------|-----------------------|
 | `verify: false` | Skips TLS certificate validation. | It keeps the encryption but drops the authentication, so anyone on the path can impersonate the server and read the credentials. v2 always validates certificates and ignores the key. Use a certificate signed by a CA the client trusts. Open an issue if you need it in v2. |
+| `sync_request_timeout`, `compress_block_size` | Configure the native-protocol client. | The native-protocol client exists only in v1. v2 connects through the ADBC driver, which is HTTP-only, so there is nothing for these keys to configure. |
 
 ### dbt v2 specific functionality {#v2-functionality}
 
@@ -149,7 +150,7 @@ dbt v2 adds capabilities that have no equivalent in dbt Core 1.x. They are outsi
 | Static analysis | Compile-time SQL validation and type checking without querying the warehouse. | <Badge color="red">Not yet</Badge> | Forced to `off` for ClickHouse projects until the dialect exists. |
 | Column-level lineage in the dbt platform | Column lineage view built from the run artifacts. | <Badge color="yellow">Partial</Badge> | Renders only with identifier quoting disabled in `dbt_project.yml`; the platform's fallback parser rejects backtick-quoted names ([dbt-labs/dbt#16646](https://github.com/dbt-labs/dbt/issues/16646)). |
 | Column-level lineage from the engine | Lineage written by `dbt docs generate` for the local docs site. | <Badge color="red">Not yet</Badge> | Needs static analysis. |
-| LSP and VS Code extension | Dialect-aware autocomplete and column awareness while editing. | <Badge color="red">Not yet</Badge> | Needs the dialect. |
+| LSP and VS Code extension | Dialect-aware autocomplete and column awareness while editing. | <Badge color="Partial">Not yet</Badge> | Compatible with the VS Code Extension but the LSP features are not available yet. |
 | Source freshness from table metadata | `dbt source freshness` without `loaded_at_field`, from the table's last modification time. | <Badge color="blue">In progress</Badge> | Being implemented. Today the command fails for sources without `loaded_at_field`. |
 | Semantic Layer / MetricFlow | Metrics defined in dbt and queried through the Semantic Layer. | <Badge color="red">Not yet</Badge> | ClickHouse support is merged in MetricFlow; we are working with dbt Labs to enable it in the Semantic Layer. |
 | Record and replay of adapter calls | `--fs-record` / `--fs-replay` re-run a job without a warehouse. | <Badge color="yellow">Partial</Badge> | ClickHouse catalog details (`ON CLUSTER`, `EXCHANGE`, MV links) are not recorded, so a replay can render different DDL. |
