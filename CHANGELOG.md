@@ -3,12 +3,11 @@
 #### Improvements
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
-* Without a `unique_key`, the default incremental strategy is now `append`, as in dbt-core and the dbt-labs adapters, so such models now fail if they set `incremental_predicates` ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
+* Without a `unique_key`, the default incremental strategy is now `append`, so such models now fail if they set `incremental_predicates`. `append` also replaces `inserts_only`, which is now deprecated and logs a warning that fails runs under `--warn-error` ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
 * Integration tests now run in parallel with `pytest-xdist`, in CI and locally (see [CONTRIBUTING.md](./CONTRIBUTING.md#running-tests)). Each test class gets a worker-unique schema, and the grants and `dbt_clone` tests create their own short-lived users instead of sharing session-wide ones ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
-* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 * Macros aligned with the ClickHouse adapter in dbt Core v2 so both engines can share the same macro files: remove datatypes.sql (unused), add `clickhouse__check_schema_exists` and let `adapter.check_schema_exists()` dispatch to it instead of a Python override. Results are unchanged on dbt Core 1.x ([#797](https://github.com/ClickHouse/dbt-clickhouse/pull/797)).
 * Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#782](https://github.com/ClickHouse/dbt-clickhouse/pull/782)).
 

@@ -26,7 +26,9 @@
      {% set unique_key = unique_key|join(', ') %}
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
-  {% if not inserts_only %}
+  {% if inserts_only %}
+    {% do exceptions.warn("`inserts_only` is deprecated and overrides `incremental_strategy`. Use `incremental_strategy='append'` instead.") %}
+  {% else %}
     {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'), unique_key)  %}
     {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
     {% set partition_by = config.get('partition_by') %}
@@ -78,9 +80,6 @@
     {% set need_swap = true %}
 
   {% elif inserts_only -%}
-    -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
-    -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
-    -- specific configurable that is used to avoid creating an expensive intermediate table.
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}
