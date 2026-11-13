@@ -96,6 +96,77 @@ class TestSchemaChangeWithTTL:
         assert_column_ttl(project, model)
 
 
+ttl_references_later_new_column_sql = """
+{{
+    config(
+        materialized='%s',
+        unique_key='col_1',
+        on_schema_change='append_new_columns'
+    )
+}}
+
+{%% if not is_incremental() %%}
+select
+    number as col_1
+from numbers(3)
+{%% else %%}
+select
+    number as col_1,
+    number + 2 as col_3,
+    toDate('2020-01-01') as event_date
+from numbers(2, 3)
+{%% endif %%}
+"""
+
+ttl_references_later_new_column_yml = """
+version: 2
+models:
+  - name: ttl_later_column
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_3
+        data_type: UInt64
+        ttl: event_date + toIntervalDay(30)
+      - name: event_date
+        data_type: Date
+  - name: ttl_later_column_distributed
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_3
+        data_type: UInt64
+        ttl: event_date + toIntervalDay(60)
+      - name: event_date
+        data_type: Date
+"""
+
+
+class TestAppendTTLReferencingLaterNewColumn:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "ttl_later_column.sql": ttl_references_later_new_column_sql % "incremental",
+            "ttl_later_column_distributed.sql": ttl_references_later_new_column_sql
+            % "distributed_incremental",
+            "schema.yml": ttl_references_later_new_column_yml,
+        }
+
+    @pytest.mark.parametrize("model", ("ttl_later_column", "ttl_later_column_distributed"))
+    def test_append_ttl_referencing_later_column(self, project, model):
+        is_distributed = "distributed" in model
+        if is_distributed and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+
+        run_dbt(["run", "--select", model])
+        run_dbt(["run", "--select", model])
+
+        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
+        assert all(len(row) == 3 for row in result)
+
+        assert_column_ttl(project, model)
+
+
 sync_all_columns_with_ttl_sql = """
 {{
     config(

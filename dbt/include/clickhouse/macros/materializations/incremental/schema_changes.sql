@@ -32,13 +32,18 @@
 {% endmacro %}
 
 {% macro clickhouse__add_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
+    {% if columns | length == 0 %}
+        {% do return(none) %}
+    {% endif %}
     {% set command = 'add column if not exists' %}
+    {% set local_actions = [] %}
+    {% set distributed_actions = [] %}
     {% for column in columns %}
         {% set decl = '`' ~ column.name ~ '` ' ~ column.data_type %}
-        {% set local_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) ~ ' ' ~ column_ttl_clause(column.name) %}
-        {% set distributed_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) %}
-        {% do clickhouse__run_alter_table_command(local_action, existing_relation, existing_local, is_distributed, distributed_action) %}
+        {% do local_actions.append(command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) ~ ' ' ~ column_ttl_clause(column.name)) %}
+        {% do distributed_actions.append(command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name)) %}
     {% endfor %}
+    {% do clickhouse__run_alter_table_command(local_actions | join(', '), existing_relation, existing_local, is_distributed, distributed_actions | join(', ')) %}
 
 {% endmacro %}
 
