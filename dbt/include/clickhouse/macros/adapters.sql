@@ -1,3 +1,10 @@
+{% macro clickhouse__check_schema_exists(information_schema, schema) -%}
+  {% set sql %}
+    select count(*) from system.databases where name = '{{ schema }}'
+  {% endset %}
+  {{ return(run_query(sql)) }}
+{% endmacro %}
+
 {% macro clickhouse__list_schemas(database) %}
   {% call statement('list_schemas', fetch_result=True, auto_begin=False) %}
     select name from system.databases
@@ -121,14 +128,7 @@
 {%- endmacro %}
 
 {% macro clickhouse__get_columns_in_query(select_sql) %}
-  {% call statement('get_columns_in_query', fetch_result=True, auto_begin=False) -%}
-    select * from (
-        {{ select_sql }}
-    ) as __dbt_sbq
-    limit 0
-  {% endcall %}
-
-  {{ return(load_result('get_columns_in_query').table.columns | map(attribute='name') | list) }}
+  {{ return(adapter.get_column_schema_from_query(select_sql) | map(attribute='name') | list) }}
 {% endmacro %}
 
 {% macro clickhouse__alter_column_type(relation, column_name, new_column_type) -%}

@@ -69,9 +69,9 @@ class MacroHarness:
         def test_on_cluster_clause(macros):
             adapter = SandboxSafeMock()
             adapter.get_clickhouse_cluster_name.return_value = '"test_shard"'
-            relation = SandboxSafeMock(should_on_cluster=True)
+            adapter.should_on_cluster.return_value = True
             rendered = macros.call(
-                'on_cluster_clause', relation, False, context={'adapter': adapter}
+                'on_cluster_clause', SandboxSafeMock(), False, context={'adapter': adapter}
             )
             assert rendered.strip() == 'ON CLUSTER "test_shard"'
     """

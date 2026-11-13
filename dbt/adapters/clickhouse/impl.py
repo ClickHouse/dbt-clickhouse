@@ -44,7 +44,6 @@ if TYPE_CHECKING:
     import agate
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
-LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
 MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window'}
 
@@ -179,7 +178,14 @@ class ClickHouseAdapter(SQLAdapter):
         return ch_db and engine_can_atomic_exchange(ch_db.engine)
 
     @available.parse_none
-    def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
+    def should_on_cluster(
+        self,
+        materialized: str = '',
+        engine: str = '',
+        relation: Optional[ClickHouseRelation] = None,
+    ) -> bool:
+        if relation is not None:
+            return relation.should_on_cluster
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
             return ClickHouseRelation.get_on_cluster(
@@ -343,10 +349,6 @@ class ClickHouseAdapter(SQLAdapter):
             extra_credentials = f", extra_credentials(role_arn='{role_arn}'{ext_id})"
 
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
-
-    def check_schema_exists(self, database, schema):
-        results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
-        return schema in (row[0] for row in results)
 
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
