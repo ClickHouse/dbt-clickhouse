@@ -194,6 +194,8 @@ dbt-clickhouse supports most of the cross database macros now included in `dbt C
   interpreted as a string, not a column name
 * Similarly, the `replace` SQL function in ClickHouse requires constant strings for the `old_chars` and `new_chars`
   parameters, so those parameters will be interpreted as strings rather than column names when invoking this macro.
+* The `date` macro returns a `Date`, or a `Date32` when the date is outside the `Date` range (1970-01-01 to
+  2149-06-06), because `Date` would clamp it to the nearest bound.
 
 ## Catalog Support {#catalog-support}
 

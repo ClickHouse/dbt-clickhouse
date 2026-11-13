@@ -48,6 +48,18 @@
 {%- endmacro %}
 
 
+{#- `Date` covers 1970-01-01 to 2149-06-06 and clamps any other value to the nearest
+    bound without an error, so a date outside that range is a `Date32` instead -#}
+{%- macro clickhouse__date(year, month, day) -%}
+    {%- set dt = modules.datetime.date(year, month, day) -%}
+    {%- if modules.datetime.date(1970, 1, 1) <= dt and dt <= modules.datetime.date(2149, 6, 6) -%}
+        toDate('{{ dt.isoformat() }}')
+    {%- else -%}
+        toDate32('{{ dt.isoformat() }}')
+    {%- endif -%}
+{%- endmacro -%}
+
+
 {%- macro clickhouse__last_day(date, datepart) -%}
     {{ dbt.dateadd('day', '-1', dbt.dateadd(datepart, '1', dbt.date_trunc(datepart, date)))}}
 {%- endmacro -%}

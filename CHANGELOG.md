@@ -21,6 +21,7 @@
 * Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
 * Reading and enabling `allow_nondeterministic_mutations` at connect time now retries transient errors ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
 * Multi-view materialized view models can now select from ephemeral models when no view has its own `WITH` clause; otherwise, a view that selects from an ephemeral model raises an error that points to explicit target mode ([#768](https://github.com/ClickHouse/dbt-clickhouse/pull/768)).
+* Fix the `dbt.date(year, month, day)` cross-database macro failing on ClickHouse, which has no `to_date` function. It now renders `toDate('YYYY-MM-DD')`, or `toDate32(...)` for a date outside the `Date` range ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
 
 
 ### Release [1.10.3], 2026-09-15
