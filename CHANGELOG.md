@@ -2,6 +2,7 @@
 
 #### Improvements
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
+* `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
