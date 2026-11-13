@@ -38,7 +38,7 @@ class TestValidateIncrementalStrategy:
 
     def test_legacy_does_not_require_lw_deletes(self):
         adapter = _make_adapter(has_lw_deletes=False)
-        adapter.validate_incremental_strategy('legacy', [], None, None)
+        adapter.validate_incremental_strategy('legacy', [], 'id', None)
 
     def test_append_does_not_require_lw_deletes(self):
         adapter = _make_adapter(has_lw_deletes=False)
@@ -53,7 +53,31 @@ class TestValidateIncrementalStrategy:
         with pytest.raises(DbtRuntimeError, match="unique_key"):
             adapter.validate_incremental_strategy('delete_insert', [], None, None)
 
+    def test_legacy_raises_without_unique_key(self):
+        adapter = _make_adapter(has_lw_deletes=False)
+        with pytest.raises(DbtRuntimeError, match="unique_key"):
+            adapter.validate_incremental_strategy('legacy', [], None, None)
+
     def test_unknown_strategy_raises(self):
         adapter = _make_adapter(has_lw_deletes=True)
         with pytest.raises(DbtRuntimeError, match="not valid"):
             adapter.validate_incremental_strategy('invalid_strategy', [], 'id', None)
+
+
+class TestCalculateIncrementalStrategy:
+    @pytest.mark.parametrize('strategy', [None, '', 'default'])
+    def test_default_appends_without_unique_key(self, strategy):
+        adapter = _make_adapter(has_lw_deletes=True)
+        assert adapter.calculate_incremental_strategy(strategy, None) == 'append'
+
+    def test_default_uses_delete_insert_with_lw_deletes(self):
+        adapter = _make_adapter(has_lw_deletes=True)
+        assert adapter.calculate_incremental_strategy(None, 'id') == 'delete_insert'
+
+    def test_default_uses_legacy_without_lw_deletes(self):
+        adapter = _make_adapter(has_lw_deletes=False)
+        assert adapter.calculate_incremental_strategy(None, 'id') == 'legacy'
+
+    def test_explicit_strategy_is_kept_without_unique_key(self):
+        adapter = _make_adapter(has_lw_deletes=True)
+        assert adapter.calculate_incremental_strategy('delete+insert', None) == 'delete_insert'

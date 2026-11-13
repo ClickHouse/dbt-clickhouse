@@ -1,4 +1,5 @@
 import pytest
+from dbt.artifacts.schemas.results import RunStatus
 from dbt.tests.adapter.incremental.test_incremental_unique_id import (
     BaseIncrementalUniqueKey,
     models__duplicated_unary_unique_key_list_sql,
@@ -12,6 +13,7 @@ from dbt.tests.adapter.incremental.test_incremental_unique_id import (
     models__trinary_unique_key_list_sql,
     models__unary_unique_key_list_sql,
 )
+from dbt.tests.util import run_dbt
 
 models__expected__one_str__overwrite_sql = """
 {{
@@ -86,3 +88,27 @@ class TestIncrementalUniqueKey(BaseIncrementalUniqueKey):
                 "unique_key_list__inplace_overwrite.sql": models__expected__unique_key_list__inplace_overwrite_sql,
             },
         }
+
+
+missing_unique_key_sql = """
+{{{{ config(materialized='incremental', incremental_strategy='{strategy}') }}}}
+select 1 as id
+"""
+
+
+class TestIncrementalMissingUniqueKey:
+    """An explicit strategy that needs a unique_key must fail instead of silently appending."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "legacy.sql": missing_unique_key_sql.format(strategy="legacy"),
+            "delete_insert.sql": missing_unique_key_sql.format(strategy="delete+insert"),
+        }
+
+    def test_missing_unique_key_fails(self, project):
+        results = run_dbt(["run"], expect_pass=False)
+        assert len(results) == 2
+        for result in results:
+            assert result.status == RunStatus.Error
+            assert "requires a non-empty 'unique_key'" in result.message

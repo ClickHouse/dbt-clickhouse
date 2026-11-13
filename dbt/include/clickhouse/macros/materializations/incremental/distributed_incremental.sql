@@ -26,6 +26,12 @@
      {% set unique_key = unique_key|join(', ') %}
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
+  {% if not inserts_only %}
+    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'), unique_key)  %}
+    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
+    {% set partition_by = config.get('partition_by') %}
+    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
+  {% endif %}
   {%- set grant_config = config.get('grants') -%}
   {%- set has_contract = config.get('contract').enforced -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
@@ -85,10 +91,6 @@
       {% set existing_relation = target_relation %}
     {% endif %}
 
-    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
-    {% set partition_by = config.get('partition_by') %}
-    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql, query_settings=config.get('query_settings', {})) -%}
       {% if local_column_changes and incremental_strategy != 'legacy' %}
