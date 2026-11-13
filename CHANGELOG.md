@@ -7,7 +7,7 @@
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
 * Integration tests now run in parallel with `pytest-xdist`, in CI and locally (see [CONTRIBUTING.md](./CONTRIBUTING.md#running-tests)). Each test class gets a worker-unique schema, and the grants and `dbt_clone` tests create their own short-lived users instead of sharing session-wide ones ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
-* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
+* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#782](https://github.com/ClickHouse/dbt-clickhouse/pull/782)).
 
 #### Bugs
 * The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
@@ -21,6 +21,7 @@
 * Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
 * Reading and enabling `allow_nondeterministic_mutations` at connect time now retries transient errors ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
 * Multi-view materialized view models can now select from ephemeral models when no view has its own `WITH` clause; otherwise, a view that selects from an ephemeral model raises an error that points to explicit target mode ([#768](https://github.com/ClickHouse/dbt-clickhouse/pull/768)).
+* Dictionaries on ClickHouse Cloud (`database_engine: Shared`) are now created with `SETTINGS(select_sequential_consistency = 1)`. Cloud loads dictionaries eagerly on every replica, and a replica that had not yet seen the latest parts of the source table loaded an empty or stale dictionary until its next `LIFETIME` refresh ([#800](https://github.com/ClickHouse/dbt-clickhouse/pull/800)).
 
 
 ### Release [1.10.3], 2026-09-15

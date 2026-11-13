@@ -58,6 +58,9 @@
   {%- if config.get('range') %}
   RANGE({{ config.get('range') }})
   {%- endif %}
+  {%- if target.database_engine == 'Shared' %}
+  SETTINGS(select_sequential_consistency = 1)
+  {%- endif %}
 {% endmacro %}
 
 
