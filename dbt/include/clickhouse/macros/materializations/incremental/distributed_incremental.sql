@@ -26,6 +26,14 @@
      {% set unique_key = unique_key|join(', ') %}
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
+  {% if inserts_only %}
+    {% do exceptions.warn("`inserts_only` is deprecated and overrides `incremental_strategy`. Use `incremental_strategy='append'` instead.") %}
+  {% else %}
+    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'), unique_key)  %}
+    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
+    {% set partition_by = config.get('partition_by') %}
+    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
+  {% endif %}
   {%- set grant_config = config.get('grants') -%}
   {%- set has_contract = config.get('contract').enforced -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
@@ -72,9 +80,6 @@
     {% set need_swap = true %}
 
   {% elif inserts_only -%}
-    -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
-    -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
-    -- specific configurable that is used to avoid creating an expensive intermediate table.
     {% call statement('main') %}
         {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
     {% endcall %}
@@ -85,10 +90,6 @@
       {% set existing_relation = target_relation %}
     {% endif %}
 
-    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
-    {% set partition_by = config.get('partition_by') %}
-    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql, query_settings=config.get('query_settings', {})) -%}
       {% if local_column_changes and incremental_strategy != 'legacy' %}

@@ -3,7 +3,7 @@ import os
 import pytest
 from dbt.tests.adapter.basic.files import model_incremental, schema_base_yml
 from dbt.tests.adapter.basic.test_incremental import BaseIncremental
-from dbt.tests.util import run_dbt
+from dbt.tests.util import run_dbt, run_dbt_and_capture
 
 uniq_schema = """
 version: 2
@@ -183,6 +183,19 @@ class TestInsertsOnlyIncrementalMaterialization(BaseIncremental):
             "incremental.sql": incremental_sql,
             "schema.yml": schema_base_yml,
         }
+
+
+class TestInsertsOnlyDeprecationWarning:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "inserts_only.sql": "{{ config(materialized='incremental', inserts_only=True) }} select 1 as id"
+        }
+
+    def test_inserts_only_warns(self, project):
+        _, logs = run_dbt_and_capture(["run"])
+        assert "`inserts_only` is deprecated" in logs
+        run_dbt(["--warn-error", "run"], expect_pass=False)
 
 
 insert_overwrite_inc = """
