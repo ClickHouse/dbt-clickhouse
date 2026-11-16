@@ -27,6 +27,22 @@
 {% endmacro %}
 
 {% macro clickhouse__list_relations_without_caching(schema_relation) %}
+  {#-
+    Materialized views live in local ClickHouse databases. Listing every
+    MaterializedView forces ClickHouse to open each MySQL/PostgreSQL database
+    engine, so one unreachable remote database fails relation listing for every
+    schema. Resolve the local database names first (system.databases does not
+    connect) and pass them as literals, so the system.tables predicate drops
+    those engines before any connection attempt. source() still reaches a
+    remote schema: the outer query below filters by that schema directly.
+  -#}
+  {% set ns = namespace(local_databases=[]) %}
+  {% if execute %}
+    {% set local_db_rows = run_query("select name from system.databases where engine not in ('MySQL', 'PostgreSQL', 'MaterializedMySQL')") %}
+    {% if local_db_rows is not none and local_db_rows.columns %}
+      {% set ns.local_databases = local_db_rows.columns[0].values() %}
+    {% endif %}
+  {% endif %}
   {% call statement('list_relations_without_caching', fetch_result=True) -%}
     with mv_sources as (
       -- Find all MVs and their target tables (database and name of the MV, plus the SELECT SQL)
@@ -43,6 +59,11 @@
       {% endif %}
       where engine = 'MaterializedView'
         and create_table_query like '%TO %'
+        {%- if ns.local_databases %}
+        and database in ({% for db_name in ns.local_databases %}'{{ db_name | replace("'", "''") }}'{% if not loop.last %}, {% endif %}{% endfor %})
+        {%- elif execute %}
+        and 0
+        {%- endif %}
       group by mv_name, mv_database
     )
     select
