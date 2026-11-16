@@ -6,13 +6,25 @@ on:  # yamllint disable-line rule:truthy
     branches: main
     paths-ignore:
       - 'docs/**'
+  # Fork PRs get no secrets on pull_request; a maintainer runs them by adding the label.
+  pull_request_target:
+    branches: main
+    types: [labeled]
   workflow_dispatch:
   schedule:
     - cron: '0 2 * * *'  # Nightly run at 2:00 AM UTC
 
+permissions:
+  contents: read
+
 jobs:
   cloud_smt_tests:
     name: ClickHouse Cloud SharedMergeTree Tests
+    if: >-
+      (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
+      (github.event_name == 'pull_request_target' && github.event.label.name == 'tests:run-cloud') ||
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 50
 
@@ -26,6 +38,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          # head.sha is fixed at label time, so later pushes need a fresh label.
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
+          # Fork code runs with secrets. a maintainer must review it before labeling.
+          # See https://gh.io/securely-using-pull_request_target
+          allow-unsafe-pr-checkout: true
+          persist-credentials: false
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v7
