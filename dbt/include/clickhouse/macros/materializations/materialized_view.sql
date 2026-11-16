@@ -490,7 +490,8 @@
   {% set tables_query %}
     select name
     from system.tables
-    where engine = 'MaterializedView'
+    where database = '{{ relation_schema }}'
+      and engine = 'MaterializedView'
       and extract(create_table_query, 'TO\\s+([^\\s(]+)') = '{{ relation_schema }}.{{ relation_name }}'
   {% endset %}
 
