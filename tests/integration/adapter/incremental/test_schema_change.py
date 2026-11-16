@@ -188,21 +188,15 @@ out_of_order_columns_sql = """
 {{
     config(
         materialized='%s',
-        unique_key='col_1',
+        %s,
         on_schema_change='fail'
     )
 }}
 
 {%% if not is_incremental() %%}
-select
-    number as col_1,
-    number + 1 as col_2
-from numbers(3)
+select 1 as col_1, 2 as col_2
 {%% else %%}
-select
-    number + 1 as col_2,
-    number as col_1
-from numbers(2, 3)
+select 4 as col_2, 3 as col_1
 {%% endif %%}
 """
 
@@ -211,25 +205,86 @@ class TestReordering:
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "out_of_order_columns.sql": out_of_order_columns_sql % "incremental",
-            "out_of_order_columns_distributed.sql": out_of_order_columns_sql
+            "out_of_order_columns_delete_insert.sql": out_of_order_columns_sql
+            % ("incremental", "incremental_strategy='delete+insert', unique_key='col_1'"),
+            "out_of_order_columns_delete_insert_distributed.sql": out_of_order_columns_sql
+            % (
+                "distributed_incremental",
+                "incremental_strategy='delete+insert', unique_key='col_1'",
+            ),
+            "out_of_order_columns_legacy.sql": out_of_order_columns_sql
+            % ("incremental", "incremental_strategy='legacy', unique_key='col_1'"),
+            "out_of_order_columns_legacy_distributed.sql": out_of_order_columns_sql
+            % ("distributed_incremental", "incremental_strategy='legacy', unique_key='col_1'"),
+            "out_of_order_columns_append.sql": out_of_order_columns_sql
+            % ("incremental", "incremental_strategy='append'"),
+            "out_of_order_columns_append_distributed.sql": out_of_order_columns_sql
+            % ("distributed_incremental", "incremental_strategy='append'"),
+            "out_of_order_columns_inserts_only.sql": out_of_order_columns_sql
+            % ("incremental", "inserts_only=True"),
+            "out_of_order_columns_inserts_only_distributed.sql": out_of_order_columns_sql
+            % ("distributed_incremental", "inserts_only=True"),
+        }
+
+    @pytest.mark.parametrize(
+        "model",
+        (
+            "out_of_order_columns_delete_insert",
+            "out_of_order_columns_delete_insert_distributed",
+            "out_of_order_columns_legacy",
+            "out_of_order_columns_legacy_distributed",
+            "out_of_order_columns_append",
+            "out_of_order_columns_append_distributed",
+            "out_of_order_columns_inserts_only",
+            "out_of_order_columns_inserts_only_distributed",
+        ),
+    )
+    def test_reordering(self, project, model):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+        run_dbt(["run", "--select", model])
+        run_dbt(["run", "--select", model])
+        result = project.run_sql(f"select col_1, col_2 from {model} order by col_1", fetch="all")
+        assert result == [(1, 2), (3, 4)]
+
+
+new_column_not_last_sql = """
+{{
+    config(
+        materialized='%s',
+        incremental_strategy='append',
+        on_schema_change='append_new_columns'
+    )
+}}
+
+{%% if not is_incremental() %%}
+select 1 as col_1, 1 as col_2
+{%% else %%}
+select 2 as col_1, 3 as col_3, 2 as col_2
+{%% endif %%}
+"""
+
+
+class TestAppendNewColumnNotLast:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "new_column_not_last.sql": new_column_not_last_sql % "incremental",
+            "new_column_not_last_distributed.sql": new_column_not_last_sql
             % "distributed_incremental",
         }
 
-    @pytest.mark.parametrize("model", ("out_of_order_columns", "out_of_order_columns_distributed"))
-    def test_reordering(self, project, model):
-        if (
-            model == "out_of_order_columns_distributed"
-            and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
-        ):
+    @pytest.mark.parametrize("model", ("new_column_not_last", "new_column_not_last_distributed"))
+    def test_append(self, project, model):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
             pytest.skip("Not on a cluster")
         run_dbt(["run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
-        assert result[0][1] == 1
         run_dbt(["run", "--select", model])
-        result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
-        assert result[0][1] == 1
-        assert result[3][1] == 4
+        # The table appends col_3 last, while the model selects it second
+        result = project.run_sql(
+            f"select col_1, col_2, col_3 from {model} order by col_1", fetch="all"
+        )
+        assert result == [(1, 1, 0), (2, 2, 3)]
 
 
 fixed_string_append_sql = """

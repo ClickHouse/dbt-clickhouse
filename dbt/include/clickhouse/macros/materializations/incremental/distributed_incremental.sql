@@ -81,7 +81,7 @@
 
   {% elif inserts_only -%}
     {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract, use_columns_from_sql=True) }}
     {% endcall %}
 
   {% else %}
@@ -106,7 +106,7 @@
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract, use_columns_from_sql=True) }}
       {% endcall %}
     {% endif %}
   {% endif %}
