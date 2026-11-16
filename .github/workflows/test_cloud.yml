@@ -22,7 +22,8 @@ jobs:
     name: ClickHouse Cloud SharedMergeTree Tests
     if: >-
       (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'pull_request_target' && github.event.label.name == 'tests:run-cloud') ||
+      (github.event_name == 'pull_request_target' && github.event.label.name == 'tests:run-cloud' &&
+        github.event.pull_request.head.repo.full_name != github.repository) ||
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'schedule'
     runs-on: ubuntu-latest
@@ -40,7 +41,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           # head.sha is fixed at label time, so later pushes need a fresh label.
-          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.ref }}
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           # Fork code runs with secrets. a maintainer must review it before labeling.
           # See https://gh.io/securely-using-pull_request_target
           allow-unsafe-pr-checkout: true
@@ -67,3 +68,20 @@ jobs:
         env:
           DBT_CH_TEST_PORT: 9440
         run: pytest tests -n 2 --dist loadscope --timeout=300
+
+  # Consume the label so new commits need a fresh review and re-label to run.
+  # Separate job keeps the write token away from fork code.
+  remove_run_cloud_label:
+    name: Remove tests:run-cloud label
+    needs: cloud_smt_tests
+    if: always() && github.event_name == 'pull_request_target' && needs.cloud_smt_tests.result != 'skipped'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Remove label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/${REPO}/issues/${PR_NUMBER}/labels/tests%3Arun-cloud" || true
