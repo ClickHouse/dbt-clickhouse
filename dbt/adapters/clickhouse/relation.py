@@ -9,6 +9,7 @@ from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
 
 NODE_TYPE_SOURCE = 'source'
+NODE_TYPE_FUNCTION = 'function'
 
 
 @dataclass
@@ -33,6 +34,7 @@ class ClickHouseRelationType(StrEnum):
     External = "external"
     Ephemeral = "ephemeral"
     Dictionary = "dictionary"
+    Function = "function"
 
 
 @dataclass(frozen=True, eq=False, repr=False)
@@ -151,10 +153,15 @@ class ClickHouseRelation(BaseRelation):
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
                 schema = relation_config.database
-        else:
-            # quoting is only available for non-source nodes
-            cluster = quoting.credentials.cluster or ""
-            database_engine = quoting.credentials.database_engine or ""
+        elif relation_config.resource_type == NODE_TYPE_FUNCTION:
+            # ClickHouse functions are global, not part of a database
+            schema = None
+
+        # source() and function() calls pass dbt's quoting-only config, which has no credentials
+        credentials = getattr(quoting, 'credentials', None)
+        if credentials:
+            cluster = credentials.cluster or ""
+            database_engine = credentials.database_engine or ""
 
         if (
             cluster
