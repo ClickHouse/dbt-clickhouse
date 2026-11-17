@@ -28,6 +28,8 @@
   {%- set valid_to_col = adapter.quote('dbt_valid_to') -%}
 
   {%- set upsert = target.derivative('__snapshot_upsert') -%}
+  {#- A run that died after filling the upsert table leaves it behind; reusing it would insert its rows twice. -#}
+  {{ drop_relation_if_exists(upsert) }}
   {% call statement('create_upsert_relation') %}
     create table if not exists {{ upsert }} {{ on_cluster_clause(upsert) }} as {{ target }}
   {% endcall %}
