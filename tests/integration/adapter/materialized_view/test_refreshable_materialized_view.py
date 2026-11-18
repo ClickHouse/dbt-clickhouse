@@ -683,3 +683,81 @@ class TestNoCatchupRefreshableMV:
             assert len(results) == 1
             project.run_sql("system wait view hackers_mv")
             assert target_row_count(project, 'hackers') == 2
+
+
+# sleepEachRow keeps the initial refresh running while dbt finishes the model
+SLOW_NO_CATCHUP_PERSIST_DOCS_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(department)',
+       catchup=False,
+       persist_docs={"relation": true, "columns": true},
+       refreshable={"interval": "AFTER 1 HOUR"}
+) }}
+select
+    department,
+    avg(age) as average
+from {{ source('raw', 'people') }}
+where sleepEachRow(0.4) = 0
+group by department
+"""
+
+PERSIST_DOCS_SCHEMA_YML = """
+version: 2
+
+models:
+  - name: hackers
+    description: Average age per department
+    columns:
+      - name: department
+        description: The department
+      - name: average
+        description: The average age
+"""
+
+
+class TestNoCatchupRefreshableMVPersistDocs:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers.sql": SLOW_NO_CATCHUP_PERSIST_DOCS_MODEL,
+            "hackers.yml": PERSIST_DOCS_SCHEMA_YML,
+        }
+
+    def test_comments_survive_the_initial_refresh(self, project):
+        """
+        A non-APPEND refresh replaces the target table with one built from the structure the
+        target had when the refresh started, so the comments must be in place before the view
+        is created. Same on --full-refresh, where the views are recreated over a new table.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        for args in (["run"], ["run", "--full-refresh"]):
+            results = run_dbt(args)
+            assert len(results) == 1
+            project.run_sql("system wait view hackers_mv")
+            assert target_row_count(project, 'hackers') == 2
+
+            column_comments = project.run_sql(
+                f"select name, comment from system.columns"
+                f" where database = '{project.test_schema}' and table = 'hackers'",
+                fetch="all",
+            )
+            assert dict(column_comments) == {
+                'department': 'The department',
+                'average': 'The average age',
+            }
+            table_comment = project.run_sql(
+                f"select comment from system.tables"
+                f" where database = '{project.test_schema}' and name = 'hackers'",
+                fetch="one",
+            )
+            assert table_comment[0] == 'Average age per department'
