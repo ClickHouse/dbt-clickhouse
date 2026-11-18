@@ -7,6 +7,7 @@ import pytest
 import yaml
 from dbt.adapters.events.types import SQLQuery
 from dbt.events.types import JinjaLogWarning
+from dbt.tests.adapter.functions.test_udafs import BasicSQLUDAF
 from dbt.tests.adapter.functions.test_udfs import (
     ErrorForUnsupportedType,
     PythonUDFNotSupported,
@@ -67,6 +68,24 @@ class TestUDFBasics(UniqueFunctionName, UDFsBasic):
             f"SELECT count() FROM system.functions WHERE name = '{function_alias}'", fetch="one"
         )
         assert result[0] == 1
+
+
+class TestBasicSQLUDAF(UniqueFunctionName, BasicSQLUDAF):
+    function_name = "sum_squared"
+
+    @pytest.fixture(scope="class")
+    def functions(self, function_alias):
+        return {
+            "sum_squared.sql": files.SUM_SQUARED_UDAF_SQL,
+            "sum_squared.yml": _with_alias(files.SUM_SQUARED_UDAF_SQL_YML, function_alias),
+        }
+
+    # ClickHouse has no CREATE AGGREGATE FUNCTION
+    def is_function_create_event(self, event: EventMsg) -> bool:
+        return (
+            event.data.node_info.node_name == "sum_squared"
+            and "CREATE OR REPLACE FUNCTION" in event.data.sql
+        )
 
 
 class TestUnsupportedConfigIgnored(TestUDFBasics):
