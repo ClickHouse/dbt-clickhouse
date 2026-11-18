@@ -2,6 +2,8 @@
 test UDF creation support for dbt-clickhouse
 """
 
+import os
+
 import dbt.tests.adapter.functions.files as files
 import pytest
 import yaml
@@ -70,6 +72,38 @@ class TestUDFBasics(UniqueFunctionName, UDFsBasic):
         assert result[0] == 1
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'),
+    reason='Replicated is not supported for cloud',
+)
+class TestReplicatedDatabase(UniqueFunctionName):
+    @pytest.fixture(scope="class")
+    def test_config(self, test_config):
+        # copy, since the session-scoped config is shared with every other test module
+        return {
+            **test_config,
+            "db_engine": "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')",
+        }
+
+    # functions aren't part of the Replicated database, so they need ON CLUSTER
+    def test_created_on_all_replicas(self, project, test_config, function_alias):
+        cluster = test_config["cluster"]
+        if not cluster:
+            pytest.skip("requires a cluster")
+
+        run_dbt(["build"])
+
+        replicas = project.run_sql(
+            f"SELECT count() FROM system.clusters WHERE cluster = '{cluster}'", fetch="one"
+        )
+        created = project.run_sql(
+            f"SELECT count() FROM clusterAllReplicas('{cluster}', system.functions)"
+            f" WHERE name = '{function_alias}'",
+            fetch="one",
+        )
+        assert created[0] == replicas[0]
+
+
 class TestBasicSQLUDAF(UniqueFunctionName, BasicSQLUDAF):
     function_name = "sum_squared"
 
@@ -102,7 +136,9 @@ class TestUnsupportedConfigIgnored(TestUDFBasics):
 
     def test_unsupported_config_ignored(self, project):
         warnings = EventCatcher(JinjaLogWarning)
-        queries = EventCatcher(SQLQuery)
+        queries = EventCatcher(
+            SQLQuery, predicate=lambda event: event.data.node_info.node_name == "price_for_xlarge"
+        )
         run_dbt(["build"], callbacks=[warnings.catch, queries.catch])
 
         messages = [event.data.msg for event in warnings.caught_events]
@@ -111,6 +147,7 @@ class TestUnsupportedConfigIgnored(TestUDFBasics):
         assert any("grants" in msg for msg in messages)
 
         executed_sql = [event.data.sql.lower() for event in queries.caught_events]
+        assert any("create or replace function" in sql for sql in executed_sql)
         assert not any("grant" in sql or "comment" in sql for sql in executed_sql)
 
 

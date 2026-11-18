@@ -8,7 +8,7 @@
 
 {% macro clickhouse__scalar_function_create_replace_signature_sql(target_relation) -%}
     {%- do scalar_function_volatility_sql() -%}
-    CREATE OR REPLACE FUNCTION {{ target_relation }} {{ on_cluster_clause(this) }} AS ({{ formatted_scalar_function_args_sql() }}) ->
+    CREATE OR REPLACE FUNCTION {{ target_relation }} {{ on_cluster_clause(target_relation) }} AS ({{ formatted_scalar_function_args_sql() }}) ->
 {%- endmacro %}
 
 {% macro clickhouse__scalar_function_body_sql() -%}
