@@ -146,9 +146,6 @@ class ClickHouseRelation(BaseRelation):
         # schema with the database instead, since that's presumably what's intended for clickhouse
         schema = relation_config.schema
 
-        can_on_cluster = None
-        cluster = ""
-        database_engine = ""
         # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
@@ -157,24 +154,26 @@ class ClickHouseRelation(BaseRelation):
             # ClickHouse functions are global, not part of a database
             schema = None
 
-        # source() and function() calls pass dbt's quoting-only config, which has no credentials
-        credentials = getattr(quoting, 'credentials', None)
-        if credentials:
-            cluster = credentials.cluster or ""
-            database_engine = credentials.database_engine or ""
-
-        if (
-            cluster
-            and str(relation_config.config.get("disable_on_cluster")).lower() != "true"
-            and 'replicated' not in database_engine.lower()
-        ):
-            can_on_cluster = True
-
         return cls.create(
             database='',
             schema=schema,
             identifier=relation_config.identifier,
             quote_policy=quote_policy,
-            can_on_cluster=can_on_cluster,
+            can_on_cluster=cls._can_on_cluster(quoting, relation_config),
             **kwargs,
         )
+
+    @classmethod
+    def _can_on_cluster(cls, quoting: HasQuoting, relation_config: RelationConfig) -> bool:
+        # source() and function() calls pass dbt's quoting-only config, which has no credentials
+        credentials = getattr(quoting, 'credentials', None)
+        if not credentials or not credentials.cluster:
+            return False
+        if relation_config.resource_type == NODE_TYPE_SOURCE:
+            return False
+        if str(relation_config.config.get("disable_on_cluster")).lower() == "true":
+            return False
+        # a replicated database replicates ddl itself, but functions aren't part of a database
+        if relation_config.resource_type == NODE_TYPE_FUNCTION:
+            return True
+        return cls.get_on_cluster(credentials.cluster, credentials.database_engine)
