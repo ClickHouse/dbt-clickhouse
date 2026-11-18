@@ -86,7 +86,7 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 |---------|--------------|--------|-------|
 | Engine, `ORDER BY`, `PARTITION BY`, `PRIMARY KEY` | Core MergeTree DDL controls. | <Badge color="green">Supported</Badge> | |
 | TTL | Row and column expiration. | <Badge color="green">Supported</Badge> | |
-| Table and query settings | Per-model `SETTINGS` on DDL and on the insert. | <Badge color="green">Supported</Badge> | |
+| Table and query settings | Per-model `SETTINGS` on DDL and on the insert. | <Badge color="green">Supported</Badge> | `query_settings` set on a seed is ignored. Everything else works. |
 | Projections, indexes, `sql_header` | Secondary structures and prefix SQL. | <Badge color="green">Supported</Badge> | |
 | Model contracts and constraints | Column types and constraints enforced at build time. | <Badge color="green">Supported</Badge> | |
 | Schema evolution on incremental models | `on_schema_change` adds or syncs columns. | <Badge color="green">Supported</Badge> | |
@@ -121,6 +121,7 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | Grants | `GRANT` statements from model config. | <Badge color="green">Supported</Badge> | |
 | `dbt clone` | Zero-copy `CLONE AS` between environments. | <Badge color="green">Supported</Badge> | MergeTree tables, seeds, snapshots and incrementals are cloned with `CLONE AS`; views and other engines fall back to views, as in v1. |
 | Query ID in run results | `query_id` in `adapter_response` for `system.query_log` correlation. | <Badge color="red">Not yet</Badge> | |
+| Source freshness with `loaded_at_field` or `loaded_at_query` | `dbt source freshness` from a timestamp column or a custom query. | <Badge color="red">Not yet</Badge> | Fails with `should have a timestamp type, but got UInt32` ([dbt-labs/dbt#16714](https://github.com/dbt-labs/dbt/issues/16714)). |
 
 #### Connectivity and auth {#parity-connectivity-and-auth}
 
@@ -129,7 +130,8 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 | Protocol | How dbt talks to ClickHouse. | <Badge color="green">Supported</Badge> | ADBC (Arrow over HTTP) on v2; HTTP and native on v1. |
 | Username and password, TLS | Standard auth. | <Badge color="green">Supported</Badge> | |
 | mTLS client certificates | `client_cert`, `client_cert_key`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored. |
-| HTTP client options | `connect_timeout`, `send_receive_timeout`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Accepted but ignored; `server_host_name` is unavailable. |
+| HTTP client options | `connect_timeout`, `send_receive_timeout`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored ([ClickHouse/dbt-clickhouse#795](https://github.com/ClickHouse/dbt-clickhouse/issues/795)). |
+| Connection reuse | `reuse_connections: false` opens a new connection per model. | <Badge color="red">Not yet</Badge> | The key is accepted but ignored. |
 
 #### Not planned for v2 {#not-planned}
 
@@ -151,7 +153,7 @@ dbt v2 adds capabilities that have no equivalent in dbt Core 1.x. They are outsi
 | Column-level lineage in the dbt platform | Column lineage view built from the run artifacts. | <Badge color="yellow">Partial</Badge> | Renders only with identifier quoting disabled in `dbt_project.yml`; the platform's fallback parser rejects backtick-quoted names ([dbt-labs/dbt#16646](https://github.com/dbt-labs/dbt/issues/16646)). |
 | Column-level lineage from the engine | Lineage written by `dbt docs generate` for the local docs site. | <Badge color="red">Not yet</Badge> | Needs static analysis. |
 | LSP and VS Code extension | Dialect-aware autocomplete and column awareness while editing. | <Badge color="Partial">Not yet</Badge> | Compatible with the VS Code Extension but the LSP features are not available yet. |
-| Source freshness from table metadata | `dbt source freshness` without `loaded_at_field`, from the table's last modification time. | <Badge color="blue">In progress</Badge> | Being implemented. Today the command fails for sources without `loaded_at_field`. |
+| Source freshness from table metadata | `dbt source freshness` without `loaded_at_field`, from the table's last modification time. | <Badge color="blue">In progress</Badge> | Being implemented. Today the command fails for sources without `loaded_at_field`. Sources with `loaded_at_field` are covered in [Macros and operations](#parity-macros-and-operations). |
 | Semantic Layer / MetricFlow | Metrics defined in dbt and queried through the Semantic Layer. | <Badge color="red">Not yet</Badge> | ClickHouse support is merged in MetricFlow; we are working with dbt Labs to enable it in the Semantic Layer. |
 | Record and replay of adapter calls | `--fs-record` / `--fs-replay` re-run a job without a warehouse. | <Badge color="yellow">Partial</Badge> | ClickHouse catalog details (`ON CLUSTER`, `EXCHANGE`, MV links) are not recorded, so a replay can render different DDL. |
 | More authentication methods in the dbt platform | How the platform connects to ClickHouse. | <Badge color="yellow">Partial</Badge> | Username and password only today; more methods are planned. |
