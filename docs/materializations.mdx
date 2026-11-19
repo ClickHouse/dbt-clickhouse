@@ -579,7 +579,7 @@ functions:
     description: Doubles the price of a standard item
     arguments:
       - name: price
-        data_type: Float64
+        data_type: Float64  # required by dbt, not enforced by ClickHouse
     returns:
       data_type: Float64
   - name: sum_squared
@@ -646,8 +646,8 @@ Python and JavaScript UDFs are currently not supported with the ClickHouse adapt
 The following function properties are not supported in ClickHouse:
 
 - `overloads`: A UDF can only have one signature. Setting `overloads` fails the build.
-- argument and return `data_type`: Cannot be set in ClickHouse UDFs and will be ignored. Cast in the function body if
-  you need stable types.
+- argument and return `data_type`: Required by dbt, but ClickHouse UDFs are untyped, so they are not enforced. Cast in
+  the function body if you need a fixed type.
 - `volatility`: Cannot be set in ClickHouse UDFs. Ignored with a warning.
 - argument `default_value`: Cannot be set in ClickHouse UDFs. Ignored with a warning.
 
