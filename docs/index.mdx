@@ -168,6 +168,7 @@ Models that can't be cloned this way fall back to dbt's default behavior of crea
 
 - Tables using non-MergeTree engines
 - Distributed materializations
+- Tables created `ON CLUSTER` or in a `Replicated` database, which `CLONE AS` doesn't support
 
 For materialized view models, only the target table is cloned; the materialized view itself is created on top of the cloned table.
 

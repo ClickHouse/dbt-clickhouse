@@ -13,6 +13,7 @@
 * Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#782](https://github.com/ClickHouse/dbt-clickhouse/pull/782)).
 
 #### Bugs
+* `dbt clone` no longer creates empty tables when a `cluster` is set, or fails in a `Replicated` database. `CLONE AS` supports neither, so these tables now fall back to views, like other tables that can't be cloned.
 * An `incremental` model with an explicit `legacy`, `delete+insert` or `microbatch` strategy and no `unique_key` now fails with a clear error instead of silently appending. Strategy validation now runs on the first build, not only on incremental runs ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
 * The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
 * Fix `insert_overwrite` occasionally skipping partitions on ClickHouse Cloud when the partition probe landed on a replica that had not yet synced the staging insert. The partitions are now read from the staging table itself, which honours the connection's `select_sequential_consistency`, instead of from `system.parts` ([#786](https://github.com/ClickHouse/dbt-clickhouse/pull/786)).

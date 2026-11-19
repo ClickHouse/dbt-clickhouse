@@ -1,3 +1,6 @@
+import os
+from collections import Counter
+
 import pytest
 from dbt.tests.adapter.dbt_clone import fixtures
 from dbt.tests.adapter.dbt_clone.test_dbt_clone import (
@@ -9,13 +12,61 @@ from dbt.tests.adapter.dbt_clone.test_dbt_clone import (
 )
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
+requires_cluster = pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+
+
+def assert_cloned_data(project, other_schema):
+    for name in ("seed", "table_model", "my_cool_snapshot"):
+        assert project.run_sql(f"select count() from {other_schema}.{name}", fetch="one")[0] == 2
+
+
+class CloneBecomesView(BaseClone):
+    def test_clone_becomes_view(self, project, other_schema):
+        project.create_test_schema(other_schema)
+        self.run_and_save_state(project.project_root, with_snapshot=True)
+        run_dbt(["clone", "--state", "state", "--target", "otherschema"])
+        relations = project.adapter.list_relations(database=project.database, schema=other_schema)
+        assert Counter(r.type for r in relations) == Counter({"view": 4})
+        assert_cloned_data(project, other_schema)
+
 
 class TestBaseClonePossible(BaseClonePossible):
-    pass
+    # `CLONE AS` can't run `ON CLUSTER`, see TestCloneOnClusterBecomesView
+    @pytest.fixture(scope="class")
+    def test_config(self, test_config):
+        # copy, since the session-scoped config is shared with every other test module
+        return {**test_config, "cluster": ""}
+
+    def test_can_clone_true(self, project, unique_schema, other_schema):
+        super().test_can_clone_true(project, unique_schema, other_schema)
+        assert_cloned_data(project, other_schema)
+
+
+@requires_cluster
+class TestCloneOnClusterBecomesView(CloneBecomesView):
+    """`CLONE AS ... ON CLUSTER` creates empty tables or fails, so clones fall back to views."""
+
+
+# the `{uuid}` macro in the database path needs ON CLUSTER
+@requires_cluster
+class TestCloneReplicatedDatabaseBecomesView(CloneBecomesView):
+    """Replicated databases reject `CLONE AS`, so clones fall back to views."""
+
+    @pytest.fixture(scope="class")
+    def test_config(self, test_config):
+        # copy, since the session-scoped config is shared with every other test module
+        return {
+            **test_config,
+            "db_engine": "Replicated('/clickhouse/databases/{uuid}', '{shard}', '{replica}')",
+        }
 
 
 class TestCloneNotPossible(BaseCloneNotPossible):
-    pass
+    def test_can_clone_false(self, project, unique_schema, other_schema):
+        super().test_can_clone_false(project, unique_schema, other_schema)
+        assert_cloned_data(project, other_schema)
 
 
 class TestCloneSameTargetAndState(BaseCloneSameTargetAndState):
@@ -66,42 +117,11 @@ class TestCloneSameSourceAndTarget(BaseCloneSameSourceAndTarget):
         _, output = run_dbt_and_capture(clone_args)
 
         assert "skipping clone for relation" in output
-
-
-class TestCloneNonMergeTreeBecomesView(BaseClone):
-    """A non-MergeTree table cannot be cloned with `CLONE AS`, so dbt-core should
-    fall back to materializing it as a view in the target schema."""
-
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "memory_model.sql": "{{ config(materialized='table', engine='Memory') }}\n"
-            "select 1 as id, 'a' as name",
-        }
-
-    @pytest.fixture(scope="class")
-    def snapshots(self):
-        return {}
-
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {}
-
-    def test_non_mergetree_not_cloned_as_table(self, project, unique_schema, other_schema):
-        project.create_test_schema(other_schema)
-
-        results = run_dbt(["run"])
-        assert len(results) == 1
-        self.copy_state(project.project_root)
-
-        clone_args = ["clone", "--state", "state", "--target", "otherschema"]
-        results = run_dbt(clone_args)
-        assert len(results) == 1
-
-        schema_relations = project.adapter.list_relations(
-            database=project.database, schema=other_schema
-        )
-        # Memory is not a MergeTree-family engine, so the clone falls back to a view
-        # rather than being cloned as a table.
-        assert len(schema_relations) == 1
-        assert all(r.type == "view" for r in schema_relations)
+        # a view fallback would have replaced the table with a view of itself
+        assert project.run_sql(
+            f"select engine from system.tables where database = '{unique_schema}' and name = 'source_based_model'",
+            fetch="one",
+        ) == ("MergeTree",)
+        assert project.run_sql(
+            f"select count() from {unique_schema}.source_based_model", fetch="one"
+        ) == (2,)
