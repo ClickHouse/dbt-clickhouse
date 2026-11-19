@@ -13,7 +13,6 @@ from dbt.tests.adapter.functions.test_udafs import BasicSQLUDAF
 from dbt.tests.adapter.functions.test_udfs import (
     ErrorForUnsupportedType,
     PythonUDFNotSupported,
-    SqlUDFDefaultArgSupport,
     UDFsBasic,
 )
 from dbt.tests.util import run_dbt
@@ -128,8 +127,7 @@ class TestUnsupportedConfigIgnored(TestUDFBasics):
         return {
             "functions": {
                 "+volatility": "deterministic",
-                # ClickHouse has no function grants or comments
-                "+grants": {"select": ["some_user"]},
+                # ClickHouse has no function comments
                 "+persist_docs": {"relation": True, "columns": True},
             },
         }
@@ -141,17 +139,15 @@ class TestUnsupportedConfigIgnored(TestUDFBasics):
         )
         run_dbt(["build"], callbacks=[warnings.catch, queries.catch])
 
-        messages = [event.data.msg for event in warnings.caught_events]
-        assert len(messages) == 2
-        assert any("volatility" in msg for msg in messages)
-        assert any("grants" in msg for msg in messages)
+        assert len(warnings.caught_events) == 1
+        assert "volatility" in warnings.caught_events[0].data.msg
 
         executed_sql = [event.data.sql.lower() for event in queries.caught_events]
         assert any("create or replace function" in sql for sql in executed_sql)
-        assert not any("grant" in sql or "comment" in sql for sql in executed_sql)
+        assert not any("comment" in sql for sql in executed_sql)
 
 
-class TestDefaultArgIgnored(UniqueFunctionName, SqlUDFDefaultArgSupport):
+class TestDefaultArgNotSupported(UniqueFunctionName):
     @pytest.fixture(scope="class")
     def functions(self, function_alias):
         return {
@@ -159,13 +155,31 @@ class TestDefaultArgIgnored(UniqueFunctionName, SqlUDFDefaultArgSupport):
             "price_for_xlarge.yml": _with_alias(files.MY_UDF_WITH_DEFAULT_ARG_YML, function_alias),
         }
 
-    def test_default_arg_warning(self, project):
-        warnings = EventCatcher(JinjaLogWarning)
-        run_dbt(["build"], callbacks=[warnings.catch])
-        assert len(warnings.caught_events) == 1
-        assert "Argument `price` of function `price_for_xlarge` has a default value" in (
-            warnings.caught_events[0].data.msg
+    def test_default_arg_error(self, project, function_alias):
+        result = run_dbt(["build"], expect_pass=False)
+        assert len(result.results) == 1
+        assert "Argument `price` of function" in result.results[0].message
+
+        result = project.run_sql(
+            f"SELECT count() FROM system.functions WHERE name = '{function_alias}'", fetch="one"
         )
+        assert result[0] == 0
+
+
+class TestGrantsNotSupported(UniqueFunctionName):
+    @pytest.fixture(scope="class")
+    def project_config_update(self):
+        return {"functions": {"+grants": {"select": ["some_user"]}}}
+
+    def test_grants_error(self, project, function_alias):
+        result = run_dbt(["build"], expect_pass=False)
+        assert len(result.results) == 1
+        assert "has grants configured" in result.results[0].message
+
+        result = project.run_sql(
+            f"SELECT count() FROM system.functions WHERE name = '{function_alias}'", fetch="one"
+        )
+        assert result[0] == 0
 
 
 PRICES_SQL = """

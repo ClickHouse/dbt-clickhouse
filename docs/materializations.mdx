@@ -646,13 +646,13 @@ Python and JavaScript UDFs are currently not supported with the ClickHouse adapt
 The following function properties are not supported in ClickHouse:
 
 - `overloads`: A UDF can only have one signature. Setting `overloads` fails the build.
+- argument `default_value`: Cannot be set in ClickHouse UDFs. Setting `default_value` fails the build.
+- `volatility`: Cannot be set in ClickHouse UDFs. Ignored with a warning.
 - argument and return `data_type`: Required by dbt, but ClickHouse UDFs are untyped, so they are not enforced. Cast in
   the function body if you need a fixed type.
-- `volatility`: Cannot be set in ClickHouse UDFs. Ignored with a warning.
-- argument `default_value`: Cannot be set in ClickHouse UDFs. Ignored with a warning.
 
 Furthermore, the following model configurations are unsupported in ClickHouse:
-- `grants`: There are no UDF usage grants in ClickHouse. Any user can call UDFs. Setting `grants` is ignored with a warning.
+- `grants`: There are no UDF usage grants in ClickHouse. Any user can call UDFs. Setting `grants` fails the build.
 - `persist_docs`: Descriptions cannot be persisted into UDFs and are silently skipped. They still appear in dbt docs.
 
 
