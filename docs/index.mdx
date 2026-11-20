@@ -168,6 +168,7 @@ Models that can't be cloned this way fall back to dbt's default behavior of crea
 
 - Tables using non-MergeTree engines
 - Distributed materializations
+- Tables created `ON CLUSTER`, when a `cluster` is set in the profile. A `CLONE AS` that runs `ON CLUSTER` copies no data, and ClickHouse 26.11 rejects it.
 
 For materialized view models, only the target table is cloned; the materialized view itself is created on top of the cloned table.
 
