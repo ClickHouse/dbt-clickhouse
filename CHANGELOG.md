@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Improvements
+* Support dbt functions (UDFs) as ClickHouse SQL UDFs, both scalar and aggregate. See the [ClickHouse notes](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#functions) ([#809](https://github.com/ClickHouse/dbt-clickhouse/pull/809)).
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 * Without a `unique_key`, the default incremental strategy is now `append`, so such models now fail if they set `incremental_predicates`. `append` also replaces `inserts_only`, which is now deprecated and logs a warning that fails runs under `--warn-error` ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
