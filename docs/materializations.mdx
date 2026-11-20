@@ -565,10 +565,8 @@ For a worked example on the Jaffle Shop, see the [snapshot section of the guides
 
 ## Functions (UDFs) {#functions}
 
-dbt [functions](https://docs.getdbt.com/docs/build/udfs) are added with `dbt-core v1.11+` and allow users to define and
-reference UDFs directly within dbt. The ClickHouse adapter supports defining SQL UDFs of `scalar` and `aggregate` types
-(see [type spec](https://docs.getdbt.com/reference/resource-configs/type?version=1)), though internally both types are
-handled the same in ClickHouse.
+dbt [functions](https://docs.getdbt.com/docs/build/udfs) are added with `dbt-core v1.11+` and allow users to define and reference UDFs directly within dbt.
+The ClickHouse adapter supports defining SQL UDFs of `scalar` and `aggregate` types (see [type spec](https://docs.getdbt.com/reference/resource-configs/type?version=1)), though internally both types are handled the same in ClickHouse.
 
 The following are two examples for creating and referencing `scalar` or `aggregate` type functions:
 
@@ -616,17 +614,14 @@ from {{ ref('items') }}
 group by category
 ```
 
-ClickHouse expands UDFs inline into the calling query, so aggregate combinators (such as `-If` or `-State`) and window
-clauses (`OVER (...)`) cannot be applied to aggregate UDFs.
+ClickHouse expands UDFs inline into the calling query, so aggregate combinators (such as `-If` or `-State`) and window clauses (`OVER (...)`) cannot be applied to aggregate UDFs.
 
-Refer to the [function property docs](https://docs.getdbt.com/reference/function-properties?version=1) for a full list
-of configurations. Be aware that some configurations might not apply or break in the ClickHouse adapter (see
-[unsupported function configurations section](#unsupported-function-configurations)).
+Refer to the [function property docs](https://docs.getdbt.com/reference/function-properties?version=1) for a full list of configurations.
+Be aware that some configurations might not apply or break in the ClickHouse adapter (see [unsupported function configurations section](#unsupported-function-configurations)).
 
 ### Functions Scope {#functions-scope}
 
-UDFs are not part of a database: a name is shared by every database on the same ClickHouse service or cluster. If you
-need to distinguish between environments that share one, use `alias`, such as:
+UDFs are not part of a database: a name is shared by every database on the same ClickHouse service or cluster. If you need to distinguish between environments that share one, use `alias`, such as:
 
 ```yaml
 functions:
@@ -648,8 +643,7 @@ The following function properties are not supported in ClickHouse:
 - `overloads`: A UDF can only have one signature. Setting `overloads` fails the build.
 - argument `default_value`: Cannot be set in ClickHouse UDFs. Setting `default_value` fails the build.
 - `volatility`: Cannot be set in ClickHouse UDFs. Ignored with a warning.
-- argument and return `data_type`: Required by dbt, but ClickHouse UDFs are untyped, so they are not enforced. Cast in
-  the function body if you need a fixed type.
+- argument and return `data_type`: Required by dbt, but ClickHouse UDFs are untyped, so they are not enforced. Cast in the function body if you need a fixed type.
 
 Furthermore, the following model configurations are unsupported in ClickHouse:
 - `grants`: There are no UDF usage grants in ClickHouse. Any user can call UDFs. Setting `grants` fails the build.
