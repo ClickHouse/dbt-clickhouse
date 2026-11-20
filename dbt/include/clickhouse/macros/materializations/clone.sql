@@ -6,10 +6,6 @@
         - Distributed tables -> not supported, fall back to a view.
         - Materialized views -> only the target table is cloned; the MV is then created on top of the clone.
     #}
-    {#- dbt only skips cloning a table onto itself when it can clone, the view fallback would select from itself -#}
-    {%- if defer_relation and this.schema == defer_relation.schema and this.identifier == defer_relation.identifier -%}
-        {{ return(True) }}
-    {%- endif -%}
     {%- if config.get('materialized', '').startswith('distributed_') -%}
         {{ return(False) }}
     {%- endif -%}

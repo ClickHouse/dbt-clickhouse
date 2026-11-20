@@ -10,35 +10,35 @@ from dbt.tests.adapter.dbt_clone.test_dbt_clone import (
 )
 from dbt.tests.util import run_dbt, run_dbt_and_capture
 
-requires_cluster = pytest.mark.skipif(
-    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
-)
-
 
 def assert_cloned_data(project, other_schema):
     for name in ("seed", "table_model", "my_cool_snapshot"):
         assert project.run_sql(f"select count() from {other_schema}.{name}", fetch="one")[0] == 2
 
 
-class TestBaseClonePossible(BaseClonePossible):
+class ClonePossible(BaseClonePossible):
     def test_can_clone_true(self, project, unique_schema, other_schema):
         super().test_can_clone_true(project, unique_schema, other_schema)
         assert_cloned_data(project, other_schema)
 
 
-@requires_cluster
-class TestCloneAsWithoutCluster(TestBaseClonePossible):
-    """Covers `CLONE AS`, which TestBaseClonePossible only uses without a cluster."""
-
+class TestBaseClonePossible(ClonePossible):
+    # `CLONE AS`, see TestCloneOnCluster for the `ON CLUSTER` path
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
         # copy, since the session-scoped config is shared with every other test module
         return {**test_config, "cluster": ""}
 
 
+@pytest.mark.skipif(
+    os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '', reason='Not on a cluster'
+)
+class TestCloneOnCluster(ClonePossible):
+    pass
+
+
 # the `{uuid}` macro in the database path needs ON CLUSTER
-@requires_cluster
-class TestCloneReplicatedDatabase(TestBaseClonePossible):
+class TestCloneReplicatedDatabase(TestCloneOnCluster):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
         # copy, since the session-scoped config is shared with every other test module

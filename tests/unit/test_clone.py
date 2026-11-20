@@ -16,21 +16,8 @@ class _Config:
         return self.values.get(key, default)
 
 
-DEV_MODEL = SimpleNamespace(schema='dev', identifier='my_model')
-PROD_MODEL = SimpleNamespace(schema='prod', identifier='my_model')
-
-
-def _can_clone_table(
-    macros, config: Optional[Dict[str, Any]] = None, defer_relation: Any = PROD_MODEL
-) -> bool:
-    return macros.call(
-        'clickhouse__can_clone_table',
-        context={
-            'config': _Config(config or {}),
-            'this': DEV_MODEL,
-            'defer_relation': defer_relation,
-        },
-    )
+def _can_clone_table(macros, config: Optional[Dict[str, Any]] = None) -> bool:
+    return macros.call('clickhouse__can_clone_table', context={'config': _Config(config or {})})
 
 
 @pytest.mark.parametrize(
@@ -40,17 +27,11 @@ def _can_clone_table(
         ({'config': {'engine': 'ReplacingMergeTree(version)'}}, True),
         ({'config': {'engine': 'Memory()'}}, False),
         ({'config': {'materialized': 'distributed_table'}}, False),
-        ({'defer_relation': None}, True),
     ],
-    ids=['merge-tree', 'merge-tree-family', 'other-engine', 'distributed', 'no-defer-relation'],
+    ids=['merge-tree', 'merge-tree-family', 'other-engine', 'distributed'],
 )
 def test_can_clone_table(macros, kwargs, expected):
     assert _can_clone_table(macros, **kwargs) is expected
-
-
-# dbt only skips cloning a table onto itself when it can clone
-def test_can_clone_table_onto_itself(macros):
-    assert _can_clone_table(macros, {'engine': 'Memory()'}, defer_relation=DEV_MODEL) is True
 
 
 def _relation(schema: str) -> SandboxSafeMock:
