@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Improvements
+* Support dbt functions (UDFs) as ClickHouse SQL UDFs, both scalar and aggregate. See the [ClickHouse notes](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#functions) ([#809](https://github.com/ClickHouse/dbt-clickhouse/pull/809)).
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 * Without a `unique_key`, the default incremental strategy is now `append`, so such models now fail if they set `incremental_predicates`. `append` also replaces `inserts_only`, which is now deprecated and logs a warning that fails runs under `--warn-error` ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
@@ -13,6 +14,7 @@
 * Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#782](https://github.com/ClickHouse/dbt-clickhouse/pull/782)).
 
 #### Bugs
+* `dbt clone` no longer creates empty tables when a `cluster` is set, or fails in a `Replicated` database. `CLONE AS` supports neither, so these tables are now cloned with `CREATE TABLE ... AS` and `ALTER TABLE ... ATTACH PARTITION ALL FROM` ([#816](https://github.com/ClickHouse/dbt-clickhouse/pull/816)).
 * `dbt docs generate` no longer reports dictionary models as `table` in `catalog.json`. They are now reported as `dictionary`, the same type the adapter uses for them everywhere else ([#791](https://github.com/ClickHouse/dbt-clickhouse/pull/791)).
 * An `incremental` model with an explicit `legacy`, `delete+insert` or `microbatch` strategy and no `unique_key` now fails with a clear error instead of silently appending. Strategy validation now runs on the first build, not only on incremental runs ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
 * The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).

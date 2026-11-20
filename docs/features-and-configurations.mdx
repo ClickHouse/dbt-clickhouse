@@ -98,9 +98,10 @@ This includes:
 - View materializations
 - Table and incremental materializations
 - Distributed materializations
+- Functions (UDFs)
 
 On a Replicated database (`database_engine: Replicated`), table and view DDL is executed **without** the `ON CLUSTER` clause, as the database engine replicates it to all replicas itself.
-Database creation still uses `ON CLUSTER`, so the database exists on every node.
+Database creation and functions still use `ON CLUSTER`, since neither is replicated by the database engine.
 
 To **opt out** of cluster-based creation for a specific model, add the `disable_on_cluster` config:
 
