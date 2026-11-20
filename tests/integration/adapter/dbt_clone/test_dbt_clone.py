@@ -118,10 +118,12 @@ class TestCloneSameSourceAndTarget(BaseCloneSameSourceAndTarget):
 
         assert "skipping clone for relation" in output
         # a view fallback would have replaced the table with a view of itself
-        assert project.run_sql(
+        (engine,) = project.run_sql(
             f"select engine from system.tables where database = '{unique_schema}' and name = 'source_based_model'",
             fetch="one",
-        ) == ("MergeTree",)
+        )
+        # Cloud stores MergeTree as SharedMergeTree
+        assert engine.endswith("MergeTree")
         assert project.run_sql(
             f"select count() from {unique_schema}.source_based_model", fetch="one"
         ) == (2,)
