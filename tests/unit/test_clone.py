@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import pytest
 
@@ -16,29 +16,18 @@ class _Config:
         return self.values.get(key, default)
 
 
+DEV_MODEL = SimpleNamespace(schema='dev', identifier='my_model')
 PROD_MODEL = SimpleNamespace(schema='prod', identifier='my_model')
 
 
 def _can_clone_table(
-    macros,
-    config: Optional[Dict[str, Any]] = None,
-    cluster: Optional[str] = None,
-    on_cluster: bool = True,
-    database_engine: str = 'Atomic',
-    defer_relation: Any = PROD_MODEL,
+    macros, config: Optional[Dict[str, Any]] = None, defer_relation: Any = PROD_MODEL
 ) -> bool:
-    adapter = SandboxSafeMock()
-    adapter.get_clickhouse_cluster_name.return_value = cluster
-    adapter.should_on_cluster.return_value = on_cluster
-    adapter.get_ch_database.return_value = (
-        SimpleNamespace(engine=database_engine) if database_engine else None
-    )
     return macros.call(
         'clickhouse__can_clone_table',
         context={
-            'adapter': adapter,
             'config': _Config(config or {}),
-            'this': SimpleNamespace(schema='dev', identifier='my_model'),
+            'this': DEV_MODEL,
             'defer_relation': defer_relation,
         },
     )
@@ -51,38 +40,76 @@ def _can_clone_table(
         ({'config': {'engine': 'ReplacingMergeTree(version)'}}, True),
         ({'config': {'engine': 'Memory()'}}, False),
         ({'config': {'materialized': 'distributed_table'}}, False),
-        ({'cluster': '"my_cluster"'}, False),
-        ({'cluster': '"my_cluster"', 'on_cluster': False}, True),
-        ({'database_engine': 'Replicated'}, False),
-        ({'database_engine': ''}, True),
         ({'defer_relation': None}, True),
     ],
-    ids=[
-        'merge-tree',
-        'merge-tree-family',
-        'other-engine',
-        'distributed',
-        'on-cluster',
-        'disable-on-cluster',
-        'replicated-database',
-        'missing-database',
-        'no-defer-relation',
-    ],
+    ids=['merge-tree', 'merge-tree-family', 'other-engine', 'distributed', 'no-defer-relation'],
 )
 def test_can_clone_table(macros, kwargs, expected):
     assert _can_clone_table(macros, **kwargs) is expected
 
 
 # dbt only skips cloning a table onto itself when it can clone
+def test_can_clone_table_onto_itself(macros):
+    assert _can_clone_table(macros, {'engine': 'Memory()'}, defer_relation=DEV_MODEL) is True
+
+
+def _relation(schema: str) -> SandboxSafeMock:
+    relation = SandboxSafeMock(schema=schema, identifier='my_model')
+    relation.__str__.return_value = f'`{schema}`.`my_model`'
+    return relation
+
+
+def _create_or_replace_clone(
+    macros, cluster: Optional[str] = None, on_cluster: bool = True, database_engine: str = 'Atomic'
+) -> List[str]:
+    """Returns the statements the macro runs, the last one is dbt's `main` statement."""
+    statements: List[str] = []
+
+    def statement(name: str, fetch_result: bool = False, caller: Any = None) -> str:
+        statements.append(' '.join(caller().split()))
+        return ''
+
+    adapter = SandboxSafeMock()
+    adapter.get_clickhouse_cluster_name.return_value = cluster
+    adapter.should_on_cluster.return_value = on_cluster
+    adapter.get_ch_database.return_value = (
+        SimpleNamespace(engine=database_engine) if database_engine else None
+    )
+    main = macros.call(
+        'clickhouse__create_or_replace_clone',
+        _relation('dev'),
+        _relation('prod'),
+        context={'adapter': adapter, 'statement': statement},
+    )
+    return [*statements, ' '.join(main.split())]
+
+
 @pytest.mark.parametrize(
     'kwargs',
     [
-        {'config': {'engine': 'Memory()'}},
-        {'cluster': '"my_cluster"'},
-        {'database_engine': 'Replicated'},
+        {},
+        {'cluster': '"my_cluster"', 'on_cluster': False},
+        {'database_engine': ''},
     ],
-    ids=['other-engine', 'on-cluster', 'replicated-database'],
+    ids=['no-cluster', 'disable-on-cluster', 'missing-database'],
 )
-def test_can_clone_table_onto_itself(macros, kwargs):
-    itself = SimpleNamespace(schema='dev', identifier='my_model')
-    assert _can_clone_table(macros, defer_relation=itself, **kwargs) is True
+def test_create_or_replace_clone(macros, kwargs):
+    assert _create_or_replace_clone(macros, **kwargs) == [
+        'CREATE OR REPLACE TABLE `dev`.`my_model` CLONE AS `prod`.`my_model`'
+    ]
+
+
+# `CLONE AS` drops the source `ON CLUSTER` and Replicated databases reject it
+@pytest.mark.parametrize(
+    'kwargs,on_cluster',
+    [
+        ({'cluster': '"my_cluster"'}, ' ON CLUSTER "my_cluster"'),
+        ({'database_engine': 'Replicated'}, ''),
+    ],
+    ids=['on-cluster', 'replicated-database'],
+)
+def test_create_or_replace_clone_without_clone_as(macros, kwargs, on_cluster):
+    assert _create_or_replace_clone(macros, **kwargs) == [
+        f'CREATE OR REPLACE TABLE `dev`.`my_model`{on_cluster} AS `prod`.`my_model`',
+        f'ALTER TABLE `dev`.`my_model`{on_cluster} ATTACH PARTITION ALL FROM `prod`.`my_model`',
+    ]

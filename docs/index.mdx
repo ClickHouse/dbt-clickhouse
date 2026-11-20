@@ -162,13 +162,16 @@ For deployment (i.e., the CD step), we recommend using the artifacts from your p
 
 #### Cloning models with `dbt clone` {#dbt-clone}
 
-Starting with dbt-clickhouse 1.10.1, the [`dbt clone`](https://docs.getdbt.com/reference/commands/clone) command uses ClickHouse's zero-copy `CREATE OR REPLACE TABLE ... CLONE AS ...` statement to clone models materialized as tables that use a MergeTree-family engine. This creates a copy of the table without duplicating the underlying data parts, making it a fast and cheap way to sync environments — for example, when setting up a development or [Slim CI](https://docs.getdbt.com/best-practices/best-practice-workflows#run-only-modified-models-to-test-changes-slim-ci) environment from production state.
+Starting with dbt-clickhouse 1.10.1, the [`dbt clone`](https://docs.getdbt.com/reference/commands/clone) command uses ClickHouse's zero-copy `CREATE OR REPLACE TABLE ... CLONE AS ...` statement to clone models materialized as tables that use a MergeTree-family engine. This creates a copy of the table without duplicating the underlying data parts, making it a fast and cheap way to sync environments - for example, when setting up a development or [Slim CI](https://docs.getdbt.com/best-practices/best-practice-workflows#run-only-modified-models-to-test-changes-slim-ci) environment from production state.
+
+`CLONE AS` can't run `ON CLUSTER` or in a `Replicated` database.
+Such tables are created with `CREATE OR REPLACE TABLE ... AS ...` and filled with `ALTER TABLE ... ATTACH PARTITION ALL FROM ...` instead, which also shares the data parts but isn't atomic.
+In a `Replicated` database, the data only reaches the other replicas for `Replicated*MergeTree` tables.
 
 Models that can't be cloned this way fall back to dbt's default behavior of creating a view pointing to the source relation:
 
 - Tables using non-MergeTree engines
 - Distributed materializations
-- Tables created `ON CLUSTER` or in a `Replicated` database, which `CLONE AS` doesn't support
 
 For materialized view models, only the target table is cloned; the materialized view itself is created on top of the cloned table.
 

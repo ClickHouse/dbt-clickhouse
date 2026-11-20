@@ -1,10 +1,8 @@
 import os
-from collections import Counter
 
 import pytest
 from dbt.tests.adapter.dbt_clone import fixtures
 from dbt.tests.adapter.dbt_clone.test_dbt_clone import (
-    BaseClone,
     BaseCloneNotPossible,
     BaseClonePossible,
     BaseCloneSameSourceAndTarget,
@@ -22,38 +20,25 @@ def assert_cloned_data(project, other_schema):
         assert project.run_sql(f"select count() from {other_schema}.{name}", fetch="one")[0] == 2
 
 
-class CloneBecomesView(BaseClone):
-    def test_clone_becomes_view(self, project, other_schema):
-        project.create_test_schema(other_schema)
-        self.run_and_save_state(project.project_root, with_snapshot=True)
-        run_dbt(["clone", "--state", "state", "--target", "otherschema"])
-        relations = project.adapter.list_relations(database=project.database, schema=other_schema)
-        assert Counter(r.type for r in relations) == Counter({"view": 4})
-        assert_cloned_data(project, other_schema)
-
-
 class TestBaseClonePossible(BaseClonePossible):
-    # `CLONE AS` can't run `ON CLUSTER`, see TestCloneOnClusterBecomesView
-    @pytest.fixture(scope="class")
-    def test_config(self, test_config):
-        # copy, since the session-scoped config is shared with every other test module
-        return {**test_config, "cluster": ""}
-
     def test_can_clone_true(self, project, unique_schema, other_schema):
         super().test_can_clone_true(project, unique_schema, other_schema)
         assert_cloned_data(project, other_schema)
 
 
 @requires_cluster
-class TestCloneOnClusterBecomesView(CloneBecomesView):
-    """`CLONE AS ... ON CLUSTER` creates empty tables or fails, so clones fall back to views."""
+class TestCloneAsWithoutCluster(TestBaseClonePossible):
+    """Covers `CLONE AS`, which TestBaseClonePossible only uses without a cluster."""
+
+    @pytest.fixture(scope="class")
+    def test_config(self, test_config):
+        # copy, since the session-scoped config is shared with every other test module
+        return {**test_config, "cluster": ""}
 
 
 # the `{uuid}` macro in the database path needs ON CLUSTER
 @requires_cluster
-class TestCloneReplicatedDatabaseBecomesView(CloneBecomesView):
-    """Replicated databases reject `CLONE AS`, so clones fall back to views."""
-
+class TestCloneReplicatedDatabase(TestBaseClonePossible):
     @pytest.fixture(scope="class")
     def test_config(self, test_config):
         # copy, since the session-scoped config is shared with every other test module
