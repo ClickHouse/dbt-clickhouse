@@ -15,6 +15,7 @@
 
 #### Bugs
 * `dbt clone` no longer creates empty tables when a `cluster` is set, or fails in a `Replicated` database. `CLONE AS` supports neither, so these tables are now cloned with `CREATE TABLE ... AS` and `ALTER TABLE ... ATTACH PARTITION ALL FROM` ([#816](https://github.com/ClickHouse/dbt-clickhouse/pull/816)).
+* `dbt docs generate` no longer reports dictionary models as `table` in `catalog.json`. They are now reported as `dictionary`, the same type the adapter uses for them everywhere else ([#791](https://github.com/ClickHouse/dbt-clickhouse/pull/791)).
 * An `incremental` model with an explicit `legacy`, `delete+insert` or `microbatch` strategy and no `unique_key` now fails with a clear error instead of silently appending. Strategy validation now runs on the first build, not only on incremental runs ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
 * The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
 * Fix `insert_overwrite` occasionally skipping partitions on ClickHouse Cloud when the partition probe landed on a replica that had not yet synced the staging insert. The partitions are now read from the staging table itself, which honours the connection's `select_sequential_consistency`, instead of from `system.parts` ([#786](https://github.com/ClickHouse/dbt-clickhouse/pull/786)).
