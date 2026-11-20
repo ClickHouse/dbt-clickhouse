@@ -1,14 +1,18 @@
+import os
+
 import pytest
 from dbt.tests.util import run_dbt
 
-system_source_yml = """
+IS_CORE_V2 = bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY'))
+
+# dbt core v2 does not map a source `database` onto the ClickHouse database: there the key is `schema`.
+system_source_yml = f"""
 version: 2
 sources:
   - name: system_source
-    database: system
+    {'schema' if IS_CORE_V2 else 'database'}: system
     tables:
       - name: tables
-        database: system
 """
 
 

@@ -1,5 +1,7 @@
+import json
 import os
 import secrets
+import subprocess
 import sys
 import time
 import timeit
@@ -11,6 +13,331 @@ import pytest
 import requests
 from clickhouse_connect import get_client
 from clickhouse_connect.driver.exceptions import OperationalError
+
+# ---------------------------------------------------------------------------
+# dbt core v2 (Rust) support
+#
+# When DBT_CH_TEST_CORE_V2_BINARY is set to the path of a dbt core v2 binary
+# (e.g. dbt-core-v2/target/debug/dbt-sa-cli), `dbt.tests.util.run_dbt` is
+# replaced with a subprocess wrapper that shells out to that binary instead of
+# invoking the Python dbtRunner in-process. Everything else in the test
+# framework (project scaffolding, schema setup, `project.run_sql` assertions)
+# still runs through the Python adapter, so tests exercise the dbt core v2
+# engine for dbt commands while keeping their Python-side assertions.
+#
+# The subprocess relies on two invariants of dbt's own `project` fixture
+# (dbt.tests.fixtures.project): the test chdirs into the generated project
+# root, and DBT_PROFILES_DIR points at the generated profiles.yml.
+#
+# Results are re-hydrated from target/run_results.json into DbtCoreV2RunResult
+# objects (.status / .message / .unique_id, plus a lazy .node hydrated from
+# target/manifest.json into dbt's real Python node classes). get_manifest()
+# is patched to hydrate dbt core v2's manifest.json the same way (v2 never
+# writes partial_parse.msgpack). Out of scope: dbt event callbacks and
+# Python-format log capture (run_dbt_and_capture returns the binary's
+# stdout+stderr instead).
+# ---------------------------------------------------------------------------
+
+DBT_CORE_V2_BINARY = os.environ.get('DBT_CH_TEST_CORE_V2_BINARY', '')
+
+
+class DbtCoreV2Artifact:
+    """Duck-typed attribute wrapper over a dict from a dbt core v2 artifact."""
+
+    def __init__(self, data):
+        self._data = data
+        self.__dict__.update(data)
+
+
+class DbtCoreV2Manifest:
+    """Stand-in for dbt's Manifest, hydrated from dbt core v2's manifest.json."""
+
+    def __init__(self, nodes, sources):
+        self.nodes = nodes
+        self.sources = sources
+
+
+class DbtCoreV2RunResult(DbtCoreV2Artifact):
+    """Duck-typed stand-in for dbt's RunResult, built from run_results.json."""
+
+    def __init__(self, data, project_root):
+        super().__init__(data)
+        self._project_root = project_root
+
+    @property
+    def node(self):
+        manifest = _dbt_core_v2_get_manifest(self._project_root)
+        return manifest.nodes[self._data['unique_id']]
+
+    def __repr__(self):
+        return f"DbtCoreV2RunResult({self._data.get('unique_id')}: {self._data.get('status')})"
+
+
+class DbtCoreV2RunResults(list):
+    """Python's run_dbt returns a RunExecutionResult that is both iterable and
+    exposes the same list under a `.results` attribute; mirror that shape."""
+
+    @property
+    def results(self):
+        return self
+
+
+class DbtCoreV2CompileResult(DbtCoreV2RunResult):
+    """Compile-invocation result. dbt core v2 writes `results: []` into
+    run_results.json for `compile` (Python emits one result per compiled node
+    with `compiled_code` populated), so these are synthesized from the manifest
+    plus the files under target/compiled/ — see _dbt_core_v2_compile_results."""
+
+    def __init__(self, data, project_root, compiled_code):
+        super().__init__(data, project_root)
+        self._compiled_code = compiled_code
+
+    @property
+    def node(self):
+        node = super().node
+        try:
+            node.compiled_code = self._compiled_code
+        except Exception:
+            pass
+        return node
+
+
+def _dbt_core_v2_compile_results(project_root, start):
+    """Synthesize compile results: one per manifest node whose compiled file was
+    (re)written by this invocation (mtime >= start)."""
+    manifest_path = Path(project_root) / 'target' / 'manifest.json'
+    if not manifest_path.exists():
+        return None
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+    results = []
+    for uid, data in sorted(manifest.get('nodes', {}).items()):
+        package = data.get('package_name') or ''
+        original = data.get('original_file_path') or ''
+        compiled_path = Path(project_root) / 'target' / 'compiled' / package / original
+        if not (original and compiled_path.exists() and compiled_path.stat().st_mtime >= start):
+            continue
+        with open(compiled_path) as f:
+            compiled_code = f.read()
+        results.append(
+            DbtCoreV2CompileResult(
+                {'unique_id': uid, 'status': 'success'}, project_root, compiled_code
+            )
+        )
+    return DbtCoreV2RunResults(results) if results else None
+
+
+def _dbt_core_v2_hydrate_node(data):
+    from dbt.contracts.graph.nodes import (
+        AnalysisNode,
+        GenericTestNode,
+        HookNode,
+        ModelNode,
+        SeedNode,
+        SingularTestNode,
+        SnapshotNode,
+    )
+
+    resource_type = data.get('resource_type')
+    node_class = {
+        'model': ModelNode,
+        'seed': SeedNode,
+        'snapshot': SnapshotNode,
+        'analysis': AnalysisNode,
+        'operation': HookNode,
+        'test': GenericTestNode if data.get('test_metadata') else SingularTestNode,
+    }.get(resource_type)
+    if node_class is not None:
+        try:
+            return node_class.from_dict(data)
+        except Exception as e:
+            sys.stderr.write(
+                f"dbt core v2 manifest: could not hydrate {data.get('unique_id')} "
+                f"into {node_class.__name__} ({e}); falling back to dict wrapper\n"
+            )
+    return DbtCoreV2Artifact(data)
+
+
+def _dbt_core_v2_get_manifest(project_root):
+    from dbt.contracts.graph.nodes import SourceDefinition
+
+    path = os.path.join(str(project_root), 'target', 'manifest.json')
+    if not os.path.exists(path):
+        return None
+    with open(path) as f:
+        manifest = json.load(f)
+    nodes = {
+        uid: _dbt_core_v2_hydrate_node(data) for uid, data in manifest.get('nodes', {}).items()
+    }
+    sources = {}
+    for uid, data in manifest.get('sources', {}).items():
+        try:
+            sources[uid] = SourceDefinition.from_dict(data)
+        except Exception:
+            sources[uid] = DbtCoreV2Artifact(data)
+    return DbtCoreV2Manifest(nodes, sources)
+
+
+def _dbt_core_v2_load_catalog(project_root, start):
+    catalog_path = Path(project_root) / 'target' / 'catalog.json'
+    if not (catalog_path.exists() and catalog_path.stat().st_mtime >= start):
+        return None
+    with open(catalog_path) as f:
+        data = json.load(f)
+    try:
+        from dbt.artifacts.schemas.catalog import CatalogArtifact
+
+        return CatalogArtifact.from_dict(data)
+    except Exception as e:
+        sys.stderr.write(
+            f"dbt core v2 catalog: could not hydrate CatalogArtifact ({e}); "
+            f"falling back to dict wrapper\n"
+        )
+        return DbtCoreV2Artifact(data)
+
+
+def _dbt_core_v2_mocked_event_time_end():
+    # Upstream microbatch/sample tests control "now" via
+    # mock.patch.object(MicrobatchBuilder, 'build_end_time', return_value=dt) —
+    # an in-process patch the v2 subprocess never sees, so it falls back to
+    # Utc::now() and back-fills every daily batch from `begin` to today
+    # (~2,400 batches, minutes per run). Detect an active patch and return the
+    # mocked end time so it can be forwarded to the CLI.
+    from unittest import mock
+
+    from dbt.materializations.incremental.microbatch import MicrobatchBuilder
+
+    build_end_time = MicrobatchBuilder.build_end_time
+    if isinstance(build_end_time, mock.Mock):
+        return build_end_time()
+    return None
+
+
+def _dbt_core_v2_invoke(args):
+    # Python's dbtRunner tolerates non-string args (e.g. --limit 5); subprocess doesn't.
+    args = [str(a) for a in args]
+    # dbt core v2's `docs generate` builds the static docs site from the parquet index and
+    # writes no catalog.json; `compile --write-catalog` is the command that produces the
+    # catalog.json Python's docs generate returned as a CatalogArtifact.
+    is_docs_generate = args[:2] == ['docs', 'generate']
+    if is_docs_generate:
+        args = ['compile', '--write-catalog'] + args[2:]
+    print(f"\n\nInvoking dbt core v2 with {args}")
+    start = time.time()
+    project_root = os.getcwd()
+    # Keep a debug query log per project for post-mortem debugging of failing
+    # tests (the pytest tmp project dirs persist). Only appended when the test
+    # didn't pass its own log flags (clap rejects duplicates).
+    invoke_args = list(args)
+    if not any(a.startswith('--log-level') or a == '--debug' or a == '-d' for a in invoke_args):
+        invoke_args += ['--log-level', 'debug']
+    if not any(a.startswith('--log-path') for a in invoke_args):
+        invoke_args += ['--log-path', 'logs_v2']
+    if (
+        invoke_args
+        and invoke_args[0] in ('run', 'build')
+        and not any(a.startswith('--event-time-end') for a in invoke_args)
+    ):
+        mocked_end = _dbt_core_v2_mocked_event_time_end()
+        if mocked_end is not None:
+            invoke_args += ['--event-time-end', mocked_end.strftime('%Y-%m-%d %H:%M:%S')]
+    proc = subprocess.run([DBT_CORE_V2_BINARY] + invoke_args, capture_output=True, text=True)
+    output = proc.stdout + proc.stderr
+    print(output)
+    if is_docs_generate:
+        return proc, output, _dbt_core_v2_load_catalog(project_root, start)
+    results = None
+    run_results_path = Path(project_root) / 'target' / 'run_results.json'
+    if run_results_path.exists() and run_results_path.stat().st_mtime >= start:
+        with open(run_results_path) as f:
+            run_results = json.load(f)
+        # dbt core v2's run_results.json includes an entry for every processed
+        # node, ephemeral models included; Python's run_results contract omits
+        # ephemeral nodes entirely (tests assert on result counts). Filter them
+        # here to match the Python artifact shape.
+        ephemeral_ids = _dbt_core_v2_ephemeral_node_ids(project_root)
+        entries = [
+            r for r in run_results.get('results', []) if r.get('unique_id') not in ephemeral_ids
+        ]
+        # Python's CloneRunner reports "No-op" for clone targets that already
+        # exist (the clone materialization returns without running a `main`
+        # statement). v2 reports its generic success message; the artifact
+        # still discriminates the case — no adapter response was stored.
+        if args and args[0] == 'clone':
+            for r in entries:
+                if r.get('status') == 'success' and not r.get('adapter_response'):
+                    r['message'] = 'No-op'
+        results = DbtCoreV2RunResults(DbtCoreV2RunResult(r, project_root) for r in entries)
+    # v2 `compile` writes an empty results array; synthesize per-node results
+    # (with compiled_code) from target/compiled so tests can assert on them.
+    if not results and args and args[0] == 'compile':
+        results = _dbt_core_v2_compile_results(project_root, start)
+    return proc, output, results
+
+
+def _dbt_core_v2_ephemeral_node_ids(project_root):
+    manifest_path = Path(project_root) / 'target' / 'manifest.json'
+    if not manifest_path.exists():
+        return set()
+    try:
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+    except Exception:
+        return set()
+    return {
+        uid
+        for uid, data in manifest.get('nodes', {}).items()
+        if (data.get('config') or {}).get('materialized') == 'ephemeral'
+    }
+
+
+def _dbt_core_v2_run_dbt(args=None, expect_pass=True, callbacks=None):
+    from dbt_common.exceptions import DbtRuntimeError
+
+    if args is None:
+        args = ["run"]
+    proc, output, results = _dbt_core_v2_invoke(args)
+    success = proc.returncode == 0
+    if not success and results is None:
+        # No run_results.json means the invocation died before running nodes
+        # (parse/config error). Python's run_dbt propagates those as exceptions
+        # regardless of expect_pass; only node-level failures return results.
+        raise DbtRuntimeError(f"dbt core v2 exited with rc={proc.returncode}\n{output}")
+    if expect_pass is not None:
+        if expect_pass and not success:
+            # Python's run_dbt surfaces failures as DbtRuntimeError subclasses,
+            # which upstream negative tests catch with pytest.raises(...).
+            raise DbtRuntimeError(f"dbt core v2 exited with rc={proc.returncode}\n{output}")
+        assert success == expect_pass, (
+            f"dbt core v2 exit state did not match expected (rc={proc.returncode})\n{output}"
+        )
+    return results
+
+
+def _dbt_core_v2_run_dbt_and_capture(args=None, expect_pass=True):
+    from dbt_common.exceptions import DbtRuntimeError
+
+    if args is None:
+        args = ["run"]
+    proc, output, results = _dbt_core_v2_invoke(args)
+    success = proc.returncode == 0
+    if not success and results is None:
+        # Mirror Python: invocation-level failures (parse/config) raise even
+        # when expect_pass=False.
+        raise DbtRuntimeError(f"dbt core v2 exited with rc={proc.returncode}\n{output}")
+    if expect_pass is not None:
+        assert success == expect_pass, (
+            f"dbt core v2 exit state did not match expected (rc={proc.returncode})\n{output}"
+        )
+    return results, output
+
+
+if DBT_CORE_V2_BINARY:
+    import dbt.tests.util as _dbt_tests_util
+
+    _dbt_tests_util.run_dbt = _dbt_core_v2_run_dbt
+    _dbt_tests_util.run_dbt_and_capture = _dbt_core_v2_run_dbt_and_capture
+    _dbt_tests_util.get_manifest = _dbt_core_v2_get_manifest
 
 
 def _connection_settings():
