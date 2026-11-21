@@ -201,6 +201,7 @@
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
+    {% do adapter.register_staging_relation(new_data_relation) %}
     {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
 
     {%- set inserting_relation = new_data_relation -%}
@@ -241,6 +242,7 @@
         insert into {{ existing_relation }} select {{ dest_cols_csv }} from {{ inserting_relation }} {{ adapter.get_model_query_settings(model) }}
     {% endcall %}
     {% do adapter.drop_relation(new_data_relation) %}
+    {% do adapter.unregister_staging_relation(new_data_relation) %}
     {{ drop_relation_if_exists(distributed_new_data_relation) }}
 {% endmacro %}
 
@@ -248,6 +250,7 @@
     {% set new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier
        + '__dbt_new_data_' + invocation_id.replace('-', '_')}) %}
     {{ drop_relation_if_exists(new_data_relation) }}
+    {% do adapter.register_staging_relation(new_data_relation) %}
     {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
 
 
@@ -305,4 +308,5 @@
 
     {% do adapter.drop_relation(distributed_new_data_relation) %}
     {% do adapter.drop_relation(new_data_relation) %}
+    {% do adapter.unregister_staging_relation(new_data_relation) %}
 {% endmacro %}
