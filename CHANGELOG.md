@@ -1,9 +1,11 @@
 ### Unreleased
 
 #### Improvements
+* Support dbt functions (UDFs) as ClickHouse SQL UDFs, both scalar and aggregate. See the [ClickHouse notes](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#functions) ([#809](https://github.com/ClickHouse/dbt-clickhouse/pull/809)).
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 * Without a `unique_key`, the default incremental strategy is now `append`, so such models now fail if they set `incremental_predicates`. `append` also replaces `inserts_only`, which is now deprecated and logs a warning that fails runs under `--warn-error` ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
+* SQL statements are now logged with dbt's standard `SQLQuery` and `SQLQueryStatus` debug events, including the ClickHouse query ID, so log consumers and `dbtRunner` callbacks see them as for other adapters ([#807](https://github.com/ClickHouse/dbt-clickhouse/pull/807)).
 
 #### Repository maintenance
 * The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
@@ -13,6 +15,7 @@
 
 #### Bugs
 * Snapshots no longer duplicate rows after an interrupted run. A `<snapshot>__snapshot_upsert` table left behind by a failed run is now dropped before it is recreated, instead of being reused with its old rows ([#806](https://github.com/ClickHouse/dbt-clickhouse/pull/806)).
+* `dbt clone` no longer creates empty tables when a `cluster` is set, or fails in a `Replicated` database. `CLONE AS` supports neither, so these tables are now cloned with `CREATE TABLE ... AS` and `ALTER TABLE ... ATTACH PARTITION ALL FROM` ([#816](https://github.com/ClickHouse/dbt-clickhouse/pull/816)).
 * An `incremental` model with an explicit `legacy`, `delete+insert` or `microbatch` strategy and no `unique_key` now fails with a clear error instead of silently appending. Strategy validation now runs on the first build, not only on incremental runs ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
 * The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
 * Fix `insert_overwrite` occasionally skipping partitions on ClickHouse Cloud when the partition probe landed on a replica that had not yet synced the staging insert. The partitions are now read from the staging table itself, which honours the connection's `select_sequential_consistency`, instead of from `system.parts` ([#786](https://github.com/ClickHouse/dbt-clickhouse/pull/786)).

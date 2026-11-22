@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import MagicMock, patch
 
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
+from dbt.adapters.events.types import SQLQuery, SQLQueryStatus
 from dbt.adapters.sql import SQLConnectionManager
 
 
@@ -81,6 +82,52 @@ class TestGetTableFromResponse:
         )
 
         assert len(table.rows) == 0
+
+
+def _fired_events(mock_fire_event):
+    return [c.args[0] for c in mock_fire_event.call_args_list]
+
+
+@patch('dbt.adapters.clickhouse.connections.fire_event')
+class TestSqlQueryEvents:
+    def test_execute_fires_typed_events(self, mock_fire_event):
+        response, _ = _make_manager_with_client(MagicMock()).execute('SELECT 1')
+
+        query_event, status_event = _fired_events(mock_fire_event)
+        assert isinstance(query_event, SQLQuery)
+        assert query_event.conn_name == 'test'
+        assert query_event.sql == 'SELECT 1'
+        assert isinstance(status_event, SQLQueryStatus)
+        assert status_event.status == 'OK'
+        assert status_event.query_id == response.query_id
+
+    def test_add_query_fires_typed_events_with_query_id(self, mock_fire_event):
+        mock_client = MagicMock()
+
+        _make_manager_with_client(mock_client).add_query('INSERT INTO t VALUES (1)')
+
+        query_event, status_event = _fired_events(mock_fire_event)
+        assert isinstance(query_event, SQLQuery)
+        assert query_event.sql == 'INSERT INTO t VALUES (1)'
+        assert isinstance(status_event, SQLQueryStatus)
+        assert status_event.query_id == mock_client.command.call_args.kwargs['query_id']
+
+    def test_add_query_abridges_logged_sql(self, mock_fire_event):
+        mock_client = MagicMock()
+        sql = 'x' * 1000
+
+        _make_manager_with_client(mock_client).add_query(sql, abridge_sql_log=True)
+
+        assert _fired_events(mock_fire_event)[0].sql == 'x' * 512 + '...'
+        # the full statement is still executed
+        assert mock_client.command.call_args.args[0] == sql
+
+    def test_add_query_logs_full_sql_by_default(self, mock_fire_event):
+        sql = 'x' * 1000
+
+        _make_manager_with_client(MagicMock()).add_query(sql)
+
+        assert _fired_events(mock_fire_event)[0].sql == sql
 
 
 def test_reuse_connections_defaults_to_true():
