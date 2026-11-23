@@ -93,3 +93,45 @@ class TestMicrobatchIncrementalDateEventTime(BaseMicrobatch):
             database=project.database, schema=project.test_schema
         )
         return f"insert into {test_schema_relation}.input_model (id, event_date) values (4, '2020-01-04'), (5, '2020-01-05')"
+
+
+# Rows at 02:00 UTC belong to the previous day in America/New_York, so batch membership and the
+# re-run deletes only match BaseMicrobatch's expectations if batch boundaries are UTC.
+_input_model_utc_sql = """
+{{
+    config(
+        materialized='table',
+        event_time='event_time'
+    )
+}}
+
+select 1 as id, toDateTime('2020-01-01 02:00:00', 'UTC') as event_time
+union all
+select 2 as id, toDateTime('2020-01-02 02:00:00', 'UTC') as event_time
+union all
+select 3 as id, toDateTime('2020-01-03 02:00:00', 'UTC') as event_time
+"""
+
+
+class TestMicrobatchIncrementalNonUtcSession(BaseMicrobatch):
+    @pytest.fixture(scope="class")
+    def dbt_profile_target(self, dbt_profile_target):
+        custom_settings = {
+            **dbt_profile_target['custom_settings'],
+            'session_timezone': 'America/New_York',
+        }
+        return {**dbt_profile_target, 'custom_settings': custom_settings}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "input_model.sql": _input_model_utc_sql,
+            "microbatch_model.sql": _microbatch_model_sql,
+        }
+
+    @pytest.fixture(scope="class")
+    def insert_two_rows_sql(self, project) -> str:
+        test_schema_relation = project.adapter.Relation.create(
+            database=project.database, schema=project.test_schema
+        )
+        return f"insert into {test_schema_relation}.input_model (id, event_time) values (4, '2020-01-04 02:00:00'), (5, '2020-01-05 02:00:00')"

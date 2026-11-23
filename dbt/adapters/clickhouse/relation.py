@@ -13,13 +13,6 @@ NODE_TYPE_SOURCE = 'source'
 NODE_TYPE_FUNCTION = 'function'
 
 
-def _to_datetime_literal(value: datetime) -> str:
-    # dbt batch boundaries are UTC. A typed UTC literal compares with every date type, unlike a string
-    # literal (which cannot be cast to Date) or toDateTime (clamped to 1970-2106). Kept in sync with
-    # the microbatch delete predicates in incremental.sql.
-    return f"toDateTime64('{value.strftime('%Y-%m-%d %H:%M:%S')}', 0, 'UTC')"
-
-
 @dataclass
 class ClickHouseQuotePolicy(Policy):
     database: bool = True
@@ -72,22 +65,29 @@ class ClickHouseRelation(BaseRelation):
         return ".".join(quote_identifier(part) for _, part in self._render_iterator() if part)
 
     def _render_event_time_filtered(self, event_time_filter: EventTimeFilter) -> str:
-        """
-        Returns "" if start and end are both None
-        """
-        filter = ""
-        if event_time_filter.start and event_time_filter.end:
-            filter = f"{event_time_filter.field_name} >= {_to_datetime_literal(event_time_filter.start)} and {event_time_filter.field_name} < {_to_datetime_literal(event_time_filter.end)}"
-        elif event_time_filter.start:
-            filter = (
-                f"{event_time_filter.field_name} >= {_to_datetime_literal(event_time_filter.start)}"
-            )
-        elif event_time_filter.end:
-            filter = (
-                f"{event_time_filter.field_name} < {_to_datetime_literal(event_time_filter.end)}"
-            )
+        return self.render_event_time_filter(
+            event_time_filter.field_name, event_time_filter.start, event_time_filter.end
+        )
 
-        return filter
+    @staticmethod
+    def render_event_time_filter(
+        field_name: str, start: Optional[datetime], end: Optional[datetime]
+    ) -> str:
+        """
+        Renders `start <= field_name < end`, used for both upstream refs and microbatch deletes.
+        Either bound may be None; returns "" if both are.
+        """
+        # dbt batch boundaries are UTC; a typed literal compares with every date and time column type
+        bounds = []
+        if start:
+            bounds.append(
+                f"{field_name} >= toDateTime64('{start.strftime('%Y-%m-%d %H:%M:%S')}', 0, 'UTC')"
+            )
+        if end:
+            bounds.append(
+                f"{field_name} < toDateTime64('{end.strftime('%Y-%m-%d %H:%M:%S')}', 0, 'UTC')"
+            )
+        return ' and '.join(bounds)
 
     def derivative(
         self,
