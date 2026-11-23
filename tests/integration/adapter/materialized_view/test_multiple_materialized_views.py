@@ -288,3 +288,143 @@ class TestUpdateMultipleMV:
         assert len(result) == 2
         assert result[0][0] == "crash override"
         assert result[1][0] == "zero cool"
+
+
+EPHEMERAL_PEOPLE_MODEL = """
+{{ config(materialized='ephemeral') }}
+
+select id, name, department from {{ source('raw', 'people') }}
+"""
+
+# Each view selects from the ephemeral model, so each one needs the CTE that dbt injects for it.
+# dbt injects the CTE only once. Without a `with` clause in the model, dbt adds it before the first
+# marker, and the adapter adds it to each view. With a `with` clause in a view, dbt adds it there,
+# and the views that select from the ephemeral model without it cause an error.
+MULTIPLE_MV_FROM_EPHEMERAL_MODEL = """
+{{ config(
+       materialized='materialized_view',
+       engine='MergeTree()',
+       order_by='(id)',
+) }}
+
+{% if var('run_type', '') == '' %}
+
+--mv1:begin
+select id, name, 'engineer' as role
+from {{ ref('people_ephemeral') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+select id, name, 'seller' as role
+from {{ ref('people_ephemeral') }}
+where department = 'sales'
+--mv2:end
+
+{% elif var('run_type', '') == 'later_view_with_cte' %}
+
+--mv1:begin
+select id, name, 'engineer' as role
+from {{ ref('people_ephemeral') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+with sellers as (
+    select id, name from {{ ref('people_ephemeral') }} where department = 'sales'
+)
+select id, name, 'seller' as role
+from sellers
+--mv2:end
+
+{% elif var('run_type', '') == 'only_view_with_cte_uses_ephemeral' %}
+
+--mv1:begin
+select id, name, 'engineer' as role
+from {{ source('raw', 'people') }}
+where department = 'engineering'
+--mv1:end
+
+union all
+
+--mv2:begin
+with sellers as (
+    select id, name from {{ ref('people_ephemeral') }} where department = 'sales'
+)
+select id, name, 'seller' as role
+from sellers
+--mv2:end
+
+{% endif %}
+"""
+
+
+class TestMultipleMVFromEphemeral:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "people_ephemeral.sql": EPHEMERAL_PEOPLE_MODEL,
+            "roles.sql": MULTIPLE_MV_FROM_EPHEMERAL_MODEL,
+        }
+
+    @pytest.mark.parametrize("run_type", ["", "only_view_with_cte_uses_ephemeral"])
+    def test_create(self, project, run_type):
+        schema = quote_identifier(project.test_schema)
+        run_dbt(["seed"])
+        run_vars = json.dumps({"run_type": run_type})
+        run_dbt(["run", "--full-refresh", "--vars", run_vars])
+        # a second run updates the queries of the existing views
+        run_dbt(["run", "--vars", run_vars])
+
+        check_relation_types(
+            project.adapter,
+            {
+                "roles_mv1": "materialized_view",
+                "roles_mv2": "materialized_view",
+                "roles": "table",
+            },
+        )
+
+        # both views reach the target table
+        project.run_sql(
+            f"""
+        insert into {schema}.people ("id", "name", "age", "department")
+            values (4000,'Dave',40,'sales'), (9999,'Eugene',40,'engineering');
+        """
+        )
+
+        result = project.run_sql(f"select * from {schema}.roles order by id", fetch="all")
+        assert result == [
+            (1000, 'Alfie', 'seller'),
+            (1231, 'Dade', 'engineer'),
+            (2000, 'Bill', 'seller'),
+            (3000, 'Charlie', 'seller'),
+            (4000, 'Dave', 'seller'),
+            (6666, 'Ksenia', 'engineer'),
+            (8888, 'Kate', 'engineer'),
+            (9999, 'Eugene', 'engineer'),
+        ]
+
+    def test_view_with_own_with_clause_raises(self, project):
+        run_dbt(["seed"])
+        run_vars = json.dumps({"run_type": "later_view_with_cte"})
+        results = run_dbt(["run", "--full-refresh", "--vars", run_vars], expect_pass=False)
+
+        result = next(r for r in results if r.status == "error")
+        assert (
+            "The materialized view `mv1` of model `roles` selects from an "
+            "ephemeral model" in result.message
+        )
+        assert "when a view has its own WITH clause" in result.message
+        assert "explicit target table" in result.message
