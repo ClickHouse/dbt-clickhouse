@@ -70,7 +70,7 @@
     {% elif incremental_strategy == 'delete_insert' %}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'microbatch' %}
-      {%- set event_time_filter = api.Relation.render_event_time_filter(
+      {%- set event_time_filter = adapter.render_event_time_filter(
           config.get("event_time"),
           config.get("__dbt_internal_microbatch_event_time_start"),
           config.get("__dbt_internal_microbatch_event_time_end")) -%}
