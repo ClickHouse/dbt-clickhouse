@@ -71,10 +71,10 @@
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'microbatch' %}
       {%- if config.get("__dbt_internal_microbatch_event_time_start") -%}
-        {% do incremental_predicates.append(config.get("event_time") ~ " >= toDateTime64('" ~ config.get("__dbt_internal_microbatch_event_time_start").strftime("%Y-%m-%d %H:%M:%S") ~ "', 0)") %}
+        {% do incremental_predicates.append(config.get("event_time") ~ " >= toDateTime64('" ~ config.get("__dbt_internal_microbatch_event_time_start").strftime("%Y-%m-%d %H:%M:%S") ~ "', 0, 'UTC')") %}
       {%- endif -%}
       {%- if model.config.__dbt_internal_microbatch_event_time_end -%}
-        {% do incremental_predicates.append(config.get("event_time") ~ " < toDateTime64('" ~ config.get("__dbt_internal_microbatch_event_time_end").strftime("%Y-%m-%d %H:%M:%S") ~ "', 0)") %}
+        {% do incremental_predicates.append(config.get("event_time") ~ " < toDateTime64('" ~ config.get("__dbt_internal_microbatch_event_time_end").strftime("%Y-%m-%d %H:%M:%S") ~ "', 0, 'UTC')") %}
       {%- endif -%}
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'append' %}
