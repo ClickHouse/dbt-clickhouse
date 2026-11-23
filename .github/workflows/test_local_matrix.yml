@@ -22,14 +22,14 @@ jobs:
         # Testing ClickHouse versions with active security support https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md
         clickhouse-version:
           # lts will get tested will all supported python versions
-          - '25.8'
           - '26.3'
+          - '26.8'
         include:
           # Rest of supported versions will get tested only with latest python version to reduce the number of jobs needed
           - python-version: '3.12'
-            clickhouse-version: '26.4'
+            clickhouse-version: '26.9'
           - python-version: '3.12'
-            clickhouse-version: '26.5'
+            clickhouse-version: '26.10'
           - python-version: '3.12'
             clickhouse-version: 'latest'
           - python-version: '3.12'

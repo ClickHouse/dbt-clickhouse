@@ -77,10 +77,6 @@ class ClickHouseCredentials(Credentials):
                 'with user/password authentication; remove user and password from the profile.'
             )
 
-        # clickhouse_driver expects tcp_keepalive to be a tuple if it's not a boolean
-        if isinstance(self.tcp_keepalive, list):
-            self.tcp_keepalive = tuple(self.tcp_keepalive)
-
     @property
     def uses_token_auth(self) -> bool:
         return bool(self.access_token or self.access_token_provider)

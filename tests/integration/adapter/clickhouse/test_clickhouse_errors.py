@@ -1,8 +1,10 @@
 import pytest
 from dbt.tests.util import run_dbt
 
+# The limit must be high enough for creating the table and low enough for the insert to fail.
+# A limit of 1 byte sometimes broke the HTTP response while creating the table on a cluster.
 oom_table_sql = """
-SELECT a FROM system.numbers_mt GROUP BY repeat(toString(number), 100000) as a
+select uniqExact(number) as a from numbers(10000000) SETTINGS max_memory_usage = 50000000
 """
 
 schema_yaml = """

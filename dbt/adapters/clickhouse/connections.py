@@ -4,11 +4,15 @@ import uuid
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-import dbt.exceptions
 from dbt.adapters.clickhouse.dbclient import ChRetryableException, get_db_client
 from dbt.adapters.clickhouse.logger import logger
 from dbt.adapters.contracts.connection import AdapterResponse, Connection
+from dbt.adapters.events.types import SQLQuery, SQLQueryStatus
 from dbt.adapters.sql import SQLConnectionManager
+from dbt_common.events.contextvars import get_node_info
+from dbt_common.events.functions import fire_event
+from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.utils import cast_to_str
 
 if TYPE_CHECKING:
     import agate
@@ -30,9 +34,9 @@ class ClickHouseConnectionManager(SQLConnectionManager):
             yield
         except Exception as exp:
             logger.debug('Error running SQL: {}', sql)
-            if isinstance(exp, dbt.exceptions.DbtRuntimeError):
+            if isinstance(exp, DbtRuntimeError):
                 raise
-            raise dbt.exceptions.DbtRuntimeError('ClickHouse exception:  ' + str(exp)) from exp
+            raise DbtRuntimeError('ClickHouse exception:  ' + str(exp)) from exp
 
     @classmethod
     def open(cls, connection):
@@ -93,29 +97,8 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         if fetch and ddl_re.match(sql):
             fetch = False
 
-        sql = self._add_query_comment(sql)
-        conn = self.get_thread_connection()
-        client = conn.handle
-
-        query_id = str(uuid.uuid4())
-        with self.exception_handler(sql):
-            logger.debug(f'On {conn.name}: {sql}...')
-            pre = time.time()
-            if fetch:
-                query_result = client.query(sql, query_id=query_id)
-            else:
-                query_result = client.command(sql, query_id=query_id)
-            status = self.get_status(client)
-            logger.debug(f'SQL status: {status} in {(time.time() - pre):.2f} seconds')
-            if fetch:
-                table = self.get_table_from_response(
-                    query_result.result_set, query_result.column_names
-                )
-            else:
-                from dbt_common.clients.agate_helper import empty_table
-
-                table = empty_table()
-            return AdapterResponse(_message=status, query_id=query_id), table
+        _, response, table = self._run_statement(sql, fetch)
+        return response, table
 
     def add_query(
         self,
@@ -124,16 +107,45 @@ class ClickHouseConnectionManager(SQLConnectionManager):
         bindings: Optional[Any] = None,
         abridge_sql_log: bool = False,
     ) -> Tuple[Connection, Any]:
+        conn, _, _ = self._run_statement(sql, fetch=False, abridge_sql_log=abridge_sql_log)
+        return conn, None
+
+    def _run_statement(
+        self, sql: str, fetch: bool, abridge_sql_log: bool = False
+    ) -> Tuple[Connection, AdapterResponse, "agate.Table"]:
         sql = self._add_query_comment(sql)
         conn = self.get_thread_connection()
         client = conn.handle
+
+        query_id = str(uuid.uuid4())
         with self.exception_handler(sql):
-            logger.debug(f'On {conn.name}: {sql}...')
-            pre = time.time()
-            client.command(sql)
+            log_sql = f'{sql[:512]}...' if abridge_sql_log else sql
+            fire_event(
+                SQLQuery(conn_name=cast_to_str(conn.name), sql=log_sql, node_info=get_node_info())
+            )
+            pre = time.perf_counter()
+            if fetch:
+                query_result = client.query(sql, query_id=query_id)
+            else:
+                client.command(sql, query_id=query_id)
             status = self.get_status(client)
-            logger.debug(f'SQL status: {status} in {(time.time() - pre):0.2f} seconds')
-            return conn, None
+            fire_event(
+                SQLQueryStatus(
+                    status=status,
+                    elapsed=time.perf_counter() - pre,
+                    node_info=get_node_info(),
+                    query_id=query_id,
+                )
+            )
+            if fetch:
+                table = self.get_table_from_response(
+                    query_result.result_set, query_result.column_names
+                )
+            else:
+                from dbt_common.clients.agate_helper import empty_table
+
+                table = empty_table()
+            return conn, AdapterResponse(_message=status, query_id=query_id), table
 
     @classmethod
     def get_credentials(cls, credentials):

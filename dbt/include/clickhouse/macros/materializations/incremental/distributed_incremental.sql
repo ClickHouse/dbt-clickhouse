@@ -4,14 +4,10 @@
      {% do exceptions.raise_compiler_error('To use distributed materialization setting insert_distributed_sync should be set to 1') %}
   {% endif %}
 
-  {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
-  {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
-
   {%- set existing_relation = load_cached_relation(this) -%}
   {%- set target_relation = this.incorporate(type='table') -%}
 
-  {% set on_cluster = on_cluster_clause(target_relation) %}
-  {% if on_cluster.strip() == '' %}
+  {% if adapter.get_clickhouse_cluster_name() is none %}
      {% do exceptions.raise_compiler_error('To use distributed materializations cluster setting in dbt profile must be set') %}
   {% endif %}
 
@@ -19,8 +15,8 @@
      projection config errors here rather than mid-rebuild #}
   {% do validate_projections() %}
 
-  {% set existing_relation_local = load_cached_relation(this.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema})) %}
-  {% set target_relation_local = target_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if target_relation is not none else none %}
+  {% set existing_relation_local = load_cached_relation(clickhouse_local_relation(this)) %}
+  {% set target_relation_local = clickhouse_local_relation(this, target_relation) if target_relation is not none else none %}
 
   {%- set unique_key = config.get('unique_key') -%}
   {% if unique_key is not none and unique_key|length == 0 %}
@@ -30,6 +26,14 @@
      {% set unique_key = unique_key|join(', ') %}
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
+  {% if inserts_only %}
+    {% do exceptions.warn("`inserts_only` is deprecated and overrides `incremental_strategy`. Use `incremental_strategy='append'` instead.") %}
+  {% else %}
+    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'), unique_key)  %}
+    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
+    {% set partition_by = config.get('partition_by') %}
+    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
+  {% endif %}
   {%- set grant_config = config.get('grants') -%}
   {%- set has_contract = config.get('contract').enforced -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
@@ -44,11 +48,9 @@
   {%- set distributed_backup_relation = make_backup_relation(target_relation, backup_relation_type) -%}
   {%- set preexisting_intermediate_relation = load_cached_relation(intermediate_relation)-%}
   {%- set preexisting_backup_relation = load_cached_relation(backup_relation) -%}
-  {%- set view_relation = default__make_temp_relation(target_relation, '__dbt_view_tmp') -%}
 
   {{ drop_relation_if_exists(preexisting_intermediate_relation) }}
   {{ drop_relation_if_exists(preexisting_backup_relation) }}
-  {{ drop_relation_if_exists(view_relation) }}
   {{ drop_relation_if_exists(distributed_intermediate_relation) }}
 
   {{ run_hooks(pre_hooks, inside_transaction=False) }}
@@ -56,26 +58,30 @@
   {% set to_drop = [] %}
   {% set schema_changes = none %}
 
+  {#- dbt-core requires a 'main' statement result for every model. Most paths below run through
+      run_query() or the shared strategy macros, which only label 'main' on their non-distributed
+      branch, so this placeholder keeps the run from failing with "main is not being called". -#}
   {% call statement('main') %}
-    {{ create_view_as(view_relation, sql) }}
+    select 1
   {% endcall %}
+
+  {% if has_contract %}
+    {% do get_assert_columns_equivalent(sql) %}
+  {% endif %}
 
   {% if existing_relation_local is none %}
     -- No existing local table, recreate local and distributed tables
-    {{ create_distributed_local_table(target_relation, target_relation_local, view_relation, sql, has_contract) }}
+    {{ create_distributed_local_table(target_relation, target_relation_local, none, sql, has_contract) }}
 
   {% elif full_refresh_mode %}
     -- Completely replacing the old table, so create a temporary table and then swap it
-    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, view_relation, sql, has_contract) }}
+    {{ create_distributed_local_table(distributed_intermediate_relation, intermediate_relation, none, sql, has_contract) }}
     {% do adapter.drop_relation(distributed_intermediate_relation) or '' %}
     {% set need_swap = true %}
 
   {% elif inserts_only -%}
-    -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
-    -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
-    -- specific configurable that is used to avoid creating an expensive intermediate table.
     {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract, use_columns_from_sql=True) }}
     {% endcall %}
 
   {% else %}
@@ -84,10 +90,6 @@
       {% set existing_relation = target_relation %}
     {% endif %}
 
-    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
-    {% set partition_by = config.get('partition_by') %}
-    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set local_column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation_local, sql, query_settings=config.get('query_settings', {})) -%}
       {% if local_column_changes and incremental_strategy != 'legacy' %}
@@ -104,7 +106,7 @@
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, True) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract, use_columns_from_sql=True) }}
       {% endcall %}
     {% endif %}
   {% endif %}

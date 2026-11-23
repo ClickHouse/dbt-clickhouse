@@ -11,6 +11,14 @@
      {% set unique_key = unique_key|join(', ') %}
   {% endif %}
   {%- set inserts_only = config.get('inserts_only') -%}
+  {% if inserts_only %}
+    {% do exceptions.warn("`inserts_only` is deprecated and overrides `incremental_strategy`. Use `incremental_strategy='append'` instead.") %}
+  {% else %}
+    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'), unique_key)  %}
+    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
+    {% set partition_by = config.get('partition_by') %}
+    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
+  {% endif %}
   {%- set grant_config = config.get('grants') -%}
   {%- set has_contract = config.get('contract').enforced -%}
   {%- set full_refresh_mode = (should_full_refresh() or existing_relation.is_view) -%}
@@ -42,24 +50,13 @@
     {% endcall %}
     {% set need_swap = true %}
 
-  {% elif
-      inserts_only
-      or unique_key is none
-      and config.get('incremental_strategy', none) != 'insert_overwrite' -%}
-    -- There are no updates/deletes or duplicate keys are allowed.  Simply add all of the new rows to the existing
-    -- table. It is the user's responsibility to avoid duplicates.  Note that "inserts_only" is a ClickHouse adapter
-    -- specific configurable that is used to avoid creating an expensive intermediate table.
-    -- insert_overwrite strategy does not require unique_key => is an exception.
+  {% elif inserts_only -%}
     {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract, use_columns_from_sql=True) }}
     {% endcall %}
 
   {% else %}
     {% set column_changes = none %}
-    {% set incremental_strategy = adapter.calculate_incremental_strategy(config.get('incremental_strategy'))  %}
-    {% set incremental_predicates = config.get('predicates', []) or config.get('incremental_predicates', []) %}
-    {% set partition_by = config.get('partition_by') %}
-    {% do adapter.validate_incremental_strategy(incremental_strategy, incremental_predicates, unique_key, partition_by) %}
     {%- if on_schema_change != 'ignore' %}
       {%- set column_changes = adapter.check_incremental_schema_changes(on_schema_change, existing_relation, sql, query_settings=config.get('query_settings', {})) -%}
       {% if column_changes and incremental_strategy != 'legacy' %}
@@ -82,7 +79,7 @@
       {% do clickhouse__incremental_delete_insert(existing_relation, unique_key, incremental_predicates) %}
     {% elif incremental_strategy == 'append' %}
       {% call statement('main') %}
-        {{ clickhouse__insert_into(target_relation, sql, has_contract) }}
+        {{ clickhouse__insert_into(target_relation, sql, has_contract, use_columns_from_sql=True) }}
       {% endcall %}
     {% elif incremental_strategy == 'insert_overwrite' %}
       {% do clickhouse__incremental_insert_overwrite(existing_relation, partition_by, False) %}
@@ -208,9 +205,6 @@
 
     {%- set inserting_relation = new_data_relation -%}
 
-    {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
-    {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
-
     {% if is_distributed %}
       -- Need to use distributed table to have data on all shards
       {%- set inserting_relation = distributed_new_data_relation -%}
@@ -226,7 +220,7 @@
           embedding the setting in the subquery makes it read a fresh snapshot. -#}
       {%- set subquery_settings = ' settings select_sequential_consistency = 1' if target.database_engine == 'Shared' else '' -%}
       {% if is_distributed %}
-          {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
+          {% set existing_local = clickhouse_local_relation(this, existing_relation) if existing_relation is not none else none %}
             delete from {{ existing_local }} {{ on_cluster_clause(existing_relation) }} where ({{ unique_key }}) in (select {{ unique_key }}
                                           from {{ inserting_relation }}{{ subquery_settings }})
       {% else %}
@@ -257,9 +251,7 @@
     {%- set distributed_new_data_relation = existing_relation.incorporate(path={"identifier": existing_relation.identifier + '__dbt_distributed_new_data'}) -%}
 
 
-    {%- set local_suffix = adapter.get_clickhouse_local_suffix() -%}
-    {%- set local_db_prefix = adapter.get_clickhouse_local_db_prefix() -%}
-    {% set existing_local = existing_relation.incorporate(path={"identifier": this.identifier + local_suffix, "schema": local_db_prefix + this.schema}) if existing_relation is not none else none %}
+    {% set existing_local = clickhouse_local_relation(this, existing_relation) if existing_relation is not none else none %}
 
     {% if is_distributed %}
         {{ create_distributed_local_table(distributed_new_data_relation, new_data_relation, existing_relation, sql) }}
@@ -269,18 +261,21 @@
         {% endcall %}
     {% endif %}
 
-    {# Get the parts from the cluster table, since the partitions between shards may not overlap due to distribution #}
+    {#- Read the partitions from the staging table itself, not from system.parts. system.parts is
+        each replica's own view of part metadata; on a multi-replica service the probe can reach a
+        replica that has not yet synced the staging insert and report no partitions, which silently
+        skips the swap. A read of the table honours the connection's select_sequential_consistency
+        (set by default for Shared databases), so it syncs part metadata first. The cluster() read
+        covers shards whose partitions do not overlap. -#}
     {% if execute %}
       {% set select_changed_partitions %}
-          SELECT DISTINCT partition_id
+          SELECT _partition_id AS partition_id
           {% if is_distributed %}
-            FROM cluster({{ adapter.get_clickhouse_cluster_name() }}, system.parts)
+            FROM cluster({{ adapter.get_clickhouse_cluster_name() }}, {{ new_data_relation }})
           {% else %}
-            FROM system.parts
+            FROM {{ new_data_relation }}
           {% endif %}
-          WHERE active
-            AND database = '{{ new_data_relation.schema }}'
-            AND table = '{{ new_data_relation.identifier }}'
+          GROUP BY _partition_id
       {% endset %}
       {% set changed_partitions = run_query(select_changed_partitions).rows %}
     {% else %}

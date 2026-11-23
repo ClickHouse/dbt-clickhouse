@@ -13,6 +13,8 @@ from dbt.tests.util import check_relation_types, run_dbt
 from tests.integration.adapter.materialized_view.common import (
     PEOPLE_SEED_CSV,
     SEED_SCHEMA_YML,
+    refreshable_mv_model,
+    target_row_count,
 )
 
 # Target table model - this creates the destination table that the MV will write to
@@ -29,7 +31,8 @@ SELECT
 WHERE 0  -- Creates empty table with correct schema
 """
 
-# Refreshable MV model that writes to the external target table
+# Refreshable MV model that writes to the external target table. It uses AFTER 1 HOUR so that no
+# scheduled refresh runs during the test and adds rows on top of the ones dbt inserts.
 MV_MODEL = """
 {{ config(
        materialized='materialized_view',
@@ -39,7 +42,7 @@ MV_MODEL = """
                "depends_on": ['depend_on_model'],
                "depends_on_validation": True
            } if var('run_type', '') == 'validate_depends_on' else {
-               "interval": "EVERY 2 MINUTE"
+               "interval": "AFTER 1 HOUR"
            }
        )
 ) }}
@@ -104,6 +107,9 @@ class TestBasicExternalTargetRefreshableMV:
             },
         )
 
+        # 2 departments, inserted exactly once by the catchup
+        assert target_row_count(project, 'hackers_target') == 2
+
         if os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes'):
             result = project.run_sql(
                 f"""
@@ -126,6 +132,11 @@ class TestBasicExternalTargetRefreshableMV:
             )
             mv_status = result[0][2]
             assert mv_status in ('Scheduled', 'Running')
+
+        # --full-refresh drops the MV, runs the catchup, then recreates the MV with EMPTY
+        results = run_dbt(["run", "--full-refresh"])
+        assert len(results) == 2
+        assert target_row_count(project, 'hackers_target') == 2
 
     def test_validate_dependency(self, project):
         """
@@ -217,3 +228,57 @@ class TestModifyRefreshParamsExternalTargetMV:
         assert 'RANDOMIZE FOR 30 SECOND' in ddl
         # the MV was altered in place, not dropped and recreated
         assert uuid_before == uuid_after
+
+
+class TestAppendExternalTargetRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": refreshable_mv_model(external_target=True, append=True),
+        }
+
+    def test_no_duplicate_rows(self, project):
+        """
+        An APPEND view created without EMPTY would insert the query result on top of the catchup.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+        assert target_row_count(project, 'hackers_target') == 2
+
+
+class TestNoCatchupExternalTargetRefreshableMV:
+    @pytest.fixture(scope="class")
+    def seeds(self):
+        return {
+            "people.csv": PEOPLE_SEED_CSV,
+            "schema.yml": SEED_SCHEMA_YML,
+        }
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "hackers_target.sql": TARGET_TABLE_MODEL,
+            "hackers.sql": refreshable_mv_model(external_target=True, catchup=False),
+        }
+
+    def test_clickhouse_runs_the_initial_refresh(self, project):
+        """
+        Without catchup the view is created without EMPTY, as before this fix, and ClickHouse
+        populates the target with its initial refresh in the background; dbt does not wait for it.
+        """
+        results = run_dbt(["seed"])
+        assert len(results) == 1
+        results = run_dbt()
+        assert len(results) == 2
+        project.run_sql("system wait view hackers")
+        assert target_row_count(project, 'hackers_target') == 2

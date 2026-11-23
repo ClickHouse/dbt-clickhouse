@@ -181,6 +181,20 @@ class TestInsertsOnlyDistributedIncrementalMaterialization(BaseIncremental):
         super().test_incremental(project)
 
 
+class TestDistributedIncrementalNoUniqueKey(TestInsertsOnlyDistributedIncrementalMaterialization):
+    """Without unique_key, the default strategy is append."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        config_materialized_incremental = """
+          {{ config(order_by='(some_date, id, name)', materialized='distributed_incremental') }}
+        """
+        return {
+            "incremental.sql": config_materialized_incremental + model_incremental,
+            "schema.yml": schema_base_yml,
+        }
+
+
 incremental_not_schema_change_sql = """
 {{ config(materialized="distributed_incremental", unique_key="user_id_current_time",on_schema_change="sync_all_columns") }}
 select
@@ -221,10 +235,12 @@ insert_overwrite_dist_inc = """
         (1, 'p1', 1, 'a'), (1, 'p1', 2, 'b'), (2, 'p1', 3, 'c'), (2, 'p2', 4, 'd')
     )
 {% else %}
+    {# shards 1 and 3 land on the same shard, 2 on the other: the new partitions
+       differ per shard and discovery has to see both p1 and p3. #}
     SELECT shardingKey, partitionKey, orderKey, value
     FROM VALUES(
         'shardingKey UInt8, partitionKey String, orderKey UInt8, value String',
-        (1, 'p1', 2, 'e'), (3, 'p1', 2, 'f')
+        (1, 'p1', 2, 'e'), (3, 'p1', 2, 'f'), (2, 'p3', 5, 'g')
     )
 {% endif %}
 """
@@ -258,5 +274,6 @@ class TestInsertOverwriteDistributedIncremental:
         assert result == [
             (1, 'p1', 2, 'e'),
             (2, 'p2', 4, 'd'),
+            (2, 'p3', 5, 'g'),
             (3, 'p1', 2, 'f'),
         ]
