@@ -2,6 +2,7 @@ import csv
 import io
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from multiprocessing.context import SpawnContext
 from typing import (
     TYPE_CHECKING,
@@ -44,7 +45,6 @@ if TYPE_CHECKING:
     import agate
 
 GET_CATALOG_MACRO_NAME = 'get_catalog'
-LIST_SCHEMAS_MACRO_NAME = 'list_schemas'
 
 MERGETREE_EXCLUSIVE_SETTINGS = {'replicated_deduplication_window'}
 
@@ -179,7 +179,14 @@ class ClickHouseAdapter(SQLAdapter):
         return ch_db and engine_can_atomic_exchange(ch_db.engine)
 
     @available.parse_none
-    def should_on_cluster(self, materialized: str = '', engine: str = '') -> bool:
+    def should_on_cluster(
+        self,
+        materialized: str = '',
+        engine: str = '',
+        relation: Optional[ClickHouseRelation] = None,
+    ) -> bool:
+        if relation is not None:
+            return relation.should_on_cluster
         conn = self.connections.get_if_exists()
         if conn and conn.credentials.cluster:
             return ClickHouseRelation.get_on_cluster(
@@ -187,10 +194,18 @@ class ClickHouseAdapter(SQLAdapter):
             )
         return ClickHouseRelation.get_on_cluster()
 
+    @available
+    def render_event_time_filter(
+        self, field_name: str, start: Optional[datetime], end: Optional[datetime]
+    ) -> str:
+        return ClickHouseRelation.render_event_time_filter(field_name, start, end)
+
     @available.parse_none
-    def calculate_incremental_strategy(self, strategy: str) -> str:
-        conn = self.connections.get_if_exists()
+    def calculate_incremental_strategy(self, strategy: str, unique_key: Optional[str]) -> str:
         if not strategy or strategy == 'default':
+            if not unique_key:
+                return 'append'
+            conn = self.connections.get_if_exists()
             strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
         strategy = strategy.replace('+', '_')
         return strategy
@@ -214,7 +229,7 @@ class ClickHouseAdapter(SQLAdapter):
                 f"'{ND_MUTATION_SETTING}' could not be enabled on this ClickHouse server "
                 "(see the warnings logged at connection time)."
             )
-        if strategy in ('delete_insert', 'microbatch') and not unique_key:
+        if strategy in ('legacy', 'delete_insert', 'microbatch') and not unique_key:
             raise DbtRuntimeError(f"'{strategy}' strategy requires a non-empty 'unique_key'.")
         if strategy not in ('delete_insert', 'microbatch') and predicates:
             raise DbtRuntimeError(
@@ -343,10 +358,6 @@ class ClickHouseAdapter(SQLAdapter):
             extra_credentials = f", extra_credentials(role_arn='{role_arn}'{ext_id})"
 
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
-
-    def check_schema_exists(self, database, schema):
-        results = self.execute_macro(LIST_SCHEMAS_MACRO_NAME, kwargs={'database': database})
-        return schema in (row[0] for row in results)
 
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Type
 
 from dbt.adapters.base.relation import BaseRelation, EventTimeFilter, Path, Policy, Self
@@ -9,6 +10,7 @@ from dbt_common.exceptions import DbtRuntimeError
 from dbt_common.utils import deep_merge
 
 NODE_TYPE_SOURCE = 'source'
+NODE_TYPE_FUNCTION = 'function'
 
 
 @dataclass
@@ -33,6 +35,7 @@ class ClickHouseRelationType(StrEnum):
     External = "external"
     Ephemeral = "ephemeral"
     Dictionary = "dictionary"
+    Function = "function"
 
 
 @dataclass(frozen=True, eq=False, repr=False)
@@ -62,18 +65,29 @@ class ClickHouseRelation(BaseRelation):
         return ".".join(quote_identifier(part) for _, part in self._render_iterator() if part)
 
     def _render_event_time_filtered(self, event_time_filter: EventTimeFilter) -> str:
-        """
-        Returns "" if start and end are both None
-        """
-        filter = ""
-        if event_time_filter.start and event_time_filter.end:
-            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}' and {event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
-        elif event_time_filter.start:
-            filter = f"{event_time_filter.field_name} >= '{event_time_filter.start.strftime('%Y-%m-%d %H:%M:%S')}'"
-        elif event_time_filter.end:
-            filter = f"{event_time_filter.field_name} < '{event_time_filter.end.strftime('%Y-%m-%d %H:%M:%S')}'"
+        return self.render_event_time_filter(
+            event_time_filter.field_name, event_time_filter.start, event_time_filter.end
+        )
 
-        return filter
+    @staticmethod
+    def render_event_time_filter(
+        field_name: str, start: Optional[datetime], end: Optional[datetime]
+    ) -> str:
+        """
+        Renders `start <= field_name < end`, used for both upstream refs and microbatch deletes.
+        Either bound may be None; returns "" if both are.
+        """
+        # dbt batch boundaries are UTC; a typed literal compares with every date and time column type
+        bounds = []
+        if start:
+            bounds.append(
+                f"{field_name} >= toDateTime64('{start.strftime('%Y-%m-%d %H:%M:%S')}', 0, 'UTC')"
+            )
+        if end:
+            bounds.append(
+                f"{field_name} < toDateTime64('{end.strftime('%Y-%m-%d %H:%M:%S')}', 0, 'UTC')"
+            )
+        return ' and '.join(bounds)
 
     def derivative(
         self,
@@ -144,30 +158,34 @@ class ClickHouseRelation(BaseRelation):
         # schema with the database instead, since that's presumably what's intended for clickhouse
         schema = relation_config.schema
 
-        can_on_cluster = None
-        cluster = ""
-        database_engine = ""
         # We placed a hardcoded const (instead of importing it from dbt-core) in order to decouple the packages
         if relation_config.resource_type == NODE_TYPE_SOURCE:
             if schema == relation_config.source_name and relation_config.database:
                 schema = relation_config.database
-        else:
-            # quoting is only available for non-source nodes
-            cluster = quoting.credentials.cluster or ""
-            database_engine = quoting.credentials.database_engine or ""
-
-        if (
-            cluster
-            and str(relation_config.config.get("disable_on_cluster")).lower() != "true"
-            and 'replicated' not in database_engine.lower()
-        ):
-            can_on_cluster = True
+        elif relation_config.resource_type == NODE_TYPE_FUNCTION:
+            # ClickHouse functions are global, not part of a database
+            schema = None
 
         return cls.create(
             database='',
             schema=schema,
             identifier=relation_config.identifier,
             quote_policy=quote_policy,
-            can_on_cluster=can_on_cluster,
+            can_on_cluster=cls._can_on_cluster(quoting, relation_config),
             **kwargs,
         )
+
+    @classmethod
+    def _can_on_cluster(cls, quoting: HasQuoting, relation_config: RelationConfig) -> bool:
+        # source() and function() calls pass dbt's quoting-only config, which has no credentials
+        credentials = getattr(quoting, 'credentials', None)
+        if not credentials or not credentials.cluster:
+            return False
+        if relation_config.resource_type == NODE_TYPE_SOURCE:
+            return False
+        if str(relation_config.config.get("disable_on_cluster")).lower() == "true":
+            return False
+        # a replicated database replicates ddl itself, but functions aren't part of a database
+        if relation_config.resource_type == NODE_TYPE_FUNCTION:
+            return True
+        return cls.get_on_cluster(credentials.cluster, credentials.database_engine)

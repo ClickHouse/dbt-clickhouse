@@ -98,6 +98,9 @@ class ChClientWrapper(ABC):
         self._conn_settings.setdefault('lightweight_deletes_sync', '3')
         self._conn_settings.setdefault('alter_sync', '3')
         self._conn_settings.setdefault('insert_distributed_sync', '1')
+        if credentials.cluster:
+            # makes sure that unneeded `on cluster` are stripped from ddls when udfs are stored in keeper (replicated)
+            self._conn_settings.setdefault('ignore_on_cluster_for_replicated_udf_queries', '1')
         self._client = self._create_client(credentials)
         check_exchange = credentials.check_exchange and not credentials.cluster_mode
         try:

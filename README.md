@@ -36,6 +36,7 @@ pip install dbt-clickhouse
 - [x] Incremental materialization
 - [x] Microbatch incremental materialization
 - [x] Materialized View materializations (uses the `TO` form of MATERIALIZED VIEW, experimental)
+- [x] User-defined functions (SQL)
 - [x] Seeds
 - [x] Sources
 - [x] Docs generate
