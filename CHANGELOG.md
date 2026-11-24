@@ -1,7 +1,7 @@
 ### Unreleased
 
 #### Bugs
-* Fix the `dbt.date(year, month, day)` cross-database macro failing on ClickHouse, which has no `to_date` function. It now renders `toDate('YYYY-MM-DD')`, or `toDate32(...)` for a date outside the `Date` range ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
+* Fix the `dbt.date(year, month, day)` cross-database macro failing on ClickHouse, which has no `to_date` function. It now renders `toDate('YYYY-MM-DD')`, or `toDate32(...)` for a date outside the `Date` range ([#825](https://github.com/ClickHouse/dbt-clickhouse/pull/825)).
 
 
 ### Release [1.10.4], 2026-11-24
