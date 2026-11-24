@@ -2,6 +2,7 @@ import csv
 import io
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from multiprocessing.context import SpawnContext
 from typing import (
     TYPE_CHECKING,
@@ -192,6 +193,12 @@ class ClickHouseAdapter(SQLAdapter):
                 cluster=conn.credentials.cluster, database_engine=conn.credentials.database_engine
             )
         return ClickHouseRelation.get_on_cluster()
+
+    @available
+    def render_event_time_filter(
+        self, field_name: str, start: Optional[datetime], end: Optional[datetime]
+    ) -> str:
+        return ClickHouseRelation.render_event_time_filter(field_name, start, end)
 
     @available.parse_none
     def calculate_incremental_strategy(self, strategy: str, unique_key: Optional[str]) -> str:

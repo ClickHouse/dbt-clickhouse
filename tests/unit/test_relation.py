@@ -1,6 +1,8 @@
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
+from dbt.adapters.base.relation import EventTimeFilter
 from dbt.adapters.clickhouse.relation import ClickHouseRelation
 
 
@@ -92,3 +94,36 @@ def test_create_from_renders(resource_type, kwargs, rendered):
     relation = ClickHouseRelation.create_from(_runtime_config(), relation_config)
 
     assert relation.render() == rendered
+
+
+@pytest.mark.parametrize(
+    'start,end,expected',
+    [
+        (
+            datetime(2020, 1, 1),
+            datetime(2020, 1, 2),
+            "event_time >= toDateTime64('2020-01-01 00:00:00', 0, 'UTC')"
+            " and event_time < toDateTime64('2020-01-02 00:00:00', 0, 'UTC')",
+        ),
+        (
+            datetime(2020, 1, 1, 10),
+            None,
+            "event_time >= toDateTime64('2020-01-01 10:00:00', 0, 'UTC')",
+        ),
+        (None, datetime(2020, 1, 2), "event_time < toDateTime64('2020-01-02 00:00:00', 0, 'UTC')"),
+        (None, None, ""),
+        # Outside the DateTime range (1970-2106): the literal must still carry the real boundary,
+        # because toDateTime() would clamp it to 1970-01-01.
+        (
+            datetime(1960, 1, 1),
+            datetime(1960, 1, 2),
+            "event_time >= toDateTime64('1960-01-01 00:00:00', 0, 'UTC')"
+            " and event_time < toDateTime64('1960-01-02 00:00:00', 0, 'UTC')",
+        ),
+        (None, datetime(2200, 1, 1), "event_time < toDateTime64('2200-01-01 00:00:00', 0, 'UTC')"),
+    ],
+)
+def test_render_event_time_filtered(start, end, expected):
+    relation = ClickHouseRelation.create(schema='db', identifier='events')
+    event_time_filter = EventTimeFilter(field_name='event_time', start=start, end=end)
+    assert relation._render_event_time_filtered(event_time_filter) == expected

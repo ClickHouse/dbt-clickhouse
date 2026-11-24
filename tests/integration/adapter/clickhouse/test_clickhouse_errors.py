@@ -1,32 +1,31 @@
 import pytest
 from dbt.tests.util import run_dbt
 
-# The limit must be high enough for creating the table and low enough for the insert to fail.
-# A limit of 1 byte sometimes broke the HTTP response while creating the table on a cluster.
-oom_table_sql = """
-select uniqExact(number) as a from numbers(10000000) SETTINGS max_memory_usage = 50000000
+# throwIf depends on the row value, so the error is raised while executing the insert.
+error_table_sql = """
+select throwIf(number = 5, 'dbt test error') as a from numbers(10)
 """
 
 schema_yaml = """
 version: 2
 
 models:
-  - name: oom_table
-    description: Table that generates OOM
+  - name: error_table
+    description: Table that raises a server error
     config:
       materialized: table
       order_by: a
 """
 
 
-class TestOOMError:
+class TestServerError:
     @pytest.fixture(scope="class")
     def models(self):
         return {
             "schema.yml": schema_yaml,
-            "oom_table.sql": oom_table_sql,
+            "error_table.sql": error_table_sql,
         }
 
-    def test_oom(self, project):
+    def test_server_error(self, project):
         res = run_dbt(["run"], expect_pass=False)
-        assert 'exceeded' in res.results[0].message
+        assert 'dbt test error' in res.results[0].message
