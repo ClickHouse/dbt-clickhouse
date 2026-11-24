@@ -2,6 +2,7 @@ import csv
 import io
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from multiprocessing.context import SpawnContext
 from typing import (
     TYPE_CHECKING,
@@ -193,10 +194,18 @@ class ClickHouseAdapter(SQLAdapter):
             )
         return ClickHouseRelation.get_on_cluster()
 
+    @available
+    def render_event_time_filter(
+        self, field_name: str, start: Optional[datetime], end: Optional[datetime]
+    ) -> str:
+        return ClickHouseRelation.render_event_time_filter(field_name, start, end)
+
     @available.parse_none
-    def calculate_incremental_strategy(self, strategy: str) -> str:
-        conn = self.connections.get_if_exists()
+    def calculate_incremental_strategy(self, strategy: str, unique_key: Optional[str]) -> str:
         if not strategy or strategy == 'default':
+            if not unique_key:
+                return 'append'
+            conn = self.connections.get_if_exists()
             strategy = 'delete_insert' if conn.handle.use_lw_deletes else 'legacy'
         strategy = strategy.replace('+', '_')
         return strategy
@@ -220,7 +229,7 @@ class ClickHouseAdapter(SQLAdapter):
                 f"'{ND_MUTATION_SETTING}' could not be enabled on this ClickHouse server "
                 "(see the warnings logged at connection time)."
             )
-        if strategy in ('delete_insert', 'microbatch') and not unique_key:
+        if strategy in ('legacy', 'delete_insert', 'microbatch') and not unique_key:
             raise DbtRuntimeError(f"'{strategy}' strategy requires a non-empty 'unique_key'.")
         if strategy not in ('delete_insert', 'microbatch') and predicates:
             raise DbtRuntimeError(

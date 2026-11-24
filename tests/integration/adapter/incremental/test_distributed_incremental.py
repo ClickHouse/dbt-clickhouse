@@ -181,6 +181,20 @@ class TestInsertsOnlyDistributedIncrementalMaterialization(BaseIncremental):
         super().test_incremental(project)
 
 
+class TestDistributedIncrementalNoUniqueKey(TestInsertsOnlyDistributedIncrementalMaterialization):
+    """Without unique_key, the default strategy is append."""
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        config_materialized_incremental = """
+          {{ config(order_by='(some_date, id, name)', materialized='distributed_incremental') }}
+        """
+        return {
+            "incremental.sql": config_materialized_incremental + model_incremental,
+            "schema.yml": schema_base_yml,
+        }
+
+
 incremental_not_schema_change_sql = """
 {{ config(materialized="distributed_incremental", unique_key="user_id_current_time",on_schema_change="sync_all_columns") }}
 select

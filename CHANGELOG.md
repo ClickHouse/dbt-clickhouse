@@ -1,30 +1,40 @@
 ### Unreleased
 
-#### Improvements
-* `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
-* `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
-
-#### Repository maintenance
-* The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
-* Integration tests now run in parallel with `pytest-xdist`, in CI and locally (see [CONTRIBUTING.md](./CONTRIBUTING.md#running-tests)). Each test class gets a worker-unique schema, and the grants and `dbt_clone` tests create their own short-lived users instead of sharing session-wide ones ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
-* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
-* Macros aligned with the ClickHouse adapter in dbt Core v2 so both engines can share the same macro files: remove datatypes.sql (unused), add `clickhouse__check_schema_exists` and let `adapter.check_schema_exists()` dispatch to it instead of a Python override. Results are unchanged on dbt Core 1.x ([#797](https://github.com/ClickHouse/dbt-clickhouse/pull/797)).
-* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#782](https://github.com/ClickHouse/dbt-clickhouse/pull/782)).
-
 #### Bugs
 * Fix `dbt.datediff` failing on ClickHouse when an argument is a string literal such as `'2016-03-09'`, as in dbt's documented usage, and with it `dbt.date_spine` and `dbt.get_intervals_between` with string bounds. A string literal is now read as a `DateTime64(6)`; columns and other expressions are passed through unchanged ([#TBD](https://github.com/ClickHouse/dbt-clickhouse/pull/TBD)).
-* The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
+
+
+### Release [1.10.4], 2026-11-24
+
+#### Improvements
+* Without a `unique_key`, the default incremental strategy is now `append`, so such models now fail if they set `incremental_predicates`. `append` also replaces `inserts_only`, which is now deprecated and logs a warning that fails runs under `--warn-error` ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
+* Support dbt functions (UDFs) as ClickHouse SQL UDFs, both scalar and aggregate. See the [ClickHouse notes](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#functions) ([#809](https://github.com/ClickHouse/dbt-clickhouse/pull/809)).
+* `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
+* SQL statements are now logged with dbt's standard `SQLQuery` and `SQLQueryStatus` debug events, including the ClickHouse query ID, so log consumers and `dbtRunner` callbacks see them as for other adapters ([#807](https://github.com/ClickHouse/dbt-clickhouse/pull/807)).
+* `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
+
+#### Bugs
+* An `incremental` model with an explicit `legacy`, `delete+insert` or `microbatch` strategy and no `unique_key` now fails with a clear error instead of silently appending. Strategy validation now runs on the first build, not only on incremental runs ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
+* Fix microbatch models failing when `event_time` is a `Date` or `Date32` column. Batches now always use dbt's UTC boundaries, so on servers not running in UTC the batch windows of `DateTime` columns shift accordingly ([#759](https://github.com/ClickHouse/dbt-clickhouse/pull/759)).
 * Fix `insert_overwrite` occasionally skipping partitions on ClickHouse Cloud when the partition probe landed on a replica that had not yet synced the staging insert. The partitions are now read from the staging table itself, which honours the connection's `select_sequential_consistency`, instead of from `system.parts` ([#786](https://github.com/ClickHouse/dbt-clickhouse/pull/786)).
 * Distributed models no longer fail with `cluster setting in dbt profile must be set` on a `Replicated` database (`database_engine: Replicated` with `cluster` set in the profile) ([#769](https://github.com/ClickHouse/dbt-clickhouse/pull/769)).
 * `distributed_incremental` no longer creates a temporary view to read the model's structure; it is taken from the model query, which the materialization already had. Every run used to leave the view behind, and the run no longer touches that name at all, so a `<model>__dbt_view_tmp` left by an earlier version has to be dropped once by hand ([#754](https://github.com/ClickHouse/dbt-clickhouse/pull/754)).
 * Apply a materialized view model's `query_settings` to the view's own query, not only to the initial fill of the target table, so later inserts and refreshes no longer run under the server defaults. Existing views pick up the clause on the next `dbt run`, which already reissues the view query ([#755](https://github.com/ClickHouse/dbt-clickhouse/pull/755)).
-* Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
-* Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
 * Prevent refreshable materialized views from racing or duplicating their initial population. With `catchup=True` (the default) the catchup now runs before the view is created and the view is created with `EMPTY`, so only dbt loads the initial data; with `catchup=False` ClickHouse keeps running the initial refresh as before ([#750](https://github.com/ClickHouse/dbt-clickhouse/pull/750)).
-* Fixed `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
-* Reading and enabling `allow_nondeterministic_mutations` at connect time now retries transient errors ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
 * Multi-view materialized view models can now select from ephemeral models when no view has its own `WITH` clause; otherwise, a view that selects from an ephemeral model raises an error that points to explicit target mode ([#768](https://github.com/ClickHouse/dbt-clickhouse/pull/768)).
 * Dictionaries on ClickHouse Cloud (`database_engine: Shared`) are now created with `SETTINGS(select_sequential_consistency = 1)`. Cloud loads dictionaries eagerly on every replica, and a replica that had not yet seen the latest parts of the source table loaded an empty or stale dictionary until its next `LIFETIME` refresh ([#800](https://github.com/ClickHouse/dbt-clickhouse/pull/800)).
+* Fix snapshots with a list `unique_key` (e.g. `unique_key=['date', 'team_id']`). The key columns were rendered as a single array literal, so every snapshot run joined all rows against all rows and inserted spurious records ([#751](https://github.com/ClickHouse/dbt-clickhouse/pull/751)).
+* `dbt clone` no longer creates empty tables when a `cluster` is set, or fails in a `Replicated` database. `CLONE AS` supports neither, so these tables are now cloned with `CREATE TABLE ... AS` and `ALTER TABLE ... ATTACH PARTITION ALL FROM` ([#816](https://github.com/ClickHouse/dbt-clickhouse/pull/816)).
+* Fix contract enforcement failing for `FixedString(N)` columns: the rendered data type collapsed to `String`, which no longer matches a `FixedString(N)` contract declaration ([#727](https://github.com/ClickHouse/dbt-clickhouse/pull/727)).
+* The native driver no longer sends the HTTP `session_id` parameter as a query setting. ClickHouse does not know that setting and logged an `Unknown settings` warning for every query ([#762](https://github.com/ClickHouse/dbt-clickhouse/pull/762)).
+* Fix `tcp_keepalive` failing profile validation when given explicit `[idle, interval, probes]` values, which left `true` (and its 7200s kernel default idle time) as the only usable setting ([#735](https://github.com/ClickHouse/dbt-clickhouse/pull/735)).
+* Reading and enabling `allow_nondeterministic_mutations` at connect time now retries transient errors ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
+
+#### Repository maintenance
+* The shard-local table name of distributed materializations is now resolved in one place, `clickhouse_local_relation`, instead of being rebuilt inline in each materialization and incremental strategy ([#753](https://github.com/ClickHouse/dbt-clickhouse/pull/753)).
+* Macros aligned with the ClickHouse adapter in dbt Core v2 so both engines can share the same macro files. Results are unchanged on dbt Core 1.x ([#797](https://github.com/ClickHouse/dbt-clickhouse/pull/797)).
+* Integration tests now run in parallel with `pytest-xdist`, in CI and locally (see [CONTRIBUTING.md](./CONTRIBUTING.md#running-tests)). Each test class gets a worker-unique schema, and the grants and `dbt_clone` tests create their own short-lived users instead of sharing session-wide ones ([#720](https://github.com/ClickHouse/dbt-clickhouse/pull/720)).
+* Update the ClickHouse versions used for testing to the ones with active security support per the ClickHouse [security policy](https://github.com/ClickHouse/ClickHouse/blob/master/SECURITY.md): drop 25.8, 26.4 and 26.5, add 26.8, 26.9 and 26.10. The documented minimum tested version is now 26.3 ([#782](https://github.com/ClickHouse/dbt-clickhouse/pull/782)).
 
 
 ### Release [1.10.3], 2026-09-15

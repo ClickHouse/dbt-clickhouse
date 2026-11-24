@@ -54,6 +54,7 @@ dev = [
     "mypy==1.19.1",
     "yamllint==1.37.1",
     "requests~=2.34.2",
+    "types-PyYAML==6.0.12",
 ]
 
 [tool.setuptools]
