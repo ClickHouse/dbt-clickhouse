@@ -225,14 +225,7 @@ def _dbt_core_v2_invoke(args):
     print(f"\n\nInvoking dbt core v2 with {args}")
     start = time.time()
     project_root = os.getcwd()
-    # Keep a debug query log per project for post-mortem debugging of failing
-    # tests (the pytest tmp project dirs persist). Only appended when the test
-    # didn't pass its own log flags (clap rejects duplicates).
     invoke_args = list(args)
-    if not any(a.startswith('--log-level') or a == '--debug' or a == '-d' for a in invoke_args):
-        invoke_args += ['--log-level', 'debug']
-    if not any(a.startswith('--log-path') for a in invoke_args):
-        invoke_args += ['--log-path', 'logs_v2']
     if (
         invoke_args
         and invoke_args[0] in ('run', 'build')

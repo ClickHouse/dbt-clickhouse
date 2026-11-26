@@ -10,7 +10,7 @@ from dbt.tests.adapter.basic.test_docs_generate import (
     verify_catalog,
 )
 
-from tests.integration.adapter.helpers import MigratedTestArgs, migrate_yml
+from tests.integration.adapter.helpers import MigratedTestArgs
 
 IS_CORE_V2 = bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY'))
 
@@ -96,11 +96,12 @@ exposures:
     description: "{{ doc('notebook_info') }}"
     maturity: medium
     url: http://example.com/notebook/1
-    meta:
-      tool: 'my_tool'
-      languages:
-        - python
-    tags: ['my_department']
+    config:
+      meta:
+        tool: 'my_tool'
+        languages:
+          - python
+      tags: ['my_department']
 
 """
 
@@ -324,8 +325,8 @@ class TestBaseDocsGenReferences(QuoteColumnsPlusPrefix, BaseDocsGenReferences):
     @pytest.fixture(scope="class")
     def models(self):
         return {
-            "schema.yml": migrate_yml(ref_models__schema_yml),
-            "sources.yml": migrate_yml(ref_sources__schema_yml),
+            "schema.yml": ref_models__schema_yml,
+            "sources.yml": ref_sources__schema_yml,
             "seed_summary.sql": ref_models__seed_summary_sql,
             "view_summary.sql": ref_models__view_summary_sql,
             "docs.md": ref_models__docs_md,

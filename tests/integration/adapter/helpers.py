@@ -126,18 +126,15 @@ def _migrate_config_keys(node):
 
 def _migrate_node(node):
     changed = _migrate_config_keys(node)
-    for key in ('tests', 'data_tests'):
-        if isinstance(node.get(key), list):
-            new_list = []
-            for entry in node[key]:
-                new_entry, entry_changed = _migrate_test_entry(entry)
-                new_list.append(new_entry)
-                changed = changed or entry_changed
-            node[key] = new_list
+    if isinstance(node.get('data_tests'), list):
+        new_list = []
+        for entry in node['data_tests']:
+            new_entry, entry_changed = _migrate_test_entry(entry)
+            new_list.append(new_entry)
+            changed = changed or entry_changed
+        node['data_tests'] = new_list
     for col in node.get('columns') or []:
         changed = _migrate_node(col) or changed
-    for table in node.get('tables') or []:
-        changed = _migrate_node(table) or changed
     return changed
 
 
@@ -149,10 +146,9 @@ def migrate_yml(yml_str):
     if not isinstance(doc, dict):
         return yml_str
     changed = False
-    for section in ('models', 'seeds', 'snapshots', 'sources'):
-        for node in doc.get(section) or []:
-            if isinstance(node, dict):
-                changed = _migrate_node(node) or changed
+    for node in doc.get('models') or []:
+        if isinstance(node, dict):
+            changed = _migrate_node(node) or changed
     for node in doc.get('exposures') or []:
         if isinstance(node, dict):
             changed = _migrate_config_keys(node) or changed
