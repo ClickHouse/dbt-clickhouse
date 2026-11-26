@@ -9,7 +9,6 @@ from clickhouse_connect.driver.httputil import all_managers
 from dbt.adapters.clickhouse.credentials import ClickHouseCredentials
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING, ChRetryableException
 from dbt.adapters.clickhouse.httpclient import ChHttpClient
-from dbt.adapters.exceptions import FailedToConnectError
 from dbt_common.exceptions import DbtConfigError, DbtDatabaseError, DbtRuntimeError
 from urllib3.poolmanager import ProxyManager
 
@@ -467,12 +466,13 @@ def test_access_token_rejects_user_password(extra):
         ClickHouseCredentials(host='localhost', schema='default', access_token='jwt', **extra)
 
 
-def test_access_token_rejected_by_native_driver():
-    credentials = ClickHouseCredentials(
-        host='localhost', port=9000, schema='default', access_token='jwt'
-    )
-    with pytest.raises(FailedToConnectError, match='only supported by the http driver'):
-        dbclient_module.get_db_client(credentials)
+@pytest.mark.parametrize(
+    'auth', [{'access_token': 'jwt'}, {'access_token_provider': 'm:f'}], ids=['token', 'provider']
+)
+@pytest.mark.parametrize('driver', [{'driver': 'native'}, {'port': 9440}], ids=['explicit', 'port'])
+def test_token_auth_rejected_by_native_driver(auth, driver):
+    with pytest.raises(DbtConfigError, match='only supported by the http driver'):
+        ClickHouseCredentials(host='localhost', schema='default', **driver, **auth)
 
 
 def _fake_token():
@@ -534,14 +534,6 @@ def test_access_token_provider_rejects_password():
         ClickHouseCredentials(
             host='localhost', schema='default', password='pw', access_token_provider='m:f'
         )
-
-
-def test_access_token_provider_rejected_by_native_driver():
-    credentials = ClickHouseCredentials(
-        host='localhost', port=9000, schema='default', access_token_provider='m:f'
-    )
-    with pytest.raises(FailedToConnectError, match='only supported by the http driver'):
-        dbclient_module.get_db_client(credentials)
 
 
 def test_dedicated_pool_cleaned_up_on_auth_failure():

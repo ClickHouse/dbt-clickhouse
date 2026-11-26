@@ -69,12 +69,32 @@ class ClickHouseCredentials(Credentials):
             )
         self.database = ''
 
+        if not self.driver:
+            if self.port in (9000, 9440):
+                self.driver = 'native'
+            else:
+                self.driver = 'http'
+
+        if self.driver == 'http':
+            if not self.port:
+                self.port = 8443 if self.secure else 8123
+        elif self.driver == 'native':
+            if not self.port:
+                self.port = 9440 if self.secure else 9000
+        else:
+            raise DbtConfigError(f'Unrecognized ClickHouse driver {self.driver}')
+
         if self.access_token and self.access_token_provider:
             raise DbtConfigError('access_token and access_token_provider cannot both be set.')
         if self.uses_token_auth and (self.password or self.user not in (None, 'default')):
             raise DbtConfigError(
                 'JWT authentication (access_token or access_token_provider) cannot be combined '
                 'with user/password authentication; remove user and password from the profile.'
+            )
+        if self.uses_token_auth and self.driver == 'native':
+            raise DbtConfigError(
+                'JWT authentication (access_token / access_token_provider) is only supported by the '
+                'http driver; set driver: http (and an http port) in the profile'
             )
 
     @property

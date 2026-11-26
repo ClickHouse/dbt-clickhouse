@@ -41,31 +41,7 @@ DEDUP_WINDOW_SETTING_SUPPORTED_MATERIALIZATION = [
 
 
 def get_db_client(credentials: ClickHouseCredentials):
-    driver = credentials.driver
-    port = credentials.port
-    if not driver:
-        if port in (9000, 9440):
-            driver = 'native'
-        else:
-            driver = 'http'
-    if driver == 'http':
-        if not port:
-            port = 8443 if credentials.secure else 8123
-    elif driver == 'native':
-        if not port:
-            port = 9440 if credentials.secure else 9000
-    else:
-        raise FailedToConnectError(f'Unrecognized ClickHouse driver {driver}')
-    if driver == 'native' and credentials.uses_token_auth:
-        raise FailedToConnectError(
-            'JWT authentication (access_token / access_token_provider) is only supported by the '
-            'http driver; '
-            'set driver: http (and an http port) in the profile'
-        )
-
-    credentials.driver = driver
-    credentials.port = port
-    if driver == 'native':
+    if credentials.driver == 'native':
         try:
             import clickhouse_driver  # noqa
             from dbt.adapters.clickhouse.nativeclient import ChNativeClient
