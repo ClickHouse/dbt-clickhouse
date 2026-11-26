@@ -6,22 +6,26 @@
     {% endif %}
 
     {% if column_changes.on_schema_change == 'append_new_columns' %}
-        {% do clickhouse__add_columns(column_changes.columns_to_add, existing_relation, existing_local, is_distributed) %}
+        {% do clickhouse__add_columns(column_changes.columns_to_add, existing_relation, existing_local) %}
 
     {% elif column_changes.on_schema_change == 'sync_all_columns' %}
-        {% do clickhouse__drop_columns(column_changes.columns_to_drop, existing_relation, existing_local, is_distributed) %}
-        {% do clickhouse__add_columns(column_changes.columns_to_add, existing_relation, existing_local, is_distributed) %}
-        {% do clickhouse__modify_columns(column_changes.columns_to_modify, existing_relation, existing_local, is_distributed) %}
+        {% do clickhouse__drop_columns(column_changes.columns_to_drop, existing_relation, existing_local) %}
+        {% do clickhouse__add_columns(column_changes.columns_to_add, existing_relation, existing_local) %}
+        {% do clickhouse__modify_columns(column_changes.columns_to_modify, existing_relation, existing_local) %}
     {% endif %}
 
 {% endmacro %}
 
 {% macro column_codec_clause(column_name) -%}
-    {{ codec_clause(model['columns'].get(column_name, {}).get('codec')) }}
+    {%- if config.get('contract').enforced -%}
+        {{ codec_clause(model['columns'].get(column_name, {}).get('codec')) }}
+    {%- endif -%}
 {%- endmacro %}
 
 {% macro column_ttl_clause(column_name) -%}
-    {{ ttl_clause(model['columns'].get(column_name, {}).get('ttl')) }}
+    {%- if config.get('contract').enforced -%}
+        {{ ttl_clause(model['columns'].get(column_name, {}).get('ttl')) }}
+    {%- endif -%}
 {%- endmacro %}
 
 {% macro exec_alter_table(relation, action, on_cluster='') %}
@@ -31,45 +35,46 @@
 
 {% endmacro %}
 
-{% macro clickhouse__add_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
+{% macro clickhouse__add_columns(columns, existing_relation, existing_local=none) %}
+    {% do clickhouse__alter_columns('add column if not exists', columns, existing_relation, existing_local) %}
+
+{% endmacro %}
+
+{% macro clickhouse__drop_columns(columns, existing_relation, existing_local=none) %}
     {% if columns | length == 0 %}
         {% do return(none) %}
     {% endif %}
-    {% set command = 'add column if not exists' %}
+    {% set actions = [] %}
+    {% for column in columns %}
+        {% do actions.append('drop column if exists `' ~ column.name ~ '`') %}
+    {% endfor %}
+    {% do clickhouse__run_alter_table_command(actions | join(', '), existing_relation, existing_local) %}
+
+{% endmacro %}
+
+{% macro clickhouse__modify_columns(columns, existing_relation, existing_local=none) %}
+    {% do clickhouse__alter_columns('modify column if exists', columns, existing_relation, existing_local) %}
+
+{% endmacro %}
+
+{% macro clickhouse__alter_columns(command, columns, existing_relation, existing_local=none) %}
+    {% if columns | length == 0 %}
+        {% do return(none) %}
+    {% endif %}
     {% set local_actions = [] %}
     {% set distributed_actions = [] %}
     {% for column in columns %}
-        {% set decl = '`' ~ column.name ~ '` ' ~ column.data_type %}
-        {% do local_actions.append(command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) ~ ' ' ~ column_ttl_clause(column.name)) %}
-        {% do distributed_actions.append(command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name)) %}
+        {% set decl = command ~ ' `' ~ column.name ~ '` ' ~ column.data_type ~ ' ' ~ column_codec_clause(column.name) %}
+        {% do local_actions.append(decl ~ ' ' ~ column_ttl_clause(column.name)) %}
+        {% do distributed_actions.append(decl) %}
     {% endfor %}
-    {% do clickhouse__run_alter_table_command(local_actions | join(', '), existing_relation, existing_local, is_distributed, distributed_actions | join(', ')) %}
+    {% set distributed_action = distributed_actions | join(', ') if existing_local is not none else none %}
+    {% do clickhouse__run_alter_table_command(local_actions | join(', '), existing_relation, existing_local, distributed_action) %}
 
 {% endmacro %}
 
-{% macro clickhouse__drop_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
-    {% for column in columns %}
-        {% set alter_action -%}
-            drop column if exists `{{ column.name }}`
-        {%- endset %}
-        {% do clickhouse__run_alter_table_command(alter_action, existing_relation, existing_local, is_distributed) %}
-    {% endfor %}
-
-{% endmacro %}
-
-{% macro clickhouse__modify_columns(columns, existing_relation, existing_local=none, is_distributed=False) %}
-    {% set command = 'modify column if exists' %}
-    {% for column in columns %}
-        {% set decl = '`' ~ column.name ~ '` ' ~ column.data_type %}
-        {% set local_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) ~ ' ' ~ column_ttl_clause(column.name) %}
-        {% set distributed_action = command ~ ' ' ~ decl ~ ' ' ~ column_codec_clause(column.name) %}
-        {% do clickhouse__run_alter_table_command(local_action, existing_relation, existing_local, is_distributed, distributed_action) %}
-    {% endfor %}
-
-{% endmacro %}
-
-{% macro clickhouse__run_alter_table_command(local_action, existing_relation, existing_local=none, is_distributed=False, distributed_action=none) %}
-    {% if is_distributed %}
+{% macro clickhouse__run_alter_table_command(local_action, existing_relation, existing_local=none, distributed_action=none) %}
+    {% if existing_local is not none %}
         {% do exec_alter_table(existing_local, local_action, on_cluster_clause(existing_relation)) %}
         {% do exec_alter_table(existing_relation, distributed_action or local_action, on_cluster_clause(existing_relation)) %}
     {% else %}
