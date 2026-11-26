@@ -2,7 +2,7 @@ from unittest.mock import MagicMock
 
 from dbt.adapters.capability import Capability
 from dbt.adapters.clickhouse.impl import ClickHouseAdapter
-from dbt.adapters.clickhouse.relation import ClickHouseRelation
+from dbt.adapters.clickhouse.relation import ClickHouseRelation, ClickHouseRelationType
 
 
 class FakeCatalog:
@@ -43,3 +43,14 @@ def test_get_filtered_catalog_uses_relation_scoped_fetch_for_small_relation_sets
     assert catalog.predicate is not None
     assert catalog.predicate(FakeRow(table_schema='analytics', table_name='orders'))
     assert not catalog.predicate(FakeRow(table_schema='analytics', table_name='customers'))
+
+
+def test_catalog_sql_reports_dictionaries_with_the_relation_type(macros):
+    """`dbt docs generate` must report the type the adapter already uses for the same relation."""
+    sql = macros.call('clickhouse__get_catalog_results_sql', "where columns.database = 'analytics'")
+    table_type = ' '.join(sql.split())
+
+    dictionary = ClickHouseRelationType.Dictionary.value
+    assert f"tables.engine = 'Dictionary', '{dictionary}'," in table_type
+    assert "tables.engine in ('MaterializedView', 'View'), 'view'," in table_type
+    assert "'table' ) as table_type" in table_type

@@ -17,7 +17,11 @@
       '' as table_database,
       columns.database as table_schema,
       columns.table as table_name,
-      if(tables.engine not in ('MaterializedView', 'View'), 'table', 'view') as table_type,
+      multiIf(
+        tables.engine = 'Dictionary', 'dictionary',
+        tables.engine in ('MaterializedView', 'View'), 'view',
+        'table'
+      ) as table_type,
       nullIf(tables.comment, '') as table_comment,
       columns.name as column_name,
       columns.position as column_index,

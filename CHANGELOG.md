@@ -1,5 +1,7 @@
 ### Unreleased
 
+#### Bugs
+* `dbt docs generate` no longer reports dictionary models as `table` in `catalog.json`. They are now reported as `dictionary`, the same type the adapter uses for them everywhere else ([#791](https://github.com/ClickHouse/dbt-clickhouse/pull/791)).
 
 ### Release [1.10.4], 2026-11-24
 
