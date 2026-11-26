@@ -31,8 +31,8 @@ your_profile_name:
       port: [8123]  # If not set, defaults to 8123, 8443, 9000, 9440 depending on the secure and driver settings
       user: [default] # User for all database operations
       password: [<empty string>] # Password for the user
-      access_token: [null] # JWT access token (ClickHouse Cloud, http driver only). Replaces user/password; the user is derived from the token. Do not set user or password together with this option. Dictionaries with a ClickHouse source cannot use the token; give them user/password via `connection_overrides`.
-      access_token_provider: [null] # Dotted path (`my_pkg.auth:get_token`) to a Python callable returning a JWT. dbt calls it on connect and again whenever ClickHouse rejects the current token, so long runs survive token expiry. The callable must return a well-formed JWT: an expired or otherwise unverifiable token triggers a refresh, a value that is not a JWT fails the run. Same rules as access_token; the two are mutually exclusive. dbt Core 1.x only.
+      access_token: [null] # JWT access token (ClickHouse Cloud, http driver only). See the JWT authentication section below.
+      access_token_provider: [null] # Python function that supplies and refreshes a JWT. See the JWT authentication section below.
       cluster: [<empty string>] # If set, certain DDL/table operations will be executed with the `ON CLUSTER` clause using this cluster. Distributed materializations require this setting to work. See the following ClickHouse Cluster section for more details.
       verify: [True] # Validate TLS certificate if using TLS/SSL
       secure: [False] # Use TLS (native protocol) or HTTPS (http protocol)
@@ -59,6 +59,58 @@ your_profile_name:
       sync_request_timeout: [5] # Timeout for server ping
       compress_block_size: [1048576] # Compression block size if compression is enabled
 ```
+
+### JWT authentication {#jwt-authentication}
+
+On ClickHouse Cloud, dbt can authenticate with a JWT instead of `user` and `password`.
+See [JWT authentication setup](https://clickhouse.com/docs/products/cloud/guides/security/cloud-access-management/jwt-authentication-setup) to configure an identity provider for your service, and the [JWT authentication reference](https://clickhouse.com/docs/concepts/features/security/external-authenticators/jwt) for how ClickHouse validates tokens and derives permissions from them.
+
+JWT authentication requires the `http` driver.
+Set either `access_token` or `access_token_provider`, and leave out `user` and `password`:
+
+```yaml
+your_profile_name:
+  target: dev
+  outputs:
+    dev:
+      type: clickhouse
+      driver: http
+      host: <your-service>.clickhouse.cloud
+      port: 8443
+      secure: True
+      access_token_provider: my_dbt_auth:get_token
+      # or a static token:
+      # access_token: "{{ env_var('DBT_ENV_SECRET_CLICKHOUSE_TOKEN') }}"
+```
+
+A static `access_token` is never refreshed, so a run fails once the token expires.
+Use `access_token_provider` for runs that can outlive a token.
+
+#### Token provider function {#jwt-token-provider}
+
+`access_token_provider` is the path to a Python function, as `module:function` or `module.function`.
+The function takes no arguments and returns a JWT as a string:
+
+```python
+# my_dbt_auth.py
+def get_token() -> str:
+    ...  # fetch a token from your identity provider
+```
+
+dbt calls it when it connects, and again whenever ClickHouse rejects the current token, for example after it expires.
+An expired or otherwise unverifiable token triggers a refresh, but a value that is not a JWT fails the run.
+
+The module must be importable from the Python environment that runs dbt.
+The `dbt` command does not search the dbt project directory, so either install the module as a package in that environment or add its directory to `PYTHONPATH`, for example `PYTHONPATH=. dbt run`.
+
+`access_token_provider` is not available on dbt v2, see [v1 vs v2 parity](/integrations/connectors/data-ingestion/etl-tools/dbt/dbt-core-v2-fusion-and-platform#parity-connectivity-and-auth).
+
+#### Dictionaries {#jwt-dictionaries}
+
+Dictionaries with a `clickhouse` source cannot use the token, because ClickHouse connects to the source with a user and password.
+Set them with the dictionary's [`connection_overrides`](/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#dictionary-configurations) config.
+These values end up in dbt artifacts such as `manifest.json` and in the dictionary's DDL, so use a dedicated user that can only read the source table.
+
 ### Schema vs Database {#schema-vs-database}
 
 The dbt model relation identifier `database.schema.table` isn't compatible with ClickHouse because ClickHouse doesn't
