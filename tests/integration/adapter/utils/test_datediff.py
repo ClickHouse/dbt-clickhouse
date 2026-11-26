@@ -51,3 +51,41 @@ class TestDateDiff(BaseDateDiff):
                 models__test_datediff_sql, "datediff"
             ),
         }
+
+
+# dbt documents string literals as datediff arguments, on either side of a column
+models__test_datediff_string_literals_sql = """
+with data as (
+    select * from {{ ref('data_datediff') }}
+)
+select
+    {{ datediff("'2018-01-01'", "'2018-01-20'", 'day') }} as actual,
+    19 as expected
+union all
+select
+    {{ datediff("'2018-01-01 01:00:00'", "'2018-01-01 02:00:01.5'", 'second') }} as actual,
+    3601 as expected
+union all
+select
+    {{ datediff("first_date", "'2019-01-01 01:00:00'", 'year') }} as actual,
+    1 as expected
+from data
+where datepart = 'year'
+union all
+select
+    {{ datediff("'2018-01-01 01:00:00'", "second_date", 'month') }} as actual,
+    1 as expected
+from data
+where datepart = 'month'
+"""
+
+
+class TestDateDiffStringLiterals(TestDateDiff):
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "test_datediff.yml": models__test_datediff_yml,
+            "test_datediff.sql": self.interpolate_macro_namespace(
+                models__test_datediff_string_literals_sql, "datediff"
+            ),
+        }

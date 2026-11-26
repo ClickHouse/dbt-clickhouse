@@ -1,5 +1,8 @@
 ### Unreleased
 
+#### Bugs
+* Fix `dbt.datediff` failing on ClickHouse when an argument is a string literal such as `'2016-03-09'`, as in dbt's documented usage, and with it `dbt.date_spine` and `dbt.get_intervals_between` with string bounds. A string literal is now read as a `DateTime64(6)`; columns and other expressions are passed through unchanged ([#827](https://github.com/ClickHouse/dbt-clickhouse/pull/827)).
+
 
 ### Release [1.10.4], 2026-11-24
 
