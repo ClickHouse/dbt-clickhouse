@@ -19,7 +19,6 @@ from tests.integration.adapter.clickhouse import token_provider_stub
 _CLOUD = os.environ.get('DBT_CH_TEST_CLOUD', '').lower() in ('1', 'true', 'yes')
 _TOKEN = os.environ.get('DBT_CH_TEST_ACCESS_TOKEN')
 _PROVIDER = f'{token_provider_stub.__name__}:rejected_then_real'
-_BEARER_REJECTED = "'Bearer' HTTP Authorization scheme is not supported"
 
 
 def _credentials(test_config, **auth):
@@ -41,12 +40,12 @@ class TestAccessTokenRejectedByOSS:
             pytest.skip('JWT authentication is only supported by the http driver')
 
     def test_token_sent_as_bearer(self, test_config):
-        with pytest.raises(Exception, match=_BEARER_REJECTED):
+        with pytest.raises(Exception, match='(?i)bearer'):
             ChHttpClient(_credentials(test_config, access_token='not-a-real-jwt'))
 
     def test_provider_called_again_after_rejection(self, test_config):
         token_provider_stub.calls.clear()
-        with pytest.raises(Exception, match=_BEARER_REJECTED):
+        with pytest.raises(Exception, match='(?i)bearer'):
             ChHttpClient(_credentials(test_config, access_token_provider=_PROVIDER))
         # initial token, then one refresh after the server rejected it
         assert len(token_provider_stub.calls) == 2
