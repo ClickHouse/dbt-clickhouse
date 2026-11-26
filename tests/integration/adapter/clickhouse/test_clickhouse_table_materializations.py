@@ -73,15 +73,33 @@ class TestTableMaterializationPrimaryKey:
                       order_by='id', primary_key=[]) }}
             select 1 as id
         """
+        pk_whitespace_string = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='id', primary_key='   ') }}
+            select 1 as id
+        """
+        pk_whitespace_list = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='(id, name)', primary_key=['  id ', '   ', 'name']) }}
+            select 1 as id, 'one' as name
+        """
+        pk_whitespace_only_list = """
+            {{ config(materialized='table', engine='MergeTree()',
+                      order_by='id', primary_key=['   ']) }}
+            select 1 as id
+        """
         return {
             "pk_string.sql": pk_string,
             "pk_list.sql": pk_list,
             "pk_empty_list.sql": pk_empty_list,
+            "pk_whitespace_string.sql": pk_whitespace_string,
+            "pk_whitespace_list.sql": pk_whitespace_list,
+            "pk_whitespace_only_list.sql": pk_whitespace_only_list,
         }
 
     def test_primary_key_variants(self, project):
         results = run_dbt(["run"])
-        assert len(results) == 3
+        assert len(results) == 6
 
         def primary_key_of(model_name):
             relation = relation_from_name(project.adapter, model_name)
@@ -98,6 +116,11 @@ class TestTableMaterializationPrimaryKey:
         assert primary_key_of("pk_list") == "id, name"
         # With the clause omitted, ClickHouse defaults the primary key to the sorting key
         assert primary_key_of("pk_empty_list") == "id"
+        # Whitespace-only strings are trimmed and treated as unset, like '' and []
+        assert primary_key_of("pk_whitespace_string") == "id"
+        # List entries are trimmed and whitespace-only entries dropped
+        assert primary_key_of("pk_whitespace_list") == "id, name"
+        assert primary_key_of("pk_whitespace_only_list") == "id"
 
 
 class TestDistributedMaterializations(BaseSimpleMaterializations):
