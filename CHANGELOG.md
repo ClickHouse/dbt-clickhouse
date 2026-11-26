@@ -1,5 +1,7 @@
 ### Unreleased
 
+#### Bugs
+* Snapshots no longer duplicate rows after an interrupted run. A `<snapshot>__snapshot_upsert` table left behind by a failed run is now dropped before it is recreated, instead of being reused with its old rows ([#806](https://github.com/ClickHouse/dbt-clickhouse/pull/806)).
 
 ### Release [1.10.4], 2026-11-24
 
