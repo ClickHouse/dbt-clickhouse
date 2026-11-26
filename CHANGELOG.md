@@ -1,5 +1,8 @@
 ### Unreleased
 
+#### Improvements
+* Add JWT authentication for ClickHouse Cloud (http driver only): `access_token` takes a static token, and `access_token_provider` names a Python callable that dbt calls for the initial token and again whenever the server rejects it. Both replace `user`/`password` and cannot be combined with them. Requires `clickhouse-connect>=1.2.0` ([#747](https://github.com/ClickHouse/dbt-clickhouse/pull/747)).
+
 
 ### Release [1.10.4], 2026-11-24
 

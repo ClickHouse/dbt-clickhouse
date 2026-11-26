@@ -127,6 +127,7 @@ The tables below compare the features available in `dbt-clickhouse` (v1) with th
 |---------|--------------|--------|-------|
 | Protocol | How dbt talks to ClickHouse. | <Badge color="green">Supported</Badge> | ADBC (Arrow over HTTP) on v2; HTTP and native on v1. |
 | Username and password, TLS | Standard auth. | <Badge color="green">Supported</Badge> | |
+| JWT `access_token_provider` | Profile-level Python callable that supplies and refreshes a ClickHouse Cloud JWT. | <Badge color="red">Not yet</Badge> | Requires Python, so it applies to dbt Core 1.x only. |
 | mTLS client certificates | `client_cert`, `client_cert_key`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored ([ClickHouse/dbt-clickhouse#794](https://github.com/ClickHouse/dbt-clickhouse/issues/794)). |
 | HTTP client options | `connect_timeout`, `send_receive_timeout`, `server_host_name`. | <Badge color="red">Not yet</Badge> | Driver work; the keys are accepted but ignored ([ClickHouse/dbt-clickhouse#795](https://github.com/ClickHouse/dbt-clickhouse/issues/795)). |
 | Connection reuse | `reuse_connections: false` opens a new connection per model. | <Badge color="red">Not yet</Badge> | The key is accepted but ignored ([ClickHouse/dbt-clickhouse#815](https://github.com/ClickHouse/dbt-clickhouse/issues/815)). |

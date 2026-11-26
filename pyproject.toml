@@ -29,7 +29,7 @@ dependencies = [
     "agate>=1.0,<2.0",
     # add dbt-core to ensure backwards compatibility of installation, this is not a functional dependency
     "dbt-core>=1.9,<2.0",
-    "clickhouse-connect>=0.10.0",
+    "clickhouse-connect>=1.2.0",
     "clickhouse-driver>=0.2.10"
 ]
 
