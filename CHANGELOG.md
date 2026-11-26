@@ -1,5 +1,7 @@
 ### Unreleased
 
+#### Bugs
+* `persist_docs` comments on the target table of a refreshable materialized view with `catchup=False` are no longer lost when the view's initial refresh finishes after `dbt run` has added them ([#811](https://github.com/ClickHouse/dbt-clickhouse/pull/811)).
 
 ### Release [1.10.4], 2026-11-24
 

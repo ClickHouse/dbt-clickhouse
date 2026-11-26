@@ -479,7 +479,16 @@
   {% endfor %}
 {%- endmacro %}
 
+{#-
+  A refreshable view created without EMPTY starts its first refresh at once. A non-APPEND refresh
+  replaces the target with a table built from the structure the target had when the refresh
+  started, so comments added while it runs are lost (https://github.com/ClickHouse/dbt-clickhouse/issues/581).
+  They are persisted before the views exist for that reason.
+-#}
 {% macro clickhouse__create_mvs(target_relation, cluster_clause, refreshable_clause, views, create_with_empty=False)  -%}
+  {% if clickhouse__is_refreshable_mv() and not create_with_empty %}
+    {% do persist_docs(target_relation, model) %}
+  {% endif %}
   {% for view, view_sql in views.items() %}
     {%- set mv_relation = target_relation.derivative('_' + view, 'materialized_view') -%}
     {{ clickhouse__create_mv(mv_relation, target_relation, cluster_clause, refreshable_clause, view_sql, create_with_empty=create_with_empty) }};
