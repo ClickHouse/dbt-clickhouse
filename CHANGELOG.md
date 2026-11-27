@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Bugs
+* Restore schema existence checks when a dbt package passes a different database name from the ClickHouse schema ([#834](https://github.com/ClickHouse/dbt-clickhouse/pull/834)).
 * A `primary_key` config that is only whitespace, as a string or as list entries, is now trimmed and treated as unset instead of rendering an invalid `PRIMARY KEY` clause ([#832](https://github.com/ClickHouse/dbt-clickhouse/pull/832)).
 
 ### Release [1.10.4], 2026-11-24
