@@ -169,8 +169,10 @@ constraint_model_schema_yml = """
 version: 2
 models:
   - name: bad_column_constraint_model
-    materialized: table
     config:
+      # dbt core v2 requires `materialized` under `config:` (canonical 1.10+ yml);
+      # model-level placement is a hard dbt1060 error there. Python accepts both.
+      materialized: table
       contract:
         enforced: true
     columns:

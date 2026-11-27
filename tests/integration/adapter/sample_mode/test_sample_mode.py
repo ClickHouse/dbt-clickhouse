@@ -17,6 +17,19 @@ UNION ALL
 select 3 as id, TIMESTAMP '2025-01-03 01:32:00' as event_time
 """
 
+IS_CORE_V2 = bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY'))
+
+# freezegun only freezes the Python clock. The dbt core v2 binary computes a relative `--sample`
+# window from the real time, so its rows are placed relative to now() instead of on fixed dates.
+relative_input_model_sql = """
+{{ config(materialized='table', event_time='event_time') }}
+select 1 as id, now() - INTERVAL 3 DAY as event_time
+UNION ALL
+select 2 as id, now() - INTERVAL 12 HOUR as event_time
+UNION ALL
+select 3 as id, now() - INTERVAL 30 MINUTE as event_time
+"""
+
 
 class TestSampleMode(BaseSampleModeTest):
     @pytest.fixture(scope="class")
@@ -26,6 +39,10 @@ class TestSampleMode(BaseSampleModeTest):
         event_time is a required configuration of this input
         """
         return input_model_sql
+
+    @pytest.mark.skipif(IS_CORE_V2, reason='covered by TestSampleModeRelativeWindow under v2')
+    def test_sample_mode(self, project) -> None:
+        super().test_sample_mode(project)
 
     @mock.patch.dict(os.environ, {"DBT_EXPERIMENTAL_SAMPLE_MODE": "True"})
     def test_sample_mode_with_range(self, project) -> None:
@@ -42,3 +59,10 @@ class TestSampleMode(BaseSampleModeTest):
             relation_name="model_that_samples_input_sql",
             expected_row_count=1,
         )
+
+
+@pytest.mark.skipif(not IS_CORE_V2, reason='v2 variant of TestSampleMode::test_sample_mode')
+class TestSampleModeRelativeWindow(BaseSampleModeTest):
+    @pytest.fixture(scope="class")
+    def input_model_sql(self) -> str:
+        return relative_input_model_sql

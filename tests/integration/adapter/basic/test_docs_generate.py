@@ -1,18 +1,66 @@
+import os
+
 import pytest
 from dbt.tests.adapter.basic.expected_catalog import base_expected_catalog, no_stats
 from dbt.tests.adapter.basic.test_docs_generate import (
     BaseDocsGenerate,
     BaseDocsGenReferences,
     ref_sources__schema_yml,
+    run_and_generate,
+    verify_catalog,
 )
 
+from tests.integration.adapter.helpers import MigratedTestArgs
 
-class TestBaseDocsGenerate(BaseDocsGenerate):
+IS_CORE_V2 = bool(os.environ.get('DBT_CH_TEST_CORE_V2_BINARY'))
+
+# Python's agate reads the catalog's empty `table_owner` as null; dbt core v2 keeps
+# the empty string the ClickHouse catalog macro selects.
+CATALOG_OWNER = '' if IS_CORE_V2 else None
+
+
+class QuoteColumnsPlusPrefix:
+    """dbt core v2 only accepts dbt_project.yml seed configs in the `+key` form;
+    dbt-core accepts both."""
+
+    @pytest.fixture(scope="class")
+    def project_config_update(self, unique_schema):
+        alternate_schema = unique_schema + "_test"
+        return {
+            "asset-paths": ["assets", "invalid-asset-paths"],
+            "vars": {
+                "test_schema": unique_schema,
+                "alternate_schema": alternate_schema,
+            },
+            "seeds": {
+                "+quote_columns": True,
+            },
+        }
+
+
+class TestBaseDocsGenerate(QuoteColumnsPlusPrefix, MigratedTestArgs, BaseDocsGenerate):
+    # dbt core v2's `docs generate` writes no catalog.json; the harness maps it to
+    # `compile --write-catalog`, which knows no `--no-compile` and copies no docs-site
+    # assets. Only the catalog itself is comparable across engines.
+    def test_run_and_generate_no_compile(self, project, expected_catalog):
+        if IS_CORE_V2:
+            pytest.skip(
+                "dbt core v2 writes catalog.json only via `compile --write-catalog`, which has no `--no-compile`"
+            )
+        super().test_run_and_generate_no_compile(project, expected_catalog)
+
+    def test_run_and_generate(self, project, expected_catalog):
+        if not IS_CORE_V2:
+            super().test_run_and_generate(project, expected_catalog)
+            return
+        start_time = run_and_generate(project)
+        verify_catalog(project, expected_catalog, start_time)
+
     @pytest.fixture(scope="class")
     def expected_catalog(self, project, profile_user):
         return base_expected_catalog(
             project,
-            role=None,
+            role=CATALOG_OWNER,
             id_type="Int32",
             text_type="String",
             time_type="DateTime",
@@ -48,11 +96,12 @@ exposures:
     description: "{{ doc('notebook_info') }}"
     maturity: medium
     url: http://example.com/notebook/1
-    meta:
-      tool: 'my_tool'
-      languages:
-        - python
-    tags: ['my_department']
+    config:
+      meta:
+        tool: 'my_tool'
+        languages:
+          - python
+      tags: ['my_department']
 
 """
 
@@ -258,12 +307,12 @@ def expected_references_catalog(
     }
 
 
-class TestBaseDocsGenReferences(BaseDocsGenReferences):
+class TestBaseDocsGenReferences(QuoteColumnsPlusPrefix, BaseDocsGenReferences):
     @pytest.fixture(scope="class")
     def expected_catalog(self, project, profile_user):
         return expected_references_catalog(
             project,
-            role=None,
+            role=CATALOG_OWNER,
             id_type="Int32",
             text_type="String",
             time_type="DateTime",
