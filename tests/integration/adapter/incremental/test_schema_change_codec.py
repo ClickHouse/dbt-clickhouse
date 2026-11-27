@@ -1,7 +1,19 @@
 import os
 
 import pytest
-from dbt.tests.util import run_dbt
+from dbt.tests.util import run_dbt, write_file
+
+
+def assert_column_codec(project, model, applied=True):
+    is_distributed = "distributed" in model
+    relation = f"{model}_local" if is_distributed else model
+    ddl = project.run_sql(f"SHOW CREATE TABLE {project.test_schema}.{relation}", fetch="one")[0]
+    if not applied:
+        assert "CODEC" not in ddl
+        return
+    assert "CODEC" in ddl
+    assert ("LZ4" if is_distributed else "ZSTD") in ddl
+
 
 schema_change_with_codec_sql = """
 {{
@@ -27,10 +39,46 @@ from numbers(2, 3)
 """
 
 
-schema_change_with_codec_yml = """
+schema_change_with_codec_first_yml = """
 version: 2
 models:
   - name: schema_change_codec_append
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_2
+        data_type: UInt64
+  - name: schema_change_codec_distributed_append
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_2
+        data_type: UInt64
+  - name: schema_change_codec_append_no_contract
+    columns:
+      - name: col_3
+        data_type: UInt64
+        codec: ZSTD
+  - name: schema_change_codec_distributed_append_no_contract
+    columns:
+      - name: col_3
+        data_type: UInt64
+        codec: LZ4
+"""
+
+schema_change_with_codec_second_yml = """
+version: 2
+models:
+  - name: schema_change_codec_append
+    config:
+      contract:
+        enforced: true
     columns:
       - name: col_1
         data_type: UInt64
@@ -40,11 +88,24 @@ models:
         data_type: UInt64
         codec: ZSTD
   - name: schema_change_codec_distributed_append
+    config:
+      contract:
+        enforced: true
     columns:
       - name: col_1
         data_type: UInt64
       - name: col_2
         data_type: UInt64
+      - name: col_3
+        data_type: UInt64
+        codec: LZ4
+  - name: schema_change_codec_append_no_contract
+    columns:
+      - name: col_3
+        data_type: UInt64
+        codec: ZSTD
+  - name: schema_change_codec_distributed_append_no_contract
+    columns:
       - name: col_3
         data_type: UInt64
         codec: LZ4
@@ -59,24 +120,35 @@ class TestSchemaChangeWithCodec:
             % ("incremental", "append_new_columns"),
             "schema_change_codec_distributed_append.sql": schema_change_with_codec_sql
             % ("distributed_incremental", "append_new_columns"),
-            "schema.yml": schema_change_with_codec_yml,
+            "schema_change_codec_append_no_contract.sql": schema_change_with_codec_sql
+            % ("incremental", "append_new_columns"),
+            "schema_change_codec_distributed_append_no_contract.sql": schema_change_with_codec_sql
+            % ("distributed_incremental", "append_new_columns"),
+            "schema.yml": schema_change_with_codec_first_yml,
         }
 
     @pytest.mark.parametrize(
-        "model", ("schema_change_codec_append", "schema_change_codec_distributed_append")
+        "model",
+        (
+            "schema_change_codec_append",
+            "schema_change_codec_distributed_append",
+            "schema_change_codec_append_no_contract",
+            "schema_change_codec_distributed_append_no_contract",
+        ),
     )
     def test_append_with_codec(self, project, model):
-        if (
-            model == "schema_change_codec_distributed_append"
-            and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == ''
-        ):
+        if "distributed" in model and os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
             pytest.skip("Not on a cluster")
 
+        write_file(schema_change_with_codec_first_yml, project.project_root, "models", "schema.yml")
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
         assert result[0][1] == 1
 
+        write_file(
+            schema_change_with_codec_second_yml, project.project_root, "models", "schema.yml"
+        )
         run_dbt(["--debug", "run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
 
@@ -84,14 +156,7 @@ class TestSchemaChangeWithCodec:
         assert result[0][2] == 0
         assert result[3][2] == 5
 
-        table_name = f"{project.test_schema}.{model}"
-        create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
-
-        assert "CODEC" in create_table_sql
-        if "distributed" in model:
-            assert "LZ4" in create_table_sql
-        else:
-            assert "ZSTD" in create_table_sql
+        assert_column_codec(project, model, applied="no_contract" not in model)
 
 
 sync_all_columns_with_codec_sql = """
@@ -116,17 +181,37 @@ from numbers(2, 3)
 {%% endif %%}
 """
 
-sync_all_columns_with_codec_yml = """
+sync_all_columns_with_codec_first_yml = """
 version: 2
 models:
   - name: sync_codec_test
     columns:
-      - name: col_1
-        data_type: Float32
       - name: col_3
         data_type: UInt64
         codec: ZSTD
   - name: sync_codec_distributed_test
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: col_1
+        data_type: UInt8
+      - name: col_2
+        data_type: UInt64
+"""
+
+sync_all_columns_with_codec_second_yml = """
+version: 2
+models:
+  - name: sync_codec_test
+    columns:
+      - name: col_3
+        data_type: UInt64
+        codec: ZSTD
+  - name: sync_codec_distributed_test
+    config:
+      contract:
+        enforced: true
     columns:
       - name: col_1
         data_type: Float32
@@ -143,7 +228,7 @@ class TestSyncAllColumnsWithCodec:
             "sync_codec_test.sql": sync_all_columns_with_codec_sql % "incremental",
             "sync_codec_distributed_test.sql": sync_all_columns_with_codec_sql
             % "distributed_incremental",
-            "schema.yml": sync_all_columns_with_codec_yml,
+            "schema.yml": sync_all_columns_with_codec_first_yml,
         }
 
     @pytest.mark.parametrize("model", ("sync_codec_test", "sync_codec_distributed_test"))
@@ -154,11 +239,17 @@ class TestSyncAllColumnsWithCodec:
         ):
             pytest.skip("Not on a cluster")
 
+        write_file(
+            sync_all_columns_with_codec_first_yml, project.project_root, "models", "schema.yml"
+        )
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
         assert len(result) == 3
         assert result[0][1] == 1
 
+        write_file(
+            sync_all_columns_with_codec_second_yml, project.project_root, "models", "schema.yml"
+        )
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select * from {model} order by col_1", fetch="all")
 
@@ -166,16 +257,77 @@ class TestSyncAllColumnsWithCodec:
         assert result[0][1] == 0
         assert result[3][1] == 5
 
-        table_name = f"{project.test_schema}.{model}"
-        create_table_sql = project.run_sql(f"SHOW CREATE TABLE {table_name}", fetch="one")[0]
-
-        assert "CODEC" in create_table_sql
-        if "distributed" in model:
-            assert "LZ4" in create_table_sql
-        else:
-            assert "ZSTD" in create_table_sql
+        assert_column_codec(project, model, applied=model == "sync_codec_distributed_test")
 
         result_types = project.run_sql(
             f"select toColumnTypeName(col_1) from {model} limit 1", fetch="one"
         )
         assert "Float32" in result_types[0]
+
+
+distributed_table_codec_sql = """
+{{
+    config(materialized='distributed_table')
+}}
+select
+    number as col_1,
+    number + 1 as col_2
+from numbers(3)
+"""
+
+distributed_table_codec_yml = """
+version: 2
+models:
+  - name: dist_table_rebuild_codec
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_2
+        data_type: UInt64
+        codec: LZ4
+  - name: dist_table_codec_no_contract
+    columns:
+      - name: col_1
+        data_type: UInt64
+      - name: col_2
+        data_type: UInt64
+        codec: LZ4
+"""
+
+
+class TestDistributedTableRebuildWithCodec:
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "dist_table_rebuild_codec.sql": distributed_table_codec_sql,
+            "dist_table_codec_no_contract.sql": distributed_table_codec_sql,
+            "schema.yml": distributed_table_codec_yml,
+        }
+
+    def test_codec_survives_rebuild(self, project):
+        if os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+
+        run_dbt(["run", "--select", "dist_table_rebuild_codec"])
+        run_dbt(["run", "--select", "dist_table_rebuild_codec"])
+
+        ddl = project.run_sql(
+            f"SHOW CREATE TABLE {project.test_schema}.dist_table_rebuild_codec_local", fetch="one"
+        )[0]
+        assert "CODEC" in ddl
+        assert "LZ4" in ddl
+
+    def test_codec_not_applied_without_contract(self, project):
+        if os.environ.get('DBT_CH_TEST_CLUSTER', '').strip() == '':
+            pytest.skip("Not on a cluster")
+
+        run_dbt(["run", "--select", "dist_table_codec_no_contract"])
+
+        ddl = project.run_sql(
+            f"SHOW CREATE TABLE {project.test_schema}.dist_table_codec_no_contract_local",
+            fetch="one",
+        )[0]
+        assert "CODEC" not in ddl
