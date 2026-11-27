@@ -11,6 +11,7 @@
 * `persist_docs` now warns about columns documented in the schema yml that do not exist in the relation ([#798](https://github.com/ClickHouse/dbt-clickhouse/pull/798)).
 * SQL statements are now logged with dbt's standard `SQLQuery` and `SQLQueryStatus` debug events, including the ClickHouse query ID, so log consumers and `dbtRunner` callbacks see them as for other adapters ([#807](https://github.com/ClickHouse/dbt-clickhouse/pull/807)).
 * `dbt-core` is now capped at `<2.0`, and `dbt-common` and `agate` are declared as direct dependencies, matching dbt-labs adapters ([#776](https://github.com/ClickHouse/dbt-clickhouse/pull/776)).
+* A materialized view with `catchup=True` (the default) now warns when its explicit target table sets `repopulate_from_mvs_on_full_refresh=True`, since a full refresh of both can backfill the target twice and duplicate its data ([#796](https://github.com/ClickHouse/dbt-clickhouse/pull/796)).
 
 #### Bugs
 * An `incremental` model with an explicit `legacy`, `delete+insert` or `microbatch` strategy and no `unique_key` now fails with a clear error instead of silently appending. Strategy validation now runs on the first build, not only on incremental runs ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
