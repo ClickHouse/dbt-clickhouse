@@ -5,6 +5,9 @@
 
 ### Release [1.10.4], 2026-11-24
 
+#### New Features
+* Add an opt-in `create_if_not_exists` model config for first-creation races when concurrent runs build the same non-replicated table. It defaults to disabled and cannot be combined with contracts, projections, or indexes ([#722](https://github.com/ClickHouse/dbt-clickhouse/pull/722)).
+
 #### Improvements
 * Without a `unique_key`, the default incremental strategy is now `append`, so such models now fail if they set `incremental_predicates`. `append` also replaces `inserts_only`, which is now deprecated and logs a warning that fails runs under `--warn-error` ([#802](https://github.com/ClickHouse/dbt-clickhouse/pull/802)).
 * Support dbt functions (UDFs) as ClickHouse SQL UDFs, both scalar and aggregate. See the [ClickHouse notes](https://clickhouse.com/docs/integrations/connectors/data-ingestion/etl-tools/dbt/materializations#functions) ([#809](https://github.com/ClickHouse/dbt-clickhouse/pull/809)).

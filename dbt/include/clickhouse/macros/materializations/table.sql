@@ -287,7 +287,8 @@
 
 {% macro clickhouse__create_table_as(temporary, relation, sql) -%}
     {% set has_contract = config.get('contract').enforced %}
-    {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract) }}
+    {%- set create_if_not_exists = config.get('create_if_not_exists', false) and not temporary -%}
+    {{ clickhouse__create_empty_table(temporary, relation, sql, has_contract, if_not_exists=create_if_not_exists) }}
     {%- if not temporary %}
         {{ clickhouse__insert_into(relation, sql, has_contract) }}
     {%- endif %}
@@ -296,9 +297,9 @@
 {#
     "CREATE TABLE" step extracted from clickhouse__create_table_as so it can be used by other macros.
 #}
-{% macro clickhouse__create_empty_table(temporary, relation, sql, has_contract, statement_name='create_table_empty') %}
+{% macro clickhouse__create_empty_table(temporary, relation, sql, has_contract, statement_name='create_table_empty', if_not_exists=false) %}
     {% call statement(statement_name) %}
-        {{ create_table_or_empty(temporary, relation, sql, has_contract) }}
+        {{ create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=if_not_exists) }}
     {% endcall %}
     {%- if not temporary %}
         {{ add_index_and_projections(relation) }}
@@ -382,7 +383,7 @@
     {% endif %}
 {% endmacro %}
 
-{% macro create_table_or_empty(temporary, relation, sql, has_contract) -%}
+{% macro create_table_or_empty(temporary, relation, sql, has_contract, if_not_exists=false) -%}
     {%- set sql_header = config.get('sql_header', none) -%}
 
     {{ sql_header if sql_header is not none }}
@@ -395,7 +396,7 @@
           {{ sql }}
         )
     {%- else %}
-        create table {{ relation }}
+        create table {% if if_not_exists %}if not exists {% endif %}{{ relation }}
         {{ on_cluster_clause(relation)}}
         {%- if has_contract%}
           {{ get_assert_columns_equivalent(sql) }}
