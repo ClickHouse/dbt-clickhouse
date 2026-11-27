@@ -1,4 +1,3 @@
-import re
 import uuid
 from typing import List
 
@@ -11,27 +10,6 @@ from dbt.adapters.clickhouse.__version__ import version as dbt_clickhouse_versio
 from dbt.adapters.clickhouse.dbclient import ChClientWrapper, ChRetryableException
 from dbt.adapters.clickhouse.util import hide_stack_trace
 from dbt_common.exceptions import DbtDatabaseError
-
-# A single-quoted string literal or a backquoted identifier, each with its escapes
-_QUOTED_TOKEN_REGEX = re.compile(r"'(?:[^'\\]|\\.|'')*'|`(?:[^`\\]|\\.|``)*`")
-_BARE_IDENTIFIER_REGEX = re.compile(r'[A-Za-z_][0-9A-Za-z_]*')
-
-
-def _unquote_if_bare(match: re.Match) -> str:
-    token = match.group(0)
-    name = token[1:-1]
-    if token[0] == '`' and _BARE_IDENTIFIER_REGEX.fullmatch(name) and name.lower() != 'null':
-        return name
-    return token
-
-
-def server_type_name(type_name: str) -> str:
-    """clickhouse-connect renders a parsed type name with every identifier inside it
-    backquoted, e.g. the element names of a named Tuple, while the server (and so
-    system.columns and the native driver) only quotes those that need it. Schema
-    change detection compares type names verbatim, so drop the backquotes the server
-    would not have written."""
-    return _QUOTED_TOKEN_REGEX.sub(_unquote_if_bare, type_name)
 
 
 class ChHttpClient(ChClientWrapper):
@@ -66,7 +44,7 @@ class ChHttpClient(ChClientWrapper):
                 **kwargs,
             )
             return [
-                ClickHouseColumn.create(name, server_type_name(ch_type.name))
+                ClickHouseColumn.create(name, ch_type.name)
                 for name, ch_type in zip(
                     query_result.column_names, query_result.column_types, strict=True
                 )

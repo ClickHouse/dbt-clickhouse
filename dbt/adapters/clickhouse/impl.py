@@ -23,7 +23,11 @@ from dbt.adapters.base.impl import BaseAdapter, ConstraintSupport
 from dbt.adapters.base.relation import BaseRelation, InformationSchema
 from dbt.adapters.capability import Capability, CapabilityDict, CapabilitySupport, Support
 from dbt.adapters.clickhouse.cache import ClickHouseRelationsCache
-from dbt.adapters.clickhouse.column import ClickHouseColumn, ClickHouseColumnChanges
+from dbt.adapters.clickhouse.column import (
+    ClickHouseColumn,
+    ClickHouseColumnChanges,
+    comparable_type_name,
+)
 from dbt.adapters.clickhouse.connections import ClickHouseConnectionManager
 from dbt.adapters.clickhouse.dbclient import ND_MUTATION_SETTING
 from dbt.adapters.clickhouse.errors import (
@@ -267,7 +271,9 @@ class ClickHouseAdapter(SQLAdapter):
         changed_data_types = []
         for column in target_in_source:
             source_column = source_map.get(column.name)
-            if source_column is not None and column.dtype != source_column.dtype:
+            if source_column is not None and comparable_type_name(
+                column.dtype
+            ) != comparable_type_name(source_column.dtype):
                 changed_data_types.append(column)
 
         clickhouse_column_changes = ClickHouseColumnChanges(

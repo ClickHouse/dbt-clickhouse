@@ -3,9 +3,37 @@ from dataclasses import dataclass, field
 from typing import Any, List, Literal, TypeVar
 
 from dbt.adapters.base.column import Column
+from dbt.adapters.clickhouse.query import escape_str
 from dbt_common.exceptions import DbtRuntimeError
 
 Self = TypeVar('Self', bound='ClickHouseColumn')
+
+# A single-quoted string literal or a backquoted identifier, each with its escapes
+_QUOTED_TOKEN_REGEX = re.compile(r"'(?:[^'\\]|\\.|'')*'|`(?:[^`\\]|\\.|``)*`")
+_IDENTIFIER_ESCAPE_REGEX = re.compile(r'\\(.)|``')
+_BARE_IDENTIFIER_REGEX = re.compile(r'[A-Za-z_][0-9A-Za-z_]*')
+_SPACE_AROUND_PUNCTUATION_REGEX = re.compile(r'\s*([(),=])\s*')
+
+
+def _comparable_identifier(quoted: str) -> str:
+    name = _IDENTIFIER_ESCAPE_REGEX.sub(lambda m: m.group(1) or '`', quoted[1:-1])
+    if _BARE_IDENTIFIER_REGEX.fullmatch(name):
+        return name
+    return f'`{escape_str(name)}`'
+
+
+def comparable_type_name(type_name: str) -> str:
+    """Type name with the quotes and spacing that differ between the server's and
+    clickhouse-connect's spelling normalised away. Only for comparisons, not for DDL."""
+    parts = []
+    pos = 0
+    for match in _QUOTED_TOKEN_REGEX.finditer(type_name):
+        parts.append(_SPACE_AROUND_PUNCTUATION_REGEX.sub(r'\1', type_name[pos : match.start()]))
+        token = match.group(0)
+        parts.append(_comparable_identifier(token) if token[0] == '`' else token)
+        pos = match.end()
+    parts.append(_SPACE_AROUND_PUNCTUATION_REGEX.sub(r'\1', type_name[pos:]))
+    return ''.join(parts)
 
 
 @dataclass

@@ -386,7 +386,8 @@ named_tuple_sql = """
 
 select
     number as id,
-    CAST([], 'Array(Tuple(id UInt64, name String, request_count UInt64))') as tags
+    CAST([], 'Array(Tuple(id UInt64, name String, request_count UInt64))') as tags,
+    CAST((1, 'a'), 'Tuple(`from` UInt8, `table` String)') as keyword_names
 from numbers(3)
 """
 
@@ -411,7 +412,8 @@ class TestNamedTupleSchemaChange:
         )
         assert result[0] == 'Array(Tuple(id UInt64, name String, request_count UInt64))'
         # The HTTP driver reported the element names backquoted, which failed this
-        # run with a spurious type change
+        # run with a spurious type change. Which of the keyword_names elements the
+        # server quotes depends on its version.
         run_dbt(["run", "--select", model])
         result = project.run_sql(f"select count() from {model}", fetch="one")
         assert result[0] == 6
