@@ -359,6 +359,11 @@ class ClickHouseAdapter(SQLAdapter):
 
         return f"s3('{url}'{access}, '{fmt}'{struct}{comp}{extra_credentials})"
 
+    def check_schema_exists(self, database: str, schema: str) -> bool:
+        # The dbt schema names the ClickHouse database. The dbt database
+        # argument can be a different logical name supplied by packages.
+        return super().check_schema_exists(schema, schema)
+
     def drop_schema(self, relation: BaseRelation) -> None:
         super().drop_schema(relation)
         conn = self.connections.get_if_exists()
