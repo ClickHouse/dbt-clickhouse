@@ -33,7 +33,7 @@
       {#-- Column with name not found in yaml #}
       {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
     {%- endif -%}
-    {%- if sql_col['data_type'] != yaml_col[0]['data_type'] -%}
+    {%- if not adapter.data_types_match(sql_col['data_type'], yaml_col[0]['data_type']) -%}
       {#-- Column data types don't match #}
       {%- do exceptions.raise_contract_error(yaml_columns, sql_columns) -%}
     {%- endif -%}

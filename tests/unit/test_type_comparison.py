@@ -75,3 +75,17 @@ def test_schema_change_check_detects_tuple_element_type_change():
     changes = adapter.check_incremental_schema_changes('sync_all_columns', None, 'select 1')
 
     assert [column.name for column in changes.columns_to_modify] == ['tags']
+
+
+@pytest.mark.parametrize(
+    'left,right,expected',
+    [
+        ('Tuple(id UInt64)', 'Tuple(`id` UInt64)', True),
+        ('Tuple(id UInt64)', 'Tuple(id String)', False),
+        ('String', None, False),
+        (None, None, True),
+    ],
+)
+def test_data_types_match(left, right, expected):
+    adapter = ClickHouseAdapter.__new__(ClickHouseAdapter)
+    assert adapter.data_types_match(left, right) is expected

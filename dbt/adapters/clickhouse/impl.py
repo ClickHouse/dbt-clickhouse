@@ -199,6 +199,13 @@ class ClickHouseAdapter(SQLAdapter):
         return ClickHouseRelation.get_on_cluster()
 
     @available
+    def data_types_match(self, left: Optional[str], right: Optional[str]) -> bool:
+        """True if both type names are the same type, however each driver spells it."""
+        if left is None or right is None:
+            return left == right
+        return comparable_type_name(left) == comparable_type_name(right)
+
+    @available
     def render_event_time_filter(
         self, field_name: str, start: Optional[datetime], end: Optional[datetime]
     ) -> str:
@@ -271,9 +278,9 @@ class ClickHouseAdapter(SQLAdapter):
         changed_data_types = []
         for column in target_in_source:
             source_column = source_map.get(column.name)
-            if source_column is not None and comparable_type_name(
-                column.dtype
-            ) != comparable_type_name(source_column.dtype):
+            if source_column is not None and not self.data_types_match(
+                column.dtype, source_column.dtype
+            ):
                 changed_data_types.append(column)
 
         clickhouse_column_changes = ClickHouseColumnChanges(
