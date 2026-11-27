@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Bugs
+* Fix incremental models with `on_schema_change` failing on the HTTP driver with a spurious type change for named `Tuple` columns, such as `Array(Tuple(id UInt64, name String))`. Since 1.10.4 this also hit models without a `unique_key`, which now run the schema change check ([#XXX](https://github.com/ClickHouse/dbt-clickhouse/pull/XXX)).
 * A `primary_key` config that is only whitespace, as a string or as list entries, is now trimmed and treated as unset instead of rendering an invalid `PRIMARY KEY` clause ([#832](https://github.com/ClickHouse/dbt-clickhouse/pull/832)).
 
 ### Release [1.10.4], 2026-11-24
