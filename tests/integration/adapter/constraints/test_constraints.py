@@ -132,6 +132,26 @@ class ClickHouseContractColumnsEqual:
         ]
         assert all([(exp in log_output or exp.upper() in log_output) for exp in expected])
 
+    def test__contract_named_tuple_data_type(self, project):
+        # The HTTP driver reports the element names backquoted; either spelling must pass
+        write_file(
+            my_model_data_type_sql.format(
+                sql_value="CAST((1, 'a'), 'Tuple(id UInt64, name String)')"
+            ),
+            "models",
+            "my_model_data_type.sql",
+        )
+        for schema_data_type in (
+            'Tuple(id UInt64, name String)',
+            'Tuple(`id` UInt64, `name` String)',
+        ):
+            write_file(
+                model_data_type_schema_yml.format(data_type=schema_data_type),
+                "models",
+                "contract_schema.yml",
+            )
+            run_dbt(["run", "-s", "my_model_data_type"])
+
     def test__contract_correct_column_data_types(self, project, data_types):
         for sql_column_value, schema_data_type, _ in data_types:
             # Write parametrized data_type to sql file

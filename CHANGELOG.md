@@ -1,6 +1,7 @@
 ### Unreleased
 
 #### Bugs
+* Fix `on_schema_change` and `mv_on_schema_change` reporting a spurious type change on the HTTP driver for named `Tuple` columns, such as `Array(Tuple(id UInt64, name String))`, and for `JSON` columns with parameters ([#836](https://github.com/ClickHouse/dbt-clickhouse/pull/836)).
 * A `primary_key` config that is only whitespace, as a string or as list entries, is now trimmed and treated as unset instead of rendering an invalid `PRIMARY KEY` clause ([#832](https://github.com/ClickHouse/dbt-clickhouse/pull/832)).
 
 ### Release [1.10.4], 2026-11-24
